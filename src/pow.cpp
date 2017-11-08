@@ -1,7 +1,22 @@
-// Copyright (c) 2009-2010 Satoshi Nakamoto
-// Copyright (c) 2009-2015 The Bitcoin Core developers
-// Distributed under the MIT software license, see the accompanying
-// file COPYING or http://www.opensource.org/licenses/mit-license.php.
+/*
+ * This file is part of the Flowee project
+ * Copyright (c) 2009-2010 Satoshi Nakamoto
+ * Copyright (c) 2009-2015 The Bitcoin Core developers
+ * Copyright (c) 2017 Tom Zander <tomz@freedommail.ch>
+ *
+ * This program is free software: you can redistribute it and/or modify
+ * it under the terms of the GNU General Public License as published by
+ * the Free Software Foundation, either version 3 of the License, or
+ * (at your option) any later version.
+ *
+ * This program is distributed in the hope that it will be useful,
+ * but WITHOUT ANY WARRANTY; without even the implied warranty of
+ * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
+ * GNU General Public License for more details.
+ *
+ * You should have received a copy of the GNU General Public License
+ * along with this program.  If not, see <http://www.gnu.org/licenses/>.
+ */
 
 #include "pow.h"
 #include <Application.h>
@@ -12,14 +27,13 @@
 #include "uint256.h"
 #include "util.h"
 
-unsigned int GetNextWorkRequired(const CBlockIndex* pindexPrev, const CBlockHeader *pblock, const Consensus::Params& params)
+
+namespace {
+/**
+ * Compute the next required proof of work using the legacy Satoshi Difficulty adjustment + Emergency Difficulty Adjustment (EDA).
+ */
+uint32_t GetNextEDAWorkRequired(const CBlockIndex *pindexPrev, const CBlockHeader *pblock, const Consensus::Params &params)
 {
-    unsigned int nProofOfWorkLimit = UintToArith256(params.powLimit).GetCompact();
-
-    // Genesis block
-    if (!pindexPrev)
-        return nProofOfWorkLimit;
-
     // Only change once per difficulty adjustment interval
     uint32_t nHeight = pindexPrev->nHeight + 1;
     if (nHeight % params.DifficultyAdjustmentInterval() == 0) {
@@ -31,6 +45,8 @@ unsigned int GetNextWorkRequired(const CBlockIndex* pindexPrev, const CBlockHead
 
         return CalculateNextWorkRequired(pindexPrev, pindexFirst->GetBlockTime(), params);
     }
+
+    const uint32_t nProofOfWorkLimit = UintToArith256(params.powLimit).GetCompact();
 
     if (params.fPowAllowMinDifficultyBlocks) {
         // Special difficulty rule for testnet:
@@ -49,7 +65,7 @@ unsigned int GetNextWorkRequired(const CBlockIndex* pindexPrev, const CBlockHead
         return pindex->nBits;
     }
 
-    // We can't go below the minimum, so early exit.
+    // We can't go below the minimum, so bail early.
     uint32_t nBits = pindexPrev->nBits;
     if (nBits == nProofOfWorkLimit)
         return nProofOfWorkLimit;
@@ -57,7 +73,7 @@ unsigned int GetNextWorkRequired(const CBlockIndex* pindexPrev, const CBlockHead
     if (Application::uahfChainState() == Application::UAHFDisabled)
         return nBits;
 
-    // If producing the last 6 block took less than 12h, we keep the same
+    // If producing the last 6 blocks took less than 12h, we keep the same
     // difficulty.
     const CBlockIndex *pindex6 = pindexPrev->GetAncestor(nHeight - 7);
     assert(pindex6);
@@ -65,9 +81,10 @@ unsigned int GetNextWorkRequired(const CBlockIndex* pindexPrev, const CBlockHead
     if (mtp6blocks < 12 * 3600)
         return nBits;
 
-    // If producing the last 6 block took more than 12h, increase the difficulty
-    // target by 1/4 (which reduces the difficulty by 20%). This ensure the
-    // chain does not get stuck in case we lose hashrate abruptly.
+    // If producing the last 6 blocks took more than 12h, increase the
+    // difficulty target by 1/4 (which reduces the difficulty by 20%).
+    // This ensures that the chain does not get stuck in case we lose
+    // hashrate abruptly.
     arith_uint256 nPow;
     nPow.SetCompact(nBits);
     nPow += (nPow >> 2);
@@ -80,14 +97,137 @@ unsigned int GetNextWorkRequired(const CBlockIndex* pindexPrev, const CBlockHead
     return nPow.GetCompact();
 }
 
-unsigned int CalculateNextWorkRequired(const CBlockIndex* pindexLast, int64_t nFirstBlockTime, const Consensus::Params& params)
+/**
+ * Compute a target based on the work done between 2 blocks and the time
+ * required to produce that work.
+ */
+arith_uint256 ComputeTarget(const CBlockIndex *pindexFirst, const CBlockIndex *pindexLast, const Consensus::Params &params)
+{
+    assert(pindexLast->nHeight > pindexFirst->nHeight);
+
+    /**
+     * From the total work done and the time it took to produce that much work,
+     * we can deduce how much work we expect to be produced in the targeted time
+     * between blocks.
+     */
+    arith_uint256 work = pindexLast->nChainWork - pindexFirst->nChainWork;
+    work *= params.nPowTargetSpacing;
+
+    // In order to avoid difficulty cliffs, we bound the amplitude of the
+    // adjustment we are going to do to a factor in [0.5, 2].
+    int64_t nActualTimespan =
+        int64_t(pindexLast->nTime) - int64_t(pindexFirst->nTime);
+    if (nActualTimespan > 288 * params.nPowTargetSpacing) {
+        nActualTimespan = 288 * params.nPowTargetSpacing;
+    } else if (nActualTimespan < 72 * params.nPowTargetSpacing) {
+        nActualTimespan = 72 * params.nPowTargetSpacing;
+    }
+
+    work /= nActualTimespan;
+
+    /**
+     * We need to compute T = (2^256 / W) - 1 but 2^256 doesn't fit in 256 bits.
+     * By expressing 1 as W / W, we get (2^256 - W) / W, and we can compute
+     * 2^256 - W as the complement of W.
+     */
+    return (-work) / work;
+}
+
+}
+
+/**
+ * To reduce the impact of timestamp manipulation, we select the block we are
+ * basing our computation on via a median of 3.
+ */
+const CBlockIndex *GetSuitableBlock(const CBlockIndex *pindex)
+{
+    assert(pindex->nHeight >= 3);
+
+    /**
+     * In order to avoid a block with a very skewed timestamp having too much
+     * influence, we select the median of the 3 top most blocks as a starting
+     * point.
+     */
+    const CBlockIndex *blocks[3];
+    blocks[2] = pindex;
+    blocks[1] = pindex->pprev;
+    blocks[0] = blocks[1]->pprev;
+
+    // Sorting network.
+    if (blocks[0]->nTime > blocks[2]->nTime) {
+        std::swap(blocks[0], blocks[2]);
+    }
+
+    if (blocks[0]->nTime > blocks[1]->nTime) {
+        std::swap(blocks[0], blocks[1]);
+    }
+
+    if (blocks[1]->nTime > blocks[2]->nTime) {
+        std::swap(blocks[1], blocks[2]);
+    }
+
+    // We should have our candidate in the middle now.
+    return blocks[1];
+}
+
+uint32_t GetNextWorkRequired(const CBlockIndex *pindexPrev, const CBlockHeader *pblock, const Consensus::Params &params)
+{
+    if (pindexPrev == nullptr) // Genesis block
+        return UintToArith256(params.powLimit).GetCompact();
+
+    // Special rule for regtest: we never retarget.
+    if (params.fPowNoRetargeting)
+        return pindexPrev->nBits;
+
+    if (Application::uahfChainState() >= Application::UAHFActive && pindexPrev->GetMedianTimePast() >= params.daa3ActivationTime)
+        return CalculateNextCashWorkRequired(pindexPrev, pblock, params);
+
+    return GetNextEDAWorkRequired(pindexPrev, pblock, params);
+}
+
+uint32_t CalculateNextCashWorkRequired(const CBlockIndex *pindexPrev, const CBlockHeader *pblock, const Consensus::Params &params)
+{
+    // This cannot handle the genesis block and early blocks in general.
+    assert(pindexPrev);
+
+    // Special difficulty rule for testnet:
+    // If the new block's timestamp is more than 2* 10 minutes then allow
+    // mining of a min-difficulty block.
+    if (params.fPowAllowMinDifficultyBlocks
+            && (pblock->GetBlockTime() > pindexPrev->GetBlockTime() + 2 * params.nPowTargetSpacing))
+        return UintToArith256(params.powLimit).GetCompact();
+
+    // Compute the difficulty based on the full adjustment interval.
+    const int nHeight = pindexPrev->nHeight;
+    assert(nHeight >= params.DifficultyAdjustmentInterval());
+
+    // Get the last suitable block of the difficulty interval.
+    const CBlockIndex *pindexLast = GetSuitableBlock(pindexPrev);
+    assert(pindexLast);
+
+    // Get the first suitable block of the difficulty interval.
+    const int nHeightFirst = nHeight - 144;
+    const CBlockIndex *pindexFirst = GetSuitableBlock(pindexPrev->GetAncestor(nHeightFirst));
+    assert(pindexFirst);
+
+    // Compute the target based on time and work done during the interval.
+    const arith_uint256 nextTarget = ComputeTarget(pindexFirst, pindexLast, params);
+
+    const arith_uint256 powLimit = UintToArith256(params.powLimit);
+    if (nextTarget > powLimit)
+        return powLimit.GetCompact();
+
+    return nextTarget.GetCompact();
+}
+
+uint32_t CalculateNextWorkRequired(const CBlockIndex *pindexPrev, int64_t nFirstBlockTime, const Consensus::Params &params)
 {
     if (params.fPowNoRetargeting)
-        return pindexLast->nBits;
+        return pindexPrev->nBits;
 
     // Limit adjustment step
-    int64_t nActualTimespan = pindexLast->GetBlockTime() - nFirstBlockTime;
-    LogPrintf("  nActualTimespan = %d  before bounds\n", nActualTimespan);
+    int64_t nActualTimespan = pindexPrev->GetBlockTime() - nFirstBlockTime;
+    logDebug(Log::Bitcoin) << "nActualTimespan =" << nActualTimespan << "before bounds";
     if (nActualTimespan < params.nPowTargetTimespan/4)
         nActualTimespan = params.nPowTargetTimespan/4;
     if (nActualTimespan > params.nPowTargetTimespan*4)
@@ -96,26 +236,17 @@ unsigned int CalculateNextWorkRequired(const CBlockIndex* pindexLast, int64_t nF
     // Retarget
     const arith_uint256 bnPowLimit = UintToArith256(params.powLimit);
     arith_uint256 bnNew;
-    arith_uint256 bnOld;
-    bnNew.SetCompact(pindexLast->nBits);
-    bnOld = bnNew;
+    bnNew.SetCompact(pindexPrev->nBits);
     bnNew *= nActualTimespan;
     bnNew /= params.nPowTargetTimespan;
 
     if (bnNew > bnPowLimit)
         bnNew = bnPowLimit;
 
-    /// debug print
-    LogPrintf("GetNextWorkRequired RETARGET\n");
-    LogPrintf("params.nPowTargetTimespan = %d    nActualTimespan = %d\n", params.nPowTargetTimespan, nActualTimespan);
-    LogPrintf("Before: %08x  %s\n", pindexLast->nBits, bnOld.ToString());
-    LogPrintf("After:  %08x  %s\n", bnNew.GetCompact(), bnNew.ToString());
-
     return bnNew.GetCompact();
 }
 
-bool CheckProofOfWork(uint256 hash, unsigned int nBits, const Consensus::Params& params)
-{
+bool CheckProofOfWork(uint256 hash, uint32_t nBits, const Consensus::Params &params) {
     bool fNegative;
     bool fOverflow;
     arith_uint256 bnTarget;
@@ -124,11 +255,11 @@ bool CheckProofOfWork(uint256 hash, unsigned int nBits, const Consensus::Params&
 
     // Check range
     if (fNegative || bnTarget == 0 || fOverflow || bnTarget > UintToArith256(params.powLimit))
-        return error("CheckProofOfWork(): nBits below minimum work");
+        return false;
 
     // Check proof of work matches claimed amount
     if (UintToArith256(hash) > bnTarget)
-        return error("CheckProofOfWork(): hash doesn't match nBits");
+        return false;
 
     return true;
 }

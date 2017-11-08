@@ -97,8 +97,6 @@ public:
     const std::vector<unsigned char>& CashBase58Prefix(Base58Type type) const { return base58PrefixesCash[type]; }
     const std::vector<SeedSpec6>& FixedSeeds() const { return vFixedSeeds; }
     const CCheckpointData& Checkpoints() const { return checkpointData; }
-    const uint256 &uahfForkBlockId() const { return m_uahfForkBlockId; }
-    int uahfForkBlockHeight() const { return m_uahfForkBlockHeight; }
 
 protected:
     CChainParams() {}
@@ -121,8 +119,6 @@ protected:
     bool fMineBlocksOnDemand;
     bool fTestnetToBeDeprecatedFieldRPC;
     CCheckpointData checkpointData;
-    int m_uahfForkBlockHeight;
-    uint256 m_uahfForkBlockId;
 };
 
 /**

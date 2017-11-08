@@ -107,6 +107,7 @@ public:
         consensus.fPowNoRetargeting = false;
         consensus.nRuleChangeActivationThreshold = 1916; // 95% of 2016
         consensus.nMinerConfirmationWindow = 2016; // nPowTargetTimespan / nPowTargetSpacing
+        consensus.daa3ActivationTime = 1510600000;
         consensus.vDeployments[Consensus::DEPLOYMENT_TESTDUMMY].bit = 28;
         consensus.vDeployments[Consensus::DEPLOYMENT_TESTDUMMY].nStartTime = 1199145601; // January 1, 2008
         consensus.vDeployments[Consensus::DEPLOYMENT_TESTDUMMY].nTimeout = 1230767999; // December 31, 2008
@@ -177,8 +178,8 @@ public:
         fMineBlocksOnDemand = false;
         fTestnetToBeDeprecatedFieldRPC = false;
 
-        m_uahfForkBlockHeight = 478559;
-        m_uahfForkBlockId = uint256S("0x000000000000000000651ef99cb9fcbe0dadde1d424bd9f15ff20136191a5eec");
+        consensus.uahfForkBlockHeight = 478559;
+        consensus.uahfForkBlockId = uint256S("0x000000000000000000651ef99cb9fcbe0dadde1d424bd9f15ff20136191a5eec");
 
         checkpointData = (CCheckpointData) {
             boost::assign::map_list_of
@@ -225,6 +226,7 @@ public:
         consensus.fPowNoRetargeting = false;
         consensus.nRuleChangeActivationThreshold = 1512; // 75% for testchains
         consensus.nMinerConfirmationWindow = 2016; // nPowTargetTimespan / nPowTargetSpacing
+        consensus.daa3ActivationTime = 1510600000;
         consensus.vDeployments[Consensus::DEPLOYMENT_TESTDUMMY].bit = 28;
         consensus.vDeployments[Consensus::DEPLOYMENT_TESTDUMMY].nStartTime = 1199145601; // January 1, 2008
         consensus.vDeployments[Consensus::DEPLOYMENT_TESTDUMMY].nTimeout = 1230767999; // December 31, 2008
@@ -291,8 +293,8 @@ public:
         fMineBlocksOnDemand = false;
         fTestnetToBeDeprecatedFieldRPC = true;
 
-        m_uahfForkBlockHeight = 1155876;
-        m_uahfForkBlockId = uint256S("0x00000000000e38fef93ed9582a7df43815d5c2ba9fd37ef70c9a0ea4a285b8f5");
+        consensus.uahfForkBlockHeight = 1155876;
+        consensus.uahfForkBlockId = uint256S("0x00000000000e38fef93ed9582a7df43815d5c2ba9fd37ef70c9a0ea4a285b8f5");
 
         checkpointData = (CCheckpointData) {
             boost::assign::map_list_of
@@ -320,6 +322,7 @@ public:
         consensus.powLimit = uint256S("000284ffffffffffffffffffffffffffffffffffffffffffffffffffffffffff");
         genesis = CreateGenesisBlock(1478001604, 286592391, 0x1d00ffff, 4, 50 * COIN);
         consensus.hashGenesisBlock = genesis.GetHash();
+        consensus.daa3ActivationTime = 0;
 
         assert(flexTransActive.load());
         assert(consensus.hashGenesisBlock == uint256S("0x00000000580d0391811aba91ffc46f69755789b3b18c3ace72165db452778d2c"));
@@ -355,6 +358,7 @@ public:
         consensus.fPowNoRetargeting = true;
         consensus.nRuleChangeActivationThreshold = 108; // 75% for testchains
         consensus.nMinerConfirmationWindow = 144; // Faster than normal for regtest (144 instead of 2016)
+        consensus.daa3ActivationTime = 0;
         consensus.vDeployments[Consensus::DEPLOYMENT_TESTDUMMY].bit = 28;
         consensus.vDeployments[Consensus::DEPLOYMENT_TESTDUMMY].nStartTime = 0;
         consensus.vDeployments[Consensus::DEPLOYMENT_TESTDUMMY].nTimeout = 999999999999ULL;
@@ -390,8 +394,8 @@ public:
         fMineBlocksOnDemand = true;
         fTestnetToBeDeprecatedFieldRPC = false;
 
-        m_uahfForkBlockHeight = 0;
-        m_uahfForkBlockId = consensus.hashGenesisBlock;
+        consensus.uahfForkBlockHeight = 0;
+        consensus.uahfForkBlockId = consensus.hashGenesisBlock;
 
         checkpointData = (CCheckpointData){
             boost::assign::map_list_of

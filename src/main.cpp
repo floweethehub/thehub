@@ -2395,14 +2395,15 @@ bool static ConnectTip(CValidationState& state, const CChainParams& chainparams,
     // Read block from disk.
     int64_t nTime1 = GetTimeMicros();
     CBlock block;
+    const Consensus::Params& consensus = chainparams.GetConsensus();
     if (!pblock) {
-        if (!ReadBlockFromDisk(block, pindexNew, chainparams.GetConsensus()))
+        if (!ReadBlockFromDisk(block, pindexNew, consensus))
             return AbortNode(state, "Failed to read block");
         pblock = &block;
     }
 
     if (Application::uahfChainState() >= Application::UAHFRulesActive
-            && (Params().uahfForkBlockHeight() == pindexNew->nHeight)) { // this is the fork-block.
+            && (consensus.uahfForkBlockHeight == pindexNew->nHeight)) { // this is the fork-block.
         // The uahf fork-block has to be larger than 1MB.
         const uint32_t minBlockSize = Params().GenesisBlock().nTime == Application::uahfStartTime() // no bigger block in default regtest setup.
                 && Params().NetworkIDString() == CBaseChainParams::REGTEST ? 0 : MAX_LEGACY_BLOCK_SIZE + 1;
@@ -3520,10 +3521,10 @@ bool LoadBlockIndexDB()
     if (Application::uahfChainState() == Application::UAHFWaiting) {
         bool needsRollback = false;
         // check if we are indeed on the proper chain.
-        int forkHeight = Params().uahfForkBlockHeight();
+        int forkHeight = chainparams.GetConsensus().uahfForkBlockHeight;
         if (chainActive.Height() >= forkHeight) {
             CBlockIndex *forkBlock = chainActive[forkHeight];
-            if (Params().uahfForkBlockId() == forkBlock->GetBlockHash()) {
+            if (chainparams.GetConsensus().uahfForkBlockId == forkBlock->GetBlockHash()) {
                 Application::setUahfChainState(chainActive.Tip() == forkBlock ? Application::UAHFRulesActive: Application::UAHFActive);
             } else {
                 logWarning(8002) << "The UAHF fork-block is not in the main chain";
@@ -3562,7 +3563,7 @@ bool LoadBlockIndexDB()
 
         // after too many people having had problems with valid blocks being marked invalid,
         // lets reconsider them and all children of them.
-        it = Blocks::indexMap.find(Params().uahfForkBlockId());
+        it = Blocks::indexMap.find(Params().GetConsensus().uahfForkBlockId);
         if (it != Blocks::indexMap.end())
             ReconsiderBlock(it->second);
     } else {
@@ -4406,7 +4407,7 @@ bool static ProcessMessage(CNode* pfrom, std::string strCommand, CDataStream& vR
             // this means we are not just in initial block download, we are in a state
             // where filling the mempool or getting the latest block just doesn't make any sense.
             // This avoids us banning CASH nodes before we follow the UAHF rules.
-            if (Params().uahfForkBlockHeight() > chainActive.Height())
+            if (Params().GetConsensus().uahfForkBlockHeight > chainActive.Height())
                 return true;
         }
         std::vector<CInv> vInv;
