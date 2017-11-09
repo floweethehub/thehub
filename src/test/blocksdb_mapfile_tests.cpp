@@ -1,5 +1,5 @@
 /*
- * This file is part of the bitcoin-classic project
+ * This file is part of the Flowee project
  * Copyright (C) 2017 Calin Culianu <calin.culianu@gmail.com>
  * Copyright (C) 2017 Tom Zander <tomz@freedommail.ch>
  *

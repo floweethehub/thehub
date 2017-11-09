@@ -1,6 +1,6 @@
 /*
  * This file is part of the Flowee project
- * Copyright (c) 2015 The Bitcoin Core developers
+ * Copyright (C) 2015 The Bitcoin Core developers
  * Copyright (C) 2017 Tom Zander <tomz@freedommail.ch>
  *
  * This program is free software: you can redistribute it and/or modify
