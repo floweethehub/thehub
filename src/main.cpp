@@ -3112,12 +3112,6 @@ bool ContextualCheckBlock(const CBlock& block, CValidationState& state, CBlockIn
             }
         }
     }
-    else if (nHeight == 494784 && Params().NetworkIDString() == CBaseChainParams::MAIN) {
-        // if this is the SegWit2X initial block, it needs to be larger than 1MB
-        if (::GetSerializeSize(block, SER_NETWORK, PROTOCOL_VERSION) <= MAX_LEGACY_BLOCK_SIZE)
-            return state.DoS(100, false, REJECT_INVALID, "bad-blk-length-toosmall", false, "size limits failed");
-    }
-
     const std::uint32_t blockSizeAcceptLimit = Policy::blockSizeAcceptLimit();
     if (block.vtx.size() > blockSizeAcceptLimit || blockSize > blockSizeAcceptLimit) {
         const float punishment = (blockSize - blockSizeAcceptLimit) / (float) blockSizeAcceptLimit;
