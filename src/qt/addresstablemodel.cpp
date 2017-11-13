@@ -352,7 +352,7 @@ QModelIndex AddressTableModel::index(int row, int column, const QModelIndex &par
 void AddressTableModel::updateEntry(const QString &address,
         const QString &label, bool isMine, const QString &purpose, int status)
 {
-    // Update address book model from Bitcoin Classic
+    // Update address book model from Flowee
     priv->updateEntry(address, label, isMine, purpose, status);
 }
 

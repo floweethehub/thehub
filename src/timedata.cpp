@@ -111,13 +111,13 @@ void AddTimeData(const CNetAddr& ip, int64_t nOffsetSample)
                 if (!fMatch)
                 {
                     fDone = true;
-                    std::string strMessage = _("Please check that your computer's date and time are correct! If your clock is wrong Bitcoin Classic will not work properly.");
+                    std::string strMessage = _("Please check that your computer's date and time are correct! If your clock is wrong Flowee will not work properly.");
                     strMiscWarning = strMessage;
                     uiInterface.ThreadSafeMessageBox(strMessage, "", CClientUIInterface::MSG_WARNING);
                 }
             }
         }
-        
+
         logDebug(Log::Net) << "TimeData:" << vSorted;
         logDebug(Log::Net) << "nTimeOffset" << nTimeOffset << "minutes:" << nTimeOffset / 60;
     }

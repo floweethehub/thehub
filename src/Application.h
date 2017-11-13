@@ -1,5 +1,5 @@
 /*
- * This file is part of the bitcoin-classic project
+ * This file is part of the Flowee project
  * Copyright (C) 2016 Tom Zander <tomz@freedommail.ch>
  *
  * This program is free software: you can redistribute it and/or modify
@@ -72,7 +72,7 @@ public:
     static std::string userAgent();
 
     /**
-     * @returns the name of the client, in this case "Classic".
+     * @returns the name of the client, in this case "Flowee".
      */
     static const char * clientName();
 

@@ -67,7 +67,7 @@ static bool AppInitRawTx(int argc, char* argv[])
     if (argc<2 || mapArgs.count("-?") || mapArgs.count("-h") || mapArgs.count("-help") || mapArgs.count("-version"))
     {
         // First part of help message is specific to this utility
-        std::string strUsage = _("Bitcoin Classic bitcoin-tx utility version") + " " + FormatFullVersion() + "\n";
+        std::string strUsage = _("Flowee bitcoin-tx utility version") + " " + FormatFullVersion() + "\n";
 
         fprintf(stdout, "%s", strUsage.c_str());
 

@@ -1,5 +1,5 @@
 /*
- * This file is part of the bitcoin-classic project
+ * This file is part of the Flowee project
  * Copyright (c) 2011-2014 The Bitcoin Core developers
  * Copyright (C) 2017 Tom Zander <tomz@freedommail.ch>
  *

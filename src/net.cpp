@@ -1940,7 +1940,7 @@ bool BindListenPort(const CService &addrBind, std::string& strError, bool fWhite
     {
         int nErr = WSAGetLastError();
         if (nErr == WSAEADDRINUSE)
-            strError = strprintf(_("Unable to bind to %s on this computer. Bitcoin Classic is probably already running."), addrBind.ToString());
+            strError = strprintf(_("Unable to bind to %s on this computer. The Hub is probably already running."), addrBind.ToString());
         else
             strError = strprintf(_("Unable to bind to %s on this computer (bind returned error %s)"), addrBind.ToString(), NetworkErrorString(nErr));
         LogPrintf("%s\n", strError);

@@ -127,14 +127,7 @@ Admin::Server *Application::adminServer()
 
 std::string Application::userAgent()
 {
-    // sanitize comments per BIP-0014, format user agent and check total size
-    std::string eb = std::string("EB") + boost::lexical_cast<std::string>(Policy::blockSizeAcceptLimit() / 100000);
-    if (eb.at(eb.size()-1) == '0')
-        eb = eb.substr(0, eb.size()-1);
-    else
-        eb.insert(eb.size() - 1, ".", 1);
     std::vector<std::string> comments;
-    comments.push_back(eb);
     for (const std::string &comment : mapMultiArgs["-uacomment"]) {
         if (comment == SanitizeString(comment, SAFE_CHARS_UA_COMMENT))
             comments.push_back(comment);
@@ -146,10 +139,7 @@ std::string Application::userAgent()
     ss << "/";
     ss << clientName() << ":"
        << CLIENT_VERSION_MAJOR << "."
-       << CLIENT_VERSION_MINOR << "."
-       << CLIENT_VERSION_REVISION;
-    if (CLIENT_VERSION_BUILD != 0)
-        ss << "." << CLIENT_VERSION_BUILD;
+       << CLIENT_VERSION_MINOR;
     if (!comments.empty()) {
         auto it(comments.begin());
         ss << "(" << *it;
@@ -169,7 +159,7 @@ std::string Application::userAgent()
 
 const char *Application::clientName()
 {
-    return "Classic";
+    return "Flowee";
 }
 
 bool Application::closingDown()

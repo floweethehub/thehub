@@ -79,16 +79,11 @@ bool AppInit(int argc, char* argv[])
     // Process help and version before taking care about datadir
     if (mapArgs.count("-?") || mapArgs.count("-h") ||  mapArgs.count("-help") || mapArgs.count("-version"))
     {
-        std::string strUsage = _("Bitcoin Classic Daemon") + " " + _("version") + " " + FormatFullVersion() + "\n";
+        std::string strUsage = _("Flowee the Hub") + " " + _("version") + " " + FormatFullVersion() + "\n";
 
-        if (mapArgs.count("-version"))
-        {
-            strUsage += LicenseInfo();
-        }
-        else
-        {
+        if (!mapArgs.count("-version")) {
             strUsage += "\n" + _("Usage:") + "\n" +
-                  "  bitcoind [options]                     " + _("Start Bitcoin Classic Daemon") + "\n";
+                  "  bitcoind [options]                     " + _("Start Flowee the Hub") + "\n";
 
             strUsage += "\n" + allowedArgs.helpMessage();
         }

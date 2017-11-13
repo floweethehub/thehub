@@ -47,7 +47,7 @@ SplashScreen::SplashScreen(const NetworkStyle &networkStyle, Qt::WindowFlags f) 
     int titleCopyrightVSpaceClassic = 54;
 
     // define text to place
-    QString titleText       = tr("Bitcoin Classic");
+    QString titleText       = tr("Flowee the Hub");
     QString versionText     = QString("Version %1").arg(QString::fromStdString(FormatFullVersion()));
     QString copyrightCore   = QString("© 2009-2016 ") + tr("The Bitcoin Core developers");
     QString copyrightClassic   = QString("© 2016-%1 ").arg(COPYRIGHT_YEAR) + tr("The Bitcoin Classic developers");

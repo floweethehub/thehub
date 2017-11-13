@@ -48,9 +48,6 @@ static const bool DEFAULT_REST_ENABLE = false;
 static const bool DEFAULT_DISABLE_SAFEMODE = false;
 static const bool DEFAULT_STOPAFTERBLOCKIMPORT = false;
 
-/** Returns licensing information (for -version) */
-std::string LicenseInfo();
-
 void StartShutdown();
 bool ShutdownRequested();
 

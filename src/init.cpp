@@ -321,17 +321,6 @@ void OnRPCPreCommand(const CRPCCommand& cmd)
         throw JSONRPCError(RPC_FORBIDDEN_BY_SAFE_MODE, std::string("Safe mode: ") + strWarning);
 }
 
-std::string LicenseInfo()
-{
-    return FormatParagraph("Copyright (C) 2009-2016 The Bitcoin Core developers") + "\n" +
-           "\n" +
-           FormatParagraph(strprintf("Copyright (C) 2016-%i The Bitcoin Classic developers", COPYRIGHT_YEAR)) + "\n" +
-           "\n" +
-           FormatParagraph("Distributed under the MIT software license, see the accompanying file COPYING or <http://www.opensource.org/licenses/mit-license.php>.\n") +
-           "\n" +
-           FormatParagraph("This product includes software developed by the OpenSSL Project for use in the OpenSSL Toolkit <https://www.openssl.org/> and cryptographic software written by Eric Young and UPnP software written by Thomas Bernard.\n");
-}
-
 static void BlockNotifyCallback(bool initialSync, const CBlockIndex *pBlockIndex)
 {
     if (initialSync || !pBlockIndex)
@@ -738,9 +727,9 @@ bool AppInit2(boost::thread_group& threadGroup, CScheduler& scheduler)
         nLocalServices |= NODE_BITCOIN_CASH;
         if (Params().NetworkIDString() ==  CBaseChainParams::MAIN) {
             if (Policy::blockSizeAcceptLimit() < 8000000)
-                return InitError("The block size accept limit is too low, for BitcoinCash the minimum is 8MB. Bitcoin Classic is shutting down.");
+                return InitError("The block size accept limit is too low, the minimum is 8MB. The Hub is shutting down.");
             if (GetArg("-blockmaxsize", DEFAULT_BLOCK_MAX_SIZE) <= 1000000)
-                return InitError("The maxblocksize mining limit is too low, for BitcoinCash it should be over 1MB. Bitcoin Classic is shutting down.");
+                return InitError("The maxblocksize mining limit is too low, it should be over 1MB. The Hub is shutting down.");
         }
     }
 
@@ -752,7 +741,7 @@ bool AppInit2(boost::thread_group& threadGroup, CScheduler& scheduler)
 
     // Sanity check
     if (!InitSanityCheck())
-        return InitError(_("Initialization sanity check failed. Bitcoin Classic is shutting down."));
+        return InitError(_("Initialization sanity check failed. The Hub is shutting down."));
 
     std::string strDataDir = GetDataDir().string();
 #ifdef ENABLE_WALLET
@@ -768,9 +757,9 @@ bool AppInit2(boost::thread_group& threadGroup, CScheduler& scheduler)
     try {
         static boost::interprocess::file_lock lock(pathLockFile.string().c_str());
         if (!lock.try_lock())
-            return InitError(strprintf(_("Cannot obtain a lock on data directory %s. Bitcoin Classic is probably already running."), strDataDir));
+            return InitError(strprintf(_("Cannot obtain a lock on data directory %s. The Hub is probably already running."), strDataDir));
     } catch(const boost::interprocess::interprocess_exception& e) {
-        return InitError(strprintf(_("Cannot obtain a lock on data directory %s. Bitcoin Classic is probably already running.") + " %s.", strDataDir, e.what()));
+        return InitError(strprintf(_("Cannot obtain a lock on data directory %s. The Hub is probably already running.") + " %s.", strDataDir, e.what()));
     }
 
 #ifndef WIN32
@@ -1143,10 +1132,10 @@ bool AppInit2(boost::thread_group& threadGroup, CScheduler& scheduler)
                              " or address book entries might be missing or incorrect."));
             }
             else if (nLoadWalletRet == DB_TOO_NEW)
-                strErrors << _("Error loading wallet.dat: Wallet requires newer version of Bitcoin Classic") << "\n";
+                strErrors << _("Error loading wallet.dat: Wallet requires newer version of The Hub") << "\n";
             else if (nLoadWalletRet == DB_NEED_REWRITE)
             {
-                strErrors << _("Wallet needed to be rewritten: restart Bitcoin Classic to complete") << "\n";
+                strErrors << _("Wallet needed to be rewritten: restart The Hub to complete") << "\n";
                 logFatal(Log::Wallet) << strErrors.str();
                 return InitError(strErrors.str());
             }
