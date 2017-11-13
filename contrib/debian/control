@@ -1,7 +1,7 @@
-Source: bitcoinclassic
+Source: floweethehub
 Section: utils
 Priority: optional
-Maintainer: The Classic Devs <packages@bitcoinclassic.com>
+Maintainer: Tom Z <tomz@freedommail.ch>
 Uploaders: Tom Z <tomz@freedommail.ch>
 Build-Depends: debhelper,
  devscripts,
@@ -25,9 +25,9 @@ Build-Depends: debhelper,
  libevent-dev,
  python
 Standards-Version: 3.9.6
-Homepage: https://bitcoinclassic.com/
-Vcs-Git: git://github.com/bitcoinclassic/bitcoinclassic.git
-Vcs-Browser: https://github.com/bitcoinclassic/bitcoinclassic
+Homepage: http://flowee.org/
+Vcs-Git: git://github.com/floweethehub/thehub.git
+Vcs-Browser: https://github.com/floweethehub/thehub
 
 Package: bitcoind
 Architecture: any
@@ -38,8 +38,7 @@ Description: peer-to-peer network based digital currency - daemon
  Bitcoin is a digital currency that enables instant
  payments to anyone, anywhere in the world. Bitcoin uses peer-to-peer
  technology to operate with no central authority: managing transactions
- and issuing money are carried out collectively by the network. Bitcoin Classic
- is the name of the open source software which enables the use of this currency.
+ and issuing money are carried out collectively by the network.
  .
  This package provides the daemon, bitcoind, and the CLI tool
  bitcoin-cli to interact with the daemon as well as the bitcoin-tx tool that
@@ -54,7 +53,6 @@ Description: peer-to-peer network based digital currency - Qt GUI
  Bitcoin is a new digital currency that enables instant
  payments to anyone, anywhere in the world. Bitcoin uses peer-to-peer
  technology to operate with no central authority: managing transactions
- and issuing money are carried out collectively by the network. Bitcoin Classic
- is the name of the open source software which enables the use of this currency.
+ and issuing money are carried out collectively by the network.
  .
  This package provides Bitcoin-Qt, a GUI for Bitcoin based on Qt.

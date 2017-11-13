@@ -1,17 +1,16 @@
 Format: http://www.debian.org/doc/packaging-manuals/copyright-format/1.0/
-Upstream-Name: BitcoinClassic
+Upstream-Name: Flowee The Hub
 Upstream-Contact: Satoshi Nakamoto <satoshin@gmx.com>
-Source: https://github.com/bitcoinclassic/bitcoinclassic
+Source: https://github.com/floweethehub/thehub
 
 Files: *
-Copyright: 2009-2016, Bitcoin Core Developers
-           2016 Bitcoin Classic Developers
+Copyright: Various Bitcoin developers
 License: Expat
 
 Files: debian/*
 Copyright: 2010-2011, Jonas Smedegaard <dr@jones.dk>
            2011, Matt Corallo <matt@bluematt.me>
-           2016 Tom Zander <tomz@freedommail.ch>
+           2016-2017 Tom Zander <tomz@freedommail.ch>
 License: GPL-2+
 
 Files: debian/manpages/*

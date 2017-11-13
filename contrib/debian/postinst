@@ -24,11 +24,11 @@ chmod g+w /etc/bitcoin /etc/bitcoin/bitcoin.conf
 
 cat <<'EOF'
 ############################################################
-#  Bitcoin Classic                                         #
+#  Flowee the Hub                                          #
 #                                                          #
-#  To start bitcoin-classic:                               #
+#  To start the hub:                                       #
 #      # systemctl start bitcoind                          #
-#  To communicate with bitcoin-classic as a normal user:   #
+#  To communicate with the hub as a normal user:           #
 #      $ bitcoin-cli help                                  #
 #                                                          #
 #  Config:        /etc/bitcoin/bitcoin.conf                #
