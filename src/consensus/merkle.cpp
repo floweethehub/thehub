@@ -184,20 +184,6 @@ uint256 BlockMerkleRoot(const CBlock& block, bool* mutated)
             ++txWithDetachableSigsCount;
     }
 
-    /*
-     * v4 transactions leave their sigs out of the txid used above,
-     * so to make sure nobody can change sigs without invalidating the header
-     * we append the v4 transactions signature hash to the tree.
-     */
-    if (flexTransActive) {
-        leaves.resize(size + txWithDetachableSigsCount);
-        uint32_t pos = size;
-        for (uint32_t s = 1; s < size; s++) {
-            if (block.vtx[s].nVersion == 4)
-                leaves[pos++] = block.vtx[s].CalculateSignaturesHash();
-        }
-        assert(pos == size + txWithDetachableSigsCount);
-    }
     return ComputeMerkleRoot(leaves, mutated);
 }
 

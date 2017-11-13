@@ -321,8 +321,6 @@ CBlockTemplate* Mining::CreateNewBlock(const CChainParams& chainparams) const
         LogPrintf("CreateNewBlock(): total size %u txs: %u fees: %ld sigops %d\n", nBlockSize, nBlockTx, nFees, nBlockSigOps);
 
         // Compute final coinbase transaction.
-        if (flexTransActive.load())
-            txNew.nVersion = 4;
         txNew.vout[0].nValue = nFees + GetBlockSubsidy(nHeight, chainparams.GetConsensus());
         txNew.vin[0].scriptSig = CScript() << nHeight << OP_0 << m_coinbaseComment;
         pblock->vtx[0] = txNew;

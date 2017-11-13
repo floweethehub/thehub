@@ -2013,8 +2013,6 @@ bool CWallet::CreateTransaction(const std::vector<CRecipient>& vecSend, CWalletT
     wtxNew.fTimeReceivedIsTxTime = true;
     wtxNew.BindWallet(this);
     CMutableTransaction txNew;
-    if (flexTransActive.load())
-        txNew.nVersion = 4;
 
     {
         LOCK2(cs_main, cs_wallet);

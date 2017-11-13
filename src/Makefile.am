@@ -100,7 +100,6 @@ BITCOIN_CORE_H = \
   consensus/merkle.h \
   consensus/params.h \
   consensus/validation.h \
-  consensus/transactionv4.h \
   core_io.h \
   core_memusage.h \
   datadirmigration.h \

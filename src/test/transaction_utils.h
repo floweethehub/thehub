@@ -37,9 +37,6 @@ namespace TxUtils {
 
     void RandomTransaction(CMutableTransaction &tx, RandomTransactionType single);
 
-    void allowNewTransactions();
-    void disallowNewTransactions();
-
     // create one transaction and repeat it until it fills up the space.
     std::vector<CTransaction> transactionsForBlock(int minSize);
 

@@ -149,18 +149,6 @@ BOOST_AUTO_TEST_CASE(rpc_rawsign)
     BOOST_CHECK(find_value(r.get_obj(), "complete").get_bool() == false);
     r = CallRPC(std::string("signrawtransaction ")+notsigned+" "+prevout+" "+"["+privkey1+","+privkey2+"]");
     BOOST_CHECK(find_value(r.get_obj(), "complete").get_bool() == true);
-
-    TxUtils::allowNewTransactions();
-    // again for a v4 transaction.
-    r = CallRPC(std::string("createrawtransaction ")+prevout+" {\"3HqAe9LtNBjnsfM4CyYaWTnvCaUYT7v4oZ\":11}	0	4");
-    notsigned = r.get_str();
-    BOOST_CHECK(notsigned.size() > 8);
-    BOOST_CHECK_EQUAL(notsigned.substr(0, 8), "04000000"); // make sure we actually got a v4 tx
-    r = CallRPC(std::string("signrawtransaction ")+notsigned+" "+prevout+" "+"[]");
-    BOOST_CHECK(find_value(r.get_obj(), "complete").get_bool() == false);
-    r = CallRPC(std::string("signrawtransaction ")+notsigned+" "+prevout+" "+"["+privkey1+","+privkey2+"]");
-    BOOST_CHECK(find_value(r.get_obj(), "complete").get_bool() == true);
-    TxUtils::disallowNewTransactions();
 }
 
 BOOST_AUTO_TEST_CASE(rpc_createraw_op_return)

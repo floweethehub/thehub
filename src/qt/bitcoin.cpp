@@ -640,8 +640,6 @@ int main(int argc, char *argv[])
     // UI per-platform customization
     app.createPlatformStyle();
 
-    flexTransActive = GetBoolArg("-flextrans", false);
-
     /// 7. Determine network (and switch to network specific options)
     // - Do not call Params() before this step
     // - Do this after parsing the configuration file, as the network can be switched there

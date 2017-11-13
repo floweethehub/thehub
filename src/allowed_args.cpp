@@ -386,8 +386,6 @@ static void addDebuggingOptions(AllowedArgs& allowedArgs, HelpMessageMode mode)
         .addDebugArg("limitdescendantsize=<n>", requiredInt, strprintf("Do not accept transactions if any ancestor would have more than <n> kilobytes of in-mempool descendants (default: %u).", DEFAULT_DESCENDANT_SIZE_LIMIT))
         .addArg("debug=<category>", optionalStr, strprintf(_("Output debugging information (default: %u, supplying <category> is optional)"), 0) + ". " +
             _("If <category> is not supplied or if <category> = 1, output all debugging information.") + _("<category> can be:") + " " + debugCategories + ".")
-        .addArg("flextrans", optionalBool, "Accept and relay transactions of version 4")
-        .addArg("ft-strict", optionalBool, "On incoming FlexTrans transactions reject tx that have not specified tokens. default: false")
         .addArg("gen", optionalBool,  strprintf(_("Generate coins (default: %u)"), DEFAULT_GENERATE))
         .addArg("genproclimit=<n>", requiredInt, strprintf(_("Set the number of threads for coin generation if enabled (-1 = all cores, default: %d)"), DEFAULT_GENERATE_THREADS))
         .addArg("gencoinbase=<pubkey>", requiredStr, "When generating coins a coinbase has to be provided in the form of a public key")

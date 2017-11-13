@@ -26,8 +26,6 @@
 
 #include <streams.h>
 
-boost::atomic<bool> flexTransActive(false);
-
 std::string COutPoint::ToString() const
 {
     return strprintf("COutPoint(%s, %u)", hash.ToString().substr(0,10), n);
@@ -90,18 +88,7 @@ uint256 CMutableTransaction::GetHash() const
 
 void CTransaction::UpdateHash()
 {
-    if (nVersion == 4 && flexTransActive.load()) {
-        if (txData.empty()) {
-            CDataStream stream(0, 0);
-            SerializeTransaction(*this, stream, 0, 0, false);
-            txData = std::vector<char>(stream.begin(), stream.end());
-        }
-        CHashWriter ss(0, 0);
-        ss.write(&txData[0], txData.size());
-        hash = ss.GetHash();
-    } else {
-        hash = SerializeHash(*this);
-    }
+    hash = SerializeHash(*this);
 }
 
 CTransaction::CTransaction() : nVersion(CTransaction::CURRENT_VERSION), vin(), vout(), nLockTime(0) { }
@@ -118,120 +105,6 @@ CTransaction& CTransaction::operator=(const CTransaction &tx) {
     hash = tx.hash;
     txData = tx.txData;
     return *this;
-}
-
-uint256 CTransaction::CalculateSignaturesHash() const
-{
-    CHashWriter ss(0, 0);
-    ss << hash;
-    SerialiseScriptSig4(vin, ss, 0, 0);
-    CMFToken end(Consensus::TxEnd);
-    end.Serialize<CHashWriter>(ss, 0, 0);
-    return ss.GetHash();
-}
-
-std::vector<char> loadTransaction(const std::vector<CMFToken> &tokens, std::vector<CTxIn> &inputs, std::vector<CTxOut> &outputs, int nVersion)
-{
-    assert(inputs.empty());
-    assert(outputs.empty());
-    int signatureCount = -1;
-    bool storedOutValue = false, storedOutScript = false;
-    bool seenCoinbaseMessage = false;
-    int64_t outValue = 0;
-    std::vector<char> txData;
-    bool inMainTx = true;
-
-    for (unsigned int index = 0; index < tokens.size(); ++index) {
-        const auto token = tokens[index];
-        switch (token.tag) {
-        case Consensus::TxInPrevHash: {
-            auto data = boost::get<std::vector<char> >(token.data);
-            if (data.size() != 256/8) throw std::runtime_error("PrevHash size wrong");
-            if (!inMainTx) throw std::runtime_error("wrong section");
-            if (seenCoinbaseMessage) throw std::runtime_error("No input allowed on coinbase");
-            inputs.push_back(CTxIn(COutPoint(uint256(&data[0]), 0)));
-            break;
-        }
-        case Consensus::TxInPrevIndex: {
-            if (inputs.empty()) throw std::runtime_error("TxInPrevIndex before TxInPrevHash");
-            if (!inMainTx) throw std::runtime_error("wrong section");
-            if (seenCoinbaseMessage) throw std::runtime_error("No input allowed on coinbase");
-            inputs[inputs.size()-1].prevout.n = (uint32_t) token.longData();
-            break;
-        }
-        case Consensus::CoinbaseMessage: {
-            if (!inputs.empty()) throw std::runtime_error("CoinbaseMessage not allowed when there are inputs");
-            if (!inMainTx) throw std::runtime_error("wrong section");
-            inputs.push_back(CTxIn());
-            auto data = token.unsignedByteArray();
-            inputs[0].scriptSig = CScript(data.begin(), data.end());
-            seenCoinbaseMessage = true;
-            break;
-        }
-        case Consensus::TxEnd:
-        case Consensus::TxInputStackItem:
-        case Consensus::TxInputStackItemContinued: {
-            if (signatureCount == -1) { // copy all of the input tags
-                CDataStream stream(0, 4);
-                ser_writedata32(stream, nVersion);
-                for (unsigned int i = 0; i < index; ++i) {
-                    tokens[i].Serialize(stream, 0, 4);
-                }
-                txData = std::vector<char>(stream.begin(), stream.end());
-            }
-            if (token.tag == Consensus::TxEnd)
-                return txData;
-            if (signatureCount < 0 || token.tag == Consensus::TxInputStackItem)
-                signatureCount++;
-            if (static_cast<int>(inputs.size()) <= signatureCount)
-                throw std::runtime_error("TxInputStackItem* before TxInPrevHash");
-
-            inMainTx = false;
-            auto data = token.unsignedByteArray();
-            if (data.size() == 1)
-                inputs[signatureCount].scriptSig << data.at(0);
-            else
-                inputs[signatureCount].scriptSig << data;
-            break;
-        }
-            // TxOut* don't have a pre-defined order, just that both are required so they always have to come in pairs.
-        case Consensus::TxOutValue:
-            if (!inMainTx) throw std::runtime_error("wrong section");
-            if (storedOutScript) { // add it.
-                outputs[outputs.size() -1].nValue = token.longData();
-                storedOutScript = storedOutValue = false;
-            } else { // store it.
-                outValue = token.longData();
-                storedOutValue = true;
-            }
-            break;
-        case Consensus::TxOutScript: {
-            if (!inMainTx) throw std::runtime_error("wrong section");
-            auto data = token.unsignedByteArray();
-            outputs.push_back(CTxOut(outValue, CScript(data.begin(), data.end())));
-            if (storedOutValue)
-                storedOutValue = false;
-            else
-                storedOutScript = true;
-            break;
-        }
-        case Consensus::TxRelativeBlockLock:
-        case Consensus::TxRelativeTimeLock:
-            if (inputs.empty()) throw std::runtime_error("Transaction needs inputs");
-            if (token.longData() > CTxIn::SEQUENCE_LOCKTIME_MASK) throw std::runtime_error("out of range");
-            if (inputs.back().nSequence != CTxIn::SEQUENCE_FINAL) throw std::runtime_error("Too many locks for input");
-            if (!inMainTx) throw std::runtime_error("wrong section");
-            if (token.tag == Consensus::TxRelativeBlockLock)
-                inputs.back().nSequence = token.longData();
-            else
-                inputs.back().nSequence = CTxIn::SEQUENCE_LOCKTIME_TYPE_FLAG | token.longData();
-            break;
-        default:
-            if (token.tag > 19)
-                throw std::runtime_error("Illegal tag in transaction");
-        }
-    }
-    return txData;
 }
 
 CAmount CTransaction::GetValueOut() const

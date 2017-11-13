@@ -71,17 +71,6 @@ void TxUtils::RandomTransaction(CMutableTransaction &tx, RandomTransactionType s
     }
 }
 
-extern boost::atomic<bool> flexTransActive;
-void TxUtils::allowNewTransactions()
-{
-    flexTransActive.store(true);
-}
-
-void TxUtils::disallowNewTransactions()
-{
-    flexTransActive.store(false);
-}
-
 std::vector<CTransaction> TxUtils::transactionsForBlock(int minSize)
 {
     CMutableTransaction mtx;

@@ -52,8 +52,6 @@ static bool AppInitRawTx(int argc, char* argv[])
         return false;
     }
 
-    flexTransActive = GetBoolArg("-flextrans", false);
-
     // Check for -testnet or -regtest parameter (Params() calls are only valid after this clause)
     try {
         SelectParams(ChainNameFromCommandLine());

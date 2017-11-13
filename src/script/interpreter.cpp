@@ -1162,38 +1162,6 @@ public:
     }
 };
 
-uint256 SerializePartialTransactionv4(const CTransaction &tx, uint32_t nIn, int nHashType)
-{
-    assert(nIn < tx.vin.size());
-    assert(tx.nVersion == 4);
-    CMutableTransaction mutableTx(tx);
-    // Blank out some of the outputs
-    if ((nHashType & 0x1f) == SIGHASH_NONE) {
-        // Wildcard payee
-        mutableTx.vout.clear();
-    }
-    else if ((nHashType & 0x1f) == SIGHASH_SINGLE) {
-        // Only lock-in the txout payee at same index as txin
-        uint32_t nOut = nIn;
-        assert(nOut < mutableTx.vout.size()); // should be checked in the SignatureHash method which calls us
-        mutableTx.vout.resize(nOut+1);
-        for (unsigned int i = 0; i < nOut; i++)
-            mutableTx.vout[i].SetNull();
-    }
-
-    // Blank out other inputs completely, not recommended for open transactions
-    if (nHashType & SIGHASH_ANYONECANPAY) {
-        if (nIn)
-            mutableTx.vin[0] = mutableTx.vin[nIn];
-        mutableTx.vin.resize(1);
-    }
-
-    // Serialize and hash
-    CHashWriter ss(SER_GETHASH, 0);
-    SerializeTransaction(mutableTx,ss, 0, 4, false);
-    return ss.GetHash();
-}
-
 uint256 GetPrevoutHash(const CTransaction &txTo)
 {
     CHashWriter ss(SER_GETHASH, 0);
@@ -1240,37 +1208,6 @@ uint256 SignatureHash(const CScript& scriptCode, const CTransaction& txTo, unsig
             //  nOut out of range
             return one;
         }
-    }
-
-    if (flexTransActive && txTo.nVersion == 4) {
-        // In the v4 (flextrans) format we add the support for the following proofs;
-        // * input amount.
-        //   Including the amount means we sign this transaction only if the amount we are spending
-        //   is the one provided. Wallets that do not have the full utxo DB can safely sign knowing
-        //   that if they were lied to about the amount being spent, their signature is useless.
-        // * scriptBase is the combined script of input and output, without signatures naturally.
-        //   Providing this to a hardware wallet means it knows what output it is spending and can
-        //   respond properly. Including it in the hash means its signature would be broken if we lied.
-        // * Double spent-proof.
-        //   Should a node detect a double spent he can notify his peers about this fact. Instead of sending
-        //   the entire transaction, instead he sends only a proof.
-        //   The node needs to send two pairs of info that proves that in both transactions the CTxIn are
-        //   identical. Which means all data to re-generate the hash this method returns, plus both
-        //   tx's pubkey & signature for that vin.
-        //   If the data combines and the signature is correct for both, we have proof they are a double-spend pair.
-
-        CHashWriter ss(SER_GETHASH, 0);
-        if (nHashType <= SIGHASH_ALL) {
-            ss << txTo.GetHash();
-        } else {
-            ss << SerializePartialTransactionv4(txTo, nIn, nHashType);
-        }
-
-        ss << txTo.vin[nIn].prevout;
-        ss << static_cast<const CScriptBase&>(scriptCode);
-        ss << amount;
-        ss << nHashType;
-        return ss.GetHash();
     }
 
     if ((nHashType & SIGHASH_FORKID) && (flags & SCRIPT_ENABLE_SIGHASH_FORKID)) {

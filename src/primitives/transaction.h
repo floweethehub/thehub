@@ -26,8 +26,6 @@
 #include "serialize.h"
 #include "uint256.h"
 
-#include "../consensus/transactionv4.h"
-
 /** An outpoint - a combination of a transaction hash and an index n into its vout */
 class COutPoint
 {
@@ -210,121 +208,26 @@ public:
     std::string ToString() const;
 };
 
-#include <boost/atomic.hpp>
-extern boost::atomic<bool> flexTransActive;
 struct CMutableTransaction;
-
-template<typename Stream>
-void SerialiseScriptSig4(const std::vector<CTxIn> &inputs, Stream &s, int nType, int nVersion)
-{
-    for (auto in : inputs) {
-        bool first = true;
-        unsigned int i = 0; // use both iterator and int b/c the iterator doesn't do bounds-checks.
-        auto iter = in.scriptSig.begin();
-        while (i < in.scriptSig.size()) {
-            uint8_t k = *iter;
-            if ((k > 0 && k < 76) || (k >= 76 && k <= 78)) {
-                uint32_t size = k;
-                if (k >= 76) { // OP_PUSHDATA
-                    const int width = k - 75; // address width
-                    size = *(++iter);
-                    if (width > 1) {
-                        size = (size << 8) + (uint8_t) *(++iter);
-                        if (width > 2) {
-                            size = (size << 8) + (uint8_t) *(++iter);
-                            size = (size << 8) + (uint8_t) *(++iter);
-                            ++i;
-                        }
-                    }
-                    i += width;
-                }
-                if (size + i >= in.scriptSig.size())
-                    throw std::runtime_error("Signatures malformed");
-                auto iterBegin = ++iter;
-                iter += size;
-                CMFToken token(first ? Consensus::TxInputStackItem : Consensus::TxInputStackItemContinued,
-                    std::vector<char>(iterBegin, iter));
-                STORECMF(token);
-                i += size;
-            } else if (k == OP_FALSE) {
-                CMFToken token(first ? Consensus::TxInputStackItem : Consensus::TxInputStackItemContinued,
-                               std::vector<char>(1, OP_FALSE));
-                STORECMF(token);
-                ++iter;
-            } else
-                throw std::runtime_error("Signatures malformed");
-            i++;
-            first = false;
-        }
-    }
-}
 
 template<typename Stream, typename TxType>
 inline void SerializeTransaction(TxType& tx, Stream& s, int nType, int nVersion, bool withSignatures = true) {
     ser_writedata32(s, tx.nVersion);
     nVersion = tx.nVersion;
-    if (flexTransActive && nVersion == 4) {
-        const bool isCoinbaseTx = tx.vin.size() == 1 && tx.vin.at(0).prevout.IsNull() && !tx.vin.at(0).scriptSig.empty();
-        if (isCoinbaseTx) {
-            // coinbase is a little special. If you use the same output address in different blocks, you'd quite easy get
-            // a duplicate txid since we no longer use the scriptSig. We can't have two TXs with the same
-            // txid in the chain, that would break Bitcoin. This code stores the unique data in a CoinbaseMessage token.
-            const CTxIn &in = tx.vin[0];
-            CMFToken msg(Consensus::CoinbaseMessage, std::vector<char>(in.scriptSig.begin(), in.scriptSig.end()));
-            STORECMF(msg);
-        } else {
-            for (auto in : tx.vin) {
-                CMFToken hash(Consensus::TxInPrevHash, in.prevout.hash);
-                STORECMF(hash);
-                if (in.prevout.n > 0) {
-                    CMFToken index(Consensus::TxInPrevIndex, (uint64_t) in.prevout.n);
-                    STORECMF(index);
-                }
-                if ((in.nSequence & CTxIn::SEQUENCE_LOCKTIME_DISABLE_FLAG) == 0) {
-                    const bool timeBased = in.nSequence & CTxIn::SEQUENCE_LOCKTIME_TYPE_FLAG; // time, as opposed to block-based
-                    CMFToken lock(timeBased ? Consensus::TxRelativeTimeLock : Consensus::TxRelativeBlockLock, (int) (in.nSequence & CTxIn::SEQUENCE_LOCKTIME_MASK));
-                    STORECMF(lock);
-                }
-            }
-        }
-        for (auto out : tx.vout) {
-            CMFToken token(Consensus::TxOutValue, (uint64_t) out.nValue);
-            STORECMF(token);
-            std::vector<char> script(out.scriptPubKey.begin(), out.scriptPubKey.end());
-            token = CMFToken(Consensus::TxOutScript, script);
-            STORECMF(token);
-        }
-        if (withSignatures) {
-            if (!isCoinbaseTx)
-                SerialiseScriptSig4(tx.vin, s, nType, nVersion);
-            CMFToken end(Consensus::TxEnd);
-            STORECMF(end);
-        }
-    } else {
-        CSerActionSerialize ser_action;
-        READWRITE(tx.vin);
-        READWRITE(tx.vout);
-        READWRITE(tx.nLockTime);
-    }
+    CSerActionSerialize ser_action;
+    READWRITE(tx.vin);
+    READWRITE(tx.vout);
+    READWRITE(tx.nLockTime);
 }
-
-std::vector<char> loadTransaction(const std::vector<CMFToken>& tokens, std::vector<CTxIn> &inputs, std::vector<CTxOut> &outputs, int nVersion);
 
 template<typename Stream, typename TxType>
 inline std::vector<char> UnSerializeTransaction(TxType& tx, Stream& s, int nType, int nVersion) {
     *const_cast<int32_t*>(&tx.nVersion) = ser_readdata32(s);
     nVersion = tx.nVersion;
-    if (nVersion == 4 && flexTransActive) {
-        auto cmfs = UnserializeCMFs(s, Consensus::TxEnd, nType, nVersion);
-        return loadTransaction(cmfs,
-            *const_cast<std::vector<CTxIn>*>(&tx.vin),
-            *const_cast<std::vector<CTxOut>*>(&tx.vout), nVersion);
-    } else {
-        CSerActionUnserialize ser_action;
-        READWRITE(*const_cast<std::vector<CTxIn>*>(&tx.vin));
-        READWRITE(*const_cast<std::vector<CTxOut>*>(&tx.vout));
-        READWRITE(*const_cast<uint32_t*>(&tx.nLockTime));
-    }
+    CSerActionUnserialize ser_action;
+    READWRITE(*const_cast<std::vector<CTxIn>*>(&tx.vin));
+    READWRITE(*const_cast<std::vector<CTxOut>*>(&tx.vout));
+    READWRITE(*const_cast<uint32_t*>(&tx.nLockTime));
     return std::vector<char>();
 }
 
@@ -374,15 +277,7 @@ public:
     }
     template<typename Stream>
     void Serialize(Stream& s, int nType, int version) const {
-        if (!txData.empty()) {
-            s.write(&txData[0], txData.size());
-            const bool isCoinbaseTx = vin.size() == 1 && vin.at(0).prevout.IsNull() && !vin.at(0).scriptSig.empty();
-            if (!isCoinbaseTx)
-                SerialiseScriptSig4(vin, s, nType, version);
-            STORECMF(CMFToken(Consensus::TxEnd));
-        } else {
-            SerializeTransaction(*this, s, nType, nVersion);
-        }
+        SerializeTransaction(*this, s, nType, nVersion);
     }
 
     template<typename Stream>
@@ -398,9 +293,6 @@ public:
     const uint256& GetHash() const {
         return hash;
     }
-
-    /// for transactions that separate their signatures (like v4) calculate the hash of this data.
-    uint256 CalculateSignaturesHash() const;
 
     // Return sum of txouts.
     CAmount GetValueOut() const;

@@ -311,32 +311,6 @@ public:
 };
 
 /**
- * Testnet (FlexTrans)
- */
-class CFTTestNetParams : public CTestNetParams {
-public:
-    CFTTestNetParams() {
-        strNetworkID = "fttest";
-        consensus.BIP34Height = 1;
-        nDefaultPort = 18335;
-        consensus.powLimit = uint256S("000284ffffffffffffffffffffffffffffffffffffffffffffffffffffffffff");
-        genesis = CreateGenesisBlock(1478001604, 286592391, 0x1d00ffff, 4, 50 * COIN);
-        consensus.hashGenesisBlock = genesis.GetHash();
-        consensus.daa3ActivationTime = 0;
-
-        assert(flexTransActive.load());
-        assert(consensus.hashGenesisBlock == uint256S("0x00000000580d0391811aba91ffc46f69755789b3b18c3ace72165db452778d2c"));
-        assert(genesis.hashMerkleRoot == uint256S("0x495e4445d86821ff6b5da463ad597d9ee8c588a6965c6ae0c57ac2444b886a9b"));
-
-        vFixedSeeds.clear();
-        vSeeds.clear();
-        vSeeds.push_back(CDNSSeedData("thomaszander.se", "testnet-ft-seed.bitcoin.thomaszander.se"));
-
-        checkpointData = CCheckpointData();
-    }
-};
-
-/**
  * Regression test
  */
 class CRegTestParams : public CChainParams {
@@ -433,11 +407,6 @@ public:
             m_testnet.reset(new CTestNetParams());
         return *m_testnet.get();
     }
-    CChainParams &flextransTestnet() {
-        if (m_testnetFT.get() == nullptr)
-            m_testnetFT.reset(new CFTTestNetParams());
-        return *m_testnetFT.get();
-    }
     CChainParams &current() const {
         assert(m_currentParams);
         return *m_currentParams;
@@ -447,7 +416,7 @@ public:
     }
 
 private:
-    std::unique_ptr<CChainParams> m_main, m_testnet, m_regtest, m_testnetFT;
+    std::unique_ptr<CChainParams> m_main, m_testnet, m_regtest;
     CChainParams *m_currentParams;
 };
 }
@@ -466,8 +435,6 @@ CChainParams& Params(const std::string& chain)
         return s_chains.testnet3();
     else if (chain == CBaseChainParams::REGTEST)
         return s_chains.regtest();
-    else if (chain == CBaseChainParams::FLEXTRANSTESTNET)
-        return  s_chains.flextransTestnet();
     else
         throw std::runtime_error(strprintf("%s: Unknown chain %s.", __func__, chain));
 }
@@ -475,9 +442,6 @@ CChainParams& Params(const std::string& chain)
 void SelectParams(const std::string& network)
 {
     SelectBaseParams(network);
-    if (network == CBaseChainParams::FLEXTRANSTESTNET) {
-        flexTransActive = true;
-    }
     s_chains.setCurrent(Params(network));
 }
 

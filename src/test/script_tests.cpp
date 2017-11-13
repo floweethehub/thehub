@@ -1058,34 +1058,4 @@ BOOST_AUTO_TEST_CASE(script_GetScriptAsm)
     BOOST_CHECK_EQUAL(derSig + "[SINGLE|ANYONECANPAY|FORKID] " + pubKey, ScriptToAsmStr(CScript() << ToByteVector(ParseHex(derSig + "c3")) << vchPubKey, true));
 }
 
-BOOST_AUTO_TEST_CASE(transactionV4)
-{
-    TxUtils::allowNewTransactions();
-    CBasicKeyStore keystore;
-    CKey key;
-    key.MakeNewKey(true);
-    keystore.AddKey(key);
-    CPubKey pubKey = key.GetPubKey();
-    CBitcoinAddress address(pubKey.GetID());
-    BOOST_CHECK(address.IsValid());
-
-    CMutableTransaction from;
-    from.nVersion = 4;
-    from.vout.resize(1);
-    from.vout[0].scriptPubKey = GetScriptForDestination(address.Get());
-    from.vout[0].nValue = 10000;
-    CMutableTransaction to;
-    to.nVersion = 4;
-    to.vin.resize(1);
-    to.vin[0].prevout = COutPoint(from.GetHash(), 0);
-    bool ok = SignSignature(keystore, from, to, 0);
-    BOOST_CHECK(ok);
-
-    CTransaction txTo(to);
-    TransactionSignatureChecker dummy(&txTo, 0, from.vout[0].nValue);
-    ok = VerifyScript(to.vin[0].scriptSig, from.vout[0].scriptPubKey, STANDARD_SCRIPT_VERIFY_FLAGS, dummy, 0);
-    BOOST_CHECK(ok);
-    TxUtils::disallowNewTransactions();
-}
-
 BOOST_AUTO_TEST_SUITE_END()
