@@ -118,7 +118,7 @@ public:
     bool Set(const CScriptID &id);
     bool Set(const CTxDestination &dest);
     enum BitcoinCashEnabled {
-        BCCVersions,
+        BCHVersions,
         LegacyVersions
     };
     bool IsValid(BitcoinCashEnabled bcc = LegacyVersions) const;

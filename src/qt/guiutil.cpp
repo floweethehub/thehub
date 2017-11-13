@@ -986,10 +986,10 @@ QString convertCashBitcoinAddress(const QString &address)
     CBitcoinAddress orig(address.toStdString());
 
     if (!orig.IsValid() && Application::uahfChainState() != Application::UAHFDisabled) {
-        bool valid = orig.IsValid(CBitcoinAddress::BCCVersions);
+        bool valid = orig.IsValid(CBitcoinAddress::BCHVersions);
         if (valid) { // convert from Cash format to normal format.
             CKeyID key;
-            bool ok = orig.GetKeyID(key, CBitcoinAddress::BCCVersions);
+            bool ok = orig.GetKeyID(key, CBitcoinAddress::BCHVersions);
             assert(ok);
             CBitcoinAddress address(key);
             assert(address.IsValid());

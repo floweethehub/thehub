@@ -2138,7 +2138,7 @@ bool ConnectBlock(const CBlock& block, CValidationState& state, CBlockIndex* pin
         logWarning() << "ConnectBlock connected the last block in the old chain, UAHF rules from now on only.";
     } else if (Application::uahfChainState() == Application::UAHFRulesActive && pindex->pprev->GetMedianTimePast() >= Application::uahfStartTime()) {
         logInfo(8002) << "UAHF block found that activates the chain" << block.GetHash();
-        // enable UAHF (aka BCC) on first block after the calculated timestamp
+        // enable UAHF (aka BCH) on first block after the calculated timestamp
         Application::setUahfChainState(Application::UAHFActive);
     }
 

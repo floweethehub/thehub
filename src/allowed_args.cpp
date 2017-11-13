@@ -260,7 +260,7 @@ static void addGeneralOptions(AllowedArgs& allowedArgs, HelpMessageMode mode)
         .addArg("reindex", optionalBool, _("Rebuild block chain index from current blk000??.dat files on startup"))
         .addArg("txindex", optionalBool, strprintf(_("Maintain a full transaction index, used by the getrawtransaction rpc call (default: %u)"), DEFAULT_TXINDEX))
         .addArg("uahfstarttime", requiredInt, "Obsolete")
-        .addArg("uahf", optionalBool, "If selected, we follow the BCC (UAHF) chain")
+        .addArg("uahf", optionalBool, "If selected, we follow the BCH (UAHF) chain")
         .addArg("blockdatadir=<dir>", requiredStr, "List a fallback directory to find blocks/blk* files")
         ;
 }

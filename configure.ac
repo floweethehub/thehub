@@ -177,7 +177,7 @@ AC_ARG_ENABLE([zmq],
 
 AC_ARG_ENABLE([uahf],
   [AS_HELP_STRING([--enable-uahf],
-  [set the default to follow the UAHF (BCC) chain])],
+  [set the default to follow the UAHF (BCH) chain])],
   [use_uahf=yes],
   [use_uahf=no])
 

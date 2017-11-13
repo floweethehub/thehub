@@ -216,7 +216,7 @@ void SendCoinsDialog::on_sendButton_clicked()
 
     if (Application::uahfChainState() == Application::UAHFWaiting) {
         QMessageBox::information(this, tr("Unsafe to create transaction"),
-            "You selected this wallet to operate on the BCC network, which is not active yet. Please wait until activation.",
+            "You selected this wallet to operate on the BCH network, which is not active yet. Please wait until activation.",
             QMessageBox::Ok);
         return;
     }

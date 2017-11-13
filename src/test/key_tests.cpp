@@ -200,12 +200,12 @@ BOOST_AUTO_TEST_CASE(key_test2)
 
     CBitcoinAddress cash("CeYQ6ra3kbYo6XjYroKYkU8XbSnacHyPYg");
     BOOST_CHECK(!cash.IsValid());
-    BOOST_CHECK(cash.IsValid(CBitcoinAddress::BCCVersions));
+    BOOST_CHECK(cash.IsValid(CBitcoinAddress::BCHVersions));
 
     CKeyID key;
     bool ok = cash.GetKeyID(key);
     BOOST_CHECK(!ok);
-    ok = cash.GetKeyID(key, CBitcoinAddress::BCCVersions);
+    ok = cash.GetKeyID(key, CBitcoinAddress::BCHVersions);
     BOOST_CHECK(ok);
 
     CBitcoinAddress convertedFromCash(key);
