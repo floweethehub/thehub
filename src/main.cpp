@@ -1973,9 +1973,17 @@ bool ConnectBlock(const CBlock& block, CValidationState& state, CBlockIndex* pin
     if ((Application::uahfChainState() == Application::UAHFWaiting
          && pindex->pprev->GetMedianTimePast() >= Application::uahfStartTime())
             || Application::uahfChainState() >= Application::UAHFRulesActive) {
-        logInfo(8002) << "Connect block" << pindex->nHeight << "validating based on the idea that UAHF rules are active.";
         flags |= SCRIPT_VERIFY_STRICTENC;
         flags |= SCRIPT_ENABLE_SIGHASH_FORKID;
+
+        // If the Cash DAA HF point has pased, we start rejecting transaction that use a high
+        // S in their signature. We also make sure that signature that are supposed
+        // to fail (for instance in multisig or other forms of smart contracts) are
+        // null.
+        if (pindex->pprev->GetMedianTimePast() >= chainparams.GetConsensus().daa3ActivationTime) {
+            flags |= SCRIPT_VERIFY_LOW_S;
+            flags |= SCRIPT_VERIFY_NULLFAIL;
+        }
     }
 
 
