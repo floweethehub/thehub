@@ -987,13 +987,22 @@ QString convertCashBitcoinAddress(const QString &address)
 
     if (!orig.IsValid() && Application::uahfChainState() != Application::UAHFDisabled) {
         bool valid = orig.IsValid(CBitcoinAddress::BCHVersions);
-        if (valid) { // convert from Cash format to normal format.
+        if (valid) { // convert from Cash format to old style
+            CBitcoinAddress oldStyleAddress;
             CKeyID key;
             bool ok = orig.GetKeyID(key, CBitcoinAddress::BCHVersions);
-            assert(ok);
-            CBitcoinAddress address(key);
-            assert(address.IsValid());
-            return QString::fromStdString(address.ToString());
+            if (ok) {
+                oldStyleAddress.Set(key);
+            } else {
+                assert (orig.IsScript(CBitcoinAddress::BCHVersions));
+                CScriptID script;
+                bool ok = orig.GetScriptId(script, CBitcoinAddress::BCHVersions);
+                assert(ok);
+                oldStyleAddress.Set(script);
+            }
+            assert(oldStyleAddress.IsValid());
+            logDebug() << "in:" << address.toStdString() << "out:" << oldStyleAddress.ToString();
+            return QString::fromStdString(oldStyleAddress.ToString());
         }
     }
     return address;

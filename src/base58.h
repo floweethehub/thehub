@@ -121,7 +121,7 @@ public:
         BCHVersions,
         LegacyVersions
     };
-    bool IsValid(BitcoinCashEnabled bcc = LegacyVersions) const;
+    bool IsValid(BitcoinCashEnabled bch = LegacyVersions) const;
 
     CBitcoinAddress() {}
     CBitcoinAddress(const CTxDestination &dest) { Set(dest); }
@@ -129,8 +129,9 @@ public:
     CBitcoinAddress(const char* pszAddress) { SetString(pszAddress); }
 
     CTxDestination Get() const;
-    bool GetKeyID(CKeyID &keyID, BitcoinCashEnabled bcc = LegacyVersions) const;
-    bool IsScript() const;
+    bool GetKeyID(CKeyID &keyID, BitcoinCashEnabled bch = LegacyVersions) const;
+    bool GetScriptId(CScriptID &script, BitcoinCashEnabled bch = LegacyVersions) const;
+    bool IsScript(BitcoinCashEnabled bch = LegacyVersions) const;
 };
 
 /**
