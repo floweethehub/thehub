@@ -335,7 +335,6 @@ static void addWalletOptions(AllowedArgs& allowedArgs)
         .addArg("txconfirmtarget=<n>", requiredInt, strprintf(_("If paytxfee is not set, include enough fee so transactions begin confirmation on average within n blocks (default: %u)"), DEFAULT_TX_CONFIRM_TARGET))
         .addArg("maxtxfee=<amt>", requiredAmount, strprintf(_("Maximum total fees (in %s) to use in a single wallet transaction; setting this too low may abort large transactions (default: %s)"),
             CURRENCY_UNIT, FormatMoney(DEFAULT_TRANSACTION_MAXFEE)))
-        .addArg("upgradewallet", optionalInt, _("Upgrade wallet to latest format on startup"))
         .addArg("wallet=<file>", requiredStr, _("Specify wallet file (within data directory)") + " " + strprintf(_("(default: %s)"), "wallet.dat"))
         .addArg("walletbroadcast", optionalBool, _("Make the wallet broadcast transactions") + " " + strprintf(_("(default: %u)"), DEFAULT_WALLETBROADCAST))
         .addArg("walletnotify=<cmd>", requiredStr, _("Execute command when a wallet transaction changes (%s in cmd is replaced by TxID)"))

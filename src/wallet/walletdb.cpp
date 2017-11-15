@@ -37,6 +37,8 @@
 #include <boost/scoped_ptr.hpp>
 #include <boost/thread.hpp>
 
+#define MAX_SUPPORTED_WALLET 60000
+
 static uint64_t nAccountingEntryNumber = 0;
 
 //
@@ -617,7 +619,7 @@ DBErrors CWalletDB::LoadWallet(CWallet* pwallet)
         int nMinVersion = 0;
         if (Read((std::string)"minversion", nMinVersion))
         {
-            if (nMinVersion > CLIENT_VERSION)
+            if (nMinVersion > MAX_SUPPORTED_WALLET)
                 return DB_TOO_NEW;
             pwallet->LoadMinVersion(nMinVersion);
         }
@@ -720,7 +722,7 @@ DBErrors CWalletDB::FindWalletTx(CWallet* pwallet, std::vector<uint256>& vTxHash
         int nMinVersion = 0;
         if (Read((std::string)"minversion", nMinVersion))
         {
-            if (nMinVersion > CLIENT_VERSION)
+            if (nMinVersion > MAX_SUPPORTED_WALLET)
                 return DB_TOO_NEW;
             pwallet->LoadMinVersion(nMinVersion);
         }
