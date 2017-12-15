@@ -236,7 +236,7 @@ void Shutdown()
         pcoinscatcher = NULL;
         delete pcoinsdbview;
         pcoinsdbview = NULL;
-        delete Blocks::DB::instance();
+        Blocks::DB::shutdown();
     }
 #ifdef ENABLE_WALLET
     if (pwalletMain)

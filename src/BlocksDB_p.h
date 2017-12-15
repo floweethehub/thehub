@@ -46,7 +46,7 @@ enum BlockType {
     RevertBlock
 };
 
-class DBPrivate {
+class DBPrivate  : public std::enable_shared_from_this<DBPrivate> {
 public:
     DBPrivate();
     ~DBPrivate();

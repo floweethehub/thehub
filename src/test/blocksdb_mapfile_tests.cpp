@@ -52,7 +52,8 @@ static void writeToFiles(int nFiles, size_t n2w, size_t atPos) {
 
 BOOST_AUTO_TEST_CASE(mapFile_extendFile_test)
 {
-    Blocks::DBPrivate pvt, pvt2;
+    std::shared_ptr<Blocks::DBPrivate> pvt(new Blocks::DBPrivate());
+    std::shared_ptr<Blocks::DBPrivate> pvt2(new Blocks::DBPrivate());
 
     // first create dummy block files
     const int nFiles = 100;
@@ -67,9 +68,9 @@ BOOST_AUTO_TEST_CASE(mapFile_extendFile_test)
 
     for (int i = 0; i < nFiles; ++i) {
         size_t filesz, filesz2;
-        auto buf = pvt.mapFile(i, Blocks::ForwardBlock, &filesz);
+        auto buf = pvt->mapFile(i, Blocks::ForwardBlock, &filesz);
         //LogPrintf("%d got size %d\n", i, int(filesz));
-        auto buf2 = pvt.mapFile(i, Blocks::ForwardBlock, &filesz2);
+        auto buf2 = pvt->mapFile(i, Blocks::ForwardBlock, &filesz2);
         //LogPrintf("%d (second) got size %d\n", i, int(filesz2));
         BOOST_CHECK(filesz == filesz2);
         BOOST_CHECK(buf.get() != nullptr && buf.get()[filesz-1] == char(i%128));
@@ -84,18 +85,18 @@ BOOST_AUTO_TEST_CASE(mapFile_extendFile_test)
 
     for (int i = 1; i < nFiles; ++i) {
         size_t filesz, filesz_old;
-        auto buf = pvt2.mapFile(i, Blocks::ForwardBlock, &filesz);
-        auto buf_old = pvt.mapFile(i, Blocks::ForwardBlock, &filesz_old);
+        auto buf = pvt2->mapFile(i, Blocks::ForwardBlock, &filesz);
+        auto buf_old = pvt->mapFile(i, Blocks::ForwardBlock, &filesz_old);
         //LogPrintf("%d got size %d expected %d, old=%d\n", i, int(filesz), int(expected_size), int(filesz_old));
         BOOST_CHECK(filesz == expected_size);
         BOOST_CHECK(filesz_old < filesz);
         BOOST_CHECK(buf.get() != nullptr && buf.get()[filesz-1] == char(i%128));
-        pvt.fileHasGrown(i); // notify -- will make following tests pass..
+        pvt->fileHasGrown(i); // notify -- will make following tests pass..
     }
 
     for (int i = 1; i < nFiles; ++i) {
         size_t filesz;
-        auto buf = pvt.mapFile(i, Blocks::ForwardBlock, &filesz); // should pickup *NEW* size now
+        auto buf = pvt->mapFile(i, Blocks::ForwardBlock, &filesz); // should pickup *NEW* size now
 
         //LogPrintf("%d got size %d expected %d, old=%d\n", i, int(filesz), int(expected_size), int(filesz_old));
         BOOST_CHECK(filesz == expected_size);

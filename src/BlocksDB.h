@@ -67,6 +67,7 @@ public:
     static void createInstance(size_t nCacheSize, bool fWipe);
     /// Deletes old singleton and creates a new one for unit testing.
     static void createTestInstance(size_t nCacheSize);
+    static void shutdown();
 
     /**
      * @brief starts the blockImporter part of a 'reindex'.
@@ -74,8 +75,6 @@ public:
      * validation.
      */
     static void startBlockImporter();
-
-    virtual ~DB();
 
 protected:
     DB(size_t nCacheSize, bool fMemory = false, bool fWipe = false);
@@ -126,13 +125,13 @@ public:
     void loadConfig();
 
     /// \internal
-    DBPrivate *priv() {
+    std::shared_ptr<DBPrivate> priv() {
         return d;
     }
 
 private:
     static DB *s_instance;
-    DBPrivate* d;
+    std::shared_ptr<DBPrivate> d;
 };
 
 struct BlockHashShortener {

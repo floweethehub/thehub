@@ -266,6 +266,12 @@ void Blocks::DB::createTestInstance(size_t nCacheSize)
     Blocks::DB::s_instance = new Blocks::DB(nCacheSize, true);
 }
 
+void Blocks::DB::shutdown()
+{
+    delete s_instance;
+    s_instance = 0;
+}
+
 void Blocks::DB::startBlockImporter()
 {
     std::vector<boost::filesystem::path> vImportFiles;
@@ -285,11 +291,6 @@ Blocks::DB::DB(size_t nCacheSize, bool fMemory, bool fWipe)
 {
     d->isReindexing = Exists(DB_REINDEX_FLAG);
     loadConfig();
-}
-
-Blocks::DB::~DB()
-{
-    delete d;
 }
 
 bool Blocks::DB::ReadBlockFileInfo(int nFile, CBlockFileInfo &info) {
@@ -435,7 +436,7 @@ boost::filesystem::path Blocks::getFilepathForIndex(int fileIndex, const char *p
 {
     auto path = GetDataDir() / "blocks" / strprintf("%s%05u.dat", prefix, fileIndex);
     if (fFindHarder && !boost::filesystem::exists(path)) {
-        DBPrivate *d = Blocks::DB::instance()->priv();
+        std::shared_ptr<DBPrivate> d = Blocks::DB::instance()->priv();
         for (const std::string &dir : d->blocksDataDirs) {
             boost::filesystem::path alternatePath(dir);
             alternatePath = alternatePath / "blocks" / strprintf("%s%05u.dat", prefix, fileIndex);
@@ -587,12 +588,13 @@ Blocks::DBPrivate::DBPrivate()
 
 Blocks::DBPrivate::~DBPrivate()
 {
-    for (auto file : datafiles) {
-        delete file;
-    }
-    for (auto file : revertDatafiles) {
-        delete file;
-    }
+    // this class is mostly lock-free, which means that this destructor can be called well before
+    // all the users of the datafiles are deleted.
+    //  The design is that the objects stored in the datafils/revertDatafiles will be deleted when the last
+    // users stop using them. So don't delete them here, it would cause issues.
+    std::lock_guard<std::mutex> lock_(lock);
+    datafiles.clear();
+    revertDatafiles.clear();
 }
 
 Streaming::ConstBuffer Blocks::DBPrivate::loadBlock(CDiskBlockPos pos, BlockType type, const uint256 *blockHash)
@@ -720,15 +722,18 @@ std::shared_ptr<char> Blocks::DBPrivate::mapFile(int fileIndex, Blocks::BlockTyp
             mode |= std::ios_base::out;
         df->file.open(path, mode);
         if (df->file.is_open()) {
-            auto cleanupLambda = [useBlk,fileIndex,df,this] (char *buf) {
-                {   // mutex scope...
-                    std::lock_guard<std::mutex> lockG(lock);
-                    std::vector<DataFile*> &list = useBlk ? datafiles : revertDatafiles;
+            auto weakThis = std::weak_ptr<DBPrivate>(shared_from_this());
+            auto cleanupLambda = [useBlk,fileIndex,df,weakThis] (char *buf) {
+                std::shared_ptr<DBPrivate> d = weakThis.lock();
+                if (d) {   // mutex scope...
+                    std::lock_guard<std::mutex> lockG(d->lock);
+                    std::vector<DataFile*> &list = useBlk ? d->datafiles : d->revertDatafiles;
                     assert(fileIndex >= 0 && fileIndex < (int) list.size());
-                    if (df == list[fileIndex])
+                    if (df == list[fileIndex]) {
                         // invalidate entry -- note that it's possible
                         // df != list[fileIndex] if we resized the file
                         list[fileIndex] = nullptr;
+                    }
                 }
                 // no need to hold lock on delete -- auto-closes mmap'd file.
                 delete df;
