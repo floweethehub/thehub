@@ -107,9 +107,17 @@ def main():
                       help="Source directory containing bitcoind/bitcoin-cli (default: %default%)")
     parser.add_option("--tmpdir", dest="tmpdir", default=tempfile.mkdtemp(prefix="test"),
                       help="Root directory for datadirs")
+    parser.add_option("--portstart", dest="port_start", default=0, type='int',
+                      help="The first port number to use")
     (options, args) = parser.parse_args()
 
     os.environ['PATH'] = options.srcdir+":"+os.environ['PATH']
+
+    if options.port_start > 1024:
+        PortStart.n = options.port_start
+    else:
+        # default to a PID based number
+        PortStart.n = (os.getpid() * 10)%10000 + 11000
 
     check_json_precision()
 

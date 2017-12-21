@@ -26,6 +26,8 @@ from .authproxy import AuthServiceProxy, JSONRPCException
 
 COVERAGE_DIR = None
 
+class PortStart:
+    n = None
 
 def enable_coverage(dirname):
     """Maintain a log of which RPC calls are made during testing."""
@@ -60,9 +62,9 @@ def get_rpc_proxy(url, node_number, timeout=None):
 
 
 def p2p_port(n):
-    return 11000 + n + os.getpid()%999
+    return PortStart.n + n
 def rpc_port(n):
-    return 12000 + n + os.getpid()%999
+    return PortStart.n + n + 10000
 
 def check_json_precision():
     """Make sure json library being used does not lose precision converting BTC values"""
@@ -128,7 +130,7 @@ def initialize_datadir(dirname, n):
         f.write("listenonion=0\n")
 
     with open(os.path.join(datadir, "logs.conf"), 'w') as f:
-        f.write("channel file\noption timestamp time millisecond\n0 debug\n1000 debug\n2000 debug\n3000 quiet\n3001 info\n4000 debug\n5000 debug\n6000 debug\n7000 debug\n8000 debug\n")
+        f.write("channel file\noption timestamp time\n0 debug\n1000 debug\n2000 debug\n3000 quiet\n3001 info\n4000 debug\n5000 debug\n6000 debug\n7000 debug\n8000 debug\n")
     return datadir
 
 def initialize_chain(test_dir):
@@ -156,6 +158,7 @@ def initialize_chain(test_dir):
             if i > 0:
                 args.append("-connect=127.0.0.1:"+str(p2p_port(0)))
             bitcoind_processes[i] = subprocess.Popen(args)
+            print "PID:", bitcoind_processes[i].pid
             if os.getenv("PYTHON_DEBUG", ""):
                 print "initialize_chain: bitcoind started, calling bitcoin-cli -rpcwait getblockcount"
             subprocess.check_call([ os.getenv("BITCOINCLI", "bitcoin-cli"), "-datadir="+datadir,
@@ -241,11 +244,23 @@ def start_node(i, dirname, extra_args=None, rpchost=None, timewait=None, binary=
         binary = os.getenv("BITCOIND", "bitcoind")
     args = [ binary, "-datadir="+datadir, "-server", "-keypool=1", "-discover=0", "-rest" ]
     if extra_args is not None: args.extend(extra_args)
-    bitcoind_processes[i] = subprocess.Popen(args)
+    try:
+        # my test; (throws if i not present)
+        os.getenv("DAEMON_IN_DEBUGGER", "").index(str(i))
+
+        print "Please start the process in GDB now. Use these args:"
+        line="  "
+        for a in args[1:]:
+            line += a
+            line += " "
+        print line
+    except Exception as e:
+        bitcoind_processes[i] = subprocess.Popen(args)
+        print "PID:", bitcoind_processes[i].pid
+        if os.getenv("PYTHON_DEBUG", ""):
+            print "start_node: bitcoind started, calling bitcoin-cli -rpcwait getblockcount"
+            print args
     devnull = open(os.devnull, "w")
-    if os.getenv("PYTHON_DEBUG", ""):
-        print "start_node: bitcoind started, calling bitcoin-cli -rpcwait getblockcount"
-        print args
     subprocess.check_call([ os.getenv("BITCOINCLI", "bitcoin-cli"), "-datadir="+datadir] +
                           _rpchost_to_args(rpchost)  +
                           ["-rpcwait", "getblockcount"], stdout=devnull)

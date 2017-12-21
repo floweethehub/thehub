@@ -25,6 +25,7 @@ from .util import (
     enable_coverage,
     check_json_precision,
     initialize_chain_clean,
+    PortStart,
 )
 from .authproxy import AuthServiceProxy, JSONRPCException
 
@@ -110,6 +111,8 @@ class BitcoinTestFramework(object):
                           help="Print out all RPC calls as they are made")
         parser.add_option("--coveragedir", dest="coveragedir",
                           help="Write tested RPC commands into this directory")
+        parser.add_option("--portstart", dest="port_start", default=0, type='int',
+                          help="The first port number to use")
         self.add_options(parser)
         (self.options, self.args) = parser.parse_args()
 
@@ -121,6 +124,12 @@ class BitcoinTestFramework(object):
             enable_coverage(self.options.coveragedir)
 
         os.environ['PATH'] = self.options.srcdir+":"+self.options.srcdir+"/qt:"+os.environ['PATH']
+
+        if self.options.port_start > 1024:
+            PortStart.n = self.options.port_start
+        else:
+            # default to a PID based number
+            PortStart.n = (os.getpid() * 10)%10000 + 11000
 
         check_json_precision()
 

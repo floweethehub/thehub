@@ -65,7 +65,7 @@ class MempoolCoinbaseTest(BitcoinTestFramework):
         for node in self.nodes:
             node.invalidateblock(blocks[0])
 
-        # mempool should be empty, all txns confirmed
+        # mempool should equal spends1 and spends2
         assert_equal(set(self.nodes[0].getrawmempool()), set(spends1_id+spends2_id))
         for txid in spends1_id+spends2_id:
             tx = self.nodes[0].gettransaction(txid)

@@ -264,23 +264,53 @@ class TestManager(object):
     # Verify that the tip of each connection all agree with each other, and
     # with the expected outcome (if given)
     def check_results(self, blockhash, outcome):
-        with mininode_lock:
-            for c in self.connections:
-                if outcome is None:
-                    if c.cb.bestblockhash != self.connections[0].cb.bestblockhash:
-                        return False
-                elif isinstance(outcome, RejectResult): # Check that block was rejected w/ code
-                    if c.cb.bestblockhash == blockhash:
-                        return False
-                    if blockhash not in c.cb.block_reject_map:
-                        print 'Block not in reject map: %064x' % (blockhash)
-                        return False
-                    if not outcome.match(c.cb.block_reject_map[blockhash]):
-                        print 'Block rejected with %s instead of expected %s: %064x' % (c.cb.block_reject_map[blockhash], outcome, blockhash)
-                        return False
-                elif ((c.cb.bestblockhash == blockhash) != outcome):
-                    # print c.cb.bestblockhash, blockhash, outcome
-                    return False
+        for c in self.connections:
+            lastHash = sha256('0')
+            retry = True
+            tries = 0
+            while retry:
+                retry = False
+                with mininode_lock:
+                    if outcome is None:
+                        if c.cb.bestblockhash != self.connections[0].cb.bestblockhash:
+                            return False
+                    elif isinstance(outcome, RejectResult): # Check that block was rejected w/ code
+                        if c.cb.bestblockhash == blockhash:
+                            if (tries <= 30):
+                                retry = True
+                                tries = tries + 1
+                            else:
+                                print "expected reject"
+                                return False
+                        if blockhash not in c.cb.block_reject_map:
+                            if (tries <= 30):
+                                retry = True
+                                tries = tries + 1
+                            else:
+                                print 'Block not in reject map: %064x' % (blockhash)
+                                return False
+                        elif not outcome.match(c.cb.block_reject_map[blockhash]):
+                            if (tries <= 30):
+                                retry = True
+                                tries = tries + 1
+                            else:
+                                print 'Block rejected with %s instead of expected %s: %064x' % (c.cb.block_reject_map[blockhash], outcome, blockhash)
+                                return False
+                    elif ((c.cb.bestblockhash == blockhash) != outcome):
+                        if (tries <= 30):
+                            retry = True
+                            tries = tries + 1
+                        else:
+                            if outcome is False:
+                                print "connection best block %064x, expected NOT %064x" % (c.cb.bestblockhash, blockhash)
+                            else:
+                                print "connection best block %064x, expected %064x" % (c.cb.bestblockhash, blockhash)
+                            return False
+                if retry:
+                    m = msg_getheaders()
+                    m.locator = self.block_store.get_locator(c.cb.bestblockhash)
+                    c.send_message(m)
+                    time.sleep(1)
             return True
 
     # Either check that the mempools all agree with each other, or that
