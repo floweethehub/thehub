@@ -17,10 +17,10 @@
  */
 
 
-#ifndef BITCOIN_BLOCKCHAIN_BLOCK_H
-#define BITCOIN_BLOCKCHAIN_BLOCK_H
+#ifndef FLOWEE_PRIMITIVES_FASTBLOCK_H
+#define FLOWEE_PRIMITIVES_FASTBLOCK_H
 
-#include "Transaction.h"
+#include "FastTransaction.h"
 #include <streaming/ConstBuffer.h>
 
 #include <uint256.h>
@@ -87,11 +87,17 @@ public:
 
     /**
      * @brief fromOldBlock saves the old block in a buffer which it returns a FastBlock instance with.
-     * @param block the old block, which can be discarded afterwards.
+     * @param block the old block-header, which can be discarded afterwards.
      * @param pool an optional bufferPool, if not passed a local one will be created.
      * @return the newly created FastBlock
      */
     static FastBlock fromOldBlock(const CBlockHeader &block, Streaming::BufferPool *pool = 0);
+    /**
+     * @brief fromOldBlock saves the old block in a buffer which it returns a FastBlock instance with.
+     * @param block the old block, which can be discarded afterwards.
+     * @param pool an optional bufferPool, if not passed a local one will be created.
+     * @return the newly created FastBlock
+     */
     static FastBlock fromOldBlock(const CBlock &block, Streaming::BufferPool *pool = 0);
 
     /// \internal

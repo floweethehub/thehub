@@ -36,6 +36,9 @@
 #include "util.h"
 #include "utilstrencodings.h"
 #include "primitives/block.h"
+#include <Application.h>
+#include <validation/Engine.h>
+#include <validation/VerifyDB.h>
 
 extern void TxToJSON(const CTransaction& tx, const uint256 hashBlock, UniValue& entry);
 void ScriptPubKeyToJSON(const CScript& scriptPubKey, UniValue& out, bool fIncludeHex);
@@ -354,10 +357,9 @@ UniValue getblockheader(const UniValue& params, bool fHelp)
     if (params.size() > 1)
         fVerbose = params[1].get_bool();
 
-    if (Blocks::indexMap.count(hash) == 0)
+    CBlockIndex* pblockindex = Blocks::Index::get(hash);
+    if (!pblockindex)
         throw JSONRPCError(RPC_INVALID_ADDRESS_OR_KEY, "Block not found");
-
-    CBlockIndex* pblockindex = Blocks::indexMap[hash];
 
     if (!fVerbose)
     {
@@ -417,11 +419,11 @@ UniValue getblock(const UniValue& params, bool fHelp)
     if (params.size() > 1)
         fVerbose = params[1].get_bool();
 
-    if (Blocks::indexMap.count(hash) == 0)
+    CBlockIndex* pblockindex = Blocks::Index::get(hash);
+    if (!pblockindex)
         throw JSONRPCError(RPC_INVALID_ADDRESS_OR_KEY, "Block not found");
 
     CBlock block;
-    CBlockIndex* pblockindex = Blocks::indexMap[hash];
 
     if (fHavePruned && !(pblockindex->nStatus & BLOCK_HAVE_DATA) && pblockindex->nTx > 0)
         throw JSONRPCError(RPC_INTERNAL_ERROR, "Block not available (pruned data)");
@@ -530,7 +532,7 @@ UniValue gettxout(const UniValue& params, bool fHelp)
     CCoins coins;
     if (fMempool) {
         LOCK(mempool.cs);
-        CCoinsViewMemPool view(pcoinsTip, mempool);
+        CCoinsViewMemPool view(&mempool);
         if (!view.GetCoins(hash, coins))
             return NullUniValue;
         mempool.pruneSpent(hash, coins); // TODO: this should be done by the CCoinsViewMemPool
@@ -541,8 +543,8 @@ UniValue gettxout(const UniValue& params, bool fHelp)
     if (n<0 || (unsigned int)n>=coins.vout.size() || coins.vout[n].IsNull())
         return NullUniValue;
 
-    auto it = Blocks::indexMap.find(pcoinsTip->GetBestBlock());
-    CBlockIndex *pindex = it->second;
+    CBlockIndex *pindex = Blocks::Index::get(pcoinsTip->GetBestBlock());
+    assert(pindex);
     ret.push_back(Pair("bestblock", pindex->GetBlockHash().GetHex()));
     if ((unsigned int)coins.nHeight == MEMPOOL_HEIGHT)
         ret.push_back(Pair("confirmations", 0));
@@ -576,14 +578,12 @@ UniValue verifychain(const UniValue& params, bool fHelp)
             + HelpExampleRpc("verifychain", "")
         );
 
-    LOCK(cs_main);
-
     if (params.size() > 0)
         nCheckLevel = params[0].get_int();
     if (params.size() > 1)
         nCheckDepth = params[1].get_int();
 
-    return CVerifyDB().VerifyDB(Params(), pcoinsTip, nCheckLevel, nCheckDepth);
+    return VerifyDB().verifyDB(pcoinsTip, nCheckLevel, nCheckDepth);
 }
 
 /** Implementation of IsSuperMajority with better feedback */
@@ -762,17 +762,9 @@ UniValue getchaintips(const UniValue& params, bool fHelp)
        known blocks, and successively remove blocks that appear as pprev
        of another block.  */
     std::set<const CBlockIndex*, CompareBlocksByHeight> setTips;
-    BOOST_FOREACH(const PAIRTYPE(const uint256, CBlockIndex*)& item, Blocks::indexMap)
-        setTips.insert(item.second);
-    BOOST_FOREACH(const PAIRTYPE(const uint256, CBlockIndex*)& item, Blocks::indexMap)
-    {
-        const CBlockIndex* pprev = item.second->pprev;
-        if (pprev)
-            setTips.erase(pprev);
+    for (auto index : Blocks::DB::instance()->headerChainTips()) {
+        setTips.insert(index);
     }
-
-    // Always report the currently active tip.
-    setTips.insert(chainActive.Tip());
 
     /* Construct the output array.  */
     UniValue res(UniValue::VARR);
@@ -864,24 +856,14 @@ UniValue invalidateblock(const UniValue& params, bool fHelp)
 
     std::string strHash = params[0].get_str();
     uint256 hash(uint256S(strHash));
-    CValidationState state;
 
+    CBlockIndex* pblockindex = nullptr;
     {
-        LOCK(cs_main);
-        if (Blocks::indexMap.count(hash) == 0)
+        pblockindex = Blocks::Index::get(hash);
+        if (!pblockindex)
             throw JSONRPCError(RPC_INVALID_ADDRESS_OR_KEY, "Block not found");
-
-        CBlockIndex* pblockindex = Blocks::indexMap[hash];
-        InvalidateBlock(state, Params().GetConsensus(), pblockindex);
     }
-
-    if (state.IsValid()) {
-        ActivateBestChain(state, Params());
-    }
-
-    if (!state.IsValid()) {
-        throw JSONRPCError(RPC_DATABASE_ERROR, state.GetRejectReason());
-    }
+    Application::instance()->validation()->invalidateBlock(pblockindex);
 
     return NullUniValue;
 }
@@ -904,21 +886,14 @@ UniValue reconsiderblock(const UniValue& params, bool fHelp)
     std::string strHash = params[0].get_str();
     uint256 hash(uint256S(strHash));
 
-    {
-        LOCK(cs_main);
-        if (Blocks::indexMap.count(hash) == 0)
-            throw JSONRPCError(RPC_INVALID_ADDRESS_OR_KEY, "Block not found");
+    CBlockIndex* pblockindex = Blocks::Index::get(hash);
+    if (!pblockindex)
+        throw JSONRPCError(RPC_INVALID_ADDRESS_OR_KEY, "Block not found");
+    Blocks::Index::reconsiderBlock(pblockindex);
 
-        CBlockIndex* pblockindex = Blocks::indexMap[hash];
-        ReconsiderBlock(pblockindex);
-    }
-
-    CValidationState state;
-    ActivateBestChain(state, Params());
-
-    if (!state.IsValid()) {
-        throw JSONRPCError(RPC_DATABASE_ERROR, state.GetRejectReason());
-    }
-
+    auto future = Application::instance()->validation()->addBlock(pblockindex->GetBlockPos());
+    future.waitUntilFinished();
+    if (future.error().empty())
+        throw JSONRPCError(RPC_DATABASE_ERROR, future.error());
     return NullUniValue;
 }

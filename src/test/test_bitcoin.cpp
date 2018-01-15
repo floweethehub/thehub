@@ -1,6 +1,7 @@
 /*
  * This file is part of the Flowee project
  * Copyright (C) 2011-2015 The Bitcoin Core developers
+ * Copyright (C) 2017 Tom Zander <tomz@freedommail.ch>
  *
  * This program is free software: you can redistribute it and/or modify
  * it under the terms of the GNU General Public License as published by
@@ -19,157 +20,102 @@
 #define BOOST_TEST_MODULE Bitcoin Test Suite
 
 #include "test_bitcoin.h"
-
-#include "chainparams.h"
-#include "consensus/consensus.h"
-#include "consensus/validation.h"
-#include "key.h"
-#include "main.h"
-#include "miner.h"
-#include "pubkey.h"
-#include "random.h"
-#include <BlocksDB.h>
-#include "txmempool.h"
-#include "ui_interface.h"
-#include "util.h"
+#include <chain.h>
+#include <chainparams.h>
+#include <consensus/merkle.h>
+#include <main.h>
+#include <key.h>
+#include <net.h>
+#include <random.h>
+#include <ui_interface.h>
 #ifdef ENABLE_WALLET
-#include "wallet/db.h"
-#include "wallet/wallet.h"
+# include <wallet/wallet.h>
+CWallet* pwalletMain;
 #endif
 
-#include <boost/filesystem.hpp>
+
 #include <boost/test/unit_test.hpp>
-#include <boost/thread.hpp>
 
 CClientUIInterface uiInterface; // Declared but not defined in ui_interface.h
-CWallet* pwalletMain;
 
 extern void noui_connect();
 
 BasicTestingSetup::BasicTestingSetup(const std::string& chainName)
 {
-        ECC_Start();
-        SetupEnvironment();
-        SetupNetworking();
-        mapArgs.clear();
-        mapArgs["-checkblockindex"] = "1";
-        mapArgs["-uahf"] = "true";
-        SelectParams(chainName);
-        noui_connect();
+    ECC_Start();
+    SetupEnvironment();
+    SetupNetworking();
+    mapArgs["-checkblockindex"] = "1";
+    mapArgs["-uahf"] = "true";
+    SelectParams(chainName);
+    noui_connect();
+    MockApplication::doStartThreads();
+    MockApplication::doInit();
     Log::Manager::instance()->loadDefaultTestSetup();
 }
 
 BasicTestingSetup::~BasicTestingSetup()
 {
-        ECC_Stop();
+    ECC_Stop();
+    Application::quit(0);
 }
 
 TestingSetup::TestingSetup(const std::string& chainName) : BasicTestingSetup(chainName)
 {
-    MockApplication::doInit();
     if (chainName == CBaseChainParams::REGTEST)
         Application::setUahfChainState(Application::UAHFActive);
-    const CChainParams& chainparams = Params();
 
 #ifdef ENABLE_WALLET
-        bitdb.MakeMock();
+    bitdb.MakeMock();
 #endif
-        ClearDatadirCache();
-        pathTemp = GetTempPath() / strprintf("test_bitcoin_%lu_%i", (unsigned long)GetTime(), (int)(GetRand(100000)));
-        try {
-            boost::filesystem::create_directories(pathTemp / "regtest/blocks/index");
-            boost::filesystem::create_directories(pathTemp / "blocks/index");
-        } catch (const std::exception &e) {
-            // most likely not an issue. Just log it.
-            logDebug() << e;
-        }
-        mapArgs["-datadir"] = pathTemp.string();
-        Blocks::DB::createTestInstance(1<<20);
-        pcoinsdbview = new CCoinsViewDB(1 << 23, true);
-        pcoinsTip = new CCoinsViewCache(pcoinsdbview);
-        InitBlockIndex(chainparams);
+    ClearDatadirCache();
+    pathTemp = GetTempPath() / strprintf("test_bitcoin_%lu_%i", (unsigned long)GetTime(), (int)(GetRand(100000)));
+    boost::filesystem::create_directories(pathTemp / "regtest/blocks/index");
+    boost::filesystem::create_directories(pathTemp / "blocks/index");
+    mapArgs["-datadir"] = pathTemp.string();
+    Blocks::DB::createTestInstance(1<<20);
+    pcoinsdbview = new CCoinsViewDB(1 << 23, true);
+    pcoinsTip = new CCoinsViewCache(pcoinsdbview);
+
+    bv.initSingletons();
+    bv.appendGenesis();
+    MockApplication::setValidationEngine(&bv);
+
 #ifdef ENABLE_WALLET
-        bool fFirstRun;
-        pwalletMain = new CWallet("wallet.dat");
-        pwalletMain->LoadWallet(fFirstRun);
-        RegisterValidationInterface(pwalletMain);
+    bool fFirstRun;
+    pwalletMain = new CWallet("wallet.dat");
+    pwalletMain->LoadWallet(fFirstRun);
+    RegisterValidationInterface(pwalletMain);
 #endif
-        nScriptCheckThreads = 3;
-        for (int i=0; i < nScriptCheckThreads-1; i++)
-            threadGroup.create_thread(&ThreadScriptCheck);
-        RegisterNodeSignals(GetNodeSignals());
+
+    RegisterNodeSignals(GetNodeSignals());
 }
 
 TestingSetup::~TestingSetup()
 {
-        UnregisterNodeSignals(GetNodeSignals());
-        threadGroup.interrupt_all();
-        threadGroup.join_all();
+    MockApplication::setValidationEngine(nullptr);
+    bv.shutdown();
+    Blocks::Index::unload();
+
+    UnregisterNodeSignals(GetNodeSignals());
 #ifdef ENABLE_WALLET
-        UnregisterValidationInterface(pwalletMain);
-        delete pwalletMain;
-        pwalletMain = NULL;
+    UnregisterValidationInterface(pwalletMain);
+    delete pwalletMain;
+    pwalletMain = NULL;
 #endif
-        UnloadBlockIndex();
-        delete pcoinsTip;
-        delete pcoinsdbview;
+    UnloadBlockIndex();
+    delete pcoinsTip;
+    delete pcoinsdbview;
 #ifdef ENABLE_WALLET
-        bitdb.Flush(true);
-        bitdb.Reset();
+    bitdb.Flush(true);
+    bitdb.Reset();
 #endif
-        boost::filesystem::remove_all(pathTemp);
+    boost::filesystem::remove_all(pathTemp);
 }
 
-TestChain100Setup::TestChain100Setup() : TestingSetup(CBaseChainParams::REGTEST)
+
+CTxMemPoolEntry TestMemPoolEntryHelper::FromTx(CMutableTransaction &tx, CTxMemPool *pool)
 {
-    // Generate a 100-block chain:
-    coinbaseKey.MakeNewKey(true);
-    CScript scriptPubKey = CScript() <<  ToByteVector(coinbaseKey.GetPubKey()) << OP_CHECKSIG;
-    for (int i = 0; i < COINBASE_MATURITY; i++)
-    {
-        std::vector<CMutableTransaction> noTxns;
-        CBlock b = CreateAndProcessBlock(noTxns, scriptPubKey);
-        coinbaseTxns.push_back(b.vtx[0]);
-    }
-}
-
-//
-// Create a new block with just given transactions, coinbase paying to
-// scriptPubKey, and try to add it to the current chain.
-//
-CBlock
-TestChain100Setup::CreateAndProcessBlock(const std::vector<CMutableTransaction>& txns, const CScript& scriptPubKey)
-{
-    const CChainParams& chainparams = Params();
-    Mining mining;
-    mining.SetCoinbase(scriptPubKey);
-    CBlockTemplate *pblocktemplate = mining.CreateNewBlock(chainparams);
-    CBlock& block = pblocktemplate->block;
-
-    // Replace mempool-selected txns with just coinbase plus passed-in txns:
-    block.vtx.resize(1);
-    BOOST_FOREACH(const CMutableTransaction& tx, txns)
-        block.vtx.push_back(tx);
-    // IncrementExtraNonce creates a valid coinbase and merkleRoot
-    unsigned int extraNonce = 0;
-    mining.IncrementExtraNonce(&block, chainActive.Tip(), extraNonce);
-
-    while (!CheckProofOfWork(block.GetHash(), block.nBits, chainparams.GetConsensus())) ++block.nNonce;
-
-    CValidationState state;
-    ProcessNewBlock(state, chainparams, NULL, &block, true, NULL);
-
-    CBlock result = block;
-    delete pblocktemplate;
-    return result;
-}
-
-TestChain100Setup::~TestChain100Setup()
-{
-}
-
-
-CTxMemPoolEntry TestMemPoolEntryHelper::FromTx(CMutableTransaction &tx, CTxMemPool *pool) {
     CTransaction txn(tx);
     bool hasNoDependencies = pool ? pool->HasNoInputsOf(tx) : hadNoDependencies;
     // Hack to assume either its completely dependent on other mempool txs or not at all
@@ -181,15 +127,129 @@ CTxMemPoolEntry TestMemPoolEntryHelper::FromTx(CMutableTransaction &tx, CTxMemPo
 
 void Shutdown(void* parg)
 {
-  exit(0);
+    exit(0);
 }
 
 void StartShutdown()
 {
-  exit(0);
+    exit(0);
 }
 
 bool ShutdownRequested()
 {
-  return false;
+    return false;
+}
+
+
+////////////////////////////////////
+
+MockBlockValidation::MockBlockValidation()
+    : mp(minFee)
+{
+}
+
+void MockBlockValidation::initSingletons()
+{
+    // set all the stuff that has been created in the Fixture (TestingSetup::TestingSetup())
+    mp.setCoinsView(pcoinsTip);
+    setMempool(&mp);
+    mp.setSanityCheck(1); // slow but correct
+    chainActive.SetTip(nullptr);
+    setBlockchain(&chainActive);
+}
+
+MockBlockValidation::~MockBlockValidation()
+{
+    pcoinsTip = 0;
+}
+
+FastBlock MockBlockValidation::createBlock(CBlockIndex *parent, const CScript& scriptPubKey, const std::vector<CTransaction>& txns) const
+{
+    CMutableTransaction coinbase;
+    coinbase.vin.resize(1);
+    coinbase.vout.resize(1);
+    coinbase.vin[0].scriptSig = CScript() << (parent->nHeight + 1) << OP_0;
+    coinbase.vout[0].nValue = 50 * COIN;
+    coinbase.vout[0].scriptPubKey = scriptPubKey;
+
+    CBlock block;
+    block.vtx.push_back(coinbase);
+    block.nVersion = 4;
+    block.hashPrevBlock = *parent->phashBlock;
+    block.nTime = parent->nTime + 2;
+    block.nBits = 0x207fffff;
+    block.nNonce = 0;
+
+    for (const CTransaction &tx : txns) {
+        block.vtx.push_back(tx);
+    }
+    block.hashMerkleRoot = BlockMerkleRoot(block);
+    const bool mine = Params().NetworkIDString() == "regtest";
+    do {
+        ++block.nNonce;
+    } while (mine && !CheckProofOfWork(block.GetHash(), block.nBits, Params().GetConsensus()));
+
+    return FastBlock::fromOldBlock(block);
+}
+
+FastBlock MockBlockValidation::createBlock(CBlockIndex *parent)
+{
+    CKey coinbaseKey;
+    coinbaseKey.MakeNewKey(true);
+    CScript scriptPubKey;
+    scriptPubKey <<  ToByteVector(coinbaseKey.GetPubKey()) << OP_CHECKSIG;
+    return createBlock(parent, scriptPubKey);
+}
+
+void MockBlockValidation::appendGenesis()
+{
+    addBlock(FastBlock::fromOldBlock(Params().GenesisBlock()), Validation::SaveGoodToDisk);
+    waitValidationFinished();
+}
+
+std::vector<FastBlock> MockBlockValidation::appendChain(int blocks, CKey &coinbaseKey, OutputType out)
+{
+    std::vector<FastBlock> answer;
+    answer.reserve(blocks);
+    coinbaseKey.MakeNewKey(true);
+    CScript scriptPubKey;
+    if (out == StandardOutScript)
+        scriptPubKey <<  ToByteVector(coinbaseKey.GetPubKey()) << OP_CHECKSIG;
+    waitValidationFinished();
+    const bool allowFullChecks = Params().NetworkIDString() == "regtest";
+    for (int i = 0; i < blocks; i++)
+    {
+        CBlockIndex *tip = blockchain()->Tip();
+        assert(tip);
+        auto block = createBlock(tip, scriptPubKey);
+        answer.push_back(block);
+        auto future = addBlock(block, Validation::SaveGoodToDisk, 0);
+        future.setCheckPoW(allowFullChecks);
+        future.setCheckMerkleRoot(allowFullChecks);
+        future.start();
+        future.waitUntilFinished();
+    }
+    return answer;
+}
+
+std::vector<FastBlock> MockBlockValidation::createChain(CBlockIndex *parent, int blocks) const
+{
+    CKey coinbaseKey;
+    coinbaseKey.MakeNewKey(true);
+    CScript scriptPubKey = CScript() <<  ToByteVector(coinbaseKey.GetPubKey()) << OP_CHECKSIG;
+    CBlockIndex dummy;
+    dummy.nTime = parent->nTime;
+    dummy.phashBlock = parent->phashBlock;
+    uint256 dummySha;
+
+    std::vector<FastBlock> answer;
+    for (int i = 0; i < blocks; ++i) {
+        dummy.nHeight = parent->nHeight + i;
+        dummy.nTime += 10;
+        FastBlock block = createBlock(&dummy, scriptPubKey);
+        answer.push_back(block);
+        dummySha = block.createHash();
+        dummy.phashBlock = &dummySha;
+    }
+    return answer;
 }

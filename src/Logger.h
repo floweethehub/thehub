@@ -79,8 +79,10 @@ enum Sections {
 
     Bitcoin = 1000,
     BlockValidation,
+    TxValidation,
     Bench,
     Prune,
+    Mining,
 
     Networking = 2000,
     Net,

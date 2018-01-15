@@ -1,6 +1,6 @@
 /*
  * This file is part of the Flowee project
- * Copyright (C) 2017 Tom Zander <tomz@freedommail.ch>
+ * Copyright (C) 2017-2018 Tom Zander <tomz@freedommail.ch>
  *
  * This program is free software: you can redistribute it and/or modify
  * it under the terms of the GNU General Public License as published by
@@ -51,12 +51,12 @@ public:
     DBPrivate();
     ~DBPrivate();
 
-    bool isReindexing;
-
     Streaming::ConstBuffer loadBlock(CDiskBlockPos pos, BlockType type, const uint256 *blockHash);
-    Streaming::ConstBuffer writeBlock(int blockHeight, const Streaming::ConstBuffer &block, CDiskBlockPos &pos, BlockType type, uint32_t timestamp, const uint256 *blockHash);
+    Streaming::ConstBuffer writeBlock(const Streaming::ConstBuffer &block, CDiskBlockPos &pos, BlockType type, const uint256 *blockHash);
+    void unloadIndexMap();
+    void foundBlockFile(int index, const CBlockFileInfo &info);
 
-    std::shared_ptr<char> mapFile(int fileIndex, BlockType type, size_t *size_out = 0);
+    std::shared_ptr<char> mapFile(int fileIndex, BlockType type, size_t *size_out = 0, bool *isWritable = nullptr);
 
     // Notify this class that the block file in question has been extended.  Calling this method
     // is required whenever block files get written-to and their size changes.  If this method
@@ -68,13 +68,20 @@ public:
 
     CChain headersChain;
     std::list<CBlockIndex*> headerChainTips;
-    CBlockIndex *uahfStartBlock;
 
     std::vector<std::string> blocksDataDirs;
 
-    std::mutex lock;
+    std::recursive_mutex lock;
     std::vector<DataFile*> datafiles;
     std::vector<DataFile*> revertDatafiles;
+    std::list<std::shared_ptr<char> > fileHistory; // keep the last 10 to avoid opening and closing files all the time.
+
+    std::mutex blockIndexLock;
+
+    typedef boost::unordered_map<uint256, CBlockIndex*, BlockHashShortener> BlockMap;
+    BlockMap indexMap;
+
+    ReindexingState reindexing = NoReindex;
 };
 }
 

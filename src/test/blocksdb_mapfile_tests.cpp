@@ -25,8 +25,8 @@
 #include <undo.h>
 #include <util.h>
 #include <streaming/BufferPool.h>
-#include <blockchain/Block.h>
-#include <blockchain/UndoBlock.h>
+#include <primitives/FastBlock.h>
+#include <primitives/FastUndoBlock.h>
 
 #include <boost/test/unit_test.hpp>
 
@@ -127,7 +127,7 @@ BOOST_AUTO_TEST_CASE(mapFile_write)
     BOOST_CHECK_EQUAL(block.blockVersion(), 0x3020100);
     CDiskBlockPos pos;
     {
-        FastBlock newBlock = db->writeBlock(1, block, pos);
+        FastBlock newBlock = db->writeBlock(block, pos);
         BOOST_CHECK_EQUAL(newBlock.blockVersion(), 0x3020100);
         BOOST_CHECK_EQUAL(newBlock.size(), 100);
         BOOST_CHECK_EQUAL(pos.nFile, 1);
@@ -149,7 +149,7 @@ BOOST_AUTO_TEST_CASE(mapFile_write)
     BOOST_CHECK_EQUAL(block2.blockVersion(), 0x4030201);
 
     {
-        FastBlock newBlock = db->writeBlock(2, block2, pos);
+        FastBlock newBlock = db->writeBlock(block2, pos);
         BOOST_CHECK_EQUAL(newBlock.size(), 120);
         BOOST_CHECK_EQUAL(pos.nFile, 1);
         BOOST_CHECK_EQUAL(pos.nPos, 116);
@@ -173,12 +173,12 @@ BOOST_AUTO_TEST_CASE(mapFile_write)
     int remapLeft = BLOCKFILE_CHUNK_SIZE - 120 - 100;
     while (remapLeft > 0) {
         // at one point we will be auto-extending the file.
-        db->writeBlock(5, big, pos);
+        db->writeBlock(big, pos);
         remapLeft -= big.size();
     }
 
     {
-        FastBlock newBlock = db->writeBlock(6, block2, pos);
+        FastBlock newBlock = db->writeBlock(block2, pos);
         BOOST_CHECK_EQUAL(newBlock.size(), 120);
         BOOST_CHECK_EQUAL(newBlock.blockVersion(), 0x4030201);
     }

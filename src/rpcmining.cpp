@@ -17,6 +17,9 @@
  * along with this program.  If not, see <http://www.gnu.org/licenses/>.
  */
 
+#include "Application.h"
+#include <validation/Engine.h>
+#include "primitives/FastBlock.h"
 #include "amount.h"
 #include "chain.h"
 #include "chainparams.h"
@@ -40,6 +43,7 @@
 
 #include <boost/assign/list_of.hpp>
 #include <boost/shared_ptr.hpp>
+#include <streaming/BufferPool.h>
 
 #include <univalue.h>
 
@@ -164,9 +168,11 @@ UniValue generate(const UniValue& params, bool fHelp)
     miningInstance->SetCoinbase(coinbase);
     unsigned int nExtraNonce = 0;
     UniValue blockHashes(UniValue::VARR);
+    Streaming::BufferPool pool;
+    auto *bv = Application::instance()->validation();
     while (nHeight < nHeightEnd)
     {
-        std::unique_ptr<CBlockTemplate> pblocktemplate(miningInstance->CreateNewBlock(Params()));
+        std::unique_ptr<CBlockTemplate> pblocktemplate(miningInstance->CreateNewBlock());
         if (!pblocktemplate.get())
             throw JSONRPCError(RPC_INTERNAL_ERROR, "Couldn't create new block");
         CBlock *pblock = &pblocktemplate->block;
@@ -179,11 +185,12 @@ UniValue generate(const UniValue& params, bool fHelp)
             // target -- 1 in 2^(2^32). That ain't gonna happen.
             ++pblock->nNonce;
         }
-        CValidationState state;
-        if (!ProcessNewBlock(state, Params(), NULL, pblock, true, NULL))
-            throw JSONRPCError(RPC_INTERNAL_ERROR, "ProcessNewBlock, block not accepted");
+
+        auto blockFuture = bv->addBlock(FastBlock::fromOldBlock(*pblock, &pool),
+                Validation::ForwardGoodToPeers | Validation::SaveGoodToDisk).start();
         ++nHeight;
         blockHashes.push_back(pblock->GetHash().GetHex());
+        blockFuture.waitUntilFinished();
     }
     return blockHashes;
 }
@@ -311,25 +318,6 @@ UniValue prioritisetransaction(const UniValue& params, bool fHelp)
 }
 
 
-// NOTE: Assumes a conclusive result; if result is inconclusive, it must be handled by caller
-static UniValue BIP22ValidationResult(const CValidationState& state)
-{
-    if (state.IsValid())
-        return NullUniValue;
-
-    std::string strRejectReason = state.GetRejectReason();
-    if (state.IsError())
-        throw JSONRPCError(RPC_VERIFY_ERROR, strRejectReason);
-    if (state.IsInvalid())
-    {
-        if (strRejectReason.empty())
-            return "rejected";
-        return strRejectReason;
-    }
-    // Should be impossible
-    return "valid?";
-}
-
 UniValue getblocktemplate(const UniValue& params, bool fHelp)
 {
     if (fHelp || params.size() > 1)
@@ -421,9 +409,8 @@ UniValue getblocktemplate(const UniValue& params, bool fHelp)
                 throw JSONRPCError(RPC_DESERIALIZATION_ERROR, "Block decode failed");
 
             uint256 hash = block.GetHash();
-            auto mi = Blocks::indexMap.find(hash);
-            if (mi != Blocks::indexMap.end()) {
-                CBlockIndex *pindex = mi->second;
+            CBlockIndex *pindex = Blocks::Index::get(hash);
+            if (pindex) {
                 if (pindex->IsValid(BLOCK_VALID_SCRIPTS))
                     return "duplicate";
                 if (pindex->nStatus & BLOCK_FAILED_MASK)
@@ -435,9 +422,13 @@ UniValue getblocktemplate(const UniValue& params, bool fHelp)
             // TestBlockValidity only supports blocks built on the current Tip
             if (block.hashPrevBlock != pindexPrev->GetBlockHash())
                 return "inconclusive-not-best-prevblk";
-            CValidationState state;
-            TestBlockValidity(state, Params(), block, pindexPrev, false, true);
-            return BIP22ValidationResult(state);
+            auto settings = Application::instance()->validation()->addBlock(FastBlock::fromOldBlock(block), 0);
+            settings.setCheckPoW(false);
+            settings.setOnlyCheckValidity(true);
+            settings.start();
+            settings.waitUntilFinished();
+            if (!settings.error().empty())
+                throw JSONRPCError(RPC_VERIFY_ERROR, settings.error());
         }
     }
 
@@ -522,9 +513,11 @@ UniValue getblocktemplate(const UniValue& params, bool fHelp)
         Mining mining;
         CScript scriptDummy = CScript() << OP_TRUE;
         mining.SetCoinbase(scriptDummy);
-        pblocktemplate = mining.CreateNewBlock(Params());
+        LEAVE_CRITICAL_SECTION(cs_main);
+        pblocktemplate = mining.CreateNewBlock(*Application::instance()->validation());
         if (!pblocktemplate)
             throw JSONRPCError(RPC_OUT_OF_MEMORY, "Out of memory");
+        ENTER_CRITICAL_SECTION(cs_main);
 
         // Need to update only after we know CreateNewBlock succeeded
         pindexPrev = pindexPrevNew;
@@ -599,24 +592,6 @@ UniValue getblocktemplate(const UniValue& params, bool fHelp)
     return result;
 }
 
-class submitblock_StateCatcher : public CValidationInterface
-{
-public:
-    uint256 hash;
-    bool found;
-    CValidationState state;
-
-    submitblock_StateCatcher(const uint256 &hashIn) : hash(hashIn), found(false), state() {}
-
-protected:
-    virtual void BlockChecked(const CBlock& block, const CValidationState& stateIn) {
-        if (block.GetHash() != hash)
-            return;
-        found = true;
-        state = stateIn;
-    }
-};
-
 UniValue submitblock(const UniValue& params, bool fHelp)
 {
     if (fHelp || params.size() < 1 || params.size() > 2)
@@ -643,39 +618,29 @@ UniValue submitblock(const UniValue& params, bool fHelp)
         throw JSONRPCError(RPC_DESERIALIZATION_ERROR, "Block decode failed");
 
     uint256 hash = block.GetHash();
-    bool fBlockPresent = false;
     {
-        LOCK(cs_main);
-        auto mi = Blocks::indexMap.find(hash);
-        if (mi != Blocks::indexMap.end()) {
-            CBlockIndex *pindex = mi->second;
+        CBlockIndex *pindex = Blocks::Index::get(hash);
+        if (pindex) {
             if (pindex->IsValid(BLOCK_VALID_SCRIPTS))
                 return "duplicate";
             if (pindex->nStatus & BLOCK_FAILED_MASK)
                 return "duplicate-invalid";
             // Otherwise, we might only have the header - process the block before returning
-            fBlockPresent = true;
         }
     }
 
-    CValidationState state;
-    submitblock_StateCatcher sc(block.GetHash());
-    RegisterValidationInterface(&sc);
-    bool fAccepted = ProcessNewBlock(state, Params(), NULL, &block, true, NULL);
-    UnregisterValidationInterface(&sc);
-    if (fBlockPresent)
-    {
-        if (fAccepted && !sc.found)
-            return "duplicate-inconclusive";
-        return "duplicate";
-    }
-    if (fAccepted)
-    {
-        if (!sc.found)
-            return "inconclusive";
-        state = sc.state;
-    }
-    return BIP22ValidationResult(state);
+    auto future = Application::instance()->validation()->addBlock(FastBlock::fromOldBlock(block), Validation::SaveGoodToDisk | Validation::ForwardGoodToPeers);
+    future.waitUntilFinished();
+    auto index = future.blockIndex();
+    if (index && future.error().empty() && index->IsValid()) // all Ok
+        return NullUniValue;
+
+    if (future.error().empty())
+        throw JSONRPCError(RPC_VERIFY_ERROR, future.error());
+
+    if (index)
+        return "rejected";
+    return "accepted";
 }
 
 UniValue estimatefee(const UniValue& params, bool fHelp)

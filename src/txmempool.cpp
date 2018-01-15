@@ -2,6 +2,7 @@
  * This file is part of the Flowee project
  * Copyright (C) 2009-2010 Satoshi Nakamoto
  * Copyright (C) 2009-2015 The Bitcoin Core developers
+ * Copyright (C) 2017 Tom Zander <tomz@freedommail.ch>
  *
  * This program is free software: you can redistribute it and/or modify
  * it under the terms of the GNU General Public License as published by
@@ -23,6 +24,7 @@
 #include "consensus/consensus.h"
 #include "consensus/validation.h"
 #include "main.h"
+#include "coins.h"
 #include "policy/fees.h"
 #include "streams.h"
 #include "timedata.h"
@@ -31,25 +33,41 @@
 #include "utiltime.h"
 #include "version.h"
 
-CTxMemPoolEntry::CTxMemPoolEntry(const CTransaction& _tx, const CAmount& _nFee,
-                                 int64_t _nTime, double _entryPriority, unsigned int _entryHeight,
-                                 bool poolHasNoInputsOf, CAmount _inChainInputValue,
-                                 bool _spendsCoinbase, unsigned int _sigOps, LockPoints lp):
-    tx(_tx), nFee(_nFee), nTime(_nTime), entryPriority(_entryPriority), entryHeight(_entryHeight),
-    hadNoDependencies(poolHasNoInputsOf), inChainInputValue(_inChainInputValue),
-    spendsCoinbase(_spendsCoinbase), sigOpCount(_sigOps), lockPoints(lp)
-{
-    nTxSize = ::GetSerializeSize(tx, SER_NETWORK, PROTOCOL_VERSION);
-    nModSize = tx.CalculateModifiedSize(nTxSize);
-    nUsageSize = RecursiveDynamicUsage(tx);
+#include <validation/ValidationException.h>
 
+CTxMemPoolEntry::CTxMemPoolEntry(const Tx &tx)
+    : tx(tx),
+    nModFeesWithDescendants(0)
+{
+    oldTx = tx.createOldTransaction();
+    nTime = ::GetTime();
+    nTxSize = tx.size();
+    nModSize = oldTx.CalculateModifiedSize(nTxSize);
+    nUsageSize = RecursiveDynamicUsage(oldTx);
     nCountWithDescendants = 1;
     nSizeWithDescendants = nTxSize;
-    nModFeesWithDescendants = nFee;
-    CAmount nValueIn = tx.GetValueOut()+nFee;
-    assert(inChainInputValue <= nValueIn);
 
     feeDelta = 0;
+}
+
+CTxMemPoolEntry::CTxMemPoolEntry(const CTransaction &tx, const CAmount& _nFee,
+                                 int64_t _nTime, double _entryPriority, unsigned int _entryHeight,
+                                 bool poolHasNoInputsOf, CAmount _inChainInputValue,
+                                 bool _spendsCoinbase, unsigned int _sigOps, LockPoints lp)
+    : CTxMemPoolEntry(Tx::fromOldTransaction(tx))
+{
+    nFee = _nFee;
+    nModFeesWithDescendants = nFee;
+    nTime = _nTime;
+    entryPriority = _entryPriority;
+    entryHeight = _entryHeight;
+    hadNoDependencies = poolHasNoInputsOf;
+    inChainInputValue = _inChainInputValue;
+    spendsCoinbase = _spendsCoinbase;
+    sigOpCount = _sigOps;
+    lockPoints = lp;
+
+    assert(inChainInputValue <= oldTx.GetValueOut() + nFee);
 }
 
 CTxMemPoolEntry::CTxMemPoolEntry(const CTxMemPoolEntry& other)
@@ -253,7 +271,7 @@ bool CTxMemPool::CalculateMemPoolAncestors(const CTxMemPoolEntry &entry, setEntr
     return true;
 }
 
-void CTxMemPool::UpdateAncestorsOf(bool add, txiter it, setEntries &setAncestors)
+void CTxMemPool::UpdateAncestorsOf(bool add, txiter it, const setEntries &setAncestors)
 {
     setEntries parentIters = GetMemPoolParents(it);
     // add or remove this tx as a child of each parent
@@ -380,10 +398,10 @@ void CTxMemPool::AddTransactionsUpdated(unsigned int n)
     nTransactionsUpdated += n;
 }
 
-bool CTxMemPool::addUnchecked(const uint256& hash, const CTxMemPoolEntry &entry, setEntries &setAncestors, bool fCurrentEstimate)
+void CTxMemPool::addUnchecked(const uint256& hash, const CTxMemPoolEntry &entry, const setEntries &setAncestors, bool fCurrentEstimate)
 {
     // Add to memory pool without checking anything.
-    // Used by main.cpp AcceptToMemoryPool(), which DOES do
+    // Used by insertTx via TxValidationState which DOES do
     // all the appropriate checks.
     LOCK(cs);
     indexed_transaction_set::iterator newit = mapTx.insert(entry).first;
@@ -430,7 +448,34 @@ bool CTxMemPool::addUnchecked(const uint256& hash, const CTxMemPoolEntry &entry,
     nTransactionsUpdated++;
     totalTxSize += entry.GetTxSize();
     minerPolicyEstimator->processTransaction(entry, fCurrentEstimate);
+}
 
+bool CTxMemPool::insertTx(const CTxMemPoolEntry &entry)
+{
+    assert(m_coins);
+    LOCK(cs);
+
+    if (exists(entry.tx.createHash()))
+        return false;
+
+    for (const CTxIn &txin : entry.oldTx.vin) {
+        if (mapNextTx.count(txin.prevout)) // double spend, we throw for that one.
+            throw Validation::Exception("txn-mempool-conflict", Validation::RejectConflict);
+
+        auto iter = mapTx.find(txin.prevout.hash);
+        if (iter != mapTx.end()) {
+            const CTransaction &prevTx = iter->GetTx();
+            if (txin.prevout.n < prevTx.vout.size() && !prevTx.vout[txin.prevout.n].IsNull())
+                continue; // found it in mempool.
+        }
+
+        const CCoins* coins = m_coins->AccessCoins(txin.prevout.hash);
+        if (!coins || !coins->IsAvailable(txin.prevout.n)) {
+            return false;
+        }
+    }
+
+    addUnchecked(entry.tx.createHash(), entry, true);
     return true;
 }
 
@@ -516,7 +561,7 @@ void CTxMemPool::remove(const CTransaction &origTx, std::list<CTransaction>& rem
     }
 }
 
-void CTxMemPool::removeForReorg(const CCoinsViewCache *pcoins, unsigned int nMemPoolHeight, int flags)
+void CTxMemPool::removeForReorg(unsigned int nMemPoolHeight, int flags)
 {
     // Remove transactions spending a coinbase which are now immature and no-longer-final transactions
     LOCK(cs);
@@ -525,7 +570,7 @@ void CTxMemPool::removeForReorg(const CCoinsViewCache *pcoins, unsigned int nMem
         const CTransaction& tx = it->GetTx();
         LockPoints lp = it->GetLockPoints();
         bool validLP =  TestLockPointValidity(&lp);
-        if (!CheckFinalTx(tx, flags) || !CheckSequenceLocks(tx, flags, &lp, validLP)) {
+        if (!CheckFinalTx(tx, flags) || !CheckSequenceLocks(*this, tx, flags, &lp, validLP)) {
             // Note if CheckSequenceLocks fails the LockPoints may still be invalid
             // So it's critical that we remove the tx and not depend on the LockPoints.
             transactionsToRemove.push_back(tx);
@@ -534,8 +579,7 @@ void CTxMemPool::removeForReorg(const CCoinsViewCache *pcoins, unsigned int nMem
                 indexed_transaction_set::const_iterator it2 = mapTx.find(txin.prevout.hash);
                 if (it2 != mapTx.end())
                     continue;
-                const CCoins *coins = pcoins->AccessCoins(txin.prevout.hash);
-		if (nCheckFrequency != 0) assert(coins);
+                const CCoins *coins = m_coins->AccessCoins(txin.prevout.hash);
                 if (!coins || (coins->IsCoinBase() && ((signed long)nMemPoolHeight) - coins->nHeight < COINBASE_MATURITY)) {
                     transactionsToRemove.push_back(tx);
                     break;
@@ -574,7 +618,7 @@ void CTxMemPool::removeConflicts(const CTransaction &tx, std::list<CTransaction>
  * Called when a block is connected. Removes from mempool and updates the miner fee estimator.
  */
 void CTxMemPool::removeForBlock(const std::vector<CTransaction>& vtx, unsigned int nBlockHeight,
-                                std::list<CTransaction>& conflicts, bool fCurrentEstimate)
+                                std::list<CTransaction>& conflicts, bool fCurrentEstimate, CCoinsViewCache *utxoDBCursor, uint32_t *utxoBench)
 {
     LOCK(cs);
     std::vector<CTxMemPoolEntry> entries;
@@ -597,6 +641,17 @@ void CTxMemPool::removeForBlock(const std::vector<CTransaction>& vtx, unsigned i
     minerPolicyEstimator->processBlock(nBlockHeight, entries, fCurrentEstimate);
     lastRollingFeeUpdate = GetTime();
     blockSinceLastRollingFeeBump = true;
+
+    if (utxoDBCursor) {
+        int64_t start = GetTimeMicros();
+        bool flushSuccess = utxoDBCursor->Flush();
+        if (!flushSuccess)
+            throw std::runtime_error("Failed to flush UTXO");
+        if (utxoBench) {
+            int64_t end = GetTimeMicros();
+            *utxoBench = end - start;
+        }
+    }
 }
 
 void CTxMemPool::_clear()
@@ -618,22 +673,23 @@ void CTxMemPool::clear()
     _clear();
 }
 
-void CTxMemPool::check(const CCoinsViewCache *pcoins) const
+void CTxMemPool::check() const
 {
+#ifndef NDEBUG
     if (nCheckFrequency == 0)
         return;
 
     if (insecure_rand() >= nCheckFrequency)
         return;
 
-    LogPrint("mempool", "Checking mempool with %u transactions and %u inputs\n", (unsigned int)mapTx.size(), (unsigned int)mapNextTx.size());
+    LOCK(cs);
+    logInfo(Log::TxValidation) << "Checking mempool with" << mapTx.size() << "transactions and" << mapNextTx.size() << "inputs";
 
     uint64_t checkTotal = 0;
     uint64_t innerUsage = 0;
 
-    CCoinsViewCache mempoolDuplicate(const_cast<CCoinsViewCache*>(pcoins));
+    CCoinsViewCache mempoolDuplicate(const_cast<CCoinsViewCache*>(m_coins));
 
-    LOCK(cs);
     std::list<const CTxMemPoolEntry*> waitingOnDependants;
     for (indexed_transaction_set::const_iterator it = mapTx.begin(); it != mapTx.end(); it++) {
         unsigned int i = 0;
@@ -655,7 +711,7 @@ void CTxMemPool::check(const CCoinsViewCache *pcoins) const
                 fDependsWait = true;
                 setParentCheck.insert(it2);
             } else {
-                const CCoins* coins = pcoins->AccessCoins(txin.prevout.hash);
+                const CCoins* coins = m_coins->AccessCoins(txin.prevout.hash);
                 assert(coins && coins->IsAvailable(txin.prevout.n));
             }
             // Check whether its inputs are marked in mapNextTx.
@@ -707,7 +763,7 @@ void CTxMemPool::check(const CCoinsViewCache *pcoins) const
             stepsSinceLastRemove++;
             assert(stepsSinceLastRemove < waitingOnDependants.size());
         } else {
-            assert(CheckInputs(entry->GetTx(), state, mempoolDuplicate, false, 0, false, NULL));
+            // assert(CheckInputs(entry->GetTx(), state, mempoolDuplicate, false, 0, false, NULL));
             UpdateCoins(entry->GetTx(), state, mempoolDuplicate, 1000000);
             stepsSinceLastRemove = 0;
         }
@@ -724,6 +780,7 @@ void CTxMemPool::check(const CCoinsViewCache *pcoins) const
 
     assert(totalTxSize == checkTotal);
     assert(innerUsage == cachedInnerUsage);
+#endif
 }
 
 void CTxMemPool::queryHashes(std::vector<uint256>& vtxid)
@@ -849,14 +906,14 @@ bool CTxMemPool::HasNoInputsOf(const CTransaction &tx) const
     return true;
 }
 
-CCoinsViewMemPool::CCoinsViewMemPool(CCoinsView *baseIn, CTxMemPool &mempoolIn) : CCoinsViewBacked(baseIn), mempool(mempoolIn) { }
+CCoinsViewMemPool::CCoinsViewMemPool(CTxMemPool *mempool) : CCoinsViewBacked(mempool->coins()), mempool(mempool) { }
 
 bool CCoinsViewMemPool::GetCoins(const uint256 &txid, CCoins &coins) const {
     // If an entry in the mempool exists, always return that one, as it's guaranteed to never
     // conflict with the underlying cache, and it cannot have pruned entries (as it contains full)
     // transactions. First checking the underlying cache risks returning a pruned entry instead.
     CTransaction tx;
-    if (mempool.lookup(txid, tx)) {
+    if (mempool->lookup(txid, tx)) {
         coins = CCoins(tx, MEMPOOL_HEIGHT);
         return true;
     }
@@ -864,7 +921,7 @@ bool CCoinsViewMemPool::GetCoins(const uint256 &txid, CCoins &coins) const {
 }
 
 bool CCoinsViewMemPool::HaveCoins(const uint256 &txid) const {
-    return mempool.exists(txid) || base->HaveCoins(txid);
+    return mempool->exists(txid) || base->HaveCoins(txid);
 }
 
 size_t CTxMemPool::DynamicMemoryUsage() const {
@@ -897,14 +954,14 @@ int CTxMemPool::Expire(int64_t time) {
     return stage.size();
 }
 
-bool CTxMemPool::addUnchecked(const uint256&hash, const CTxMemPoolEntry &entry, bool fCurrentEstimate)
+void CTxMemPool::addUnchecked(const uint256&hash, const CTxMemPoolEntry &entry, bool fCurrentEstimate)
 {
     LOCK(cs);
     setEntries setAncestors;
     uint64_t nNoLimit = std::numeric_limits<uint64_t>::max();
     std::string dummy;
     CalculateMemPoolAncestors(entry, setAncestors, nNoLimit, nNoLimit, nNoLimit, nNoLimit, dummy);
-    return addUnchecked(hash, entry, setAncestors, fCurrentEstimate);
+    addUnchecked(hash, entry, setAncestors, fCurrentEstimate);
 }
 
 void CTxMemPool::UpdateChild(txiter entry, txiter child, bool add)
@@ -941,6 +998,17 @@ const CTxMemPool::setEntries & CTxMemPool::GetMemPoolChildren(txiter entry) cons
     txlinksMap::const_iterator it = mapLinks.find(entry);
     assert(it != mapLinks.end());
     return it->second.children;
+}
+
+void CTxMemPool::setCoinsView(CCoinsViewCache *coins)
+{
+    assert(coins);
+    m_coins = coins;
+}
+
+CCoinsViewCache *CTxMemPool::coins() const
+{
+    return m_coins;
 }
 
 CFeeRate CTxMemPool::GetMinFee(size_t sizelimit) const {

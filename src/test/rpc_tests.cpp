@@ -86,7 +86,7 @@ UniValue CallRPC(std::string args)
 }
 
 
-BOOST_FIXTURE_TEST_SUITE(rpc_tests, TestingSetup)
+BOOST_FIXTURE_TEST_SUITE(rpc_tests, MainnetTestingSetup)
 
 BOOST_AUTO_TEST_CASE(rpc_rawparams)
 {
@@ -132,7 +132,7 @@ BOOST_AUTO_TEST_CASE(rpc_rawparams)
 
 BOOST_AUTO_TEST_CASE(rpc_rawsign)
 {
-    mapArgs["-uahfstarttime"] = "0";
+    mapArgs["-uahf"] = "false";
     MockApplication::doInit();
     UniValue r;
     // input is a 1-of-2 multisig (so is output):

@@ -53,6 +53,7 @@ Log::Manager::Manager()
     d->sectionNames.emplace(Log::Bitcoin, "Bitcoin");
     d->sectionNames.emplace(Log::Bench, "Bench");
     d->sectionNames.emplace(Log::Prune, "Prune");
+    d->sectionNames.emplace(Log::Mining, "Mining");
     d->sectionNames.emplace(Log::Net, "Net");
     d->sectionNames.emplace(Log::Addrman, "Addrman");
     d->sectionNames.emplace(Log::Proxy, "Proxy");
@@ -264,6 +265,7 @@ void Log::Manager::parseConfig()
                     bool showDate = std::find(args.begin(), args.end(), "date") != args.end();
                     bool showTime = std::find(args.begin(), args.end(), "time") != args.end();
                     bool subSecond = std::find(args.begin(), args.end(), "millisecond") != args.end();
+                    if (subSecond) showTime = true;
 
                     channel->setTimeStampFormat(showDate ? Channel::DateTime : (showTime ? Channel::TimeOnly : Channel::NoTime));
                     channel->setShowSubSecondPrecision(subSecond);

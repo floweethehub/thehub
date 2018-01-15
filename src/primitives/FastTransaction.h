@@ -17,14 +17,18 @@
  */
 
 
-#ifndef BITCOIN_BLOCKCHAIN_TRANSACTION_H
-#define BITCOIN_BLOCKCHAIN_TRANSACTION_H
+#ifndef FLOWEE_PRIMITIVES_FASTTRANSACTION_H
+#define FLOWEE_PRIMITIVES_FASTTRANSACTION_H
 
 #include <streaming/ConstBuffer.h>
 
 #include <uint256.h>
 
 class CTransaction;
+
+namespace Streaming {
+    class BufferPool;
+}
 
 /**
  * @brief The Tx class is a Bitcoin transaction in canonical form.
@@ -65,6 +69,8 @@ public:
      * for backwards compatibility with existing code this loads the transaction into a CTransaction class.
      */
     CTransaction createOldTransaction() const;
+
+    static Tx fromOldTransaction(const CTransaction &transaction, Streaming::BufferPool *pool = 0);
 
     /**
      * @return the bytecount of this transaction.

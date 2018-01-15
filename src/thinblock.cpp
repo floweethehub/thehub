@@ -21,8 +21,10 @@
 #include <sstream>
 #include <iomanip>
 
+#include "Application.h"
+#include <validation/Engine.h>
+#include "primitives/FastBlock.h"
 #include "main.h"
-#include "chainparams.h"
 #include "txmempool.h"
 #include "BlocksDB.h"
 #include "utilstrencodings.h"
@@ -296,17 +298,46 @@ void LoadFilter(CNode *pfrom, CBloomFilter *filter)
     LogPrint("thin", "Thinblock Bloom filter size: %d\n", nSizeFilter);
 }
 
-void HandleBlockMessage(CNode *pfrom, const std::string &strCommand, const CBlock &block, const CInv &inv)
+void HandleBlockMessage(CNode *pfrom, const std::string &strCommand, const CBlock &block, const CInv &inv) // TODO pass hash, not CInv
 {
-    int64_t startTime = GetTimeMicros();
+    logDebug(107) << strCommand << block.GetHash();
+    auto *bv = Application::instance()->validation();
+    auto settings = bv->addBlock(FastBlock::fromOldBlock(block),
+        Validation::ForwardGoodToPeers | Validation::SaveGoodToDisk | Validation::PunishBadNode, pfrom);
+
+    // Clear the thinblock timer used for preferential download
+    mapThinBlockTimer.erase(inv.hash);
+
+    // settings.setPreApprovedTx(vector<int>) // TODO
+    // settings.setIsReassembledBlock(true); // TODO, avoid punishing a peer when the error is only merkle-root based
+    // settings.setOriginatingCommand(string); // to allow sending reject messages.
+    settings.start();
+
+    /* TODO
+     * If the incoming block is due to xthin, I should be able to add data stating which
+     * transactions have been pre-validated.
+     *
+     * Do we have code returning a "reject" message to peer?
+     *
+     * Add a flag stating the block comes from xthin and should the error be in the merkle-root, then
+     * we need to re-request block instead of punishing peer.
+     */
+
+#if 0
     CValidationState state;
     // Process all blocks from whitelisted peers, even if not requested,
     // unless we're still syncing with the network.
     // Such an unrequested block may still be processed, subject to the
     // conditions in AcceptBlock().
     bool forceProcessing = pfrom->fWhitelisted && !IsInitialBlockDownload();
-    const CChainParams& chainparams = Params();
+
+
+    // const CChainParams& chainparams = Params();
     ProcessNewBlock(state, chainparams, pfrom, &block, forceProcessing, NULL);
+
+
+
+
     int nDoS;
     if (state.IsInvalid(nDoS)) {
         LogPrintf("Invalid block due to %s\n", state.GetRejectReason().c_str());
@@ -319,6 +350,7 @@ void HandleBlockMessage(CNode *pfrom, const std::string &strCommand, const CBloc
     }
     LogPrint("thin", "Processed Block %s in %.2f seconds\n", inv.hash.ToString(), (double)(GetTimeMicros() - startTime) / 1000000.0);
 
+#endif
     // When we request a thinblock we may get back a regular block if it is smaller than a thinblock
     // Therefore we have to remove the thinblock in flight if it exists and we also need to check that
     // the block didn't arrive from some other peer.  This code ALSO cleans up the thin block that
@@ -327,8 +359,7 @@ void HandleBlockMessage(CNode *pfrom, const std::string &strCommand, const CBloc
         int nTotalThinBlocksInFlight = 0;
         LOCK(cs_vNodes);
         BOOST_FOREACH(CNode* pnode, vNodes) {
-            if (pnode->mapThinBlocksInFlight.count(inv.hash)) {
-                pnode->mapThinBlocksInFlight.erase(inv.hash);
+            if (pnode->mapThinBlocksInFlight.erase(inv.hash)) {
                 pnode->thinBlockWaitingForTxns = -1;
                 pnode->thinBlock.SetNull();
             }
@@ -343,9 +374,6 @@ void HandleBlockMessage(CNode *pfrom, const std::string &strCommand, const CBloc
             setUnVerifiedOrphanTxHash.clear();
         }
     }
-
-    // Clear the thinblock timer used for preferential download
-    mapThinBlockTimer.erase(inv.hash);
 }
 
 void CheckAndRequestExpeditedBlocks(CNode* pfrom)
@@ -515,11 +543,9 @@ void HandleExpeditedBlock(CDataStream& vRecv, CNode* pfrom)
         CXThinBlock thinBlock;
         vRecv >> thinBlock;
 
-        auto mapEntry = Blocks::indexMap.find(thinBlock.header.GetHash());
-        CBlockIndex *blockIndex = nullptr;
+        CBlockIndex *blockIndex = Blocks::Index::get(thinBlock.header.GetHash());
         unsigned int status = 0;
-        if (mapEntry != Blocks::indexMap.end()) {
-            blockIndex = mapEntry->second;
+        if (blockIndex) {
             status = blockIndex->nStatus;
         }
         bool isNewBlock = blockIndex == nullptr || (!(blockIndex->nStatus & BLOCK_HAVE_DATA));  // If I have never seen the block or just seen an INV, treat the block as new

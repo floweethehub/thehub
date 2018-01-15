@@ -35,7 +35,7 @@ CTxOrphanCache* CTxOrphanCache::instance()
     return s_instance;
 }
 
-bool CTxOrphanCache::AddOrphanTx(const CTransaction& tx, NodeId peer)
+bool CTxOrphanCache::AddOrphanTx(const CTransaction& tx, NodeId peer, uint32_t onResultFlags, uint64_t originalEntryTime)
 {
     LOCK(m_lock);
 
@@ -57,9 +57,13 @@ bool CTxOrphanCache::AddOrphanTx(const CTransaction& tx, NodeId peer)
         return false;
     }
 
-    m_mapOrphanTransactions[hash].tx = tx;
-    m_mapOrphanTransactions[hash].fromPeer = peer;
-    m_mapOrphanTransactions[hash].nEntryTime = GetTime();
+    COrphanTx &entry = m_mapOrphanTransactions[hash];
+    entry.tx = tx;
+    entry.fromPeer = peer;
+    if (originalEntryTime == 0)
+        originalEntryTime = GetTime();
+    entry.nEntryTime = originalEntryTime;
+    entry.onResultFlags = onResultFlags;
     BOOST_FOREACH(const CTxIn& txin, tx.vin) {
         m_mapOrphanTransactionsByPrev[txin.prevout.hash].insert(hash);
     }

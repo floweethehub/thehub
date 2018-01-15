@@ -22,6 +22,7 @@
 #include "base58.h"
 #include "chain.h"
 #include "coins.h"
+#include <validation/Engine.h>
 #include "consensus/validation.h"
 #include "core_io.h"
 #include "init.h"
@@ -110,9 +111,8 @@ void TxToJSON(const CTransaction& tx, const uint256 hashBlock, UniValue& entry)
 
     if (!hashBlock.IsNull()) {
         entry.push_back(Pair("blockhash", hashBlock.GetHex()));
-        auto mi = Blocks::indexMap.find(hashBlock);
-        if (mi != Blocks::indexMap.end() && (*mi).second) {
-            CBlockIndex* pindex = (*mi).second;
+        CBlockIndex* pindex = Blocks::Index::get(hashBlock);
+        if (pindex) {
             if (chainActive.Contains(pindex)) {
                 entry.push_back(Pair("confirmations", 1 + chainActive.Height() - pindex->nHeight));
                 entry.push_back(Pair("time", pindex->GetBlockTime()));
@@ -259,9 +259,9 @@ UniValue gettxoutproof(const UniValue& params, bool fHelp)
     if (params.size() > 1)
     {
         hashBlock = uint256S(params[1].get_str());
-        if (!Blocks::indexMap.count(hashBlock))
+        pblockindex = Blocks::Index::get(hashBlock);
+        if (!pblockindex)
             throw JSONRPCError(RPC_INVALID_ADDRESS_OR_KEY, "Block not found");
-        pblockindex = Blocks::indexMap[hashBlock];
     } else {
         CCoins coins;
         if (pcoinsTip->GetCoins(oneTxid, coins) && coins.nHeight > 0 && coins.nHeight <= chainActive.Height())
@@ -273,9 +273,9 @@ UniValue gettxoutproof(const UniValue& params, bool fHelp)
         CTransaction tx;
         if (!GetTransaction(oneTxid, tx, Params().GetConsensus(), hashBlock, false) || hashBlock.IsNull())
             throw JSONRPCError(RPC_INVALID_ADDRESS_OR_KEY, "Transaction not yet in block");
-        if (!Blocks::indexMap.count(hashBlock))
+        pblockindex = Blocks::Index::get(hashBlock);
+        if (!pblockindex)
             throw JSONRPCError(RPC_INTERNAL_ERROR, "Transaction index corrupt");
-        pblockindex = Blocks::indexMap[hashBlock];
     }
 
     CBlock block;
@@ -319,9 +319,9 @@ UniValue verifytxoutproof(const UniValue& params, bool fHelp)
     if (merkleBlock.txn.ExtractMatches(vMatch) != merkleBlock.header.hashMerkleRoot)
         return res;
 
-    LOCK(cs_main);
 
-    if (!Blocks::indexMap.count(merkleBlock.header.GetHash()) || !chainActive.Contains(Blocks::indexMap[merkleBlock.header.GetHash()]))
+    auto item = Blocks::Index::get(merkleBlock.header.GetHash());
+    if (!item || !chainActive.Contains(item))
         throw JSONRPCError(RPC_INVALID_ADDRESS_OR_KEY, "Block not found in chain");
 
     BOOST_FOREACH(const uint256& hash, vMatch)
@@ -650,9 +650,9 @@ UniValue signrawtransaction(const UniValue& params, bool fHelp)
     CCoinsView viewDummy;
     CCoinsViewCache view(&viewDummy);
     {
-        LOCK(mempool.cs);
-        CCoinsViewCache &viewChain = *pcoinsTip;
-        CCoinsViewMemPool viewMempool(&viewChain, mempool);
+        CTxMemPool *mempool = cApp->mempool();
+        LOCK(mempool->cs);
+        CCoinsViewMemPool viewMempool(mempool);
         view.SetBackend(viewMempool); // temporarily switch cache backend to db+mempool view
 
         BOOST_FOREACH(const CTxIn& txin, mergedTx.vin) {
@@ -839,6 +839,9 @@ UniValue sendrawtransaction(const UniValue& params, bool fHelp)
             + HelpExampleRpc("sendrawtransaction", "\"signedhex\"")
         );
 
+    std::future<std::string> future;
+    uint256 hashTx;
+    {
     LOCK(cs_main);
     RPCTypeCheck(params, boost::assign::list_of(UniValue::VSTR)(UniValue::VBOOL));
 
@@ -846,7 +849,7 @@ UniValue sendrawtransaction(const UniValue& params, bool fHelp)
     CTransaction tx;
     if (!DecodeHexTx(tx, params[0].get_str()))
         throw JSONRPCError(RPC_DESERIALIZATION_ERROR, "TX decode failed");
-    uint256 hashTx = tx.GetHash();
+    hashTx = tx.GetHash();
 
     bool fOverrideFees = false;
     if (params.size() > 1)
@@ -858,22 +861,22 @@ UniValue sendrawtransaction(const UniValue& params, bool fHelp)
     bool fHaveChain = existingCoins && existingCoins->nHeight < 1000000000;
     if (!fHaveMempool && !fHaveChain) {
         // push to local node and sync with wallets
-        CValidationState state;
-        bool fMissingInputs;
-        if (!AcceptToMemoryPool(mempool, state, tx, false, &fMissingInputs, false, !fOverrideFees)) {
-            if (state.IsInvalid()) {
-                throw JSONRPCError(RPC_TRANSACTION_REJECTED, strprintf("%i: %s", state.GetRejectCode(), state.GetRejectReason()));
-            } else {
-                if (fMissingInputs) {
-                    throw JSONRPCError(RPC_TRANSACTION_ERROR, "Missing inputs");
-                }
-                throw JSONRPCError(RPC_TRANSACTION_ERROR, state.GetRejectReason());
-            }
-        }
+        uint32_t flags = Validation::ForwardGoodToPeers;
+        if (!fOverrideFees)
+            flags |= Validation::RejectAbsurdFeeTx;
+
+        future = Application::instance()->validation()->addTransaction(Tx::fromOldTransaction(tx), flags);
     } else if (fHaveChain) {
         throw JSONRPCError(RPC_TRANSACTION_ALREADY_IN_CHAIN, "transaction already in block chain");
     }
-    RelayTransaction(tx);
-
+    }
+    if (future.valid()) {
+        const std::string result = future.get();
+        if (!result.empty()) {
+            if (result == "missing-inputs")
+                throw JSONRPCError(RPC_TRANSACTION_ERROR, "Missing inputs");
+            throw JSONRPCError(RPC_TRANSACTION_REJECTED, result);
+        }
+    }
     return hashTx.GetHex();
 }

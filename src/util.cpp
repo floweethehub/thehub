@@ -2,6 +2,7 @@
  * This file is part of the Flowee project
  * Copyright (C) 2009-2010 Satoshi Nakamoto
  * Copyright (C) 2009-2015 The Bitcoin Core developers
+ * Copyright (C) 2017 Tom Zander <tomz@freedommail.ch>
  *
  * This program is free software: you can redistribute it and/or modify
  * it under the terms of the GNU General Public License as published by
@@ -713,3 +714,33 @@ int GetNumCores()
 #endif
 }
 
+
+WaitUntilFinishedHelper::WaitUntilFinishedHelper(const std::function<void ()> &target, boost::asio::strand *strand)
+    : d(new Private())
+{
+    d->ref = 1;
+    d->target = target;
+    d->strand = strand;
+}
+
+WaitUntilFinishedHelper::WaitUntilFinishedHelper(const WaitUntilFinishedHelper &other)
+    : d(other.d) {
+    d->ref++;
+}
+
+WaitUntilFinishedHelper::~WaitUntilFinishedHelper() {
+    if (!--d->ref)
+        delete d;
+}
+
+void WaitUntilFinishedHelper::run()
+{
+    d->mutex.lock();
+    d->strand->dispatch(std::bind(&WaitUntilFinishedHelper::handle, this));
+    d->mutex.lock();
+}
+
+void WaitUntilFinishedHelper::handle() {
+    d->target();
+    d->mutex.unlock();
+}

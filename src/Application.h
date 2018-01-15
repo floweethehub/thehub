@@ -26,6 +26,10 @@
 namespace Admin {
     class Server;
 }
+namespace Validation {
+    class Engine;
+}
+class CTxMemPool;
 
 #define cApp Application::instance()
 
@@ -64,6 +68,10 @@ public:
      */
     Admin::Server* adminServer();
 
+    Validation::Engine* validation();
+
+    CTxMemPool* mempool();
+
     /**
      * @brief userAgent creates the user-agent string as it is send over the wire.
      * This includes the client name, the version number and any parameters
@@ -92,8 +100,10 @@ public:
 
 protected:
     /// only called from constructor. Useful in unit tests.
+    void startThreads();
     void init();
     int64_t m_uahfStartTme;
+    std::unique_ptr<Validation::Engine> m_validationEngine;
 
 private:
     std::shared_ptr<boost::asio::io_service> m_ioservice;

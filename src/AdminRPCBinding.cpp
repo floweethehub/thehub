@@ -203,9 +203,9 @@ public:
         while (type == Streaming::FoundTag) {
             if (parser.tag() == Admin::BlockChain::BlockHash) {
                 uint256 hash = parser.uint256Data();
-                auto mi = Blocks::indexMap.find(hash);
-                if (mi != Blocks::indexMap.end())
-                    return buildReply(builder, mi->second);
+                CBlockIndex *bi = Blocks::Index::get(hash);
+                if (bi)
+                    return buildReply(builder, bi);
             }
             if (parser.tag() == Admin::BlockChain::Height) {
                 int height = parser.intData();

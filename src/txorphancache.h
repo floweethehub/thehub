@@ -31,8 +31,9 @@ public:
         CTransaction tx;
         int fromPeer;
         uint64_t nEntryTime;
+        uint32_t onResultFlags;
     };
-    bool AddOrphanTx(const CTransaction& tx, int peerId);
+    bool AddOrphanTx(const CTransaction& tx, int peerId, uint32_t onResultFlags = 0, uint64_t originalEntryTime = 0);
 
     void EraseOrphansByTime();
 

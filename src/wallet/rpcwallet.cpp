@@ -75,7 +75,7 @@ void WalletTxToJSON(const CWalletTx& wtx, UniValue& entry)
     {
         entry.push_back(Pair("blockhash", wtx.hashBlock.GetHex()));
         entry.push_back(Pair("blockindex", wtx.nIndex));
-        entry.push_back(Pair("blocktime", Blocks::indexMap[wtx.hashBlock]->GetBlockTime()));
+        entry.push_back(Pair("blocktime", Blocks::Index::get(wtx.hashBlock)->GetBlockTime()));
     } else {
         entry.push_back(Pair("trusted", wtx.IsTrusted()));
     }
@@ -1658,9 +1658,7 @@ UniValue listsinceblock(const UniValue& params, bool fHelp)
         uint256 blockId;
 
         blockId.SetHex(params[0].get_str());
-        auto it = Blocks::indexMap.find(blockId);
-        if (it != Blocks::indexMap.end())
-            pindex = it->second;
+        pindex = Blocks::Index::get(blockId);
     }
 
     if (params.size() > 1)

@@ -165,8 +165,7 @@ static bool rest_headers(HTTPRequest* req,
     headers.reserve(count);
     {
         LOCK(cs_main);
-        auto it = Blocks::indexMap.find(hash);
-        const CBlockIndex *pindex = (it != Blocks::indexMap.end()) ? it->second : NULL;
+        const CBlockIndex *pindex = Blocks::Index::get(hash);
         while (pindex != NULL && chainActive.Contains(pindex)) {
             headers.push_back(pindex);
             if (headers.size() == (unsigned long)count)
@@ -230,10 +229,10 @@ static bool rest_block(HTTPRequest* req,
     CBlockIndex* pblockindex = NULL;
     {
         LOCK(cs_main);
-        if (Blocks::indexMap.count(hash) == 0)
+        if (!Blocks::Index::exists(hash))
             return RESTERR(req, HTTP_NOT_FOUND, hashStr + " not found");
 
-        pblockindex = Blocks::indexMap[hash];
+        pblockindex = Blocks::Index::get(hash);
         if (fHavePruned && !(pblockindex->nStatus & BLOCK_HAVE_DATA) && pblockindex->nTx > 0)
             return RESTERR(req, HTTP_NOT_FOUND, hashStr + " not available (pruned data)");
 
@@ -518,8 +517,7 @@ static bool rest_getutxos(HTTPRequest* req, const std::string& strURIPart)
         CCoinsView viewDummy;
         CCoinsViewCache view(&viewDummy);
 
-        CCoinsViewCache& viewChain = *pcoinsTip;
-        CCoinsViewMemPool viewMempool(&viewChain, mempool);
+        CCoinsViewMemPool viewMempool(&mempool);
 
         if (fCheckMemPool)
             view.SetBackend(viewMempool); // switch cache backend to db+mempool in case user likes to query mempool

@@ -28,6 +28,7 @@
 #include <boost/thread.hpp>
 
 class CBlockIndex;
+namespace Validation { class Engine; }
 class CChainParams;
 class CReserveKey;
 class CScript;
@@ -64,8 +65,12 @@ public:
     Mining();
     ~Mining();
 
+    /**
+     * Generate a new block, without valid proof-of-work, using the global settings
+     */
+    CBlockTemplate* CreateNewBlock() const;
     /** Generate a new block, without valid proof-of-work */
-    CBlockTemplate* CreateNewBlock(const CChainParams& chainparams) const;
+    CBlockTemplate* CreateNewBlock(Validation::Engine &validationEngine) const;
     /** Modify the extranonce in a block */
     void IncrementExtraNonce(CBlock* pblock, const CBlockIndex* pindexPrev, unsigned int& nExtraNonce);
     static int64_t UpdateTime(CBlockHeader* pblock, const Consensus::Params& consensusParams, const CBlockIndex* pindexPrev);

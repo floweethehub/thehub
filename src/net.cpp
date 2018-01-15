@@ -384,6 +384,15 @@ CNode* FindNode(const CService& addr)
     return NULL;
 }
 
+CNode* FindNode(int nodeId)
+{
+    LOCK(cs_vNodes);
+    for (CNode* pnode : vNodes)
+        if (pnode->id == nodeId)
+            return (pnode);
+    return nullptr;
+}
+
 CNode* ConnectNode(CAddress addrConnect, const char *pszDest)
 {
     if (pszDest == NULL) {

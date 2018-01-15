@@ -57,13 +57,16 @@
 #include "wallet/wallet.h"
 #include "wallet/walletdb.h"
 #endif
+#include <validation/Engine.h>
 #include <cstdint>
 #include <cstdio>
 
 #ifndef WIN32
 #include <csignal>
+#include "CrashCatcher.h"
 #endif
 
+#include <validation/VerifyDB.h>
 #include <boost/algorithm/string/classification.hpp>
 #include <boost/algorithm/string/predicate.hpp>
 #include <boost/algorithm/string/replace.hpp>
@@ -547,6 +550,9 @@ bool AppInit2(boost::thread_group& threadGroup, CScheduler& scheduler)
 
     // Ignore SIGPIPE, otherwise it will bring the daemon down if the client closes unexpectedly
     signal(SIGPIPE, SIG_IGN);
+
+    if (GetBoolArg("catch-crash", false))
+        setupBacktraceCatcher();
 #endif
 
     // ********************************************************* Step 2: parameter interactions
@@ -803,6 +809,7 @@ bool AppInit2(boost::thread_group& threadGroup, CScheduler& scheduler)
         // just calling it will create it, which will start it.
         Application::instance()->adminServer();
     }
+    Application::instance()->validation()->setMempool(&mempool);
 
     // ********************************************************* Step 5: verify wallet database integrity
 #ifdef ENABLE_WALLET
@@ -865,9 +872,10 @@ bool AppInit2(boost::thread_group& threadGroup, CScheduler& scheduler)
                 pcoinsdbview = new CCoinsViewDB(nCoinDBCache, false, fReindex);
                 pcoinscatcher = new CCoinsViewErrorCatcher(pcoinsdbview);
                 pcoinsTip = new CCoinsViewCache(pcoinscatcher);
+                mempool.setCoinsView(pcoinsTip);
 
                 if (fReindex) {
-                    Blocks::DB::instance()->setIsReindexing(true);
+                    Blocks::DB::instance()->setReindexing(Blocks::ScanningFiles);
                     //If we're reindexing in prune mode, wipe away unusable block files and all undo data files
                     if (fPruneMode)
                         CleanupBlockRevFiles();
@@ -877,12 +885,14 @@ bool AppInit2(boost::thread_group& threadGroup, CScheduler& scheduler)
                     strLoadError = _("Error loading block database");
                     break;
                 }
+                Application::instance()->validation()->setBlockchain(&chainActive);
+
                 // Check whether we need to continue reindexing
-                fReindex = fReindex || Blocks::DB::instance()->isReindexing();
+                fReindex = fReindex || Blocks::DB::instance()->reindexing() != Blocks::NoReindex;
 
                 // If the loaded chain has a wrong genesis, bail out immediately
                 // (we're likely using a testnet datadir, or the other way around).
-                if (!Blocks::indexMap.empty() && Blocks::indexMap.count(chainparams.GetConsensus().hashGenesisBlock) == 0)
+                if (!Blocks::Index::empty() && !Blocks::Index::exists(chainparams.GetConsensus().hashGenesisBlock))
                     return InitError(_("Incorrect or no genesis block found. Wrong datadir for network?"));
 
                 // Initialize the block index (no-op if non-empty database was already loaded)
@@ -921,7 +931,7 @@ bool AppInit2(boost::thread_group& threadGroup, CScheduler& scheduler)
                     }
                 }
 
-                if (!CVerifyDB().VerifyDB(chainparams, pcoinsdbview, GetArg("-checklevel", DEFAULT_CHECKLEVEL),
+                if (!VerifyDB().verifyDB(pcoinsdbview, GetArg("-checklevel", DEFAULT_CHECKLEVEL),
                               GetArg("-checkblocks", DEFAULT_CHECKBLOCKS))) {
                     strLoadError = _("Corrupted block database detected");
                     break;
@@ -946,6 +956,7 @@ bool AppInit2(boost::thread_group& threadGroup, CScheduler& scheduler)
                     "", CClientUIInterface::MSG_ERROR | CClientUIInterface::BTN_ABORT);
                 if (fRet) {
                     fReindex = true;
+                    Blocks::DB::instance()->setReindexing(Blocks::ScanningFiles);
                     fRequestShutdown = false;
                 } else {
                     logFatal(Log::Bitcoin) << "Aborted block database rebuild. Exiting.";
@@ -1245,13 +1256,6 @@ bool AppInit2(boost::thread_group& threadGroup, CScheduler& scheduler)
     if (mapArgs.count("-blocknotify"))
         uiInterface.NotifyBlockTip.connect(BlockNotifyCallback);
 
-    uiInterface.InitMessage(_("Activating best chain..."));
-    // scan for better chains in the block chain database, that are not yet connected in the active best chain
-    CValidationState state;
-    if (!ActivateBestChain(state, chainparams))
-        strErrors << "Failed to connect best block";
-
-    Blocks::DB::instance()->setIsReindexing(fReindex);
     Blocks::DB::startBlockImporter();
     if (chainActive.Tip() == nullptr) {
         logDebug(Log::Bitcoin) << "Waiting for genesis block to be imported...";
@@ -1270,7 +1274,7 @@ bool AppInit2(boost::thread_group& threadGroup, CScheduler& scheduler)
     RandAddSeedPerfmon();
 
     //// debug print
-    logDebug(Log::DB) << "mapBlockIndex.size() =" << Blocks::indexMap.size();
+    logDebug(Log::DB) << "mapBlockIndex.size() =" << Blocks::Index::size();
     logDebug(Log::BlockValidation) << "nBestHeight =" << chainActive.Height();
 #ifdef ENABLE_WALLET
     logDebug(Log::Wallet) << "setKeyPool.size() =" << (pwalletMain ? pwalletMain->setKeyPool.size() : 0);

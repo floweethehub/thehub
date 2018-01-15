@@ -27,6 +27,7 @@
 #include "util.h"
 
 #include "AdminServer.h"
+#include <validation/Engine.h>
 
 #include <boost/foreach.hpp>
 #include <boost/lexical_cast.hpp>
@@ -56,6 +57,8 @@ void Application::quit(int rc)
 {
     Application *app = Application::instance();
     app->m_returnCode = rc;
+    if (app->m_validationEngine.get())
+        app->m_validationEngine->shutdown();
     app->m_adminServer.reset();
     app->m_work.reset();
     app->m_ioservice->stop();
@@ -63,18 +66,39 @@ void Application::quit(int rc)
 }
 
 Application::Application()
-    : m_ioservice(new boost::asio::io_service()),
-    m_work(new boost::asio::io_service::work(*m_ioservice)),
-    m_returnCode(0),
+    : m_returnCode(0),
     m_closingDown(false),
     m_uahfState(UAHFDisabled)
 {
+    startThreads();
     init();
 }
 
 void Application::init()
 {
     m_closingDown = false;
+
+    const bool fallback = GetArg("-uahfstarttime", UAHF_CLIENT) > 0;
+    if (GetBoolArg("-uahf", fallback)) {
+        m_uahfState = UAHFWaiting;
+        const std::string chain = Params().NetworkIDString();
+        if (chain == CBaseChainParams::REGTEST) {
+            m_uahfStartTme = 1296688602;
+            m_uahfState = UAHFActive;
+        } else {
+            m_uahfStartTme = 1501590000;
+        }
+    } else {
+        m_uahfState = UAHFDisabled;
+        m_uahfStartTme = 0;
+    }
+    logInfo(8002) << "UAHF state:" << m_uahfState << "start time:" << m_uahfStartTme;
+}
+
+void Application::startThreads()
+{
+    m_ioservice = std::make_shared<boost::asio::io_service>();
+    m_work.reset(new boost::asio::io_service::work(*m_ioservice));
     for (int i = boost::thread::hardware_concurrency(); i > 0; --i) {
         auto ioservice(m_ioservice);
         m_threads.create_thread([ioservice] {
@@ -91,17 +115,6 @@ void Application::init()
             }
         });
     }
-
-    const bool fallback = GetArg("-uahfstarttime", UAHF_CLIENT) > 0;
-    if (GetBoolArg("-uahf", fallback)) {
-        m_uahfState = UAHFWaiting;
-        const std::string chain = Params().NetworkIDString();
-        m_uahfStartTme = chain == CBaseChainParams::REGTEST ? 1296688602 : 1501590000;
-    } else {
-        m_uahfState = UAHFDisabled;
-        m_uahfStartTme = 0;
-    }
-    logInfo(8002) << "UAHF state:" << m_uahfState << "start time:" << m_uahfStartTme;
 }
 
 Application::~Application()
@@ -123,6 +136,18 @@ Admin::Server *Application::adminServer()
         }
     }
     return m_adminServer.get();
+}
+
+Validation::Engine *Application::validation()
+{
+    if (m_validationEngine.get() == nullptr)
+        m_validationEngine.reset(new Validation::Engine());
+    return m_validationEngine.get();
+}
+
+CTxMemPool *Application::mempool()
+{
+    return validation()->mempool();
 }
 
 std::string Application::userAgent()

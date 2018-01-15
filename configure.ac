@@ -209,7 +209,7 @@ AX_CHECK_COMPILE_FLAG([-Werror],[CXXFLAG_WERROR="-Werror"],[CXXFLAG_WERROR=""])
 if test "x$enable_dev_setup" = xyes; then
     enable_debug="yes"
     enable_debug_messages=yes
-    CPPFLAGS="$CPPFLAGS -DBTC_LOGCONTEXT -DUSE_UNSAFE_RANDOM"
+    CPPFLAGS="$CPPFLAGS -DBTC_LOGCONTEXT -DUSE_UNSAFE_RANDOM -DENABLE_CRASH_CATCHER"
 fi
 
 if test "x$enable_debug_messages" != xyes; then

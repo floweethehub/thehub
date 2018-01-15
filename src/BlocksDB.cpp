@@ -1,7 +1,7 @@
 /*
  * This file is part of the Flowee project
  * Copyright (c) 2009-2010 Satoshi Nakamoto
- * Copyright (c) 2017 Tom Zander <tomz@freedommail.ch>
+ * Copyright (c) 2017-2018 Tom Zander <tomz@freedommail.ch>
  * Copyright (c) 2017 Calin Culianu <calin.culianu@gmail.com>
  *
  * This program is free software: you can redistribute it and/or modify
@@ -21,10 +21,10 @@
 #include "BlocksDB.h"
 #include "BlocksDB_p.h"
 #include "chainparams.h"
-#include "consensus/validation.h"
 #include "Application.h"
 #include "init.h" // for StartShutdown
 #include "hash.h"
+#include <validation/Engine.h>
 
 #include "chain.h"
 #include "main.h"
@@ -32,7 +32,7 @@
 #include <boost/thread.hpp>
 #include <boost/filesystem.hpp>
 #include <boost/filesystem/fstream.hpp>
-#include <blockchain/Block.h>
+#include <primitives/FastBlock.h>
 
 static const char DB_BLOCK_FILES = 'f';
 static const char DB_TXINDEX = 't';
@@ -41,209 +41,95 @@ static const char DB_BLOCK_INDEX = 'b';
 static const char DB_FLAG = 'F';
 static const char DB_REINDEX_FLAG = 'R';
 static const char DB_LAST_BLOCK = 'l';
-static const char DB_UAHF_FORK_BLOCK = 'U';
 
 namespace {
 CBlockIndex * InsertBlockIndex(uint256 hash)
 {
     if (hash.IsNull())
-        return NULL;
+        return nullptr;
 
     // Return existing
-    auto mi = Blocks::indexMap.find(hash);
-    if (mi != Blocks::indexMap.end())
-        return (*mi).second;
+    auto answer = Blocks::Index::get(hash);
+    if (answer)
+        return answer;
 
     // Create new
     CBlockIndex* pindexNew = new CBlockIndex();
-    mi = Blocks::indexMap.insert(std::make_pair(hash, pindexNew)).first;
-    pindexNew->phashBlock = &((*mi).first);
-
+    pindexNew->phashBlock = Blocks::Index::insert(hash, pindexNew);
     return pindexNew;
 }
 
-bool LoadExternalBlockFile(const CChainParams& chainparams, FILE* fileIn, CDiskBlockPos *dbp = nullptr)
+bool LoadExternalBlockFile(const CDiskBlockPos &pos)
 {
-    // Map of disk positions for blocks with unknown parent (only used for reindex)
-    static std::multimap<uint256, CDiskBlockPos> mapBlocksUnknownParent;
+    static_assert(MESSAGE_START_SIZE == 4, "We assume 4");
     int64_t nStart = GetTimeMillis();
 
-    int nLoaded = 0;
-    try {
-        // This takes over fileIn and calls fclose() on it in the CBufferedFile destructor
-        CBufferedFile blkdat(fileIn, 2E6, 1E6+8, SER_DISK, CLIENT_VERSION);
-        uint64_t nRewind = blkdat.GetPos();
-        while (!blkdat.eof()) {
-            boost::this_thread::interruption_point();
-
-            blkdat.SetPos(nRewind);
-            nRewind++; // start one byte further next time, in case of failure
-            blkdat.SetLimit(); // remove former limit
-            unsigned int nSize = 0;
-            try {
-                // locate a header
-                unsigned char buf[MESSAGE_START_SIZE];
-                blkdat.FindByte(chainparams.MessageStart()[0]);
-                nRewind = blkdat.GetPos()+1;
-                blkdat >> FLATDATA(buf);
-                if (memcmp(buf, chainparams.MessageStart(), MESSAGE_START_SIZE))
-                    continue;
-                // read size
-                blkdat >> nSize;
-                if (nSize < 80)
-                    continue;
-            } catch (const std::exception&) {
-                // no valid block header found; don't complain
-                break;
-            }
-            try {
-                // read block
-                uint64_t nBlockPos = blkdat.GetPos();
-                if (dbp)
-                    dbp->nPos = nBlockPos;
-                blkdat.SetLimit(nBlockPos + nSize);
-                blkdat.SetPos(nBlockPos);
-                CBlock block;
-                blkdat >> block;
-                nRewind = blkdat.GetPos();
-
-                // detect out of order blocks, and store them for later
-                uint256 hash = block.GetHash();
-                if (hash != chainparams.GetConsensus().hashGenesisBlock && Blocks::indexMap.find(block.hashPrevBlock) == Blocks::indexMap.end()) {
-                    LogPrint("reindex", "%s: Out of order block %s, parent %s not known\n", __func__, hash.ToString(),
-                            block.hashPrevBlock.ToString());
-                    if (dbp)
-                        mapBlocksUnknownParent.insert(std::make_pair(block.hashPrevBlock, *dbp));
-                    continue;
-                }
-
-                // process in case the block isn't known yet
-                if (Blocks::indexMap.count(hash) == 0 || (Blocks::indexMap[hash]->nStatus & BLOCK_HAVE_DATA) == 0) {
-                    CValidationState state;
-                    if (ProcessNewBlock(state, chainparams, NULL, &block, true, dbp))
-                        nLoaded++;
-                    if (state.IsError())
-                        break;
-                } else if (hash != chainparams.GetConsensus().hashGenesisBlock && Blocks::indexMap[hash]->nHeight % 1000 == 0) {
-                    LogPrintf("Block Import: already had block %s at height %d\n", hash.ToString(), Blocks::indexMap[hash]->nHeight);
-                }
-
-                // Recursively process earlier encountered successors of this block
-                std::deque<uint256> queue;
-                queue.push_back(hash);
-                while (!queue.empty()) {
-                    uint256 head = queue.front();
-                    queue.pop_front();
-                    std::pair<std::multimap<uint256, CDiskBlockPos>::iterator, std::multimap<uint256, CDiskBlockPos>::iterator> range = mapBlocksUnknownParent.equal_range(head);
-                    while (range.first != range.second) {
-                        std::multimap<uint256, CDiskBlockPos>::iterator it = range.first;
-                        if (ReadBlockFromDisk(block, it->second, chainparams.GetConsensus()))
-                        {
-                            LogPrintf("%s: Processing out of order child %s of %s\n", __func__, block.GetHash().ToString(),
-                                    head.ToString());
-                            CValidationState dummy;
-                            if (ProcessNewBlock(dummy, chainparams, NULL, &block, true, &it->second))
-                            {
-                                nLoaded++;
-                                queue.push_back(block.GetHash());
-                            }
-                        }
-                        range.first++;
-                        mapBlocksUnknownParent.erase(it);
-                    }
-                }
-            } catch (const std::exception& e) {
-                LogPrintf("%s: Deserialize or I/O error - %s\n", __func__, e.what());
-            }
-        }
-    } catch (const std::runtime_error& e) {
-        LogPrintf("%s: Deserialize or I/O error - %s\n", __func__, e.what());
+    Streaming::ConstBuffer dataFile = Blocks::DB::instance()->loadBlockFile(pos.nFile);
+    if (!dataFile.isValid()) {
+        logWarning(Log::DB) << "LoadExternalBlockFile: Unable to open file" << pos.nFile;
         return false;
     }
-    if (nLoaded > 0)
-        LogPrintf("Loaded %i blocks from external file in %dms\n", nLoaded, GetTimeMillis() - nStart);
-    return nLoaded > 0;
+
+    CBlockFileInfo info;
+
+    auto validation = Application::instance()->validation();
+    const int blockHeaderMessage = reinterpret_cast<const int&>(Params().MessageStart());
+    const char *buf = dataFile.begin();
+    while (buf < dataFile.end()) {
+        buf = (const char*) memchr(buf, blockHeaderMessage, (dataFile.end() - buf) / sizeof(int));
+        if (buf == nullptr) {
+            // no valid block header found; don't complain
+            break;
+        }
+        buf += 4;
+        uint32_t blockSize = le32toh(*((uint32_t*)(buf)));
+        if (blockSize < 80)
+            continue;
+        buf += 4;
+
+        validation->waitForSpace();
+        validation->addBlock(CDiskBlockPos(pos.nFile, buf - dataFile.begin()));
+        ++info.nBlocks;
+        buf += blockSize;
+        info.nSize = buf - dataFile.begin();
+    }
+    if (info.nBlocks > 0) {
+        logCritical(Log::DB) << "Loaded" << info.nBlocks << "blocks from external file" << pos.nFile << "in" << (GetTimeMillis() - nStart) << "ms";
+        Blocks::DB::instance()->priv()->foundBlockFile(pos.nFile, info);
+    }
+
+    return true;
 }
 
-struct CImportingNow
-{
-    CImportingNow() {
-        assert(fImporting == false);
-        fImporting = true;
-    }
-
-    ~CImportingNow() {
-        assert(fImporting == true);
-        fImporting = false;
-    }
-};
-
-void reimportBlockFiles(std::vector<boost::filesystem::path> vImportFiles)
+void reimportBlockFiles()
 {
     const CChainParams& chainparams = Params();
     RenameThread("bitcoin-loadblk");
-    bool fReindex = Blocks::DB::instance()->isReindexing();
-
-    if (fReindex) {
-        CImportingNow imp;
+    if (Blocks::DB::instance()->reindexing() == Blocks::ScanningFiles) {
         int nFile = 0;
-        while (!ShutdownRequested()) {
-            CDiskBlockPos pos(nFile, 0);
-            if (!boost::filesystem::exists(Blocks::getFilepathForIndex(pos.nFile, "blk", true)))
-                break; // No block files left to reindex
-            FILE *file = Blocks::openFile(pos, true);
-            if (!file)
-                break; // This error is logged in OpenBlockFile
-            LogPrintf("Reindexing block file blk%05u.dat...\n", (unsigned int)nFile);
-            LoadExternalBlockFile(chainparams, file, &pos);
+        while (true) {
+            if (!LoadExternalBlockFile(CDiskBlockPos(nFile, 0)))
+                break;
+            if (Application::closingDown())
+                return;
             nFile++;
         }
-        Blocks::DB::instance()->setIsReindexing(false);
-        fReindex = false;
-        LogPrintf("Reindexing finished\n");
-        // To avoid ending up in a situation without genesis block, re-try initializing (no-op if reindexing worked):
-        InitBlockIndex(chainparams);
+        Blocks::DB::instance()->setReindexing(Blocks::ParsingBlocks);
     }
-
-    // hardcoded $DATADIR/bootstrap.dat
-    boost::filesystem::path pathBootstrap = GetDataDir() / "bootstrap.dat";
-    if (boost::filesystem::exists(pathBootstrap)) {
-        FILE *file = fopen(pathBootstrap.string().c_str(), "rb");
-        if (file) {
-            CImportingNow imp;
-            boost::filesystem::path pathBootstrapOld = GetDataDir() / "bootstrap.dat.old";
-            LogPrintf("Importing bootstrap.dat...\n");
-            LoadExternalBlockFile(chainparams, file);
-            RenameOver(pathBootstrap, pathBootstrapOld);
-        } else {
-            LogPrintf("Warning: Could not open bootstrap file %s\n", pathBootstrap.string());
-        }
-    }
-
-    // -loadblock=
-    BOOST_FOREACH(const boost::filesystem::path& path, vImportFiles) {
-        FILE *file = fopen(path.string().c_str(), "rb");
-        if (file) {
-            CImportingNow imp;
-            LogPrintf("Importing blocks file %s...\n", path.string());
-            LoadExternalBlockFile(chainparams, file);
-        } else {
-            LogPrintf("Warning: Could not open blocks file %s\n", path.string());
-        }
-    }
+    Application::instance()->validation()->waitValidationFinished();
+    Blocks::DB::instance()->setReindexing(Blocks::NoReindex);
+    FlushStateToDisk();
+    logCritical(Log::Bitcoin) << "Reindexing finished";
+    // To avoid ending up in a situation without genesis block, re-try initializing (no-op if reindexing worked):
+    InitBlockIndex(chainparams);
 
     if (GetBoolArg("-stopafterblockimport", DEFAULT_STOPAFTERBLOCKIMPORT)) {
-        LogPrintf("Stopping after block import\n");
+        logCritical(Log::Bitcoin) << "Stopping after block import";
         StartShutdown();
     }
 }
 
 }
-
-namespace Blocks {
-BlockMap indexMap;
-}
-
 
 Blocks::DB* Blocks::DB::s_instance = nullptr;
 
@@ -254,14 +140,12 @@ Blocks::DB *Blocks::DB::instance()
 
 void Blocks::DB::createInstance(size_t nCacheSize, bool fWipe)
 {
-    Blocks::indexMap.clear();
     delete Blocks::DB::s_instance;
     Blocks::DB::s_instance = new Blocks::DB(nCacheSize, false, fWipe);
 }
 
 void Blocks::DB::createTestInstance(size_t nCacheSize)
 {
-    Blocks::indexMap.clear();
     delete Blocks::DB::s_instance;
     Blocks::DB::s_instance = new Blocks::DB(nCacheSize, true);
 }
@@ -274,37 +158,29 @@ void Blocks::DB::shutdown()
 
 void Blocks::DB::startBlockImporter()
 {
-    std::vector<boost::filesystem::path> vImportFiles;
-    if (mapArgs.count("-loadblock"))
-    {
-        BOOST_FOREACH(const std::string& strFile, mapMultiArgs["-loadblock"])
-            vImportFiles.push_back(strFile);
-    }
-    Application::createThread(std::bind(&reimportBlockFiles, vImportFiles));
+    if (s_instance->reindexing() != NoReindex)
+        Application::createThread(std::bind(&reimportBlockFiles));
 }
-
-
 
 Blocks::DB::DB(size_t nCacheSize, bool fMemory, bool fWipe)
     : CDBWrapper(GetDataDir() / "blocks" / "index", nCacheSize, fMemory, fWipe),
       d(new DBPrivate())
 {
-    d->isReindexing = Exists(DB_REINDEX_FLAG);
+    int state;
+    bool exists = Read(DB_REINDEX_FLAG, state);
+    if (exists) {
+        if (state == 1)
+            d->reindexing = Blocks::ScanningFiles;
+        else
+            d->reindexing = Blocks::ParsingBlocks;
+    } else {
+        d->reindexing = Blocks::NoReindex;
+    }
     loadConfig();
 }
 
 bool Blocks::DB::ReadBlockFileInfo(int nFile, CBlockFileInfo &info) {
     return Read(std::make_pair(DB_BLOCK_FILES, nFile), info);
-}
-
-bool Blocks::DB::setIsReindexing(bool fReindexing) {
-    if (d->isReindexing == fReindexing)
-        return true;
-    d->isReindexing = fReindexing;
-    if (fReindexing)
-        return Write(DB_REINDEX_FLAG, '1');
-    else
-        return Erase(DB_REINDEX_FLAG);
 }
 
 bool Blocks::DB::ReadLastBlockFile(int &nFile) {
@@ -386,19 +262,38 @@ bool Blocks::DB::CacheAllBlockInfos()
     d->datafiles.resize(maxFile);
     d->revertDatafiles.resize(maxFile);
 
-    for (auto iter = Blocks::indexMap.begin(); iter != Blocks::indexMap.end(); ++iter) {
+    std::lock_guard<std::mutex> lock_(d->blockIndexLock);
+    for (auto iter = d->indexMap.begin(); iter != d->indexMap.end(); ++iter) {
         iter->second->BuildSkip();
     }
-    for (auto iter = Blocks::indexMap.begin(); iter != Blocks::indexMap.end(); ++iter) {
+    for (auto iter = d->indexMap.begin(); iter != d->indexMap.end(); ++iter) {
         appendHeader(iter->second);
     }
 
     return true;
 }
 
-bool Blocks::DB::isReindexing() const
+Blocks::ReindexingState Blocks::DB::reindexing() const
 {
-    return d->isReindexing;
+    return d->reindexing;
+}
+
+void Blocks::DB::setReindexing(Blocks::ReindexingState state)
+{
+    if (d->reindexing == state)
+        return;
+    d->reindexing = state;
+    switch (state) {
+    case Blocks::NoReindex:
+        Erase(DB_REINDEX_FLAG);
+        break;
+    case Blocks::ScanningFiles:
+        Write(DB_REINDEX_FLAG, 1);
+        break;
+    case Blocks::ParsingBlocks:
+        Write(DB_REINDEX_FLAG, 2);
+        break;
+    }
 }
 
 static FILE* OpenDiskFile(const CDiskBlockPos &pos, const char *prefix, bool fReadOnly)
@@ -459,28 +354,24 @@ FastUndoBlock Blocks::DB::loadUndoBlock(CDiskBlockPos pos, const uint256 &origBl
 
 Streaming::ConstBuffer Blocks::DB::loadBlockFile(int fileIndex)
 {
-    try {
-        size_t fileSize;
-        auto buf = d->mapFile(fileIndex, ForwardBlock, &fileSize);
-        if (buf.get() == nullptr)
-            return Streaming::ConstBuffer(); // got pruned
-        return Streaming::ConstBuffer(buf, buf.get(), buf.get() + fileSize - 1);
-    } catch (const std::ios_base::failure &ex) {
-        return Streaming::ConstBuffer(); // file missing.
-    }
+    size_t fileSize;
+    auto buf = d->mapFile(fileIndex, ForwardBlock, &fileSize);
+    if (buf.get() == nullptr)
+        return Streaming::ConstBuffer(); // got pruned
+    return Streaming::ConstBuffer(buf, buf.get(), buf.get() + fileSize - 1);
 }
 
-FastBlock Blocks::DB::writeBlock(int blockHeight, const FastBlock &block, CDiskBlockPos &pos)
+FastBlock Blocks::DB::writeBlock(const FastBlock &block, CDiskBlockPos &pos)
 {
     assert(block.isFullBlock());
-    return FastBlock(d->writeBlock(blockHeight, block.data(), pos, ForwardBlock, block.timestamp(), 0));
+    return FastBlock(d->writeBlock(block.data(), pos, ForwardBlock, 0));
 }
 
 FastUndoBlock Blocks::DB::writeUndoBlock(const FastUndoBlock &block, const uint256 &blockHash, int fileIndex, uint32_t *posInFile)
 {
     assert(block.size() > 0);
     CDiskBlockPos pos(fileIndex, 0);
-    FastUndoBlock answer(d->writeBlock(0, block.data(), pos, RevertBlock, 0, &blockHash));
+    FastUndoBlock answer(d->writeBlock(block.data(), pos, RevertBlock, &blockHash));
     if (posInFile)
         *posInFile = pos.nPos;
     return answer;
@@ -495,17 +386,19 @@ bool Blocks::DB::appendHeader(CBlockIndex *block)
     assert(valid || block->pprev);  // can't mark the genesis as invalid.
     if (valid && d->headersChain.Contains(block)) // nothing to do.
         return false;
+    CBlockIndex *validPrev = valid ? block : block->pprev;
+    while (validPrev->nStatus & BLOCK_FAILED_MASK) {
+        validPrev = validPrev->pprev;
+    }
     for (auto i = d->headerChainTips.begin(); i != d->headerChainTips.end(); ++i) {
         CBlockIndex *tip = *i;
         CBlockIndex *parent = block->GetAncestor(tip->nHeight);
         if (parent == tip) {
-            if (!valid)
-                block = block->pprev;
             d->headerChainTips.erase(i);
-            d->headerChainTips.push_back(block);
+            d->headerChainTips.push_back(validPrev);
             if (tip == d->headersChain.Tip()) {
-                d->headersChain.SetTip(block);
-                pindexBestHeader = block;
+                d->headersChain.SetTip(validPrev);
+                pindexBestHeader = validPrev;
                 return true;
             }
             found = true;
@@ -513,21 +406,36 @@ bool Blocks::DB::appendHeader(CBlockIndex *block)
         }
     }
 
+    bool modifyingMainChain = false;
     if (!found) {
-        for (auto i = d->headerChainTips.begin(); i != d->headerChainTips.end(); ++i) {
+        bool modified = false;
+        bool alreadyContains = false; // true if a second chain already contains our new validPrev
+        auto i = d->headerChainTips.begin();
+        while (i != d->headerChainTips.end()) {
             if ((*i)->GetAncestor(block->nHeight) == block) { // known in this chain.
                 if (valid)
                     return false;
-                // if it is invalid, remove it and all children.
-                const bool modifyingMainChain = d->headersChain.Contains(*i);
-                d->headerChainTips.erase(i);
-                block = block->pprev;
-                d->headerChainTips.push_back(block);
-                if (modifyingMainChain)
-                    d->headersChain.SetTip(block);
-                return modifyingMainChain;
+                modified = true;
+                const bool mainChain = d->headersChain.Contains(*i);
+                // it is invalid, remove it (and all children).
+                i = d->headerChainTips.erase(i);
+                if (mainChain)
+                    d->headersChain.SetTip(validPrev);
+                modifyingMainChain |= mainChain;
+            } else {
+                if ((*i)->GetAncestor(validPrev->nHeight) == validPrev) {
+                    // the new best argument is already present on another chain, this means
+                    // an entire chain will end up being removed. Lets check if we need to
+                    // switch main-chain.
+                    alreadyContains = true;
+                    if (validPrev->nChainWork < (*i)->nChainWork)
+                        validPrev = *i;
+                }
+                ++i;
             }
         }
+        if (modified && !alreadyContains) // at least one chain was removed, then add back the correct tip
+            d->headerChainTips.push_back(validPrev);
         if (valid) {
             d->headerChainTips.push_back(block);
             if (d->headersChain.Height() == -1) { // add genesis
@@ -537,13 +445,15 @@ bool Blocks::DB::appendHeader(CBlockIndex *block)
             }
         }
     }
-    if (d->headersChain.Tip()->nChainWork < block->nChainWork) {
+    assert(d->headersChain.Tip());
+    assert(validPrev);
+    if (d->headersChain.Tip()->nChainWork < validPrev->nChainWork) {
         // we changed what is to be considered the main-chain. Update the CChain instance.
-        d->headersChain.SetTip(block);
+        d->headersChain.SetTip(validPrev);
         pindexBestHeader = block;
-        return true;
+        modifyingMainChain = true;
     }
-    return false;
+    return modifyingMainChain;
 }
 
 bool Blocks::DB::appendBlock(CBlockIndex *block, int lastBlockFile)
@@ -577,24 +487,133 @@ void Blocks::DB::loadConfig()
     }
 }
 
-
 ///////////////////////////////////////////////
 
+bool Blocks::Index::empty()
+{
+    auto priv = Blocks::DB::instance()->priv();
+    std::lock_guard<std::mutex> lock_(priv->blockIndexLock);
+    return priv->indexMap.empty();
+}
+
+const uint256 *Blocks::Index::insert(const uint256 &hash, CBlockIndex *index)
+{
+    assert(index);
+    auto priv = Blocks::DB::instance()->priv();
+    std::lock_guard<std::mutex> lock_(priv->blockIndexLock);
+    auto iterator = priv->indexMap.insert(std::make_pair(hash, index)).first;
+    return &((*iterator).first);
+}
+
+bool Blocks::Index::exists(const uint256 &hash)
+{
+    auto priv = Blocks::DB::instance()->priv();
+    std::lock_guard<std::mutex> lock_(priv->blockIndexLock);
+    auto mi = priv->indexMap.find(hash);
+    return mi != priv->indexMap.end();
+}
+
+CBlockIndex *Blocks::Index::get(const uint256 &hash)
+{
+    auto priv = Blocks::DB::instance()->priv();
+    std::lock_guard<std::mutex> lock_(priv->blockIndexLock);
+    auto mi = priv->indexMap.find(hash);
+    if (mi == priv->indexMap.end())
+        return nullptr;
+    return mi->second;
+}
+
+int Blocks::Index::size()
+{
+    auto priv = Blocks::DB::instance()->priv();
+    std::lock_guard<std::mutex> lock_(priv->blockIndexLock);
+    return priv->indexMap.size();
+}
+
+bool Blocks::Index::reconsiderBlock(CBlockIndex *pindex) {
+    auto priv = Blocks::DB::instance()->priv();
+    std::lock_guard<std::mutex> lock_(priv->blockIndexLock);
+
+    int nHeight = pindex->nHeight;
+
+    // Remove the invalidity flag from this block and all its descendants.
+    auto it = priv->indexMap.begin();
+    while (it != priv->indexMap.end()) {
+        if (!it->second->IsValid() && it->second->GetAncestor(nHeight) == pindex) {
+            it->second->nStatus &= ~BLOCK_FAILED_MASK;
+            markIndexUnsaved(it->second);
+        }
+        it++;
+    }
+
+    // Remove the invalidity flag from all ancestors too.
+    while (pindex != NULL) {
+        if (pindex->nStatus & BLOCK_FAILED_MASK) {
+            pindex->nStatus &= ~BLOCK_FAILED_MASK;
+            markIndexUnsaved(pindex);
+        }
+        pindex = pindex->pprev;
+    }
+    return true;
+}
+
+std::set<int> Blocks::Index::fileIndexes()
+{
+    auto priv = Blocks::DB::instance()->priv();
+    std::lock_guard<std::mutex> lock_(priv->blockIndexLock);
+
+    std::set<int> setBlkDataFiles;
+    BOOST_FOREACH(const PAIRTYPE(uint256, CBlockIndex*)& item, priv->indexMap) {
+        CBlockIndex* pindex = item.second;
+        if (pindex->nStatus & BLOCK_HAVE_DATA) {
+            setBlkDataFiles.insert(pindex->nFile);
+        }
+    }
+    return setBlkDataFiles;
+}
+
+void Blocks::Index::unload()
+{
+    auto instance = Blocks::DB::instance();
+    if (instance == nullptr)
+        return;
+    instance->priv()->unloadIndexMap();
+}
+
+std::vector<std::pair<int, CBlockIndex *> > Blocks::Index::allByHeight()
+{
+    auto priv = Blocks::DB::instance()->priv();
+    std::lock_guard<std::mutex> lock_(priv->blockIndexLock);
+
+    std::vector<std::pair<int, CBlockIndex*> > vSortedByHeight;
+    vSortedByHeight.reserve(priv->indexMap.size());
+    BOOST_FOREACH(const PAIRTYPE(uint256, CBlockIndex*)& item, priv->indexMap)
+    {
+        CBlockIndex* pindex = item.second;
+        vSortedByHeight.push_back(std::make_pair(pindex->nHeight, pindex));
+    }
+    std::sort(vSortedByHeight.begin(), vSortedByHeight.end());
+    return vSortedByHeight;
+}
+
+
+////////////////////////////////
+
 Blocks::DBPrivate::DBPrivate()
-    : isReindexing(false),
-      uahfStartBlock(nullptr)
 {
 }
 
 Blocks::DBPrivate::~DBPrivate()
 {
+    unloadIndexMap();
     // this class is mostly lock-free, which means that this destructor can be called well before
     // all the users of the datafiles are deleted.
     //  The design is that the objects stored in the datafils/revertDatafiles will be deleted when the last
     // users stop using them. So don't delete them here, it would cause issues.
-    std::lock_guard<std::mutex> lock_(lock);
+    std::lock_guard<std::recursive_mutex> lock_(lock);
     datafiles.clear();
     revertDatafiles.clear();
+    fileHistory.clear();
 }
 
 Streaming::ConstBuffer Blocks::DBPrivate::loadBlock(CDiskBlockPos pos, BlockType type, const uint256 *blockHash)
@@ -624,7 +643,7 @@ Streaming::ConstBuffer Blocks::DBPrivate::loadBlock(CDiskBlockPos pos, BlockType
     return Streaming::ConstBuffer(buf, buf.get() + pos.nPos, buf.get() + pos.nPos + blockSize);
 }
 
-Streaming::ConstBuffer Blocks::DBPrivate::writeBlock(int blockHeight, const Streaming::ConstBuffer &block, CDiskBlockPos &pos, BlockType type, uint32_t timestamp, const uint256 *blockHash)
+Streaming::ConstBuffer Blocks::DBPrivate::writeBlock(const Streaming::ConstBuffer &block, CDiskBlockPos &pos, BlockType type, const uint256 *blockHash)
 {
     const int blockSize = block.size();
     assert(blockSize < (int) MAX_BLOCKFILE_SIZE - 8);
@@ -639,15 +658,23 @@ Streaming::ConstBuffer Blocks::DBPrivate::writeBlock(int blockHeight, const Stre
         // previous file full.
         newFile = true;
         vinfoBlockFile.resize(++nLastBlockFile + 1);
+    } else if (!useBlk && nLastBlockFile < pos.nFile) { // Want new revert file to be created
+        // We can get our nLastBlockFile out of sync in a resync where the revert files are written
+        // without there having been blk files written first.
+        newFile = true;
+        nLastBlockFile = std::max(nLastBlockFile + 1, pos.nFile);
+        vinfoBlockFile.resize(nLastBlockFile + 1);
     }
     if (useBlk) // revert files get to tell us which file they want to be in
         pos.nFile = nLastBlockFile;
+    assert(pos.nFile <= nLastBlockFile);
+    assert((int) vinfoBlockFile.size() > pos.nFile);
     CBlockFileInfo &info = vinfoBlockFile[pos.nFile];
-    if (newFile || (!useBlk && info.nUndoSize == 0)) {
+    if (newFile || (!useBlk && info.nUndoSize == 0)) { // create new file on disk
         const auto path = getFilepathForIndex(pos.nFile, useBlk ? "blk" : "rev");
         logDebug(Log::DB) << "Starting new file" << path.string();
-        std::lock_guard<std::mutex> lock_(lock);
-        size_t newFileSize = std::max(blockSize, (int) (useBlk ? BLOCKFILE_CHUNK_SIZE : UNDOFILE_CHUNK_SIZE));
+        std::lock_guard<std::recursive_mutex> lock_(lock);
+        size_t newFileSize = std::max(blockSize + 8, (int) (useBlk ? BLOCKFILE_CHUNK_SIZE : UNDOFILE_CHUNK_SIZE));
 #ifdef WIN32
         // due to the fact that on Windows we can't re-map, we skip the growing steps.
         newFileSize = MAX_BLOCKFILE_SIZE;
@@ -657,21 +684,36 @@ Streaming::ConstBuffer Blocks::DBPrivate::writeBlock(int blockHeight, const Stre
         boost::filesystem::resize_file(path, newFileSize);
     }
     size_t fileSize;
-    auto buf = mapFile(pos.nFile, type, &fileSize);
-    if (buf.get() == nullptr)
+    bool writable;
+    auto buf = mapFile(pos.nFile, type, &fileSize, &writable);
+    if (buf.get() == nullptr) {
+        logFatal(Log::DB).nospace() << "Wanting to write to DB file " << (newFile ? "(new)":"") << "blk0..." << pos.nFile << ".dat failed, could not open";
         throw std::runtime_error("Failed to open file");
+    }
+    if (!writable) {
+        logFatal(Log::DB).nospace() << "Wanting to write to DB file blk0..." << pos.nFile << ".dat failed, file read-only";
+        throw std::runtime_error("File is not writable");
+    }
     uint32_t *posInFile = useBlk ? &info.nSize : &info.nUndoSize;
 #ifndef WIN32
-    if (*posInFile + blockSize + 8 > fileSize) {
+    while (*posInFile + blockSize + 8 + (useBlk ? 0 : 32) >= fileSize) {
         const auto path = getFilepathForIndex(pos.nFile, useBlk ? "blk" : "rev");
         logDebug(Log::DB) << "File" << path.string() << "needs to be resized";
         const size_t newFileSize = fileSize + (useBlk ? BLOCKFILE_CHUNK_SIZE : UNDOFILE_CHUNK_SIZE);
         { // scope the lock
-            std::lock_guard<std::mutex> lock_(lock);
-            boost::filesystem::resize_file(path, newFileSize);
+            std::lock_guard<std::recursive_mutex> lock_(lock);
             useBlk ? fileHasGrown(pos.nFile) : revertFileHasGrown(pos.nFile);
+            boost::filesystem::resize_file(path, newFileSize);
         }
-        buf = mapFile(pos.nFile, type, &fileSize);
+        buf = mapFile(pos.nFile, type, &fileSize, &writable);
+        if (buf.get() == nullptr) {
+            logFatal(Log::DB) << "Failed resize";
+            throw std::runtime_error("Failed to open resized file");
+        }
+        if (!writable) {
+            logFatal(Log::DB) << "Resized file no longer readable";
+            throw std::runtime_error("Resized file no longer readable");
+        }
     }
 #endif
     pos.nPos = *posInFile + 8;
@@ -683,7 +725,7 @@ Streaming::ConstBuffer Blocks::DBPrivate::writeBlock(int blockHeight, const Stre
     data += 4;
     memcpy(data, block.begin(), blockSize);
     if (type == ForwardBlock) {
-        info.AddBlock(blockHeight, timestamp);
+        info.AddBlock();
     } else {
         assert(type == RevertBlock);
         assert(blockHash);
@@ -700,13 +742,36 @@ Streaming::ConstBuffer Blocks::DBPrivate::writeBlock(int blockHeight, const Stre
     return Streaming::ConstBuffer(buf, data, data + blockSize);
 }
 
-std::shared_ptr<char> Blocks::DBPrivate::mapFile(int fileIndex, Blocks::BlockType type, size_t *size_out)
+void Blocks::DBPrivate::unloadIndexMap()
+{
+    std::lock_guard<std::mutex> lock_(blockIndexLock);
+
+    for (auto entry : indexMap) {
+        delete entry.second;
+    }
+    indexMap.clear();
+}
+
+void Blocks::DBPrivate::foundBlockFile(int index, const CBlockFileInfo &info)
+{
+    LOCK(cs_LastBlockFile);
+    if (nLastBlockFile < index)
+        nLastBlockFile = index;
+    if ((int) vinfoBlockFile.size() <= nLastBlockFile)
+        vinfoBlockFile.resize(nLastBlockFile + 1);
+    // copy all but the undosize since that may have been assigned already.
+    vinfoBlockFile[index].nBlocks = info.nBlocks;
+    vinfoBlockFile[index].nSize = info.nSize;
+    logCritical(Log::DB) << "Registring block file info" << index << info.nBlocks << "blocks with a total of" << info.nSize << "bytes";
+}
+
+std::shared_ptr<char> Blocks::DBPrivate::mapFile(int fileIndex, Blocks::BlockType type, size_t *size_out, bool *isWritable)
 {
     const bool useBlk = type == ForwardBlock;
     std::vector<DataFile*> &list = useBlk ? datafiles : revertDatafiles;
     const char *prefix = useBlk ? "blk" : "rev";
 
-    std::lock_guard<std::mutex> lock_(lock);
+    std::lock_guard<std::recursive_mutex> lock_(lock);
     if ((int) list.size() <= fileIndex)
         list.resize(fileIndex + 10);
     DataFile *df = list.at(fileIndex);
@@ -717,19 +782,24 @@ std::shared_ptr<char> Blocks::DBPrivate::mapFile(int fileIndex, Blocks::BlockTyp
     std::shared_ptr<char> buf = df->buffer.lock();
     if (buf.get() == nullptr) {
         auto path = getFilepathForIndex(fileIndex, prefix, true);
-        auto mode = std::ios_base::binary | std::ios_base::in;
-        if (fileIndex == nLastBlockFile) // limit writable bit only to the last file.
-            mode |= std::ios_base::out;
-        df->file.open(path, mode);
+        const auto mode = std::ios_base::binary | std::ios_base::in;
+        const auto modeRW = mode | std::ios_base::out;
+        try { // auto open read-write when last block, or any revert file.
+            df->file.open(path, (useBlk && fileIndex != nLastBlockFile) ? mode : modeRW);
+        } catch (...) {
+            // try to open again, read-only now.
+            // the user may have moved the files to a read-only medium.
+            try { df->file.open(path, mode); } catch (...) {} // avoid throwing here.
+        }
         if (df->file.is_open()) {
             auto weakThis = std::weak_ptr<DBPrivate>(shared_from_this());
             auto cleanupLambda = [useBlk,fileIndex,df,weakThis] (char *buf) {
                 std::shared_ptr<DBPrivate> d = weakThis.lock();
                 if (d) {   // mutex scope...
-                    std::lock_guard<std::mutex> lockG(d->lock);
+                    std::lock_guard<std::recursive_mutex> lockG(d->lock);
                     std::vector<DataFile*> &list = useBlk ? d->datafiles : d->revertDatafiles;
                     assert(fileIndex >= 0 && fileIndex < (int) list.size());
-                    if (df == list[fileIndex]) {
+                    if (df == list.at(fileIndex)) {
                         // invalidate entry -- note that it's possible
                         // df != list[fileIndex] if we resized the file
                         list[fileIndex] = nullptr;
@@ -743,18 +813,26 @@ std::shared_ptr<char> Blocks::DBPrivate::mapFile(int fileIndex, Blocks::BlockTyp
             df->filesize = df->file.size();
         } else {
             logCritical(Log::DB) << "Blocks::DB: failed to memmap data-file" << path.string();
+            list[fileIndex] = nullptr;
+            delete df;
+            if (size_out) *size_out = 0;
+            return std::shared_ptr<char>();
         }
+        // keep the last 10 used referenced to avoid closing and opening files all the time
+        fileHistory.push_back(buf);
+        if (fileHistory.size() > 10)
+            fileHistory.erase(fileHistory.begin());
     }
     if (size_out) *size_out = df->filesize;
+    if (isWritable)
+        *isWritable = df->file.flags() == boost::iostreams::mapped_file::readwrite;
     return buf;
 }
 
 // we expect the mutex `lock` to be locked before calling this method
 void Blocks::DBPrivate::fileHasGrown(int fileIndex)
 {
-    if (fileIndex < 0 || fileIndex >= int(datafiles.size()))
-        // silently ignore invalid usage as it creates no harm
-        return;
+    assert(fileIndex >= 0 && fileIndex < static_cast<int>(datafiles.size()));
     // unconditionally invalidate the pointer.
     // This doesn't leak memory because if ptr existed, there are
     // extant shard_ptr buffers.  When they get deleted, ptr will also.
@@ -765,14 +843,10 @@ void Blocks::DBPrivate::fileHasGrown(int fileIndex)
 // we expect the mutex `lock` to be locked before calling this method
 void Blocks::DBPrivate::revertFileHasGrown(int fileIndex)
 {
-    if (fileIndex < 0 || fileIndex >= int(revertDatafiles.size()))
-        // silently ignore invalid usage as it creates no harm
-        return;
+    assert(fileIndex >= 0 && fileIndex < static_cast<int>(revertDatafiles.size()));
     // unconditionally invalidate the pointer.
     // This doesn't leak memory because if ptr existed, there are
     // extant shard_ptr buffers.  When they get deleted, ptr will also.
     // (see cleanupLambda in mapFile() above)
     revertDatafiles[fileIndex] = nullptr;
 }
-
-///////////////////////////////////////////////

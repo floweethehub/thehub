@@ -27,6 +27,7 @@
 #include <string>
 
 class CCoinsViewCache;
+class CCoins;
 
 /** Default for -blockmaxsize and -blockminsize, which control the range of sizes the mining code will create **/
 static const unsigned int DEFAULT_BLOCK_MAX_SIZE = 2000000;
@@ -84,6 +85,7 @@ bool AreInputsStandard(const CTransaction& tx, const CCoinsViewCache& mapInputs)
 namespace Policy {
     std::int32_t blockSizeAcceptLimit();
     std::int64_t blockSigOpAcceptLimit(int32_t nBlockSize);
+    bool areInputsStandard(const CTransaction& tx, const std::vector<CCoins> &inputs);
 }
 
 #endif // BITCOIN_POLICY_POLICY_H

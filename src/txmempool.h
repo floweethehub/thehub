@@ -2,6 +2,7 @@
  * This file is part of the Flowee project
  * Copyright (C) 2009-2010 Satoshi Nakamoto
  * Copyright (C) 2009-2015 The Bitcoin Core developers
+ * Copyright (C) 2017 Tom Zander <tomz@freedommail.ch>
  *
  * This program is free software: you can redistribute it and/or modify
  * it under the terms of the GNU General Public License as published by
@@ -27,6 +28,7 @@
 #include "coins.h"
 #include "primitives/transaction.h"
 #include "sync.h"
+#include "primitives/FastTransaction.h"
 
 #undef foreach
 #include "boost/multi_index_container.hpp"
@@ -37,7 +39,7 @@ class CBlockIndex;
 
 inline double AllowFreeThreshold()
 {
-    return COIN * 144 / 250;
+    return COIN * 144. / 250;
 }
 
 inline bool AllowFree(double dPriority)
@@ -86,8 +88,9 @@ class CTxMemPool;
 
 class CTxMemPoolEntry
 {
-private:
-    CTransaction tx;
+public:
+    Tx tx;
+    CTransaction oldTx;
     CAmount nFee; //! Cached to avoid expensive parent-transaction lookups
     size_t nTxSize; //! ... and avoid recomputing tx size
     size_t nModSize; //! ... and modified size for priority
@@ -111,14 +114,15 @@ private:
     uint64_t nSizeWithDescendants;  //! ... and size
     CAmount nModFeesWithDescendants;  //! ... and total fees (all including us)
 
-public:
-    CTxMemPoolEntry(const CTransaction& _tx, const CAmount& _nFee,
+    CTxMemPoolEntry(const Tx &tx);
+
+    CTxMemPoolEntry(const CTransaction &tx, const CAmount& _nFee,
                     int64_t _nTime, double _entryPriority, unsigned int _entryHeight,
                     bool poolHasNoInputsOf, CAmount _inChainInputValue, bool spendsCoinbase,
                     unsigned int nSigOps, LockPoints lp);
     CTxMemPoolEntry(const CTxMemPoolEntry& other);
 
-    const CTransaction& GetTx() const { return this->tx; }
+    const CTransaction& GetTx() const { return this->oldTx; }
     /**
      * Fast calculation of lower bound of current priority as update
      * from entry priority. Only inputs that were originally in-chain will age.
@@ -378,7 +382,7 @@ private:
     CFeeRate minReasonableRelayFee;
 
     mutable int64_t lastRollingFeeUpdate;
-    mutable bool blockSinceLastRollingFeeBump;
+    bool blockSinceLastRollingFeeBump;
     mutable double rollingMinimumFeeRate; //! minimum fee to get into the pool, decreases exponentially
 
     void trackPackageRemoved(const CFeeRate& rate);
@@ -422,6 +426,12 @@ public:
 
     const setEntries & GetMemPoolParents(txiter entry) const;
     const setEntries & GetMemPoolChildren(txiter entry) const;
+
+    /// set the backing-UTXO
+    void setCoinsView(CCoinsViewCache *coins);
+    /// returns the backing UTXO
+    CCoinsViewCache *coins() const;
+
 private:
     typedef std::map<txiter, setEntries, CompareIteratorByHash> cacheMap;
 
@@ -445,7 +455,7 @@ public:
      *  around what it "costs" to relay a transaction around the network and
      *  below which we would reasonably say a transaction has 0-effective-fee.
      */
-    CTxMemPool(const CFeeRate& _minReasonableRelayFee);
+    CTxMemPool(const CFeeRate& _minReasonableRelayFee = CFeeRate());
     ~CTxMemPool();
 
     /**
@@ -454,21 +464,34 @@ public:
      * all inputs are in the mapNextTx array). If sanity-checking is turned off,
      * check does nothing.
      */
-    void check(const CCoinsViewCache *pcoins) const;
+    void check() const;
     void setSanityCheck(double dFrequency = 1.0) { nCheckFrequency = dFrequency * 4294967295.0; }
 
     // addUnchecked must updated state for all ancestors of a given transaction,
     // to track size/count of descendant transactions.  First version of
     // addUnchecked can be used to have it call CalculateMemPoolAncestors(), and
     // then invoke the second version.
-    bool addUnchecked(const uint256& hash, const CTxMemPoolEntry &entry, bool fCurrentEstimate = true);
-    bool addUnchecked(const uint256& hash, const CTxMemPoolEntry &entry, setEntries &setAncestors, bool fCurrentEstimate = true);
+    void addUnchecked(const uint256& hash, const CTxMemPoolEntry &entry, bool fCurrentEstimate = true);
+    void addUnchecked(const uint256& hash, const CTxMemPoolEntry &entry, const setEntries &setAncestors, bool fCurrentEstimate = true);
+
+    /// throws if something goes wrong
+    bool insertTx(const CTxMemPoolEntry &entry);
 
     void remove(const CTransaction &tx, std::list<CTransaction>& removed, bool fRecursive = false);
-    void removeForReorg(const CCoinsViewCache *pcoins, unsigned int nMemPoolHeight, int flags);
+    void removeForReorg(unsigned int nMemPoolHeight, int flags);
     void removeConflicts(const CTransaction &tx, std::list<CTransaction>& removed);
+    /**
+     * @brief removeForBlock should be called when a block is accepted on-chain which would remove all conflicting transactions from mempool.
+     * @param vtx the list of transactions contained in the block.
+     * @param nBlockHeight blockHeight
+     * @param conflicts out-variable to be filled with conflicting transactions.
+     * @param fCurrentEstimate true if the block is 'current'. False if it is a historical block.
+     * @param utxoDBCursor the changes contained in the UTXO DB are represented in this cursor, we commit them atomically in this method.
+     * @param utxoBench a bench-marking option, if present we measure the amount of milliseconds it took to commit to the UTXO
+     */
     void removeForBlock(const std::vector<CTransaction>& vtx, unsigned int nBlockHeight,
-                        std::list<CTransaction>& conflicts, bool fCurrentEstimate = true);
+                        std::list<CTransaction>& conflicts, bool fCurrentEstimate = true,
+                        CCoinsViewCache *utxoDBCursor = nullptr, std::uint32_t *utxoBench = nullptr);
     void clear();
     void _clear(); //lock free
     void queryHashes(std::vector<uint256>& vtxid);
@@ -598,7 +621,7 @@ private:
             cacheMap &cachedDescendants,
             const std::set<uint256> &setExclude);
     /** Update ancestors of hash to add/remove it as a descendant transaction. */
-    void UpdateAncestorsOf(bool add, txiter hash, setEntries &setAncestors);
+    void UpdateAncestorsOf(bool add, txiter hash, const setEntries &setAncestors);
     /** For each transaction being removed, update ancestors and any direct children. */
     void UpdateForRemoveFromMempool(const setEntries &entriesToRemove);
     /** Sever link between specified transaction and direct children. */
@@ -618,6 +641,8 @@ private:
      *  removal.
      */
     void removeUnchecked(txiter entry);
+
+    CCoinsViewCache *m_coins;
 };
 
 /** 
@@ -627,10 +652,10 @@ private:
 class CCoinsViewMemPool : public CCoinsViewBacked
 {
 protected:
-    CTxMemPool &mempool;
+    CTxMemPool *mempool;
 
 public:
-    CCoinsViewMemPool(CCoinsView *baseIn, CTxMemPool &mempoolIn);
+    CCoinsViewMemPool(CTxMemPool *mempool);
     bool GetCoins(const uint256 &txid, CCoins &coins) const;
     bool HaveCoins(const uint256 &txid) const;
 };

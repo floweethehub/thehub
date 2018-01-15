@@ -1,6 +1,7 @@
 /*
  * This file is part of the Flowee project
  * Copyright (C) 2011-2015 The Bitcoin Core developers
+ * Copyright (C) 2017 Tom Zander <tomz@freedommail.ch>
  *
  * This program is free software: you can redistribute it and/or modify
  * it under the terms of the GNU General Public License as published by
@@ -16,33 +17,76 @@
  * along with this program.  If not, see <http://www.gnu.org/licenses/>.
  */
 
+#include "test_bitcoin.h"
 #include "consensus/validation.h"
-#include "key.h"
 #include "main.h"
-#include "miner.h"
-#include "pubkey.h"
-#include "txmempool.h"
-#include "random.h"
 #include "script/standard.h"
-#include "test/test_bitcoin.h"
-#include "utiltime.h"
+#include <primitives/FastBlock.h>
+#include <key.h>
+#include <consensus/consensus.h>
 
 #include <boost/test/unit_test.hpp>
 
 BOOST_AUTO_TEST_SUITE(tx_validationcache_tests)
 
-static bool
-ToMemPool(CMutableTransaction& tx)
-{
-    LOCK(cs_main);
-
-    CValidationState state;
-    return AcceptToMemoryPool(mempool, state, tx, false, NULL, true, false);
-}
-
 #ifndef WIN32 // Avoid irrelevant fail due to database handles still being open at exit
+//
+// Testing fixture that pre-creates a
+// 100-block REGTEST-mode block chain
+//
+class TestChain100Setup : public TestingSetup {
+public:
+    TestChain100Setup() {
+        // Generate a 100-block chain:
+        coinbaseKey.MakeNewKey(true);
+        CScript scriptPubKey = CScript() <<  ToByteVector(coinbaseKey.GetPubKey()) << OP_CHECKSIG;
+        CBlockIndex *parent = bv.blockchain()->Tip();
+        CBlockIndex dummy;
+        dummy.nTime = parent->nTime;
+        dummy.phashBlock = parent->phashBlock;
+        uint256 dummySha;
+
+        // std::vector<FastBlock> answer;
+        for (int i = 0; i < COINBASE_MATURITY; ++i) {
+            dummy.nHeight = parent->nHeight + i;
+            dummy.nTime += 10;
+            FastBlock block = bv.createBlock(&dummy, scriptPubKey);
+            bv.addBlock(block, Validation::SaveGoodToDisk, 0);
+            coinbaseTxns.push_back(block.createOldBlock().vtx[0]);
+            dummySha = block.createHash();
+            dummy.phashBlock = &dummySha;
+        }
+        bv.waitValidationFinished();
+    }
+
+    // Create a new block with just given transactions, coinbase paying to
+    // scriptPubKey, and try to add it to the current chain.
+    CBlock createAndProcessBlock(const std::vector<CMutableTransaction>& txns,
+                                 const CScript& scriptPubKey) {
+        std::vector<CTransaction> tx;
+        for (auto t : txns) { tx.push_back(t); }
+        bv.waitValidationFinished(); // make sure that Tip really is Tip
+        FastBlock block = bv.createBlock(bv.blockchain()->Tip(), scriptPubKey, tx);
+        auto future = bv.addBlock(block, Validation::SaveGoodToDisk, 0).start();
+        future.waitUntilFinished();
+        return block.createOldBlock();
+    }
+
+    bool ToMemPool(CMutableTransaction& tx)
+    {
+        auto future = bv.addTransaction(Tx::fromOldTransaction(tx));
+        std::string result = future.get();
+        return result.empty();
+    }
+
+
+    std::vector<CTransaction> coinbaseTxns; // For convenience, coinbase transactions
+    CKey coinbaseKey; // private/public key needed to spend coinbase transactions
+};
+
 BOOST_FIXTURE_TEST_CASE(tx_mempool_block_doublespend, TestChain100Setup)
 {
+    BOOST_CHECK(true);
     // Make sure skipping validation of transctions that were
     // validated going into the memory pool does not allow
     // double-spends in blocks to pass validation when they should not.
@@ -70,20 +114,20 @@ BOOST_FIXTURE_TEST_CASE(tx_mempool_block_doublespend, TestChain100Setup)
     }
 
     CBlock block;
-
-    // Test 1: block with both of those transactions should be rejected.
-    block = CreateAndProcessBlock(spends, scriptPubKey);
+    // block with both of those transactions should be rejected.
+    block = createAndProcessBlock(spends, scriptPubKey);
     BOOST_CHECK(chainActive.Tip()->GetBlockHash() != block.GetHash());
 
-    // sanity test: first spend in mempool, second in block, that's OK:
+    // Sanity test: first spend in mempool, second in block, that's OK:
     std::vector<CMutableTransaction> oneSpend;
     oneSpend.push_back(spends[0]);
+    bv.mp.clear();
     BOOST_CHECK(ToMemPool(spends[1]));
-    block = CreateAndProcessBlock(oneSpend, scriptPubKey);
+    block = createAndProcessBlock(oneSpend, scriptPubKey);
     BOOST_CHECK(chainActive.Tip()->GetBlockHash() == block.GetHash());
     // spends[1] should have been removed from the mempool when the
     // block with spends[0] is accepted:
-    BOOST_CHECK_EQUAL(mempool.size(), 0);
+    BOOST_CHECK_EQUAL(bv.mp.size(), 0);
 }
 #endif
 

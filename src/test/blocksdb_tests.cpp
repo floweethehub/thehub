@@ -236,4 +236,107 @@ BOOST_AUTO_TEST_CASE(headersChain2)
     }
 }
 
+BOOST_AUTO_TEST_CASE(invalidate)
+{
+    // create a chain of 20 blocks.
+    std::vector<FastBlock> blocks = bv.appendChain(20);
+    // split the chain so we have two header-chain-tips
+    CBlockIndex *b18 = Blocks::Index::get(blocks.at(18).createHash());
+    auto block = bv.createBlock(b18);
+    auto future = bv.addBlock(block, 0).start();
+    future.waitUntilFinished();
+    BOOST_CHECK_EQUAL(Blocks::DB::instance()->headerChainTips().size(), 2);
+
+    // then invalidate a block in the common history of both chains
+    CBlockIndex *b14 = Blocks::Index::get(blocks.at(14).createHash());
+    BOOST_CHECK(b14);
+    b14->nStatus |= BLOCK_FAILED_VALID;
+    bool changed = Blocks::DB::instance()->appendHeader(b14);
+    BOOST_CHECK(changed);
+    BOOST_CHECK_EQUAL(Blocks::DB::instance()->headerChain().Tip(), b14->pprev);
+
+    for (auto tip : Blocks::DB::instance()->headerChainTips()) {
+        BOOST_CHECK_EQUAL(tip, b14->pprev);
+    }
+    BOOST_CHECK_EQUAL(Blocks::DB::instance()->headerChainTips().size(), 1);
+}
+
+BOOST_AUTO_TEST_CASE(invalidate2)
+{
+
+    /*
+     * x b8 b9
+     *   \
+     *    b9b b10b
+     *
+     * Invalidating 'b9b' should remove the second branch with b10
+     */
+
+    std::vector<FastBlock> blocks = bv.appendChain(10);
+    // split the chain so we have two header-chain-tips
+    CBlockIndex *b9 = Blocks::Index::get(blocks.at(9).createHash()); // chain-tip
+    BOOST_CHECK_EQUAL(Blocks::DB::instance()->headerChain().Tip(), b9);
+
+    CBlockIndex *b8 = Blocks::Index::get(blocks.at(8).createHash());
+    auto block = bv.createBlock(b8);
+    auto future = bv.addBlock(block, 0).start();
+    future.waitUntilFinished();
+    BOOST_CHECK_EQUAL(Blocks::DB::instance()->headerChainTips().size(), 2);
+
+    CBlockIndex *b9b = Blocks::Index::get(block.createHash());
+    block = bv.createBlock(b9b); // new chain-tip
+    future = bv.addBlock(block, 0).start();
+    future.waitUntilFinished();
+    BOOST_CHECK_EQUAL(Blocks::DB::instance()->headerChainTips().size(), 2);
+
+    CBlockIndex *b10b = Blocks::Index::get(block.createHash());
+    BOOST_CHECK_EQUAL(Blocks::DB::instance()->headerChain().Tip(), b10b);
+
+    // then invalidate block b9b (y from the ascii art)
+    b9b->nStatus |= BLOCK_FAILED_VALID;
+    bool changed = Blocks::DB::instance()->appendHeader(b9b);
+    BOOST_CHECK(changed);
+    BOOST_CHECK_EQUAL(Blocks::DB::instance()->headerChain().Tip(), b9);
+    BOOST_CHECK_EQUAL(Blocks::DB::instance()->headerChainTips().size(), 1);
+}
+
+BOOST_AUTO_TEST_CASE(addImpliedInvalid)
+{
+    /*
+     * Starting with;
+     *   x x x x
+     * And then adding an item a3 that would create;
+     *   x x x x a1 a2 a3
+     * requires me to check all new items for validity, to see if they have been marked as failing.
+     * If one is failing, then all are.
+     */
+
+    std::vector<FastBlock> blocks = bv.appendChain(10);
+    auto * const x = Blocks::DB::instance()->headerChain().Tip();
+    BOOST_CHECK_EQUAL(x->nHeight, 10);
+
+    uint256 hashes[3];
+    CBlockIndex a1;
+    a1.nHeight = 11;
+    a1.pprev = x;
+    a1.phashBlock = &hashes[0];
+    a1.nChainWork = x->nChainWork + 0x10;
+    a1.nStatus = BLOCK_FAILED_VALID;
+    CBlockIndex a2;
+    a2.nChainWork = a1.nChainWork + 0x10;
+    a2.nHeight = a1.nHeight + 1;
+    a2.pprev = &a1;
+    a2.phashBlock = &hashes[1];
+    a2.nStatus = BLOCK_FAILED_CHILD;
+    CBlockIndex a3;
+    a3.nChainWork = a2.nChainWork + 0x10;
+    a3.nHeight = a2.nHeight + 1;
+    a3.pprev = &a2;
+    a3.phashBlock = &hashes[2];
+    a3.nStatus = BLOCK_FAILED_CHILD;
+
+    Blocks::DB::instance()->appendHeader(&a3);
+    BOOST_CHECK_EQUAL(Blocks::DB::instance()->headerChain().Tip(), x);
+}
+
 BOOST_AUTO_TEST_SUITE_END()

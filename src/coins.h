@@ -2,6 +2,7 @@
  * This file is part of the Flowee project
  * Copyright (C) 2009-2010 Satoshi Nakamoto
  * Copyright (C) 2009-2015 The Bitcoin Core developers
+ * Copyright (C) 2017 Tom Zander <tomz@freedommail.ch>
  *
  * This program is free software: you can redistribute it and/or modify
  * it under the terms of the GNU General Public License as published by
@@ -32,6 +33,10 @@
 
 #include <boost/foreach.hpp>
 #include <boost/unordered_map.hpp>
+#include <boost/thread/mutex.hpp>
+
+class CBlockUndo;
+class Tx;
 
 /** 
  * Pruned version of CTransaction: only retains metadata and unspent transaction outputs
@@ -358,7 +363,7 @@ class CCoinsViewCache;
  *  cleanup code after the modification is finished, and keeping track of
  *  concurrent modifications. 
  */
-class CCoinsModifier
+class CCoinsModifier // TODO move to CPP file and make private
 {
 private:
     CCoinsViewCache& cache;
@@ -391,6 +396,8 @@ protected:
     /* Cached dynamic memory usage for the inner CCoins objects. */
     mutable size_t cachedCoinsUsage;
 
+    mutable boost::mutex lock;
+
 public:
     CCoinsViewCache(CCoinsView *baseIn);
     ~CCoinsViewCache();
@@ -421,7 +428,25 @@ public:
      * txid exists, a new one is created. Simultaneous modifications are not
      * allowed.
      */
-    CCoinsModifier ModifyCoins(const uint256 &txid);
+    CCoinsModifier ModifyCoins(const uint256 &txid); // TODO make private
+
+    enum ProcessBlockCheck {
+        CheckDuplicateTxId,
+        SkipDuplicateTxIdCheck
+    };
+
+    /**
+     * @brief processBlock will check all transactions update the utxo accordingly.
+     * All transactions are checked to not exist already,
+     * @param block the block to process.
+     * @param check a flag that skips BIP30 checks for old blocks.
+     * @return a list of all the CCoins data which were marked spent. One vector per
+     * transaction, one CCoin for each input.
+     * @throws std::runtime_exception should some error show up.
+     */
+    std::vector<std::vector<CCoins> > processBlock(const FastBlock &block, CBlockUndo &undoBlock, int blockHeight, ProcessBlockCheck check);
+
+    std::vector<CCoins> coinsForTransaction(const Tx &transaction);
 
     /**
      * Return a modifiable reference to a CCoins. Assumes that no entry with the given
@@ -432,7 +457,7 @@ public:
      * would not properly overwrite the first coinbase of the pair. Simultaneous modifications
      * are not allowed.
      */
-    CCoinsModifier ModifyNewCoins(const uint256 &txid);
+    CCoinsModifier ModifyNewCoins(const uint256 &txid);// TODO remove
 
     /**
      * Push the modifications applied to this cache to its base.
@@ -478,7 +503,6 @@ public:
     friend class CCoinsModifier;
 
 private:
-    CCoinsMap::iterator FetchCoins(const uint256 &txid);
     CCoinsMap::const_iterator FetchCoins(const uint256 &txid) const;
 
     /**

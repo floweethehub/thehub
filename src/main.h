@@ -137,7 +137,6 @@ extern uint64_t nLastBlockSize;
 extern const std::string strMessageMagic;
 extern CWaitableCriticalSection csBestBlock;
 extern CConditionVariable cvBlockChange;
-extern bool fImporting;
 extern int nScriptCheckThreads;
 extern bool fTxIndex;
 extern bool fIsBareMultisigStd;
@@ -146,6 +145,8 @@ extern unsigned int nBytesPerSigOp;
 extern bool fCheckpointsEnabled;
 extern size_t nCoinCacheUsage;
 extern CFeeRate minRelayTxFee;
+extern VersionBitsCache versionbitscache;
+extern ThresholdConditionCache warningcache[VERSIONBITS_NUM_BITS];
 
 // Xpress Validation: begin section
 /**
@@ -261,6 +262,9 @@ CAmount GetBlockSubsidy(int nHeight, const Consensus::Params& consensusParams);
  */
 void FindFilesToPrune(std::set<int>& setFilesToPrune, uint64_t nPruneAfterHeight);
 
+bool MarkBlockAsReceived(const uint256& hash);
+bool IsBlockInFlight(const uint256 &hash);
+
 /**
  *  Actually unlink the specified files
  */
@@ -275,9 +279,15 @@ void FlushStateToDisk();
 /** Prune block files and flush state to disk. */
 void PruneAndFlush();
 
+void queueRejectMessage(int peerId, const uint256 &blockHash, std::uint8_t rejectCode, const std::string &rejectReason);
+
+class CBlockUndo;
+bool UndoWriteToDisk(const CBlockUndo& blockundo, CDiskBlockPos& pos, const uint256& hashBlock, const CMessageHeader::MessageStartChars& messageStart);
+
 /** (try to) add transaction to memory pool **/
 bool AcceptToMemoryPool(CTxMemPool& pool, CValidationState &state, const CTransaction &tx, bool fLimitFree,
                         bool* pfMissingInputs, bool fOverrideMempoolLimit=false, bool fRejectAbsurdFee=false);
+void AlertNotify(const std::string& strMessage, bool fThread);
 
 /** Convert CValidationState to a human-readable message for logging */
 std::string FormatStateMessage(const CValidationState &state);
@@ -386,7 +396,7 @@ bool SequenceLocks(const CTransaction &tx, int flags, std::vector<int>* prevHeig
  *
  * See consensus/consensus.h for flag definitions.
  */
-bool CheckSequenceLocks(const CTransaction &tx, int flags, LockPoints* lp = NULL, bool useExistingLockPoints = false);
+bool CheckSequenceLocks(CTxMemPool &mp, const CTransaction &tx, int flags, LockPoints* lp = nullptr, bool useExistingLockPoints = false, CBlockIndex *tip = nullptr);
 
 /**
  * Closure representing one script verification
@@ -427,7 +437,6 @@ public:
 
 
 /** Functions for disk access for blocks */
-bool WriteBlockToDisk(const CBlock& block, CDiskBlockPos& pos, const CMessageHeader::MessageStartChars& messageStart);
 bool ReadBlockFromDisk(CBlock& block, const CDiskBlockPos& pos, const Consensus::Params& consensusParams);
 bool ReadBlockFromDisk(CBlock& block, const CBlockIndex* pindex, const Consensus::Params& consensusParams);
 
@@ -444,18 +453,15 @@ bool ConnectBlock(const CBlock& block, CValidationState& state, CBlockIndex* pin
 
 /** Context-independent validity checks */
 bool CheckBlockHeader(const CBlockHeader& block, CValidationState& state, bool fCheckPOW = true);
-bool CheckBlock(const CBlock& block, CValidationState& state, bool fCheckPOW = true, bool fCheckMerkleRoot = true);
 
 /** Context-dependent validity checks */
-bool ContextualCheckBlockHeader(const CBlockHeader& block, CValidationState& state, CBlockIndex *pindexPrev);
 bool ContextualCheckBlock(const CBlock& block, CValidationState& state, CBlockIndex *pindexPrev);
-
-/// Debug-level method, lots of asserts to check internal state.
-void CheckBlockIndex();
 
 /** Check a block is completely valid from start to finish (only works on top of our current best block, with cs_main held) */
 bool TestBlockValidity(CValidationState& state, const CChainParams& chainparams, const CBlock& block, CBlockIndex* pindexPrev, bool fCheckPOW = true, bool fCheckMerkleRoot = true);
 
+/**  Mark this index as 'dirty' to be saved to disk soon */
+void markIndexUnsaved(CBlockIndex *index);
 
 class CBlockFileInfo
 {
@@ -463,10 +469,6 @@ public:
     unsigned int nBlocks;      //! number of blocks stored in file
     unsigned int nSize;        //! number of used bytes of block file
     unsigned int nUndoSize;    //! number of used bytes in the undo file
-    unsigned int nHeightFirst; //! lowest height of block in file
-    unsigned int nHeightLast;  //! highest height of block in file
-    uint64_t nTimeFirst;         //! earliest time of block in file
-    uint64_t nTimeLast;          //! latest time of block in file
 
     ADD_SERIALIZE_METHODS
 
@@ -475,20 +477,12 @@ public:
         READWRITE(VARINT(nBlocks));
         READWRITE(VARINT(nSize));
         READWRITE(VARINT(nUndoSize));
-        READWRITE(VARINT(nHeightFirst));
-        READWRITE(VARINT(nHeightLast));
-        READWRITE(VARINT(nTimeFirst));
-        READWRITE(VARINT(nTimeLast));
     }
 
      void SetNull() {
          nBlocks = 0;
          nSize = 0;
          nUndoSize = 0;
-         nHeightFirst = 0;
-         nHeightLast = 0;
-         nTimeFirst = 0;
-         nTimeLast = 0;
      }
 
      CBlockFileInfo() {
@@ -498,16 +492,8 @@ public:
      std::string ToString() const;
 
      /** update statistics (does not update nSize) */
-     void AddBlock(unsigned int nHeightIn, uint64_t nTimeIn) {
-         if (nBlocks==0 || nHeightFirst > nHeightIn)
-             nHeightFirst = nHeightIn;
-         if (nBlocks==0 || nTimeFirst > nTimeIn)
-             nTimeFirst = nTimeIn;
+     void AddBlock() {
          nBlocks++;
-         if (nHeightIn > nHeightLast)
-             nHeightLast = nHeightIn;
-         if (nTimeIn > nTimeLast)
-             nTimeLast = nTimeIn;
      }
 };
 
@@ -517,22 +503,14 @@ extern int nLastBlockFile;
 extern std::set<int> setDirtyFileInfo;
 
 
-/** RAII wrapper for VerifyDB: Verify consistency of the block and coin databases */
-class CVerifyDB {
-public:
-    CVerifyDB();
-    ~CVerifyDB();
-    bool VerifyDB(const CChainParams& chainparams, CCoinsView *coinsview, int nCheckLevel, int nCheckDepth);
-};
-
 /** Find the last common block between the parameter chain and a locator. */
 CBlockIndex* FindForkInGlobalIndex(const CChain& chain, const CBlockLocator& locator);
 
 /** Mark a block as invalid. */
-bool InvalidateBlock(CValidationState& state, const Consensus::Params& consensusParams, CBlockIndex *pindex);
+// bool InvalidateBlock(CValidationState& state, const Consensus::Params& consensusParams, CBlockIndex *pindex);
 
 /** Remove invalidity status from a block and its descendants. */
-bool ReconsiderBlock(CBlockIndex *pindex);
+// bool ReconsiderBlock(CBlockIndex *pindex);
 
 /** The currently-connected chain of blocks (protected by cs_main). */
 extern CChain chainActive;
@@ -546,6 +524,8 @@ extern CCoinsViewCache *pcoinsTip;
  * This is also true for mempool checks.
  */
 int GetSpendHeight(const CCoinsViewCache& inputs);
+
+void LimitMempoolSize(CTxMemPool& pool, size_t limit, unsigned long age);
 
 /**
  * Determine what nVersion a new block should use.
@@ -563,5 +543,29 @@ static const unsigned int REJECT_HIGHFEE = 0x100;
 static const unsigned int REJECT_ALREADY_KNOWN = 0x101;
 /** Transaction conflicts with a transaction already known */
 static const unsigned int REJECT_CONFLICT = 0x102;
+
+
+enum FlushStateMode {
+    FLUSH_STATE_NONE,
+    FLUSH_STATE_IF_NEEDED,
+    FLUSH_STATE_PERIODIC,
+    FLUSH_STATE_ALWAYS
+};
+/**
+ * Update the on-disk chain state.
+ * The caches and indexes are flushed depending on the mode we're called with
+ * if they're too large, if it's been a while since the last write,
+ * or always and in all cases if we're in prune mode and are deleting files.
+ */
+bool FlushStateToDisk(CValidationState &state, FlushStateMode mode);
+
+void CheckForkWarningConditions();
+void CheckForkWarningConditionsOnNewFork(CBlockIndex* pindexNewForkTip);
+
+/**
+ * Returns true if there are nRequired or more blocks of minVersion or above
+ * in the last Consensus::Params::nMajorityWindow blocks, starting at pstart and going backwards.
+ */
+bool IsSuperMajority(int minVersion, const CBlockIndex* pstart, unsigned nRequired, const Consensus::Params& consensusParams);
 
 #endif // BITCOIN_MAIN_H

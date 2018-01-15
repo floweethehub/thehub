@@ -26,9 +26,12 @@
 #include <txdb.h>
 #include <txmempool.h>
 #include <Application.h>
+#include <validation/Engine.h>
+#include <primitives/FastBlock.h>
+#include <primitives/transaction.h>
 
 #include <boost/filesystem.hpp>
-#include <boost/thread.hpp>
+
 
 /** Basic testing setup.
  * This just configures logging and chain parameters.
@@ -40,44 +43,75 @@ struct BasicTestingSetup {
     ~BasicTestingSetup();
 };
 
+class MockBlockValidation : public Validation::Engine {
+public:
+    MockBlockValidation();
+    ~MockBlockValidation();
+
+    void initSingletons();
+    FastBlock createBlock(CBlockIndex *parent, const CScript& scriptPubKey, const std::vector<CTransaction>& txns = std::vector<CTransaction>()) const;
+    /// short version of the above
+    FastBlock createBlock(CBlockIndex *parent);
+
+    /**
+     * @brief appendGenesis creates the standard reg-test genesis and appends.
+     * This will only succeed if the current chain (Params()) is REGTEST
+     */
+    void appendGenesis();
+
+
+    enum OutputType {
+        EmptyOutScript,
+        StandardOutScript
+    };
+
+    /**
+     * @brief Append a list of blocks to the block-validator and wait for them to be validated.
+     * @param blocks the amount of blocks to add to the blockchain-tip.
+     * @param coinbaseKey [out] an empty key we will initialize and use as coinbase.
+     * @param out one of the OutputType members.
+     */
+    std::vector<FastBlock> appendChain(int blocks, CKey &coinbaseKey, OutputType out = StandardOutScript);
+
+    inline std::vector<FastBlock> appendChain(int blocks, OutputType out = StandardOutScript) {
+        CKey key;
+        return appendChain(blocks, key, out);
+    }
+
+    /**
+     * @brief This creates a chain of blocks on top of a random index.
+     * @param parent the index that is to be extended
+     * @param blocks the amount of blocks to build.
+     * @return The full list of blocks.
+     * This method doesn't add the blocks, use appendChain() for that.
+     */
+    std::vector<FastBlock> createChain(CBlockIndex *parent, int blocks) const;
+
+    CFeeRate minFee;
+    CTxMemPool mp;
+};
+
+
 /** Testing setup that configures a complete environment.
  * Included are data directory, coins database, script check threads
  * and wallet (if enabled) setup.
  */
 struct TestingSetup: public BasicTestingSetup {
+    MockBlockValidation bv;
     CCoinsViewDB *pcoinsdbview;
     boost::filesystem::path pathTemp;
-    boost::thread_group threadGroup;
 
     enum BlocksDb {
         BlocksDbInMemory,
         BlocksDbOnDisk
     };
 
-    TestingSetup(const std::string& chainName = CBaseChainParams::MAIN);
+    TestingSetup(const std::string& chainName = CBaseChainParams::REGTEST);
     ~TestingSetup();
 };
 
-class CBlock;
-struct CMutableTransaction;
-class CScript;
-
-//
-// Testing fixture that pre-creates a
-// 100-block REGTEST-mode block chain
-//
-struct TestChain100Setup : public TestingSetup {
-    TestChain100Setup();
-
-    // Create a new block with just given transactions, coinbase paying to
-    // scriptPubKey, and try to add it to the current chain.
-    CBlock CreateAndProcessBlock(const std::vector<CMutableTransaction>& txns,
-                                 const CScript& scriptPubKey);
-
-    ~TestChain100Setup();
-
-    std::vector<CTransaction> coinbaseTxns; // For convenience, coinbase transactions
-    CKey coinbaseKey; // private/public key needed to spend coinbase transactions
+struct MainnetTestingSetup : TestingSetup {
+    MainnetTestingSetup() : TestingSetup(CBaseChainParams::MAIN) {}
 };
 
 class CTxMemPoolEntry;
@@ -119,16 +153,29 @@ public:
     inline static void doInit() {
         static_cast<MockApplication*>(Application::instance())->pub_init();
     }
+    inline static void doStartThreads() {
+        static_cast<MockApplication*>(Application::instance())->pub_startThreads();
+    }
     inline static void setUAHFStartTime(int64_t time) {
         static_cast<MockApplication*>(Application::instance())->pub_setUAHFStartTime(time);
+    }
+    inline static void setValidationEngine(Validation::Engine *bv) {
+        static_cast<MockApplication*>(Application::instance())->replaceValidationEngine(bv);
     }
 
 protected:
     inline void pub_init() {
         init();
     }
+    inline void pub_startThreads() {
+        startThreads();
+    }
     inline void pub_setUAHFStartTime(int64_t time) {
         m_uahfStartTme = time;
+    }
+    inline void replaceValidationEngine(Validation::Engine *bv) {
+        m_validationEngine.release();
+        m_validationEngine.reset(bv);
     }
 };
 

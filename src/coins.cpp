@@ -1,6 +1,7 @@
 /*
  * This file is part of the Flowee project
  * Copyright (c) 2012-2015 The Bitcoin Core developers
+ * Copyright (C) 2017 Tom Zander <tomz@freedommail.ch>
  *
  * This program is free software: you can redistribute it and/or modify
  * it under the terms of the GNU General Public License as published by
@@ -17,9 +18,12 @@
  */
 
 #include "coins.h"
+#include "undo.h"
 
 #include "memusage.h"
 #include "random.h"
+#include "primitives/FastBlock.h"
+#include <validation/ValidationException.h>
 
 /**
  * calculate number of bytes for the bitmask, and its number of non-zero bytes
@@ -76,9 +80,11 @@ CCoinsViewCache::~CCoinsViewCache()
 }
 
 size_t CCoinsViewCache::DynamicMemoryUsage() const {
+    boost::mutex::scoped_lock scopedLock(lock);
     return memusage::DynamicUsage(cacheCoins) + cachedCoinsUsage;
 }
 
+// please make sure the lock is already locked before calling.
 CCoinsMap::const_iterator CCoinsViewCache::FetchCoins(const uint256 &txid) const {
     CCoinsMap::iterator it = cacheCoins.find(txid);
     if (it != cacheCoins.end())
@@ -98,6 +104,7 @@ CCoinsMap::const_iterator CCoinsViewCache::FetchCoins(const uint256 &txid) const
 }
 
 bool CCoinsViewCache::GetCoins(const uint256 &txid, CCoins &coins) const {
+    boost::mutex::scoped_lock scopedLock(lock);
     CCoinsMap::const_iterator it = FetchCoins(txid);
     if (it != cacheCoins.end()) {
         coins = it->second.coins;
@@ -127,8 +134,78 @@ CCoinsModifier CCoinsViewCache::ModifyCoins(const uint256 &txid) {
     return CCoinsModifier(*this, ret.first, cachedCoinUsage);
 }
 
+std::vector<std::vector<CCoins> > CCoinsViewCache::processBlock(const FastBlock &block, CBlockUndo &undoBlock, int blockHeight, CCoinsViewCache::ProcessBlockCheck check)
+{
+    std::vector<std::vector<CCoins> > answer;
+    answer.resize(block.transactions().size());
+    boost::mutex::scoped_lock scopedLock(lock);
+
+    for (size_t i = 0; i < block.transactions().size(); ++i) {
+        CTransaction tx = block.transactions().at(i).createOldTransaction();
+        if (i > 0) { // update the coins this transaction spends.
+            std::vector<CCoins> *inputs = &answer.at(i);
+            inputs->reserve(tx.vin.size());
+
+            undoBlock.vtxundo.push_back(CTxUndo());
+            CTxUndo &txundo = undoBlock.vtxundo.back();
+            txundo.vprevout.reserve(tx.vin.size());
+
+            for (const CTxIn &txin : tx.vin) {
+                auto iter = FetchCoins(txin.prevout.hash);
+                const unsigned nPos = txin.prevout.n;
+                if (iter == cacheCoins.end() || !iter->second.coins.IsAvailable(nPos))
+                    throw Validation::Exception("bad-txns-inputs-missingorspent");
+                inputs->push_back(CCoins(iter->second.coins));
+                const CCoins &coin = inputs->back();
+
+                // mark an outpoint spent, and construct undo information
+                CCoinsModifier modifyCoin = ModifyCoins(iter->first);
+                if (!modifyCoin->Spend(nPos))
+                    throw Validation::Exception("bad-txns-inputs-missingorspent");
+                txundo.vprevout.push_back(CTxInUndo(coin.vout[nPos]));
+
+                if (modifyCoin->vout.empty()) {
+                    CTxInUndo& undo = txundo.vprevout.back();
+                    undo.nHeight = modifyCoin->nHeight;
+                    undo.fCoinBase = modifyCoin->fCoinBase;
+                    undo.nVersion = modifyCoin->nVersion;
+                }
+            }
+        }
+
+        // Create new coins
+        CCoinsModifier modifyCoin = ModifyCoins(tx.GetHash());
+        if (check == CheckDuplicateTxId && !modifyCoin->IsPruned())
+            throw Validation::Exception("bad-txns-BIP30");
+        // add outputs
+        modifyCoin->FromTx(tx, blockHeight);
+    }
+
+    return std::move(answer);
+}
+
+std::vector<CCoins> CCoinsViewCache::coinsForTransaction(const Tx &transaction)
+{
+    std::vector<CCoins> answer;
+    boost::mutex::scoped_lock scopedLock(lock);
+
+    CTransaction tx = transaction.createOldTransaction();
+    answer.reserve(tx.vin.size());
+
+    for (const CTxIn &txin : tx.vin) {
+        auto iter = FetchCoins(txin.prevout.hash);
+        const unsigned nPos = txin.prevout.n;
+        if (iter == cacheCoins.end() || !iter->second.coins.IsAvailable(nPos))
+            throw Validation::Exception("bad-txns-inputs-missingorspent");
+        answer.push_back(CCoins(iter->second.coins));
+    }
+
+    return std::move(answer);
+}
+
 CCoinsModifier CCoinsViewCache::ModifyNewCoins(const uint256 &txid) {
     assert(!hasModifier);
+    boost::mutex::scoped_lock scopedLock(lock);
     std::pair<CCoinsMap::iterator, bool> ret = cacheCoins.insert(std::make_pair(txid, CCoinsCacheEntry()));
     ret.first->second.coins.Clear();
     ret.first->second.flags = CCoinsCacheEntry::FRESH;
@@ -137,6 +214,7 @@ CCoinsModifier CCoinsViewCache::ModifyNewCoins(const uint256 &txid) {
 }
 
 const CCoins* CCoinsViewCache::AccessCoins(const uint256 &txid) const {
+    boost::mutex::scoped_lock scopedLock(lock);
     CCoinsMap::const_iterator it = FetchCoins(txid);
     if (it == cacheCoins.end()) {
         return NULL;
@@ -146,6 +224,7 @@ const CCoins* CCoinsViewCache::AccessCoins(const uint256 &txid) const {
 }
 
 bool CCoinsViewCache::HaveCoins(const uint256 &txid) const {
+    boost::mutex::scoped_lock scopedLock(lock);
     CCoinsMap::const_iterator it = FetchCoins(txid);
     // We're using vtx.empty() instead of IsPruned here for performance reasons,
     // as we only care about the case where a transaction was replaced entirely
@@ -155,6 +234,7 @@ bool CCoinsViewCache::HaveCoins(const uint256 &txid) const {
 }
 
 bool CCoinsViewCache::HaveCoinsInCache(const uint256 &txid) const {
+    boost::mutex::scoped_lock scopedLock(lock);
     CCoinsMap::const_iterator it = cacheCoins.find(txid);
     return it != cacheCoins.end();
 }
@@ -171,6 +251,7 @@ void CCoinsViewCache::SetBestBlock(const uint256 &hashBlockIn) {
 
 bool CCoinsViewCache::BatchWrite(CCoinsMap &mapCoins, const uint256 &hashBlockIn) {
     assert(!hasModifier);
+    boost::mutex::scoped_lock scopedLock(lock);
     for (CCoinsMap::iterator it = mapCoins.begin(); it != mapCoins.end();) {
         if (it->second.flags & CCoinsCacheEntry::DIRTY) { // Ignore non-dirty entries (optimization).
             CCoinsMap::iterator itUs = cacheCoins.find(it->first);
@@ -214,6 +295,7 @@ bool CCoinsViewCache::BatchWrite(CCoinsMap &mapCoins, const uint256 &hashBlockIn
 }
 
 bool CCoinsViewCache::Flush() {
+    boost::mutex::scoped_lock scopedLock(lock);
     bool fOk = base->BatchWrite(cacheCoins, hashBlock);
     cacheCoins.clear();
     cachedCoinsUsage = 0;
@@ -222,6 +304,7 @@ bool CCoinsViewCache::Flush() {
 
 void CCoinsViewCache::Uncache(const uint256& hash)
 {
+    boost::mutex::scoped_lock scopedLock(lock);
     CCoinsMap::iterator it = cacheCoins.find(hash);
     if (it != cacheCoins.end() && it->second.flags == 0) {
         cachedCoinsUsage -= it->second.coins.DynamicMemoryUsage();
@@ -230,6 +313,7 @@ void CCoinsViewCache::Uncache(const uint256& hash)
 }
 
 unsigned int CCoinsViewCache::GetCacheSize() const {
+    boost::mutex::scoped_lock scopedLock(lock);
     return cacheCoins.size();
 }
 

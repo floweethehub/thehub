@@ -84,10 +84,9 @@ namespace Checkpoints {
 
         BOOST_REVERSE_FOREACH(const MapCheckpoints::value_type& i, checkpoints)
         {
-            const uint256& hash = i.second;
-            auto t = Blocks::indexMap.find(hash);
-            if (t != Blocks::indexMap.end())
-                return t->second;
+            auto blockIndex = Blocks::Index::get(i.second);
+            if (blockIndex)
+                return blockIndex;
         }
         return NULL;
     }

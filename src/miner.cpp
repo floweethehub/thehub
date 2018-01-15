@@ -18,6 +18,11 @@
  * along with this program.  If not, see <http://www.gnu.org/licenses/>.
  */
 
+#include "Application.h"
+#include <validation/Engine.h>
+#include "primitives/FastBlock.h"
+#include "streaming/BufferPool.h"
+#include "serialize.h"
 #include "base58.h"
 #include "miner.h"
 #include "pubkey.h"
@@ -107,12 +112,12 @@ void Mining::SetCoinbase(const CScript &coinbase)
 }
 
 
-CBlockTemplate* Mining::CreateNewBlock(const CChainParams& chainparams) const
+CBlockTemplate* Mining::CreateNewBlock(Validation::Engine &validationEngine) const
 {
+    assert(validationEngine.blockchain());
+    assert(validationEngine.mempool());
     // Create new block
     std::unique_ptr<CBlockTemplate> pblocktemplate(new CBlockTemplate());
-    if(!pblocktemplate.get())
-        return NULL;
     CBlock *pblock = &pblocktemplate->block; // pointer for convenience
     pblock->nTime = GetAdjustedTime();
 
@@ -163,20 +168,20 @@ CBlockTemplate* Mining::CreateNewBlock(const CChainParams& chainparams) const
     unsigned int nBlockSigOps = 100;
     int lastFewTxs = 0;
     CAmount nFees = 0;
-    bool fCreatedValidBlock = false;
 
     {
-        LOCK2(cs_main, mempool.cs);
-        CBlockIndex* pindexPrev = chainActive.Tip();
+        CTxMemPool *mempool = validationEngine.mempool();
+        LOCK2(cs_main, mempool->cs);
+        CBlockIndex* pindexPrev = validationEngine.blockchain()->Tip();
         assert(pindexPrev); // genesis should be present.
 
         const int nHeight = pindexPrev->nHeight + 1;
         const int64_t nMedianTimePast = pindexPrev->GetMedianTimePast();
 
-        pblock->nVersion = ComputeBlockVersion(pindexPrev, chainparams.GetConsensus());
+        pblock->nVersion = ComputeBlockVersion(pindexPrev, Params().GetConsensus());
         // -regtest only: allow overriding block.nVersion with
         // -blockversion=N to test forking scenarios
-        if (chainparams.MineBlocksOnDemand())
+        if (Params().MineBlocksOnDemand())
             pblock->nVersion = GetArg("-blockversion", pblock->nVersion);
 
         UpdateTime(pblock, Params().GetConsensus(), pindexPrev);
@@ -187,22 +192,22 @@ CBlockTemplate* Mining::CreateNewBlock(const CChainParams& chainparams) const
 
         bool fPriorityBlock = nBlockPrioritySize > 0;
         if (fPriorityBlock) {
-            vecPriority.reserve(mempool.mapTx.size());
-            for (CTxMemPool::indexed_transaction_set::iterator mi = mempool.mapTx.begin();
-                 mi != mempool.mapTx.end(); ++mi)
+            vecPriority.reserve(mempool->mapTx.size());
+            for (CTxMemPool::indexed_transaction_set::iterator mi = mempool->mapTx.begin();
+                 mi != mempool->mapTx.end(); ++mi)
             {
                 double dPriority = mi->GetPriority(nHeight);
                 CAmount dummy;
-                mempool.ApplyDeltas(mi->GetTx().GetHash(), dPriority, dummy);
+                mempool->ApplyDeltas(mi->GetTx().GetHash(), dPriority, dummy);
                 vecPriority.push_back(TxCoinAgePriority(dPriority, mi));
             }
             std::make_heap(vecPriority.begin(), vecPriority.end(), pricomparer);
         }
 
-        CTxMemPool::indexed_transaction_set::nth_index<3>::type::iterator mi = mempool.mapTx.get<3>().begin();
+        CTxMemPool::indexed_transaction_set::nth_index<3>::type::iterator mi = mempool->mapTx.get<3>().begin();
         CTxMemPool::txiter iter;
 
-        while (mi != mempool.mapTx.get<3>().end() || !clearedTxs.empty())
+        while (mi != mempool->mapTx.get<3>().end() || !clearedTxs.empty())
         {
             bool priorityTx = false;
             if (fPriorityBlock && !vecPriority.empty()) { // add a tx from priority queue to fill the blockprioritysize
@@ -213,7 +218,7 @@ CBlockTemplate* Mining::CreateNewBlock(const CChainParams& chainparams) const
                 vecPriority.pop_back();
             }
             else if (clearedTxs.empty()) { // add tx with next highest score
-                iter = mempool.mapTx.project<0>(mi);
+                iter = mempool->mapTx.project<0>(mi);
                 mi++;
             }
             else {  // try to add a previously postponed child tx
@@ -227,7 +232,7 @@ CBlockTemplate* Mining::CreateNewBlock(const CChainParams& chainparams) const
             const CTransaction& tx = iter->GetTx();
 
             bool fOrphan = false;
-            BOOST_FOREACH(CTxMemPool::txiter parent, mempool.GetMemPoolParents(iter))
+            BOOST_FOREACH(CTxMemPool::txiter parent, mempool->GetMemPoolParents(iter))
             {
                 if (!inBlock.count(parent)) {
                     fOrphan = true;
@@ -290,7 +295,7 @@ CBlockTemplate* Mining::CreateNewBlock(const CChainParams& chainparams) const
             {
                 double dPriority = iter->GetPriority(nHeight);
                 CAmount dummy;
-                mempool.ApplyDeltas(tx.GetHash(), dPriority, dummy);
+                mempool->ApplyDeltas(tx.GetHash(), dPriority, dummy);
                 LogPrintf("priority %.1f fee %s txid %s\n",
                           dPriority , CFeeRate(iter->GetModifiedFee(), nTxSize).ToString(), tx.GetHash().ToString());
             }
@@ -298,7 +303,7 @@ CBlockTemplate* Mining::CreateNewBlock(const CChainParams& chainparams) const
             inBlock.insert(iter);
 
             // Add transactions that depend on this one to the priority queue
-            BOOST_FOREACH(CTxMemPool::txiter child, mempool.GetMemPoolChildren(iter))
+            BOOST_FOREACH(CTxMemPool::txiter child, mempool->GetMemPoolChildren(iter))
             {
                 if (fPriorityBlock) {
                     waitPriIter wpiter = waitPriMap.find(child);
@@ -318,45 +323,44 @@ CBlockTemplate* Mining::CreateNewBlock(const CChainParams& chainparams) const
         }
         nLastBlockTx = nBlockTx;
         nLastBlockSize = nBlockSize;
-        LogPrintf("CreateNewBlock(): total size %u txs: %u fees: %ld sigops %d\n", nBlockSize, nBlockTx, nFees, nBlockSigOps);
+        logInfo(Log::Mining) << "CreateNewBlock(): total size:" <<nBlockSize << "txs:" << nBlockTx
+                             << "fees:" << nFees << "sigops:"<< nBlockSigOps;
 
         // Compute final coinbase transaction.
-        txNew.vout[0].nValue = nFees + GetBlockSubsidy(nHeight, chainparams.GetConsensus());
+        txNew.vout[0].nValue = nFees + GetBlockSubsidy(nHeight, Params().GetConsensus());
         txNew.vin[0].scriptSig = CScript() << nHeight << OP_0 << m_coinbaseComment;
         pblock->vtx[0] = txNew;
         pblocktemplate->vTxFees[0] = -nFees;
 
         // Fill in header
         pblock->hashPrevBlock  = pindexPrev->GetBlockHash();
-        UpdateTime(pblock, chainparams.GetConsensus(), pindexPrev);
-        pblock->nBits          = GetNextWorkRequired(pindexPrev, pblock, chainparams.GetConsensus());
+        UpdateTime(pblock, Params().GetConsensus(), pindexPrev);
+        pblock->nBits          = GetNextWorkRequired(pindexPrev, pblock, Params().GetConsensus());
         pblock->nNonce         = 0;
         pblocktemplate->vTxSigOps[0] = GetLegacySigOpCount(pblock->vtx[0]);
-
-        CValidationState state;
-        fCreatedValidBlock = TestBlockValidity(state, chainparams, *pblock, pindexPrev, false, false);
-        if (!fCreatedValidBlock) {
-            if (pblock->vtx.size() <= 1) {
-                // This should REALLY never happen! Empty block that is invalid.
-                throw std::runtime_error(strprintf("%s: TestBlockValidity failed: %s", 
-                                                   __func__, FormatStateMessage(state)));
-            }
-            // This should also never happen... but if an invalid transaction somehow entered
-            // the mempool due to a bug, remove all the transactions in the block
-            // and try again (it is not worth trying to figure out which transaction(s)
-            // are causing the block to be invalid).
-            LogPrintf("%s: TestBlockValidity failed: %s, retrying with smaller mempool",
-                      __func__, FormatStateMessage(state));
-            std::list<CTransaction> unused;
-            BOOST_REVERSE_FOREACH(const CTransaction& tx, pblock->vtx) {
-                mempool.remove(tx, unused, true);
-            }
-        }
     }
-
-    if (!fCreatedValidBlock) {
+    auto conf = validationEngine.addBlock(FastBlock::fromOldBlock(*pblock), 0);
+    conf.setCheckMerkleRoot(false);
+    conf.setCheckPoW(false);
+    conf.setOnlyCheckValidity(true);
+    conf.start();
+    conf.waitUntilFinished();
+    if (!conf.error().empty()) {
+        logCritical(Log::Mining) << "CreateNewBlock managed to mine an invalid block:" << conf.error();
+        if (pblock->vtx.size() == 1) // avoid user passing in bad block number or somesuch create an infinite recursion.
+            return nullptr;
+        // This should also never happen... but if an invalid transaction somehow entered
+        // the mempool due to a bug, remove all the transactions in the block
+        // and try again (it is not worth trying to figure out which transaction(s)
+        // are causing the block to be invalid).
+        logInfo(Log::Mining) << "Retrying with smaller mempool";
+        std::list<CTransaction> unused;
+        CTxMemPool *mempool = validationEngine.mempool();
+        BOOST_REVERSE_FOREACH(const CTransaction& tx, pblock->vtx) {
+            mempool->remove(tx, unused, true);
+        }
         pblocktemplate.reset();
-        return CreateNewBlock(chainparams); // recurse with smaller mempool
+        return CreateNewBlock(validationEngine); // recurse with smaller mempool
     }
 
     return pblocktemplate.release();
@@ -418,27 +422,16 @@ bool static ScanHash(const CBlockHeader *pblock, uint32_t& nNonce, uint256 *phas
     }
 }
 
-static bool ProcessBlockFound(const CBlock* pblock, const CChainParams& chainparams)
+static void ProcessBlockFound(const CBlock* pblock)
 {
     LogPrintf("%s\n", pblock->ToString());
     LogPrintf("generated %s\n", FormatMoney(pblock->vtx[0].vout[0].nValue));
 
-    // Found a solution
-    {
-        LOCK(cs_main);
-        if (pblock->hashPrevBlock != chainActive.Tip()->GetBlockHash())
-            return error("BitcoinMiner: generated block is stale");
-    }
-
-    // Inform about the new block
-    GetMainSignals().BlockFound(pblock->GetHash());
-
+    auto validation = Application::instance()->validation();
     // Process this block the same as if we had received it from another node
-    CValidationState state;
-    if (!ProcessNewBlock(state, chainparams, NULL, pblock, true, NULL))
-        return error("BitcoinMiner: ProcessNewBlock, block not accepted");
-
-    return true;
+    auto future = validation->addBlock(FastBlock::fromOldBlock(*pblock),
+            Validation::ForwardGoodToPeers | Validation::SaveGoodToDisk).start();
+    future.waitUntilFinished();
 }
 
 void static BitcoinMiner(const CChainParams& chainparams)
@@ -449,7 +442,6 @@ void static BitcoinMiner(const CChainParams& chainparams)
 
     unsigned int nExtraNonce = 0;
     Mining *mining = Mining::instance();
-    const CScript coinbaseScript = mining->GetCoinbase();
 
     try {
         while (true) {
@@ -474,7 +466,7 @@ void static BitcoinMiner(const CChainParams& chainparams)
             unsigned int nTransactionsUpdatedLast = mempool.GetTransactionsUpdated();
             CBlockIndex* pindexPrev = chainActive.Tip();
 
-            std::unique_ptr<CBlockTemplate> pblocktemplate(mining->CreateNewBlock(chainparams));
+            std::unique_ptr<CBlockTemplate> pblocktemplate(mining->CreateNewBlock());
             if (!pblocktemplate.get())
             {
                 LogPrintf("Error in BitcoinMiner: Keypool ran out, please call keypoolrefill before restarting the mining thread\n");
@@ -506,7 +498,7 @@ void static BitcoinMiner(const CChainParams& chainparams)
                         SetThreadPriority(THREAD_PRIORITY_NORMAL);
                         LogPrintf("BitcoinMiner:\n");
                         LogPrintf("proof-of-work found  \n  hash: %s  \ntarget: %s\n", hash.GetHex(), hashTarget.GetHex());
-                        ProcessBlockFound(pblock, chainparams);
+                        ProcessBlockFound(pblock);
                         SetThreadPriority(THREAD_PRIORITY_LOWEST);
 
                         // In regression test mode, stop mining after a block is found.
@@ -634,6 +626,11 @@ Mining::~Mining()
         m_minerThreads->interrupt_all();
         delete m_minerThreads;
     }
+}
+
+CBlockTemplate *Mining::CreateNewBlock() const
+{
+    return CreateNewBlock(*Application::instance()->validation());
 }
 
 Mining::Mining()

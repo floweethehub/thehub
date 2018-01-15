@@ -30,7 +30,7 @@ extern UniValue CallRPC(std::string args);
 
 extern CWallet* pwalletMain;
 
-BOOST_FIXTURE_TEST_SUITE(rpc_wallet_tests, TestingSetup)
+BOOST_FIXTURE_TEST_SUITE(rpc_wallet_tests, MainnetTestingSetup)
 
 BOOST_AUTO_TEST_CASE(rpc_addmultisig)
 {

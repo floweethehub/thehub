@@ -41,6 +41,7 @@
 #include "BlocksDB.h"
 #include "util.h"
 #include "utilmoneystr.h"
+#include <validation/Engine.h>
 
 #include <boost/algorithm/string/replace.hpp>
 #include <boost/filesystem.hpp>
@@ -655,7 +656,7 @@ bool CWallet::AddToWallet(const CWalletTx& wtxIn, bool fFromLoadWallet, CWalletD
             wtx.nTimeSmart = wtx.nTimeReceived;
             if (!wtxIn.hashUnset())
             {
-                if (Blocks::indexMap.count(wtxIn.hashBlock))
+                if (Blocks::Index::exists(wtxIn.hashBlock))
                 {
                     int64_t latestNow = wtx.nTimeReceived;
                     int64_t latestEntry = 0;
@@ -688,7 +689,7 @@ bool CWallet::AddToWallet(const CWalletTx& wtxIn, bool fFromLoadWallet, CWalletD
                         }
                     }
 
-                    int64_t blocktime = Blocks::indexMap[wtxIn.hashBlock]->GetBlockTime();
+                    int64_t blocktime = Blocks::Index::get(wtxIn.hashBlock)->GetBlockTime();
                     wtx.nTimeSmart = std::max(latestEntry, std::min(blocktime, latestNow));
                 }
                 else
@@ -859,8 +860,8 @@ void CWallet::MarkConflicted(const uint256& hashBlock, const uint256& hashTx)
     LOCK2(cs_main, cs_wallet);
 
     int conflictconfirms = 0;
-    if (Blocks::indexMap.count(hashBlock)) {
-        CBlockIndex* pindex = Blocks::indexMap[hashBlock];
+    if (Blocks::Index::exists(hashBlock)) {
+        CBlockIndex* pindex = Blocks::Index::get(hashBlock);
         if (chainActive.Contains(pindex)) {
             conflictconfirms = -(chainActive.Height() - pindex->nHeight + 1);
         }
@@ -1286,15 +1287,7 @@ void CWallet::ReacceptWalletTransactions()
     BOOST_FOREACH(PAIRTYPE(const int64_t, CWalletTx*)& item, mapSorted)
     {
         CWalletTx& wtx = *(item.second);
-
-        LOCK(mempool.cs);
-
-        CValidationState state;
-        if (!AcceptToMemoryPool(mempool, state, wtx, false, nullptr, false, true)
-                && state.GetRejectReason() == "mandatory-script-verify-flag-failed (Signature must use SIGHASH_FORKID)") {
-            mapWallet.erase(wtx.GetHash());
-            wtxOrdered.erase(wtx.nOrderPos);
-        }
+        Application::instance()->validation()->addTransaction(Tx::fromOldTransaction(wtx), Validation::RejectAbsurdFeeTx);
     }
 }
 
@@ -2280,15 +2273,8 @@ bool CWallet::CommitTransaction(CWalletTx& wtxNew, CReserveKey& reservekey)
         // Track how many getdata requests our transaction gets
         mapRequestCount[wtxNew.GetHash()] = 0;
 
-        if (fBroadcastTransactions)
-        {
-            // Broadcast
-            CValidationState state;
-            if (!AcceptToMemoryPool(mempool, state, wtxNew, false, nullptr, false, true)) {
-                // This must not fail. The transaction has already been signed and recorded.
-                LogPrintf("CommitTransaction(): Error: Transaction not valid\n");
-                return false;
-            }
+        if (fBroadcastTransactions) {
+            Application::instance()->validation()->addTransaction(Tx::fromOldTransaction(wtxNew), Validation::RejectAbsurdFeeTx);
             wtxNew.RelayWalletTransaction();
         }
     }
@@ -2901,10 +2887,10 @@ void CWallet::GetKeyBirthTimes(std::map<CKeyID, int64_t> &mapKeyBirth) const {
     for (std::map<uint256, CWalletTx>::const_iterator it = mapWallet.begin(); it != mapWallet.end(); it++) {
         // iterate over all wallet transactions...
         const CWalletTx &wtx = (*it).second;
-        auto blit = Blocks::indexMap.find(wtx.hashBlock);
-        if (blit != Blocks::indexMap.end() && chainActive.Contains(blit->second)) {
+        auto blit = Blocks::Index::get(wtx.hashBlock);
+        if (blit && chainActive.Contains(blit)) {
             // ... which are already in a block
-            int nHeight = blit->second->nHeight;
+            int nHeight = blit->nHeight;
             BOOST_FOREACH(const CTxOut &txout, wtx.vout) {
                 // iterate over all their outputs
                 CAffectedKeysVisitor(*this, vAffected).Process(txout.scriptPubKey);
@@ -2912,7 +2898,7 @@ void CWallet::GetKeyBirthTimes(std::map<CKeyID, int64_t> &mapKeyBirth) const {
                     // ... and all their affected keys
                     std::map<CKeyID, CBlockIndex*>::iterator rit = mapKeyFirstBlock.find(keyid);
                     if (rit != mapKeyFirstBlock.end() && nHeight < rit->second->nHeight)
-                        rit->second = blit->second;
+                        rit->second = blit;
                 }
                 vAffected.clear();
             }
@@ -3003,10 +2989,8 @@ int CMerkleTx::SetMerkleBranch(const CBlock& block)
     }
 
     // Is the tx in a block that's in the main chain
-    auto mi = Blocks::indexMap.find(hashBlock);
-    if (mi == Blocks::indexMap.end())
-        return 0;
-    const CBlockIndex* pindex = (*mi).second;
+
+    const CBlockIndex* pindex = Blocks::Index::get(hashBlock);
     if (!pindex || !chainActive.Contains(pindex))
         return 0;
 
@@ -3021,10 +3005,7 @@ int CMerkleTx::GetDepthInMainChain(const CBlockIndex* &pindexRet) const
     AssertLockHeld(cs_main);
 
     // Find the block it claims to be in
-    auto mi = Blocks::indexMap.find(hashBlock);
-    if (mi == Blocks::indexMap.end())
-        return 0;
-    CBlockIndex* pindex = (*mi).second;
+    const CBlockIndex* pindex = Blocks::Index::get(hashBlock);
     if (!pindex || !chainActive.Contains(pindex))
         return 0;
 

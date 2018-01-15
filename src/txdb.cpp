@@ -110,7 +110,7 @@ bool CCoinsViewDB::GetStats(CCoinsStats &stats) const {
     }
     {
         LOCK(cs_main);
-        stats.nHeight = Blocks::indexMap.find(stats.hashBlock)->second->nHeight;
+        stats.nHeight = Blocks::Index::get(stats.hashBlock)->nHeight;
     }
     stats.hashSerialized = ss.GetHash();
     stats.nTotalAmount = nTotalAmount;

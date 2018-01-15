@@ -186,11 +186,7 @@ void TransactionRecord::updateStatus(const CWalletTx &wtx)
     // Determine transaction status
 
     // Find the block the tx is in
-    CBlockIndex* pindex = NULL;
-    auto mi = Blocks::indexMap.find(wtx.hashBlock);
-    if (mi != Blocks::indexMap.end())
-        pindex = (*mi).second;
-
+    CBlockIndex* pindex = Blocks::Index::get(wtx.hashBlock);
     // Sort order, unrecorded transactions sort to the top
     status.sortKey = strprintf("%010d-%01d-%010u-%03d",
         (pindex ? pindex->nHeight : std::numeric_limits<int>::max()),

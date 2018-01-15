@@ -2,7 +2,7 @@
  * This file is part of the Flowee project
  * Copyright (c) 2009-2010 Satoshi Nakamoto
  * Copyright (c) 2009-2015 The Bitcoin Core developers
- * Copyright (c) 2017 Tom Zander <tomz@freedommail.ch>
+ * Copyright (c) 2017-2018 Tom Zander <tomz@freedommail.ch>
  *
  * This program is free software: you can redistribute it and/or modify
  * it under the terms of the GNU General Public License as published by
@@ -23,7 +23,7 @@
 
 #include "dbwrapper.h"
 
-#include <blockchain/UndoBlock.h>
+#include <primitives/FastUndoBlock.h>
 #include <boost/unordered_map.hpp>
 #include <streaming/ConstBuffer.h>
 #include <string>
@@ -46,6 +46,12 @@ static const int64_t nMaxDbCache = sizeof(void*) > 4 ? 16384 : 1024;
 static const int64_t nMinDbCache = 4;
 
 namespace Blocks {
+
+enum ReindexingState {
+    NoReindex,
+    ScanningFiles,
+    ParsingBlocks
+};
 
 class DBPrivate;
 
@@ -91,13 +97,16 @@ public:
     /// Reads and caches all info about blocks.
     bool CacheAllBlockInfos();
 
-    bool isReindexing() const;
-    bool setIsReindexing(bool fReindex);
+    ReindexingState reindexing() const;
+    inline bool isReindexing() const {
+        return reindexing() != NoReindex;
+    }
+    void setReindexing(ReindexingState state);
 
     FastBlock loadBlock(CDiskBlockPos pos);
     FastUndoBlock loadUndoBlock(CDiskBlockPos pos, const uint256 &origBlockHash);
     Streaming::ConstBuffer loadBlockFile(int fileIndex);
-    FastBlock writeBlock(int blockHeight, const FastBlock &block, CDiskBlockPos &pos);
+    FastBlock writeBlock(const FastBlock &block, CDiskBlockPos &pos);
     /**
      * @brief This method writes out the undo block to a specific file and belonging to a specific /a blockHash.
      * @param block The actual undo block
@@ -152,10 +161,26 @@ FILE* openUndoFile(const CDiskBlockPos &pos, bool fReadOnly);
  */
 boost::filesystem::path getFilepathForIndex(int fileIndex, const char *prefix, bool fFindHarder = false);
 
-// Protected by cs_main
-typedef boost::unordered_map<uint256, CBlockIndex*, BlockHashShortener> BlockMap;
-// TODO move this into BlocksDB and protect it with a mutex
-extern BlockMap indexMap;
+
+namespace Index {
+    const uint256 *insert(const uint256 &hash, CBlockIndex *index);
+    bool exists(const uint256 &hash);
+    CBlockIndex *get(const uint256 &hash);
+    bool empty();
+    int size();
+    bool reconsiderBlock(CBlockIndex *pindex);
+
+    /**
+     * @brief fileIndexes loops over all blocks to find indexes.
+     * @return a set of file-indexes (blk[num].dat) that contain blocks.
+     */
+    std::set<int> fileIndexes();
+    /**
+     * @brief allByHeight Sort and return the blocks by height.
+     */
+    std::vector<std::pair<int, CBlockIndex*> > allByHeight();
+    void unload();
+}
 }
 
 

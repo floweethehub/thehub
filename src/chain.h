@@ -25,6 +25,7 @@
 #include "pow.h"
 #include "tinyformat.h"
 #include "uint256.h"
+#include "Logger.h"
 
 #include <vector>
 
@@ -414,5 +415,15 @@ public:
     /** Find the last common block between this chain and a block index entry. */
     const CBlockIndex *FindFork(const CBlockIndex *pindex) const;
 };
+
+inline Log::SilentItem operator<<(Log::SilentItem item, const CDiskBlockPos&) { return item; }
+
+inline Log::Item operator<<(Log::Item item, const CDiskBlockPos &pos) {
+    const bool old = item.useSpace();
+    item.nospace() << "DiskBlockPos(file=" << pos.nFile << ", offset=" << pos.nPos << ")";
+    if (old)
+        return item.space();
+    return item;
+}
 
 #endif // BITCOIN_CHAIN_H

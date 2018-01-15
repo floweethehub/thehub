@@ -2,6 +2,7 @@
  * This file is part of the Flowee project
  * Copyright (C) 2009-2010 Satoshi Nakamoto
  * Copyright (C) 2009-2015 The Bitcoin Core developers
+ * Copyright (C) 2017 Tom Zander <tomz@freedommail.ch>
  *
  * This program is free software: you can redistribute it and/or modify
  * it under the terms of the GNU General Public License as published by
@@ -37,10 +38,13 @@
 #include <exception>
 #include <map>
 #include <vector>
+#include <functional>
+#include <mutex>
 
 #include <boost/filesystem/path.hpp>
 #include <boost/signals2/signal.hpp>
 #include <boost/thread/exceptions.hpp>
+#include <boost/asio/strand.hpp>
 
 // For bitcoin-cli
 static const char DEFAULT_RPCCONNECT[] = "127.0.0.1";
@@ -231,5 +235,31 @@ template <typename Callable> void TraceThread(const char* name,  Callable func)
         throw;
     }
 }
+
+/**
+ * @brief Use the WaitUntilFinishedHelper class to start a method in a strand and wait until its done.
+ * Usage is simple, you create an instance and all the work is done in the constructor.
+ * After the constructor is finished, your method in the strand will have returned.
+ */
+class WaitUntilFinishedHelper
+{
+public:
+    WaitUntilFinishedHelper(const std::function<void()> &target, boost::asio::strand *strand);
+    WaitUntilFinishedHelper(const WaitUntilFinishedHelper &other);
+    ~WaitUntilFinishedHelper();
+
+    void run();
+
+private:
+    struct Private {
+        mutable std::mutex mutex;
+        std::function<void()> target;
+        std::atomic<int> ref;
+        boost::asio::strand *strand;
+    };
+    Private *d;
+
+    void handle();
+};
 
 #endif // BITCOIN_UTIL_H

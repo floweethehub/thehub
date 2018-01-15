@@ -16,8 +16,8 @@
  * along with this program.  If not, see <http://www.gnu.org/licenses/>.
  */
 
-#ifndef BITCOIN_BLOCKCHAIN_UNDOBLOCK_H
-#define BITCOIN_BLOCKCHAIN_UNDOBLOCK_H
+#ifndef FLOWEE_PRIMITIVES_FASTUNDOBLOCK_H
+#define FLOWEE_PRIMITIVES_FASTUNDOBLOCK_H
 
 #include <streaming/ConstBuffer.h>
 #include <undo.h>

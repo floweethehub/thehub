@@ -132,6 +132,9 @@ BITCOIN_CORE_H = \
   prevector.h \
   primitives/block.h \
   primitives/transaction.h \
+  primitives/FastBlock.h \
+  primitives/FastTransaction.h \
+  primitives/FastUndoBlock.h \
   protocol.h \
   pubkey.h \
   random.h \
@@ -186,9 +189,15 @@ BITCOIN_CORE_H = \
   zmq/zmqconfig.h\
   zmq/zmqnotificationinterface.h \
   zmq/zmqpublishnotifier.h \
-  blockchain/Transaction.h \
-  blockchain/Block.h \
-  blockchain/UndoBlock.h
+  validation/BlockValidation.h \
+  validation/BlockValidation_p.h \
+  validation/Engine.h \
+  validation/ValidationException.h \
+  validation/ValidationSettings.h \
+  validation/ValidationSettings_p.h \
+  validation/TxValidation_p.h \
+  validation/VerifyDB.h \
+  CrashCatcher.h
 
 
 obj/build.h: FORCE
@@ -211,6 +220,7 @@ libbitcoin_server_a_SOURCES = \
   httprpc.cpp \
   httpserver.cpp \
   init.cpp \
+  CrashCatcher.cpp \
   dbwrapper.cpp \
   main.cpp \
   txorphancache.cpp \
@@ -220,6 +230,7 @@ libbitcoin_server_a_SOURCES = \
   noui.cpp \
   networkManager/NetworkConnection.cpp \
   networkManager/NetworkManager.cpp \
+  validation/VerifyDB.cpp \
   policy/fees.cpp \
   policy/policy.cpp \
   pow.cpp \
@@ -305,6 +316,9 @@ libbitcoin_common_a_SOURCES = \
   netbase.cpp \
   primitives/block.cpp \
   primitives/transaction.cpp \
+  primitives/FastBlock.cpp \
+  primitives/FastTransaction.cpp \
+  primitives/FastUndoBlock.cpp \
   protocol.cpp \
   pubkey.cpp \
   scheduler.cpp \
@@ -313,9 +327,11 @@ libbitcoin_common_a_SOURCES = \
   script/script_error.cpp \
   script/sign.cpp \
   script/standard.cpp \
-  blockchain/Transaction.cpp \
-  blockchain/Block.cpp \
-  blockchain/UndoBlock.cpp \
+  validation/BlockValidation.cpp \
+  validation/Engine.cpp \
+  validation/TxValidation.cpp \
+  validation/ValidationException.cpp \
+  validation/ValidationSettings.cpp \
   $(BITCOIN_CORE_H)
 
 # util: shared between all executables.

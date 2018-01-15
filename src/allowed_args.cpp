@@ -245,7 +245,6 @@ static void addGeneralOptions(AllowedArgs& allowedArgs, HelpMessageMode mode)
 
     allowedArgs
         .addArg("dbcache=<n>", requiredInt, strprintf(_("Set database cache size in megabytes (%d to %d, default: %d)"), nMinDbCache, nMaxDbCache, nDefaultDbCache))
-        .addArg("loadblock=<file>", requiredStr, _("Imports blocks from external blk000??.dat file on startup"))
         .addArg("maxorphantx=<n>", requiredInt, strprintf(_("Keep at most <n> unconnectable transactions in memory (default: %u)"), DEFAULT_MAX_ORPHAN_TRANSACTIONS))
         .addArg("maxmempool=<n>", requiredInt, strprintf(_("Keep the transaction memory pool below <n> megabytes (default: %u)"), DEFAULT_MAX_MEMPOOL_SIZE))
         .addArg("mempoolexpiry=<n>", requiredInt, strprintf(_("Do not keep transactions in the mempool longer than <n> hours (default: %u)"), DEFAULT_MEMPOOL_EXPIRY))
@@ -401,6 +400,7 @@ static void addDebuggingOptions(AllowedArgs& allowedArgs, HelpMessageMode mode)
         .addDebugArg("privdb", optionalBool, strprintf("Sets the DB_PRIVATE flag in the wallet db environment (default: %u)", DEFAULT_WALLET_PRIVDB))
 #endif
         .addArg("shrinkdebugfile", optionalBool, _("Shrink debug.log file on client startup (default: true when no -debug)"))
+        .addDebugArg("catch-crash", optionalBool, "Enable the crash-catcher which creates a backtrace file on segfault")
         ;
 }
 
