@@ -33,9 +33,8 @@ static const struct {
     const char *titleAddText;
 } network_styles[] = {
     {"main", QAPP_APP_NAME_DEFAULT, 0, 0, ""},
-    {"test", QAPP_APP_NAME_TESTNET, 70, 30, QT_TRANSLATE_NOOP("SplashScreen", "[testnet]")},
-    {"fttest", QAPP_APP_NAME_TESTNET_FT, 243, 45, QT_TRANSLATE_NOOP("SplashScreen", "[FlexTrans testnet]")},
-    {"regtest", QAPP_APP_NAME_TESTNET, 160, 30, "[regtest]"}
+    {"test", QAPP_APP_NAME_TESTNET, 160, 30, QT_TRANSLATE_NOOP("SplashScreen", "[testnet]")},
+    {"regtest", QAPP_APP_NAME_TESTNET, 70, 30, "[regtest]"}
 };
 static const int network_styles_count = sizeof(network_styles)/sizeof(*network_styles);
 
@@ -101,8 +100,8 @@ NetworkStyle::NetworkStyle(const QString &networkId)
     if (appName.isEmpty())
         throw std::runtime_error("Unknown networkId passed into NetworkStyle");
 
-    appIcon = fixIcon(QImage(":/icons/bitcoin"), iconColorHueShift, iconColorSaturationReduction);
-    Q_ASSERT(appIcon.width() == 1024);
-    Q_ASSERT(appIcon.height() == 1024);
-    trayAndWindowIcon = QIcon(QPixmap::fromImage(appIcon.scaled(256, 256)));
+    appIcon = fixIcon(QImage(":/icons/hub"), iconColorHueShift, iconColorSaturationReduction);
+    Q_ASSERT(appIcon.width() == 1000);
+    Q_ASSERT(appIcon.height() == 655);
+    trayAndWindowIcon = QIcon(QPixmap::fromImage(appIcon.scaled(256, 164)));
 }

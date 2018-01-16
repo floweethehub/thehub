@@ -40,19 +40,13 @@ SplashScreen::SplashScreen(const NetworkStyle &networkStyle, Qt::WindowFlags f) 
     QWidget(0, f), curAlignment(0)
 {
     // set reference point, paddings
-    int paddingRight = 50;
-    int paddingTop = 50;
-    int titleVersionVSpace = 17;
-    int titleCopyrightVSpaceCore = 40;
-    int titleCopyrightVSpaceClassic = 54;
+    int paddingRight = 30;
+    int paddingTop = 38;
 
     // define text to place
-    QString titleText       = tr("Flowee the Hub");
-    QString versionText     = QString("Version %1").arg(QString::fromStdString(FormatFullVersion()));
-    QString copyrightCore   = QString("© 2009-2016 ") + tr("The Bitcoin Core developers");
-    QString copyrightClassic   = QString("© 2016-%1 ").arg(COPYRIGHT_YEAR) + tr("The Bitcoin Classic developers");
+    QString titleText       = "Flowee the Hub";
+    QString versionText     = QString("%1").arg(QString::fromStdString(FormatFullVersion()));
     QString titleAddText    = networkStyle.getTitleAddText();
-
     QString font            = QApplication::font().toString();
 
     // create a bitmap according to device pixelratio
@@ -68,7 +62,7 @@ SplashScreen::SplashScreen(const NetworkStyle &networkStyle, Qt::WindowFlags f) 
     devicePixelRatio = 1.0;
 #endif
 
-    QSize splashSize(480 * devicePixelRatio, 320 * devicePixelRatio);
+    QSize splashSize(350 * devicePixelRatio, 250 * devicePixelRatio);
     pixmap = QPixmap(splashSize);
 
 #if QT_VERSION > 0x050100
@@ -77,7 +71,8 @@ SplashScreen::SplashScreen(const NetworkStyle &networkStyle, Qt::WindowFlags f) 
 #endif
 
     QPainter pixPaint(&pixmap);
-    pixPaint.setPen(QColor(100,100,100));
+    pixPaint.setPen(QColor(220,220,220));
+    pixPaint.setRenderHints(QPainter::Antialiasing | QPainter::SmoothPixmapTransform);
     if (useMorePixels) // change to HiDPI if it makes sense
         pixPaint.scale(devicePixelRatio, devicePixelRatio);
 
@@ -88,53 +83,37 @@ SplashScreen::SplashScreen(const NetworkStyle &networkStyle, Qt::WindowFlags f) 
     QRect rGradient(QPoint(0,0), splashSize);
     pixPaint.fillRect(rGradient, gradient);
 
-    // draw the bitcoin icon, expected size of PNG: 1024x1024
-    QRect rectIcon(QPoint(-150,-122), QSize(430,430));
+    // draw the bitcoin icon, expected size of PNG: 1000x655
+    QRect rectIcon(QPoint(8, 5), QSize(333, 218));
 
     QImage icon = networkStyle.getAppIcon();
-    Q_ASSERT(icon.width() == 1024);
-    Q_ASSERT(icon.height() == 1024);
+    Q_ASSERT(icon.width() == 1000);
+    Q_ASSERT(icon.height() == 655);
     pixPaint.drawImage(rectIcon, icon);
 
     // check font size and drawing width
     float fontFactor = 1.0;
     if (useMorePixels) // fonts are set in Point, but we used painter::scale(), so we have to counter that.
         fontFactor /= devicePixelRatio;
-    pixPaint.setFont(QFont(font, 33 * fontFactor));
-    QFontMetrics fm(pixPaint.fontMetrics());
-    int titleTextWidth  = fm.width(titleText);
-    if (titleTextWidth > 160) { // strange font rendering, Arial probably not found
-        fontFactor *= 0.75;
-        pixPaint.setFont(QFont(font, 33 * fontFactor));
-        fm = pixPaint.fontMetrics();
-        titleTextWidth  = fm.width(titleText);
-    }
-
-    pixPaint.drawText(pixmap.width()/devicePixelRatio-titleTextWidth-paddingRight,paddingTop,titleText);
 
     pixPaint.setFont(QFont(font, 15*fontFactor));
-
+    QFontMetrics fm(pixPaint.fontMetrics());
     // if the version string is to long, reduce size
-    fm = pixPaint.fontMetrics();
     int versionTextWidth  = fm.width(versionText);
-    if(versionTextWidth > titleTextWidth+paddingRight-10) {
+    if (versionTextWidth > paddingRight-10) {
         pixPaint.setFont(QFont(font, 10*fontFactor));
-        titleVersionVSpace -= 5;
+        versionTextWidth  = pixPaint.fontMetrics().width(versionText);
     }
-    pixPaint.drawText(pixmap.width()/devicePixelRatio-titleTextWidth-paddingRight+2,paddingTop+titleVersionVSpace,versionText);
+    pixPaint.drawText(pixmap.width() / devicePixelRatio - versionTextWidth - paddingRight, paddingTop, versionText);
 
-    // draw copyright stuff
-    pixPaint.setFont(QFont(font, 10*fontFactor));
-    pixPaint.drawText(pixmap.width()/devicePixelRatio-titleTextWidth-paddingRight,paddingTop+titleCopyrightVSpaceCore,copyrightCore);
-    pixPaint.drawText(pixmap.width()/devicePixelRatio-titleTextWidth-paddingRight,paddingTop+titleCopyrightVSpaceClassic,copyrightClassic);
     // draw additional text if special network
-    if(!titleAddText.isEmpty()) {
+    if (!titleAddText.isEmpty()) {
         QFont boldFont = QFont(font, 10*fontFactor);
         boldFont.setWeight(QFont::Bold);
         pixPaint.setFont(boldFont);
         fm = pixPaint.fontMetrics();
         int titleAddTextWidth  = fm.width(titleAddText);
-        pixPaint.drawText(pixmap.width()/devicePixelRatio-titleAddTextWidth-10,15,titleAddText);
+        pixPaint.drawText(pixmap.width()/devicePixelRatio-titleAddTextWidth-paddingRight, 22 ,titleAddText);
     }
 
     pixPaint.end();
