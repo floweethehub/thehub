@@ -85,10 +85,10 @@ PKG_PROG_PKG_CONFIG
 
 # Enable wallet
 AC_ARG_ENABLE([wallet],
-  [AS_HELP_STRING([--disable-wallet],
-  [disable wallet (enabled by default)])],
+  [AS_HELP_STRING([--enable-wallet],
+  [enable wallet (disabled by default)])],
   [enable_wallet=$enableval],
-  [enable_wallet=yes])
+  [enable_wallet=no])
 
 AC_ARG_WITH([miniupnpc],
   [AS_HELP_STRING([--with-miniupnpc],
