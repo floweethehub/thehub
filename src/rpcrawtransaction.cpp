@@ -650,7 +650,7 @@ UniValue signrawtransaction(const UniValue& params, bool fHelp)
     CCoinsView viewDummy;
     CCoinsViewCache view(&viewDummy);
     {
-        CTxMemPool *mempool = cApp->mempool();
+        CTxMemPool *mempool = flApp->mempool();
         LOCK(mempool->cs);
         CCoinsViewMemPool viewMempool(mempool);
         view.SetBackend(viewMempool); // temporarily switch cache backend to db+mempool view

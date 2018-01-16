@@ -31,7 +31,7 @@ namespace Validation {
 }
 class CTxMemPool;
 
-#define cApp Application::instance()
+#define flApp Application::instance()
 
 /**
  * An application singleton that manages some application specific data.

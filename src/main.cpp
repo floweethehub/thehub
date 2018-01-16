@@ -1878,7 +1878,7 @@ bool static AlreadyHave(const CInv& inv) EXCLUSIVE_LOCKS_REQUIRED(cs_main)
     switch (inv.type)
     {
     case MSG_TX: {
-        auto validation = cApp->validation();
+        auto validation = flApp->validation();
         if (validation->isRecentlyRejectedTransaction(inv.hash))
             return true;
         return validation->mempool()->exists(inv.hash);
@@ -2546,7 +2546,7 @@ bool static ProcessMessage(CNode* pfrom, std::string strCommand, CDataStream& vR
             mapAlreadyAskedFor.erase(inv.hash);
         }
 
-        cApp->validation()->addTransaction(Tx::fromOldTransaction(tx),
+        flApp->validation()->addTransaction(Tx::fromOldTransaction(tx),
                 Validation::ForwardGoodToPeers|Validation::PunishBadNode|Validation::RateLimitFreeTx, pfrom);
 #if 0
         if (!AlreadyHave(inv) && AcceptToMemoryPool(mempool, state, tx, true, &fMissingInputs))
