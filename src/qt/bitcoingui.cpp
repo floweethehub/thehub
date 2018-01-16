@@ -90,7 +90,6 @@ BitcoinGUI::BitcoinGUI(const PlatformStyle *platformStyle, const NetworkStyle &n
     encryptWalletAction(0),
     backupWalletAction(0),
     changePassphraseAction(0),
-    aboutQtAction(0),
     openRPCConsoleAction(0),
     openAction(0),
     showHelpMessageAction(0),
@@ -309,9 +308,6 @@ void BitcoinGUI::createActions()
     aboutAction = new QAction(platformStyle->TextColorIcon(":/icons/about"), tr("&About Flowee the Hub"), this);
     aboutAction->setStatusTip(tr("Show information about Flowee"));
     aboutAction->setMenuRole(QAction::AboutRole);
-    aboutQtAction = new QAction(platformStyle->TextColorIcon(":/icons/about_qt"), tr("About &Qt"), this);
-    aboutQtAction->setStatusTip(tr("Show information about Qt"));
-    aboutQtAction->setMenuRole(QAction::AboutQtRole);
     optionsAction = new QAction(platformStyle->TextColorIcon(":/icons/options"), tr("&Options..."), this);
     optionsAction->setStatusTip(tr("Modify configuration options for Flowee"));
     optionsAction->setMenuRole(QAction::PreferencesRole);
@@ -344,7 +340,6 @@ void BitcoinGUI::createActions()
 
     connect(quitAction, SIGNAL(triggered()), qApp, SLOT(quit()));
     connect(aboutAction, SIGNAL(triggered()), this, SLOT(aboutClicked()));
-    connect(aboutQtAction, SIGNAL(triggered()), qApp, SLOT(aboutQt()));
     connect(optionsAction, SIGNAL(triggered()), this, SLOT(optionsClicked()));
     connect(toggleHideAction, SIGNAL(triggered()), this, SLOT(toggleHidden()));
     connect(showHelpMessageAction, SIGNAL(triggered()), this, SLOT(showHelpMessageClicked()));
@@ -413,8 +408,7 @@ void BitcoinGUI::createMenuBar()
     }
     help->addAction(showHelpMessageAction);
     help->addSeparator();
-    help->addAction(aboutAction);
-    help->addAction(aboutQtAction);
+    // help->addAction(aboutAction); // disable for now, it would be an empty dialog
 }
 
 void BitcoinGUI::createToolBars()
