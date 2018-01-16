@@ -16,8 +16,8 @@
  * along with this program.  If not, see <http://www.gnu.org/licenses/>.
  */
 
-#ifndef BITCOIN_QT_QVALUECOMBOBOX_H
-#define BITCOIN_QT_QVALUECOMBOBOX_H
+#ifndef FLOWEE_QT_QVALUECOMBOBOX_H
+#define FLOWEE_QT_QVALUECOMBOBOX_H
 
 #include <QComboBox>
 #include <QVariant>
@@ -48,4 +48,4 @@ private Q_SLOTS:
     void handleSelectionChanged(int idx);
 };
 
-#endif // BITCOIN_QT_QVALUECOMBOBOX_H
+#endif

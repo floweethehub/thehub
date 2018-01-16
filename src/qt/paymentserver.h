@@ -16,8 +16,8 @@
  * along with this program.  If not, see <http://www.gnu.org/licenses/>.
  */
 
-#ifndef BITCOIN_QT_PAYMENTSERVER_H
-#define BITCOIN_QT_PAYMENTSERVER_H
+#ifndef FLOWEE_QT_PAYMENTSERVER_H
+#define FLOWEE_QT_PAYMENTSERVER_H
 
 // This class handles payment requests from clicking on
 // bitcoin: URIs
@@ -162,4 +162,4 @@ private:
     OptionsModel *optionsModel;
 };
 
-#endif // BITCOIN_QT_PAYMENTSERVER_H
+#endif

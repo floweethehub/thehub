@@ -18,8 +18,8 @@
  * along with this program.  If not, see <http://www.gnu.org/licenses/>.
  */
 
-#ifndef BITCOIN_NET_H
-#define BITCOIN_NET_H
+#ifndef FLOWEE_NET_H
+#define FLOWEE_NET_H
 
 #include "bloom.h"
 #include "compat.h"
@@ -839,4 +839,4 @@ void DumpBanlist();
 /** Return a timestamp in the future (in microseconds) for exponentially distributed events. */
 int64_t PoissonNextSend(int64_t nNow, int average_interval_seconds);
 
-#endif // BITCOIN_NET_H
+#endif

@@ -16,8 +16,8 @@
  * along with this program.  If not, see <http://www.gnu.org/licenses/>.
  */
 
-#ifndef BITCOIN_HTTPSERVER_H
-#define BITCOIN_HTTPSERVER_H
+#ifndef FLOWEE_HTTPSERVER_H
+#define FLOWEE_HTTPSERVER_H
 
 #include <string>
 #include <cstdint>
@@ -160,4 +160,4 @@ private:
     struct event* ev;
 };
 
-#endif // BITCOIN_HTTPSERVER_H
+#endif

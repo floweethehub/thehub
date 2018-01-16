@@ -17,11 +17,11 @@
  * along with this program.  If not, see <http://www.gnu.org/licenses/>.
  */
 
-#ifndef BITCOIN_SUPPORT_CLEANSE_H
-#define BITCOIN_SUPPORT_CLEANSE_H
+#ifndef FLOWEE_SUPPORT_CLEANSE_H
+#define FLOWEE_SUPPORT_CLEANSE_H
 
 #include <cstdlib>
 
 void memory_cleanse(void *ptr, size_t len);
 
-#endif // BITCOIN_SUPPORT_CLEANSE_H
+#endif

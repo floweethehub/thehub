@@ -16,8 +16,8 @@
  * along with this program.  If not, see <http://www.gnu.org/licenses/>.
  */
 
-#ifndef BITCOIN_MERKLE
-#define BITCOIN_MERKLE
+#ifndef FLOWEE_MERKLE
+#define FLOWEE_MERKLE
 
 #include <cstdint>
 #include <vector>

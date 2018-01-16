@@ -17,8 +17,8 @@
  * along with this program.  If not, see <http://www.gnu.org/licenses/>.
  */
 
-#ifndef BITCOIN_UI_INTERFACE_H
-#define BITCOIN_UI_INTERFACE_H
+#ifndef FLOWEE_UI_INTERFACE_H
+#define FLOWEE_UI_INTERFACE_H
 
 #include <cstdint>
 #include <string>
@@ -116,4 +116,4 @@ public:
 
 extern CClientUIInterface uiInterface;
 
-#endif // BITCOIN_UI_INTERFACE_H
+#endif

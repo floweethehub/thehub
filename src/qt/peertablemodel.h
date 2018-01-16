@@ -16,8 +16,8 @@
  * along with this program.  If not, see <http://www.gnu.org/licenses/>.
  */
 
-#ifndef BITCOIN_QT_PEERTABLEMODEL_H
-#define BITCOIN_QT_PEERTABLEMODEL_H
+#ifndef FLOWEE_QT_PEERTABLEMODEL_H
+#define FLOWEE_QT_PEERTABLEMODEL_H
 
 #include "main.h" // For CNodeStateStats
 #include "net.h"
@@ -92,4 +92,4 @@ private:
     QTimer *timer;
 };
 
-#endif // BITCOIN_QT_PEERTABLEMODEL_H
+#endif

@@ -16,8 +16,8 @@
  * along with this program.  If not, see <http://www.gnu.org/licenses/>.
  */
 
-#ifndef BITCOIN_QT_OPTIONSMODEL_H
-#define BITCOIN_QT_OPTIONSMODEL_H
+#ifndef FLOWEE_QT_OPTIONSMODEL_H
+#define FLOWEE_QT_OPTIONSMODEL_H
 
 #include "amount.h"
 
@@ -104,4 +104,4 @@ Q_SIGNALS:
     void coinControlFeaturesChanged(bool);
 };
 
-#endif // BITCOIN_QT_OPTIONSMODEL_H
+#endif

@@ -16,8 +16,8 @@
  * along with this program.  If not, see <http://www.gnu.org/licenses/>.
  */
 
-#ifndef _BITCOIN_PREVECTOR_H_
-#define _BITCOIN_PREVECTOR_H_
+#ifndef _FLOWEE_PREVECTOR_H_
+#define _FLOWEE_PREVECTOR_H_
 
 #include <cstdlib>
 #include <cstdint>

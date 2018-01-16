@@ -16,8 +16,8 @@
  * along with this program.  If not, see <http://www.gnu.org/licenses/>.
  */
 
-#ifndef BITCOIN_QT_NETWORKSTYLE_H
-#define BITCOIN_QT_NETWORKSTYLE_H
+#ifndef FLOWEE_QT_NETWORKSTYLE_H
+#define FLOWEE_QT_NETWORKSTYLE_H
 
 #include <QIcon>
 #include <QPixmap>
@@ -47,4 +47,4 @@ private:
     QString titleAddText;
 };
 
-#endif // BITCOIN_QT_NETWORKSTYLE_H
+#endif

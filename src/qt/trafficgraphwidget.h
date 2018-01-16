@@ -16,8 +16,8 @@
  * along with this program.  If not, see <http://www.gnu.org/licenses/>.
  */
 
-#ifndef BITCOIN_QT_TRAFFICGRAPHWIDGET_H
-#define BITCOIN_QT_TRAFFICGRAPHWIDGET_H
+#ifndef FLOWEE_QT_TRAFFICGRAPHWIDGET_H
+#define FLOWEE_QT_TRAFFICGRAPHWIDGET_H
 
 #include <QWidget>
 #include <QQueue>
@@ -59,4 +59,4 @@ private:
     ClientModel *clientModel;
 };
 
-#endif // BITCOIN_QT_TRAFFICGRAPHWIDGET_H
+#endif

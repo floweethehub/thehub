@@ -16,8 +16,8 @@
  * along with this program.  If not, see <http://www.gnu.org/licenses/>.
  */
 
-#ifndef BITCOIN_BLOCKCHAIN_BLOCK_P_H
-#define BITCOIN_BLOCKCHAIN_BLOCK_P_H
+#ifndef BLOCKSDB_P_H
+#define BLOCKSDB_P_H
 
 #include "chain.h"
 #include "BlocksDB.h"

@@ -17,8 +17,8 @@
  * along with this program.  If not, see <http://www.gnu.org/licenses/>.
  */
 
-#ifndef BITCOIN_CONSENSUS_CONSENSUS_H
-#define BITCOIN_CONSENSUS_CONSENSUS_H
+#ifndef FLOWEE_CONSENSUS_CONSENSUS_H
+#define FLOWEE_CONSENSUS_CONSENSUS_H
 
 /** The maximum allowed size for a serialized block, in bytes (network rule) */
 static const unsigned int MAX_LEGACY_BLOCK_SIZE = 1000000;
@@ -38,4 +38,4 @@ enum {
     LOCKTIME_MEDIAN_TIME_PAST = (1 << 1),
 };
 
-#endif // BITCOIN_CONSENSUS_CONSENSUS_H
+#endif

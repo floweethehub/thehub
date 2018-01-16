@@ -17,11 +17,11 @@
  * along with this program.  If not, see <http://www.gnu.org/licenses/>.
  */
 
-#ifndef BITCOIN_COMPAT_H
-#define BITCOIN_COMPAT_H
+#ifndef FLOWEE_COMPAT_H
+#define FLOWEE_COMPAT_H
 
 #if defined(HAVE_CONFIG_H)
-#include "config/bitcoin-config.h"
+#include "config/flowee-config.h"
 #endif
 
 #ifdef WIN32
@@ -115,4 +115,4 @@ bool static inline IsSelectableSocket(SOCKET s) {
 #endif
 }
 
-#endif // BITCOIN_COMPAT_H
+#endif

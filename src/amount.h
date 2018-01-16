@@ -17,8 +17,8 @@
  * along with this program.  If not, see <http://www.gnu.org/licenses/>.
  */
 
-#ifndef BITCOIN_AMOUNT_H
-#define BITCOIN_AMOUNT_H
+#ifndef FLOWEE_AMOUNT_H
+#define FLOWEE_AMOUNT_H
 
 #include "serialize.h"
 
@@ -76,4 +76,4 @@ public:
     }
 };
 
-#endif //  BITCOIN_AMOUNT_H
+#endif

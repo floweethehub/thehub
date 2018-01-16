@@ -17,8 +17,8 @@
  * along with this program.  If not, see <http://www.gnu.org/licenses/>.
  */
 
-#ifndef BITCOIN_UTILTIME_H
-#define BITCOIN_UTILTIME_H
+#ifndef FLOWEE_UTILTIME_H
+#define FLOWEE_UTILTIME_H
 
 #include <cstdint>
 #include <string>
@@ -32,4 +32,4 @@ void MilliSleep(int64_t n);
 
 std::string DateTimeStrFormat(const char* pszFormat, int64_t nTime);
 
-#endif // BITCOIN_UTILTIME_H
+#endif

@@ -17,8 +17,8 @@
  * along with this program.  If not, see <http://www.gnu.org/licenses/>.
  */
 
-#ifndef BITCOIN_TXDB_H
-#define BITCOIN_TXDB_H
+#ifndef FLOWEE_TXDB_H
+#define FLOWEE_TXDB_H
 
 #include "coins.h"
 #include "dbwrapper.h"
@@ -38,4 +38,4 @@ public:
     bool GetStats(CCoinsStats &stats) const;
 };
 
-#endif // BITCOIN_TXDB_H
+#endif

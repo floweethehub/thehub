@@ -17,8 +17,8 @@
  * along with this program.  If not, see <http://www.gnu.org/licenses/>.
  */
 
-#ifndef BITCOIN_SUPPORT_ALLOCATORS_ZEROAFTERFREE_H
-#define BITCOIN_SUPPORT_ALLOCATORS_ZEROAFTERFREE_H
+#ifndef FLOWEE_SUPPORT_ALLOCATORS_ZEROAFTERFREE_H
+#define FLOWEE_SUPPORT_ALLOCATORS_ZEROAFTERFREE_H
 
 #include "support/cleanse.h"
 
@@ -59,4 +59,4 @@ struct zero_after_free_allocator : public std::allocator<T> {
 // Byte-vector that clears its contents before deletion.
 typedef std::vector<char, zero_after_free_allocator<char> > CSerializeData;
 
-#endif // BITCOIN_SUPPORT_ALLOCATORS_ZEROAFTERFREE_H
+#endif

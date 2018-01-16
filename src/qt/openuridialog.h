@@ -16,8 +16,8 @@
  * along with this program.  If not, see <http://www.gnu.org/licenses/>.
  */
 
-#ifndef BITCOIN_QT_OPENURIDIALOG_H
-#define BITCOIN_QT_OPENURIDIALOG_H
+#ifndef FLOWEE_QT_OPENURIDIALOG_H
+#define FLOWEE_QT_OPENURIDIALOG_H
 
 #include <QDialog>
 
@@ -45,4 +45,4 @@ private:
     Ui::OpenURIDialog *ui;
 };
 
-#endif // BITCOIN_QT_OPENURIDIALOG_H
+#endif

@@ -16,8 +16,8 @@
  * along with this program.  If not, see <http://www.gnu.org/licenses/>.
  */
 
-#ifndef BITCOIN_VERSION_H
-#define BITCOIN_VERSION_H
+#ifndef FLOWEE_VERSION_H
+#define FLOWEE_VERSION_H
 
 /**
  * network protocol versioning
@@ -54,4 +54,4 @@ static const int SENDHEADERS_VERSION = 70012;
 //! Expedited Relay enabled in this version
 static const int EXPEDITED_VERSION = 80002;
 
-#endif // BITCOIN_VERSION_H
+#endif

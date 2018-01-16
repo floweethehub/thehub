@@ -17,8 +17,8 @@
  * along with this program.  If not, see <http://www.gnu.org/licenses/>.
  */
 
-#ifndef BITCOIN_ARITH_UINT256_H
-#define BITCOIN_ARITH_UINT256_H
+#ifndef FLOWEE_ARITH_UINT256_H
+#define FLOWEE_ARITH_UINT256_H
 
 #include <cassert>
 #include <cstring>
@@ -301,4 +301,4 @@ public:
 uint256 ArithToUint256(const arith_uint256 &);
 arith_uint256 UintToArith256(const uint256 &);
 
-#endif // BITCOIN_ARITH_UINT256_H
+#endif

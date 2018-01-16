@@ -16,8 +16,8 @@
  * along with this program.  If not, see <http://www.gnu.org/licenses/>.
  */
 
-#ifndef BITCOIN_QT_SENDCOINSDIALOG_H
-#define BITCOIN_QT_SENDCOINSDIALOG_H
+#ifndef FLOWEE_QT_SENDCOINSDIALOG_H
+#define FLOWEE_QT_SENDCOINSDIALOG_H
 
 #include "walletmodel.h"
 
@@ -114,4 +114,4 @@ Q_SIGNALS:
     void message(const QString &title, const QString &message, unsigned int style);
 };
 
-#endif // BITCOIN_QT_SENDCOINSDIALOG_H
+#endif

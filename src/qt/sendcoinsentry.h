@@ -16,8 +16,8 @@
  * along with this program.  If not, see <http://www.gnu.org/licenses/>.
  */
 
-#ifndef BITCOIN_QT_SENDCOINSENTRY_H
-#define BITCOIN_QT_SENDCOINSENTRY_H
+#ifndef FLOWEE_QT_SENDCOINSENTRY_H
+#define FLOWEE_QT_SENDCOINSENTRY_H
 
 #include "walletmodel.h"
 
@@ -84,4 +84,4 @@ private:
     bool updateLabel(const QString &address);
 };
 
-#endif // BITCOIN_QT_SENDCOINSENTRY_H
+#endif

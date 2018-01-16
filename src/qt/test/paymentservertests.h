@@ -16,8 +16,8 @@
  * along with this program.  If not, see <http://www.gnu.org/licenses/>.
  */
 
-#ifndef BITCOIN_QT_TEST_PAYMENTSERVERTESTS_H
-#define BITCOIN_QT_TEST_PAYMENTSERVERTESTS_H
+#ifndef FLOWEE_QT_TEST_PAYMENTSERVERTESTS_H
+#define FLOWEE_QT_TEST_PAYMENTSERVERTESTS_H
 
 #include "../paymentserver.h"
 
@@ -46,4 +46,4 @@ public:
     SendCoinsRecipient recipient;
 };
 
-#endif // BITCOIN_QT_TEST_PAYMENTSERVERTESTS_H
+#endif

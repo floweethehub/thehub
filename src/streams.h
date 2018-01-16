@@ -17,8 +17,8 @@
  * along with this program.  If not, see <http://www.gnu.org/licenses/>.
  */
 
-#ifndef BITCOIN_STREAMS_H
-#define BITCOIN_STREAMS_H
+#ifndef FLOWEE_STREAMS_H
+#define FLOWEE_STREAMS_H
 
 #include "support/allocators/zeroafterfree.h"
 #include "serialize.h"
@@ -455,4 +455,4 @@ public:
     }
 };
 
-#endif // BITCOIN_STREAMS_H
+#endif

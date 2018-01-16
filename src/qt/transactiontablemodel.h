@@ -16,8 +16,8 @@
  * along with this program.  If not, see <http://www.gnu.org/licenses/>.
  */
 
-#ifndef BITCOIN_QT_TRANSACTIONTABLEMODEL_H
-#define BITCOIN_QT_TRANSACTIONTABLEMODEL_H
+#ifndef FLOWEE_QT_TRANSACTIONTABLEMODEL_H
+#define FLOWEE_QT_TRANSACTIONTABLEMODEL_H
 
 #include "bitcoinunits.h"
 
@@ -129,4 +129,4 @@ public Q_SLOTS:
     friend class TransactionTablePriv;
 };
 
-#endif // BITCOIN_QT_TRANSACTIONTABLEMODEL_H
+#endif

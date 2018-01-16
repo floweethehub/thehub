@@ -16,8 +16,8 @@
  * along with this program.  If not, see <http://www.gnu.org/licenses/>.
  */
 
-#ifndef BITCOIN_CHECKPOINTS_H
-#define BITCOIN_CHECKPOINTS_H
+#ifndef FLOWEE_CHECKPOINTS_H
+#define FLOWEE_CHECKPOINTS_H
 
 #include "uint256.h"
 
@@ -43,4 +43,4 @@ double GuessVerificationProgress(const CCheckpointData& data, CBlockIndex* pinde
 
 } //namespace Checkpoints
 
-#endif // BITCOIN_CHECKPOINTS_H
+#endif

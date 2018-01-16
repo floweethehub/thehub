@@ -18,8 +18,8 @@
  * along with this program.  If not, see <http://www.gnu.org/licenses/>.
  */
 
-#ifndef BITCOIN_BLOCKSDB_H
-#define BITCOIN_BLOCKSDB_H
+#ifndef BLOCKSDB_H
+#define BLOCKSDB_H
 
 #include "dbwrapper.h"
 
@@ -185,4 +185,4 @@ namespace Index {
 
 
 
-#endif // BITCOIN_TXDB_H
+#endif

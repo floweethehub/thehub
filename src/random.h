@@ -17,8 +17,8 @@
  * along with this program.  If not, see <http://www.gnu.org/licenses/>.
  */
 
-#ifndef BITCOIN_RANDOM_H
-#define BITCOIN_RANDOM_H
+#ifndef FLOWEE_RANDOM_H
+#define FLOWEE_RANDOM_H
 
 #include "uint256.h"
 
@@ -58,4 +58,4 @@ static inline uint32_t insecure_rand(void)
     return (insecure_rand_Rw << 16) + insecure_rand_Rz;
 }
 
-#endif // BITCOIN_RANDOM_H
+#endif

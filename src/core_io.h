@@ -16,8 +16,8 @@
  * along with this program.  If not, see <http://www.gnu.org/licenses/>.
  */
 
-#ifndef BITCOIN_CORE_IO_H
-#define BITCOIN_CORE_IO_H
+#ifndef FLOWEE_CORE_IO_H
+#define FLOWEE_CORE_IO_H
 
 #include <string>
 #include <vector>
@@ -42,4 +42,4 @@ extern std::string EncodeHexTx(const CTransaction& tx);
 extern void ScriptPubKeyToUniv(const CScript& scriptPubKey, UniValue& out, bool fIncludeHex);
 extern void TxToUniv(const CTransaction& tx, const uint256& hashBlock, UniValue& entry);
 
-#endif // BITCOIN_CORE_IO_H
+#endif

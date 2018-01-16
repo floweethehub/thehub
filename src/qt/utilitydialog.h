@@ -16,8 +16,8 @@
  * along with this program.  If not, see <http://www.gnu.org/licenses/>.
  */
 
-#ifndef BITCOIN_QT_UTILITYDIALOG_H
-#define BITCOIN_QT_UTILITYDIALOG_H
+#ifndef FLOWEE_QT_UTILITYDIALOG_H
+#define FLOWEE_QT_UTILITYDIALOG_H
 
 #include <QDialog>
 #include <QObject>
@@ -63,4 +63,4 @@ protected:
     void closeEvent(QCloseEvent *event);
 };
 
-#endif // BITCOIN_QT_UTILITYDIALOG_H
+#endif

@@ -16,8 +16,8 @@
  * along with this program.  If not, see <http://www.gnu.org/licenses/>.
  */
 
-#ifndef BITCOIN_QT_CLIENTMODEL_H
-#define BITCOIN_QT_CLIENTMODEL_H
+#ifndef FLOWEE_QT_CLIENTMODEL_H
+#define FLOWEE_QT_CLIENTMODEL_H
 
 #include <QObject>
 #include <QDateTime>
@@ -120,4 +120,4 @@ public Q_SLOTS:
     void updateBanlist();
 };
 
-#endif // BITCOIN_QT_CLIENTMODEL_H
+#endif

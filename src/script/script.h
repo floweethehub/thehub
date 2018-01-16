@@ -17,8 +17,8 @@
  * along with this program.  If not, see <http://www.gnu.org/licenses/>.
  */
 
-#ifndef BITCOIN_SCRIPT_SCRIPT_H
-#define BITCOIN_SCRIPT_SCRIPT_H
+#ifndef FLOWEE_SCRIPT_SCRIPT_H
+#define FLOWEE_SCRIPT_SCRIPT_H
 
 #include "crypto/common.h"
 #include "prevector.h"
@@ -654,4 +654,4 @@ public:
     virtual ~CReserveScript() {}
 };
 
-#endif // BITCOIN_SCRIPT_SCRIPT_H
+#endif

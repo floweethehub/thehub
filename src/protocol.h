@@ -21,8 +21,8 @@
 #error This header can only be compiled as C++.
 #endif
 
-#ifndef BITCOIN_PROTOCOL_H
-#define BITCOIN_PROTOCOL_H
+#ifndef FLOWEE_PROTOCOL_H
+#define FLOWEE_PROTOCOL_H
 
 #include "netbase.h"
 #include "serialize.h"

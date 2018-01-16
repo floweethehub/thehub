@@ -17,8 +17,8 @@
  * along with this program.  If not, see <http://www.gnu.org/licenses/>.
  */
 
-#ifndef BITCOIN_INIT_H
-#define BITCOIN_INIT_H
+#ifndef FLOWEE_INIT_H
+#define FLOWEE_INIT_H
 
 #include <string>
 
@@ -51,4 +51,4 @@ static const bool DEFAULT_STOPAFTERBLOCKIMPORT = false;
 void StartShutdown();
 bool ShutdownRequested();
 
-#endif // BITCOIN_INIT_H
+#endif

@@ -16,9 +16,9 @@
  * along with this program.  If not, see <http://www.gnu.org/licenses/>.
  */
 
-#ifndef BITCOIN_NOUI_H
-#define BITCOIN_NOUI_H
+#ifndef FLOWEE_NOUI_H
+#define FLOWEE_NOUI_H
 
 extern void noui_connect();
 
-#endif // BITCOIN_NOUI_H
+#endif

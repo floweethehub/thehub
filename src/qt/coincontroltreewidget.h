@@ -16,8 +16,8 @@
  * along with this program.  If not, see <http://www.gnu.org/licenses/>.
  */
 
-#ifndef BITCOIN_QT_COINCONTROLTREEWIDGET_H
-#define BITCOIN_QT_COINCONTROLTREEWIDGET_H
+#ifndef FLOWEE_QT_COINCONTROLTREEWIDGET_H
+#define FLOWEE_QT_COINCONTROLTREEWIDGET_H
 
 #include <QKeyEvent>
 #include <QTreeWidget>
@@ -33,4 +33,4 @@ protected:
     virtual void keyPressEvent(QKeyEvent *event);
 };
 
-#endif // BITCOIN_QT_COINCONTROLTREEWIDGET_H
+#endif

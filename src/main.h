@@ -17,11 +17,11 @@
  * along with this program.  If not, see <http://www.gnu.org/licenses/>.
  */
 
-#ifndef BITCOIN_MAIN_H
-#define BITCOIN_MAIN_H
+#ifndef FLOWEE_MAIN_H
+#define FLOWEE_MAIN_H
 
 #if defined(HAVE_CONFIG_H)
-#include "config/bitcoin-config.h"
+#include "config/flowee-config.h"
 #endif
 
 #include "amount.h"
@@ -568,4 +568,4 @@ void CheckForkWarningConditionsOnNewFork(CBlockIndex* pindexNewForkTip);
  */
 bool IsSuperMajority(int minVersion, const CBlockIndex* pstart, unsigned nRequired, const Consensus::Params& consensusParams);
 
-#endif // BITCOIN_MAIN_H
+#endif

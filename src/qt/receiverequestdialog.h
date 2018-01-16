@@ -16,8 +16,8 @@
  * along with this program.  If not, see <http://www.gnu.org/licenses/>.
  */
 
-#ifndef BITCOIN_QT_RECEIVEREQUESTDIALOG_H
-#define BITCOIN_QT_RECEIVEREQUESTDIALOG_H
+#ifndef FLOWEE_QT_RECEIVEREQUESTDIALOG_H
+#define FLOWEE_QT_RECEIVEREQUESTDIALOG_H
 
 #include "walletmodel.h"
 
@@ -81,4 +81,4 @@ private:
     SendCoinsRecipient info;
 };
 
-#endif // BITCOIN_QT_RECEIVEREQUESTDIALOG_H
+#endif

@@ -16,8 +16,8 @@
  * along with this program.  If not, see <http://www.gnu.org/licenses/>.
  */
 
-#ifndef BITCOIN_CRYPTO_HMAC_SHA256_H
-#define BITCOIN_CRYPTO_HMAC_SHA256_H
+#ifndef FLOWEE_CRYPTO_HMAC_SHA256_H
+#define FLOWEE_CRYPTO_HMAC_SHA256_H
 
 #include "crypto/sha256.h"
 
@@ -43,4 +43,4 @@ public:
     void Finalize(unsigned char hash[OUTPUT_SIZE]);
 };
 
-#endif // BITCOIN_CRYPTO_HMAC_SHA256_H
+#endif

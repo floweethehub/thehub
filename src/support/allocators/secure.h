@@ -17,8 +17,8 @@
  * along with this program.  If not, see <http://www.gnu.org/licenses/>.
  */
 
-#ifndef BITCOIN_SUPPORT_ALLOCATORS_SECURE_H
-#define BITCOIN_SUPPORT_ALLOCATORS_SECURE_H
+#ifndef FLOWEE_SUPPORT_ALLOCATORS_SECURE_H
+#define FLOWEE_SUPPORT_ALLOCATORS_SECURE_H
 
 #include "support/pagelocker.h"
 
@@ -73,4 +73,4 @@ struct secure_allocator : public std::allocator<T> {
 // This is exactly like std::string, but with a custom allocator.
 typedef std::basic_string<char, std::char_traits<char>, secure_allocator<char> > SecureString;
 
-#endif // BITCOIN_SUPPORT_ALLOCATORS_SECURE_H
+#endif

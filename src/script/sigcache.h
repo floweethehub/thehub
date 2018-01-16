@@ -17,8 +17,8 @@
  * along with this program.  If not, see <http://www.gnu.org/licenses/>.
  */
 
-#ifndef BITCOIN_SCRIPT_SIGCACHE_H
-#define BITCOIN_SCRIPT_SIGCACHE_H
+#ifndef FLOWEE_SCRIPT_SIGCACHE_H
+#define FLOWEE_SCRIPT_SIGCACHE_H
 
 #include "script/interpreter.h"
 
@@ -41,4 +41,4 @@ public:
     bool VerifySignature(const std::vector<unsigned char>& vchSig, const CPubKey& vchPubKey, const uint256& sighash) const;
 };
 
-#endif // BITCOIN_SCRIPT_SIGCACHE_H
+#endif

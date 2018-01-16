@@ -18,8 +18,8 @@
  * along with this program.  If not, see <http://www.gnu.org/licenses/>.
  */
 
-#ifndef BITCOIN_POW_H
-#define BITCOIN_POW_H
+#ifndef FLOWEE_POW_H
+#define FLOWEE_POW_H
 
 #include "consensus/params.h"
 
@@ -43,4 +43,4 @@ arith_uint256 GetBlockProof(const CBlockIndex& block);
 /** Return the time it would take to redo the work difference between from and to, assuming the current hashrate corresponds to the difficulty at tip, in seconds. */
 int64_t GetBlockProofEquivalentTime(const CBlockIndex& to, const CBlockIndex& from, const CBlockIndex& tip, const Consensus::Params&);
 
-#endif // BITCOIN_POW_H
+#endif

@@ -16,8 +16,8 @@
  * along with this program.  If not, see <http://www.gnu.org/licenses/>.
  */
 
-#ifndef BITCOIN_LIMITEDMAP_H
-#define BITCOIN_LIMITEDMAP_H
+#ifndef FLOWEE_LIMITEDMAP_H
+#define FLOWEE_LIMITEDMAP_H
 
 #include <cassert>
 #include <map>
@@ -108,4 +108,4 @@ public:
     }
 };
 
-#endif // BITCOIN_LIMITEDMAP_H
+#endif

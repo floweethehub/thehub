@@ -17,7 +17,7 @@
  */
 
 #if defined(HAVE_CONFIG_H)
-#include "config/bitcoin-config.h"
+#include "config/flowee-config.h"
 #endif
 
 #include "optionsmodel.h"

@@ -16,10 +16,10 @@
  * along with this program.  If not, see <http://www.gnu.org/licenses/>.
  */
 
-#ifndef BITCOIN_COMPAT_SANITY_H
-#define BITCOIN_COMPAT_SANITY_H
+#ifndef FLOWEE_COMPAT_SANITY_H
+#define FLOWEE_COMPAT_SANITY_H
 
 bool glibc_sanity_test();
 bool glibcxx_sanity_test();
 
-#endif // BITCOIN_COMPAT_SANITY_H
+#endif

@@ -17,8 +17,8 @@
  * along with this program.  If not, see <http://www.gnu.org/licenses/>.
  */
 
-#ifndef BITCOIN_WALLET_WALLET_H
-#define BITCOIN_WALLET_WALLET_H
+#ifndef FLOWEE_WALLET_WALLET_H
+#define FLOWEE_WALLET_WALLET_H
 
 #include "amount.h"
 #include "streams.h"
@@ -942,4 +942,4 @@ public:
 };
 
 
-#endif // BITCOIN_WALLET_WALLET_H
+#endif

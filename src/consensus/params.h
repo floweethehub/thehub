@@ -17,8 +17,8 @@
  * along with this program.  If not, see <http://www.gnu.org/licenses/>.
  */
 
-#ifndef BITCOIN_CONSENSUS_PARAMS_H
-#define BITCOIN_CONSENSUS_PARAMS_H
+#ifndef FLOWEE_CONSENSUS_PARAMS_H
+#define FLOWEE_CONSENSUS_PARAMS_H
 
 #include "uint256.h"
 #include <map>
@@ -84,4 +84,4 @@ struct Params {
 };
 } // namespace Consensus
 
-#endif // BITCOIN_CONSENSUS_PARAMS_H
+#endif

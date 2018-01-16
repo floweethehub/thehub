@@ -16,11 +16,11 @@
  * along with this program.  If not, see <http://www.gnu.org/licenses/>.
  */
 
-#ifndef BITCOIN_ZMQ_ZMQCONFIG_H
-#define BITCOIN_ZMQ_ZMQCONFIG_H
+#ifndef FLOWEE_ZMQ_ZMQCONFIG_H
+#define FLOWEE_ZMQ_ZMQCONFIG_H
 
 #if defined(HAVE_CONFIG_H)
-#include "config/bitcoin-config.h"
+#include "config/flowee-config.h"
 #endif
 
 #include <cstdarg>
@@ -35,4 +35,4 @@
 
 void zmqError(const char *str);
 
-#endif // BITCOIN_ZMQ_ZMQCONFIG_H
+#endif

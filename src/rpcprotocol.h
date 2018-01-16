@@ -17,8 +17,8 @@
  * along with this program.  If not, see <http://www.gnu.org/licenses/>.
  */
 
-#ifndef BITCOIN_RPCPROTOCOL_H
-#define BITCOIN_RPCPROTOCOL_H
+#ifndef FLOWEE_RPCPROTOCOL_H
+#define FLOWEE_RPCPROTOCOL_H
 
 #include <list>
 #include <map>
@@ -104,4 +104,4 @@ bool GetAuthCookie(boost::filesystem::path filepath, std::string *cookie_out);
 /** Delete RPC authentication cookie from disk */
 void DeleteAuthCookie();
 
-#endif // BITCOIN_RPCPROTOCOL_H
+#endif

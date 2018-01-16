@@ -16,8 +16,8 @@
  * along with this program.  If not, see <http://www.gnu.org/licenses/>.
  */
 
-#ifndef BITCOIN_QT_WALLETMODELTRANSACTION_H
-#define BITCOIN_QT_WALLETMODELTRANSACTION_H
+#ifndef FLOWEE_QT_WALLETMODELTRANSACTION_H
+#define FLOWEE_QT_WALLETMODELTRANSACTION_H
 
 #include "walletmodel.h"
 
@@ -58,4 +58,4 @@ private:
     CAmount fee;
 };
 
-#endif // BITCOIN_QT_WALLETMODELTRANSACTION_H
+#endif

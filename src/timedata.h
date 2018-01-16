@@ -16,8 +16,8 @@
  * along with this program.  If not, see <http://www.gnu.org/licenses/>.
  */
 
-#ifndef BITCOIN_TIMEDATA_H
-#define BITCOIN_TIMEDATA_H
+#ifndef FLOWEE_TIMEDATA_H
+#define FLOWEE_TIMEDATA_H
 
 #include <algorithm>
 #include <cassert>
@@ -87,4 +87,4 @@ int64_t GetTimeOffset();
 int64_t GetAdjustedTime();
 void AddTimeData(const CNetAddr& ip, int64_t nTime);
 
-#endif // BITCOIN_TIMEDATA_H
+#endif

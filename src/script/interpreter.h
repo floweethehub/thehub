@@ -17,8 +17,8 @@
  * along with this program.  If not, see <http://www.gnu.org/licenses/>.
  */
 
-#ifndef BITCOIN_SCRIPT_INTERPRETER_H
-#define BITCOIN_SCRIPT_INTERPRETER_H
+#ifndef FLOWEE_SCRIPT_INTERPRETER_H
+#define FLOWEE_SCRIPT_INTERPRETER_H
 
 #include "script_error.h"
 #include "primitives/transaction.h"
@@ -161,4 +161,4 @@ public:
 bool EvalScript(std::vector<std::vector<unsigned char> >& stack, const CScript& script, unsigned int flags, const BaseSignatureChecker& checker, ScriptError* error = NULL);
 bool VerifyScript(const CScript& scriptSig, const CScript& scriptPubKey, unsigned int flags, const BaseSignatureChecker& checker, ScriptError* error = NULL);
 
-#endif // BITCOIN_SCRIPT_INTERPRETER_H
+#endif

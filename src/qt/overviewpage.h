@@ -16,8 +16,8 @@
  * along with this program.  If not, see <http://www.gnu.org/licenses/>.
  */
 
-#ifndef BITCOIN_QT_OVERVIEWPAGE_H
-#define BITCOIN_QT_OVERVIEWPAGE_H
+#ifndef FLOWEE_QT_OVERVIEWPAGE_H
+#define FLOWEE_QT_OVERVIEWPAGE_H
 
 #include "amount.h"
 
@@ -78,4 +78,4 @@ private Q_SLOTS:
     void updateWatchOnlyLabels(bool showWatchOnly);
 };
 
-#endif // BITCOIN_QT_OVERVIEWPAGE_H
+#endif

@@ -16,8 +16,8 @@
  * along with this program.  If not, see <http://www.gnu.org/licenses/>.
  */
 
-#ifndef BITCOIN_QT_PAYMENTREQUESTPLUS_H
-#define BITCOIN_QT_PAYMENTREQUESTPLUS_H
+#ifndef FLOWEE_QT_PAYMENTREQUESTPLUS_H
+#define FLOWEE_QT_PAYMENTREQUESTPLUS_H
 
 #include "paymentrequest.pb.h"
 
@@ -57,4 +57,4 @@ private:
     payments::PaymentDetails details;
 };
 
-#endif // BITCOIN_QT_PAYMENTREQUESTPLUS_H
+#endif

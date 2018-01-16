@@ -18,8 +18,8 @@
  * along with this program.  If not, see <http://www.gnu.org/licenses/>.
  */
 
-#ifndef BITCOIN_MINER_H
-#define BITCOIN_MINER_H
+#ifndef FLOWEE_MINER_H
+#define FLOWEE_MINER_H
 
 #include "primitives/block.h"
 
@@ -88,4 +88,4 @@ private:
     uint256 m_hashPrevBlock;
 };
 
-#endif // BITCOIN_MINER_H
+#endif

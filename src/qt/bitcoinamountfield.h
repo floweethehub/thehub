@@ -16,8 +16,8 @@
  * along with this program.  If not, see <http://www.gnu.org/licenses/>.
  */
 
-#ifndef BITCOIN_QT_BITCOINAMOUNTFIELD_H
-#define BITCOIN_QT_BITCOINAMOUNTFIELD_H
+#ifndef FLOWEE_QT_BITCOINAMOUNTFIELD_H
+#define FLOWEE_QT_BITCOINAMOUNTFIELD_H
 
 #include "amount.h"
 
@@ -86,4 +86,4 @@ private Q_SLOTS:
 
 };
 
-#endif // BITCOIN_QT_BITCOINAMOUNTFIELD_H
+#endif

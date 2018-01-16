@@ -16,11 +16,11 @@
  * along with this program.  If not, see <http://www.gnu.org/licenses/>.
  */
 
-#ifndef BITCOIN_COMPAT_ENDIAN_H
-#define BITCOIN_COMPAT_ENDIAN_H
+#ifndef FLOWEE_COMPAT_ENDIAN_H
+#define FLOWEE_COMPAT_ENDIAN_H
 
 #if defined(HAVE_CONFIG_H)
-#include "config/bitcoin-config.h"
+#include "config/flowee-config.h"
 #endif
 
 #include <cstdint>
@@ -207,4 +207,4 @@ inline uint64_t le64toh(uint64_t little_endian_64bits)
 
 #endif // WORDS_BIGENDIAN
 
-#endif // BITCOIN_COMPAT_ENDIAN_H
+#endif

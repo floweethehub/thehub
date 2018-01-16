@@ -16,8 +16,8 @@
  * along with this program.  If not, see <http://www.gnu.org/licenses/>.
  */
 
-#ifndef BITCOIN_QT_BANTABLEMODEL_H
-#define BITCOIN_QT_BANTABLEMODEL_H
+#ifndef FLOWEE_QT_BANTABLEMODEL_H
+#define FLOWEE_QT_BANTABLEMODEL_H
 
 #include "net.h"
 
@@ -83,4 +83,4 @@ private:
     BanTablePriv *priv;
 };
 
-#endif // BITCOIN_QT_BANTABLEMODEL_H
+#endif

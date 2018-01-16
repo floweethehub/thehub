@@ -16,8 +16,8 @@
  * along with this program.  If not, see <http://www.gnu.org/licenses/>.
  */
 
-#ifndef BITCOIN_QT_EDITADDRESSDIALOG_H
-#define BITCOIN_QT_EDITADDRESSDIALOG_H
+#ifndef FLOWEE_QT_EDITADDRESSDIALOG_H
+#define FLOWEE_QT_EDITADDRESSDIALOG_H
 
 #include <QDialog>
 
@@ -68,4 +68,4 @@ private:
     QString address;
 };
 
-#endif // BITCOIN_QT_EDITADDRESSDIALOG_H
+#endif

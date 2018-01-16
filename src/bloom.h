@@ -16,8 +16,8 @@
  * along with this program.  If not, see <http://www.gnu.org/licenses/>.
  */
 
-#ifndef BITCOIN_BLOOM_H
-#define BITCOIN_BLOOM_H
+#ifndef FLOWEE_BLOOM_H
+#define FLOWEE_BLOOM_H
 
 #include "serialize.h"
 
@@ -149,4 +149,4 @@ private:
 };
 
 
-#endif // BITCOIN_BLOOM_H
+#endif

@@ -17,8 +17,8 @@
  * along with this program.  If not, see <http://www.gnu.org/licenses/>.
  */
 
-#ifndef BITCOIN_MERKLEBLOCK_H
-#define BITCOIN_MERKLEBLOCK_H
+#ifndef FLOWEE_MERKLEBLOCK_H
+#define FLOWEE_MERKLEBLOCK_H
 
 #include "serialize.h"
 #include "uint256.h"
@@ -167,4 +167,4 @@ public:
     }
 };
 
-#endif // BITCOIN_MERKLEBLOCK_H
+#endif

@@ -16,8 +16,8 @@
  * along with this program.  If not, see <http://www.gnu.org/licenses/>.
  */
 
-#ifndef BITCOIN_QT_TEST_COMPATTESTS_H
-#define BITCOIN_QT_TEST_COMPATTESTS_H
+#ifndef FLOWEE_QT_TEST_COMPATTESTS_H
+#define FLOWEE_QT_TEST_COMPATTESTS_H
 
 #include <QObject>
 #include <QTest>
@@ -30,4 +30,4 @@ private Q_SLOTS:
     void bswapTests();
 };
 
-#endif // BITCOIN_QT_TEST_COMPATTESTS_H
+#endif

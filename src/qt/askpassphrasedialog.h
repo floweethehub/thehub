@@ -16,8 +16,8 @@
  * along with this program.  If not, see <http://www.gnu.org/licenses/>.
  */
 
-#ifndef BITCOIN_QT_ASKPASSPHRASEDIALOG_H
-#define BITCOIN_QT_ASKPASSPHRASEDIALOG_H
+#ifndef FLOWEE_QT_ASKPASSPHRASEDIALOG_H
+#define FLOWEE_QT_ASKPASSPHRASEDIALOG_H
 
 #include <QDialog>
 
@@ -62,4 +62,4 @@ protected:
     bool eventFilter(QObject *object, QEvent *event);
 };
 
-#endif // BITCOIN_QT_ASKPASSPHRASEDIALOG_H
+#endif

@@ -16,8 +16,8 @@
  * along with this program.  If not, see <http://www.gnu.org/licenses/>.
  */
 
-#ifndef BITCOIN_SCHEDULER_H
-#define BITCOIN_SCHEDULER_H
+#ifndef FLOWEE_SCHEDULER_H
+#define FLOWEE_SCHEDULER_H
 
 //
 // NOTE:

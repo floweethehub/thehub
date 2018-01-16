@@ -16,8 +16,8 @@
  * along with this program.  If not, see <http://www.gnu.org/licenses/>.
  */
 
-#ifndef BITCOIN_QT_CSVMODELWRITER_H
-#define BITCOIN_QT_CSVMODELWRITER_H
+#ifndef FLOWEE_QT_CSVMODELWRITER_H
+#define FLOWEE_QT_CSVMODELWRITER_H
 
 #include <QList>
 #include <QObject>
@@ -57,4 +57,4 @@ private:
     QList<Column> columns;
 };
 
-#endif // BITCOIN_QT_CSVMODELWRITER_H
+#endif

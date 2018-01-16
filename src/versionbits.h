@@ -16,8 +16,8 @@
  * along with this program.  If not, see <http://www.gnu.org/licenses/>.
  */
 
-#ifndef BITCOIN_CONSENSUS_VERSIONBITS
-#define BITCOIN_CONSENSUS_VERSIONBITS
+#ifndef FLOWEE_CONSENSUS_VERSIONBITS
+#define FLOWEE_CONSENSUS_VERSIONBITS
 
 #include "chain.h"
 #include <map>

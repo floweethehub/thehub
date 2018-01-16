@@ -18,8 +18,8 @@
  * along with this program.  If not, see <http://www.gnu.org/licenses/>.
  */
 
-#ifndef BITCOIN_VALIDATIONINTERFACE_H
-#define BITCOIN_VALIDATIONINTERFACE_H
+#ifndef FLOWEE_VALIDATIONINTERFACE_H
+#define FLOWEE_VALIDATIONINTERFACE_H
 
 #include <boost/signals2/signal.hpp>
 #include <boost/shared_ptr.hpp>
@@ -88,4 +88,4 @@ struct CMainSignals {
 
 CMainSignals& GetMainSignals();
 
-#endif // BITCOIN_VALIDATIONINTERFACE_H
+#endif

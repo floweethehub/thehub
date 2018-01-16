@@ -16,8 +16,8 @@
  * along with this program.  If not, see <http://www.gnu.org/licenses/>.
  */
 
-#ifndef BITCOIN_QT_TRANSACTIONFILTERPROXY_H
-#define BITCOIN_QT_TRANSACTIONFILTERPROXY_H
+#ifndef FLOWEE_QT_TRANSACTIONFILTERPROXY_H
+#define FLOWEE_QT_TRANSACTIONFILTERPROXY_H
 
 #include "amount.h"
 
@@ -79,4 +79,4 @@ private:
     bool showInactive;
 };
 
-#endif // BITCOIN_QT_TRANSACTIONFILTERPROXY_H
+#endif

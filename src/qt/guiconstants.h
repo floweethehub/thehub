@@ -16,8 +16,8 @@
  * along with this program.  If not, see <http://www.gnu.org/licenses/>.
  */
 
-#ifndef BITCOIN_QT_GUICONSTANTS_H
-#define BITCOIN_QT_GUICONSTANTS_H
+#ifndef FLOWEE_QT_GUICONSTANTS_H
+#define FLOWEE_QT_GUICONSTANTS_H
 
 /* Milliseconds between model updates */
 static const int MODEL_UPDATE_DELAY = 250;
@@ -79,4 +79,4 @@ static const int MAX_URI_LENGTH = 255;
 #define QAPP_APP_NAME_TESTNET "Bitcoin-Qt-testnet"
 #define QAPP_APP_NAME_TESTNET_FT "Bitcoin-Qt-testnet-ft"
 
-#endif // BITCOIN_QT_GUICONSTANTS_H
+#endif

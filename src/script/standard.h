@@ -17,8 +17,8 @@
  * along with this program.  If not, see <http://www.gnu.org/licenses/>.
  */
 
-#ifndef BITCOIN_SCRIPT_STANDARD_H
-#define BITCOIN_SCRIPT_STANDARD_H
+#ifndef FLOWEE_SCRIPT_STANDARD_H
+#define FLOWEE_SCRIPT_STANDARD_H
 
 #include "script/interpreter.h"
 #include "uint256.h"
@@ -90,4 +90,4 @@ CScript GetScriptForDestination(const CTxDestination& dest);
 CScript GetScriptForRawPubKey(const CPubKey& pubkey);
 CScript GetScriptForMultisig(int nRequired, const std::vector<CPubKey>& keys);
 
-#endif // BITCOIN_SCRIPT_STANDARD_H
+#endif

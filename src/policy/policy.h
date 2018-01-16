@@ -17,8 +17,8 @@
  * along with this program.  If not, see <http://www.gnu.org/licenses/>.
  */
 
-#ifndef BITCOIN_POLICY_POLICY_H
-#define BITCOIN_POLICY_POLICY_H
+#ifndef FLOWEE_POLICY_POLICY_H
+#define FLOWEE_POLICY_POLICY_H
 
 #include "consensus/consensus.h"
 #include "script/interpreter.h"
@@ -88,4 +88,4 @@ namespace Policy {
     bool areInputsStandard(const CTransaction& tx, const std::vector<CCoins> &inputs);
 }
 
-#endif // BITCOIN_POLICY_POLICY_H
+#endif

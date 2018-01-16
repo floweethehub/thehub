@@ -17,8 +17,8 @@
  * along with this program.  If not, see <http://www.gnu.org/licenses/>.
  */
 
-#ifndef BITCOIN_SYNC_H
-#define BITCOIN_SYNC_H
+#ifndef FLOWEE_SYNC_H
+#define FLOWEE_SYNC_H
 
 #include "threadsafety.h"
 
@@ -291,4 +291,4 @@ public:
     }
 };
 
-#endif // BITCOIN_SYNC_H
+#endif

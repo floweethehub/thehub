@@ -17,8 +17,8 @@
  * along with this program.  If not, see <http://www.gnu.org/licenses/>.
  */
 
-#ifndef BITCOIN_UNDO_H
-#define BITCOIN_UNDO_H
+#ifndef FLOWEE_UNDO_H
+#define FLOWEE_UNDO_H
 
 #include "compressor.h" 
 #include "primitives/transaction.h"
@@ -96,4 +96,4 @@ public:
     }
 };
 
-#endif // BITCOIN_UNDO_H
+#endif

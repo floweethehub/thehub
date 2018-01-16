@@ -18,8 +18,8 @@
  * along with this program.  If not, see <http://www.gnu.org/licenses/>.
  */
 
-#ifndef BITCOIN_CONSENSUS_VALIDATION_H
-#define BITCOIN_CONSENSUS_VALIDATION_H
+#ifndef FLOWEE_CONSENSUS_VALIDATION_H
+#define FLOWEE_CONSENSUS_VALIDATION_H
 
 #include <string>
 
@@ -98,4 +98,4 @@ public:
     std::string GetDebugMessage() const { return strDebugMessage; }
 };
 
-#endif // BITCOIN_CONSENSUS_VALIDATION_H
+#endif

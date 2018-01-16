@@ -16,8 +16,8 @@
  * along with this program.  If not, see <http://www.gnu.org/licenses/>.
  */
 
-#ifndef BITCOIN_COINCONTROL_H
-#define BITCOIN_COINCONTROL_H
+#ifndef FLOWEE_COINCONTROL_H
+#define FLOWEE_COINCONTROL_H
 
 #include "primitives/transaction.h"
 
@@ -82,4 +82,4 @@ private:
     std::set<COutPoint> setSelected;
 };
 
-#endif // BITCOIN_COINCONTROL_H
+#endif

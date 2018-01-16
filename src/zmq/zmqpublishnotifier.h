@@ -16,8 +16,8 @@
  * along with this program.  If not, see <http://www.gnu.org/licenses/>.
  */
 
-#ifndef BITCOIN_ZMQ_ZMQPUBLISHNOTIFIER_H
-#define BITCOIN_ZMQ_ZMQPUBLISHNOTIFIER_H
+#ifndef FLOWEE_ZMQ_ZMQPUBLISHNOTIFIER_H
+#define FLOWEE_ZMQ_ZMQPUBLISHNOTIFIER_H
 
 #include "zmqabstractnotifier.h"
 
@@ -54,4 +54,4 @@ public:
     bool NotifyTransaction(const CTransaction &transaction);
 };
 
-#endif // BITCOIN_ZMQ_ZMQPUBLISHNOTIFIER_H
+#endif

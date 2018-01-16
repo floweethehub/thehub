@@ -17,8 +17,8 @@
  * along with this program.  If not, see <http://www.gnu.org/licenses/>.
  */
 
-#ifndef BITCOIN_KEY_H
-#define BITCOIN_KEY_H
+#ifndef FLOWEE_KEY_H
+#define FLOWEE_KEY_H
 
 #include "pubkey.h"
 #include "serialize.h"
@@ -194,4 +194,4 @@ void ECC_Stop(void);
 /** Check that required EC support is available at runtime. */
 bool ECC_InitSanityCheck(void);
 
-#endif // BITCOIN_KEY_H
+#endif

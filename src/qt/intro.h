@@ -16,8 +16,8 @@
  * along with this program.  If not, see <http://www.gnu.org/licenses/>.
  */
 
-#ifndef BITCOIN_QT_INTRO_H
-#define BITCOIN_QT_INTRO_H
+#ifndef FLOWEE_QT_INTRO_H
+#define FLOWEE_QT_INTRO_H
 
 #include <QDialog>
 #include <QMutex>
@@ -84,4 +84,4 @@ private:
     friend class FreespaceChecker;
 };
 
-#endif // BITCOIN_QT_INTRO_H
+#endif

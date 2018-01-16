@@ -17,8 +17,8 @@
  * along with this program.  If not, see <http://www.gnu.org/licenses/>.
  */
 
-#ifndef BITCOIN_SUPPORT_PAGELOCKER_H
-#define BITCOIN_SUPPORT_PAGELOCKER_H
+#ifndef FLOWEE_SUPPORT_PAGELOCKER_H
+#define FLOWEE_SUPPORT_PAGELOCKER_H
 
 #include "support/cleanse.h"
 
@@ -188,4 +188,4 @@ void UnlockObject(const T& t)
     LockedPageManager::Instance().UnlockRange((void*)(&t), sizeof(T));
 }
 
-#endif // BITCOIN_SUPPORT_PAGELOCKER_H
+#endif

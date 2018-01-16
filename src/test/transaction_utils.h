@@ -16,8 +16,8 @@
  * along with this program.  If not, see <http://www.gnu.org/licenses/>.
  */
 
-#ifndef BITCOIN_TEST_TRANSACTION_UTILS_H
-#define BITCOIN_TEST_TRANSACTION_UTILS_H
+#ifndef FLOWEE_TEST_TRANSACTION_UTILS_H
+#define FLOWEE_TEST_TRANSACTION_UTILS_H
 
 #include <vector>
 #include <string>

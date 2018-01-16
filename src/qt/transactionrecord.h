@@ -16,8 +16,8 @@
  * along with this program.  If not, see <http://www.gnu.org/licenses/>.
  */
 
-#ifndef BITCOIN_QT_TRANSACTIONRECORD_H
-#define BITCOIN_QT_TRANSACTIONRECORD_H
+#ifndef FLOWEE_QT_TRANSACTIONRECORD_H
+#define FLOWEE_QT_TRANSACTIONRECORD_H
 
 #include "amount.h"
 #include "uint256.h"
@@ -154,4 +154,4 @@ public:
     bool statusUpdateNeeded();
 };
 
-#endif // BITCOIN_QT_TRANSACTIONRECORD_H
+#endif

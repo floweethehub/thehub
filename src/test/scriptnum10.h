@@ -17,8 +17,8 @@
  * along with this program.  If not, see <http://www.gnu.org/licenses/>.
  */
 
-#ifndef BITCOIN_TEST_SCRIPTNUM10_H
-#define BITCOIN_TEST_SCRIPTNUM10_H
+#ifndef FLOWEE_TEST_SCRIPTNUM10_H
+#define FLOWEE_TEST_SCRIPTNUM10_H
 
 #include <algorithm>
 #include <limits>
@@ -194,4 +194,4 @@ private:
 };
 
 
-#endif // BITCOIN_TEST_BIGNUM_H
+#endif

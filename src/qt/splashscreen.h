@@ -16,8 +16,8 @@
  * along with this program.  If not, see <http://www.gnu.org/licenses/>.
  */
 
-#ifndef BITCOIN_QT_SPLASHSCREEN_H
-#define BITCOIN_QT_SPLASHSCREEN_H
+#ifndef FLOWEE_QT_SPLASHSCREEN_H
+#define FLOWEE_QT_SPLASHSCREEN_H
 
 #include <QSplashScreen>
 
@@ -60,4 +60,4 @@ private:
     int curAlignment;
 };
 
-#endif // BITCOIN_QT_SPLASHSCREEN_H
+#endif

@@ -17,8 +17,8 @@
  * along with this program.  If not, see <http://www.gnu.org/licenses/>.
  */
 
-#ifndef BITCOIN_WALLET_DB_H
-#define BITCOIN_WALLET_DB_H
+#ifndef FLOWEE_WALLET_DB_H
+#define FLOWEE_WALLET_DB_H
 
 #include "clientversion.h"
 #include "serialize.h"
@@ -319,4 +319,4 @@ public:
     bool static Rewrite(const std::string& strFile, const char* pszSkip = NULL);
 };
 
-#endif // BITCOIN_WALLET_DB_H
+#endif

@@ -16,8 +16,8 @@
  * along with this program.  If not, see <http://www.gnu.org/licenses/>.
  */
 
-#ifndef BITCOIN_CHECKQUEUE_H
-#define BITCOIN_CHECKQUEUE_H
+#ifndef FLOWEE_CHECKQUEUE_H
+#define FLOWEE_CHECKQUEUE_H
 
 #include <algorithm>
 #include <vector>
@@ -226,4 +226,4 @@ public:
     }
 };
 
-#endif // BITCOIN_CHECKQUEUE_H
+#endif

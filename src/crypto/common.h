@@ -16,11 +16,11 @@
  * along with this program.  If not, see <http://www.gnu.org/licenses/>.
  */
 
-#ifndef BITCOIN_CRYPTO_COMMON_H
-#define BITCOIN_CRYPTO_COMMON_H
+#ifndef FLOWEE_CRYPTO_COMMON_H
+#define FLOWEE_CRYPTO_COMMON_H
 
 #if defined(HAVE_CONFIG_H)
-#include "bitcoin-config.h"
+#include "flowee-config.h"
 #endif
 
 #include <cstdint>
@@ -77,4 +77,4 @@ void static inline WriteBE64(unsigned char* ptr, uint64_t x)
     *((uint64_t*)ptr) = htobe64(x);
 }
 
-#endif // BITCOIN_CRYPTO_COMMON_H
+#endif

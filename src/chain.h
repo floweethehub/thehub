@@ -17,8 +17,8 @@
  * along with this program.  If not, see <http://www.gnu.org/licenses/>.
  */
 
-#ifndef BITCOIN_CHAIN_H
-#define BITCOIN_CHAIN_H
+#ifndef FLOWEE_CHAIN_H
+#define FLOWEE_CHAIN_H
 
 #include "arith_uint256.h"
 #include "primitives/block.h"
@@ -426,4 +426,4 @@ inline Log::Item operator<<(Log::Item item, const CDiskBlockPos &pos) {
     return item;
 }
 
-#endif // BITCOIN_CHAIN_H
+#endif

@@ -17,8 +17,8 @@
  * along with this program.  If not, see <http://www.gnu.org/licenses/>.
  */
 
-#ifndef BITCOIN_KEYSTORE_H
-#define BITCOIN_KEYSTORE_H
+#ifndef FLOWEE_KEYSTORE_H
+#define FLOWEE_KEYSTORE_H
 
 #include "key.h"
 #include "pubkey.h"
@@ -125,4 +125,4 @@ public:
 typedef std::vector<unsigned char, secure_allocator<unsigned char> > CKeyingMaterial;
 typedef std::map<CKeyID, std::pair<CPubKey, std::vector<unsigned char> > > CryptedKeyMap;
 
-#endif // BITCOIN_KEYSTORE_H
+#endif

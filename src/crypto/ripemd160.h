@@ -16,8 +16,8 @@
  * along with this program.  If not, see <http://www.gnu.org/licenses/>.
  */
 
-#ifndef BITCOIN_CRYPTO_RIPEMD160_H
-#define BITCOIN_CRYPTO_RIPEMD160_H
+#ifndef FLOWEE_CRYPTO_RIPEMD160_H
+#define FLOWEE_CRYPTO_RIPEMD160_H
 
 #include <cstdint>
 #include <cstdlib>
@@ -39,4 +39,4 @@ public:
     CRIPEMD160& Reset();
 };
 
-#endif // BITCOIN_CRYPTO_RIPEMD160_H
+#endif

@@ -18,8 +18,8 @@
  * along with this program.  If not, see <http://www.gnu.org/licenses/>.
  */
 
-#ifndef BITCOIN_SERIALIZE_H
-#define BITCOIN_SERIALIZE_H
+#ifndef FLOWEE_SERIALIZE_H
+#define FLOWEE_SERIALIZE_H
 
 #include "compat/endian.h"
 #include "prevector.h"
@@ -958,4 +958,4 @@ inline Streaming::BufferPool &operator<<(Streaming::BufferPool &pool, const T& o
     return pool;
 }
 
-#endif // BITCOIN_SERIALIZE_H
+#endif

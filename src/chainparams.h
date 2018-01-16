@@ -18,8 +18,8 @@
  * along with this program.  If not, see <http://www.gnu.org/licenses/>.
  */
 
-#ifndef BITCOIN_CHAINPARAMS_H
-#define BITCOIN_CHAINPARAMS_H
+#ifndef FLOWEE_CHAINPARAMS_H
+#define FLOWEE_CHAINPARAMS_H
 
 #include "chainparamsbase.h"
 #include "consensus/params.h"
@@ -138,4 +138,4 @@ CChainParams& Params(const std::string& chain);
  */
 void SelectParams(const std::string& chain);
 
-#endif // BITCOIN_CHAINPARAMS_H
+#endif

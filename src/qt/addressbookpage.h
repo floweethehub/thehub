@@ -16,8 +16,8 @@
  * along with this program.  If not, see <http://www.gnu.org/licenses/>.
  */
 
-#ifndef BITCOIN_QT_ADDRESSBOOKPAGE_H
-#define BITCOIN_QT_ADDRESSBOOKPAGE_H
+#ifndef FLOWEE_QT_ADDRESSBOOKPAGE_H
+#define FLOWEE_QT_ADDRESSBOOKPAGE_H
 
 #include <QDialog>
 
@@ -99,4 +99,4 @@ Q_SIGNALS:
     void sendCoins(QString addr);
 };
 
-#endif // BITCOIN_QT_ADDRESSBOOKPAGE_H
+#endif

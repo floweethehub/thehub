@@ -16,8 +16,8 @@
  * along with this program.  If not, see <http://www.gnu.org/licenses/>.
  */
 
-#ifndef BITCOIN_QT_TRANSACTIONDESCDIALOG_H
-#define BITCOIN_QT_TRANSACTIONDESCDIALOG_H
+#ifndef FLOWEE_QT_TRANSACTIONDESCDIALOG_H
+#define FLOWEE_QT_TRANSACTIONDESCDIALOG_H
 
 #include <QDialog>
 
@@ -42,4 +42,4 @@ private:
     Ui::TransactionDescDialog *ui;
 };
 
-#endif // BITCOIN_QT_TRANSACTIONDESCDIALOG_H
+#endif

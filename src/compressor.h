@@ -17,8 +17,8 @@
  * along with this program.  If not, see <http://www.gnu.org/licenses/>.
  */
 
-#ifndef BITCOIN_COMPRESSOR_H
-#define BITCOIN_COMPRESSOR_H
+#ifndef FLOWEE_COMPRESSOR_H
+#define FLOWEE_COMPRESSOR_H
 
 #include "primitives/transaction.h"
 #include "script/script.h"
@@ -134,4 +134,4 @@ public:
     }
 };
 
-#endif // BITCOIN_COMPRESSOR_H
+#endif

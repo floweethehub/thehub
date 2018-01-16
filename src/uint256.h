@@ -17,8 +17,8 @@
  * along with this program.  If not, see <http://www.gnu.org/licenses/>.
  */
 
-#ifndef BITCOIN_UINT256_H
-#define BITCOIN_UINT256_H
+#ifndef FLOWEE_UINT256_H
+#define FLOWEE_UINT256_H
 
 #include "crypto/common.h"
 #include "Logger.h"
@@ -181,4 +181,4 @@ inline Log::SilentItem operator<<(Log::SilentItem item, const base_blob<BITS> &d
     return item;
 }
 
-#endif // BITCOIN_UINT256_H
+#endif

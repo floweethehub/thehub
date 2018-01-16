@@ -16,11 +16,11 @@
  * along with this program.  If not, see <http://www.gnu.org/licenses/>.
  */
 
-#ifndef BITCOIN_NETBASE_H
-#define BITCOIN_NETBASE_H
+#ifndef FLOWEE_NETBASE_H
+#define FLOWEE_NETBASE_H
 
 #if defined(HAVE_CONFIG_H)
-#include "config/bitcoin-config.h"
+#include "config/flowee-config.h"
 #endif
 
 #include "compat.h"
@@ -251,4 +251,4 @@ bool SetSocketNonBlocking(SOCKET& hSocket, bool fNonBlocking);
  */
 struct timeval MillisToTimeval(int64_t nTimeout);
 
-#endif // BITCOIN_NETBASE_H
+#endif

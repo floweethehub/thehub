@@ -16,8 +16,8 @@
  * along with this program.  If not, see <http://www.gnu.org/licenses/>.
  */
 
-#ifndef BITCOIN_MEMUSAGE_H
-#define BITCOIN_MEMUSAGE_H
+#ifndef FLOWEE_MEMUSAGE_H
+#define FLOWEE_MEMUSAGE_H
 
 #include <cstdlib>
 #include <map>
@@ -142,4 +142,4 @@ static inline size_t DynamicUsage(const boost::unordered_map<X, Y, Z>& m)
 
 }
 
-#endif // BITCOIN_MEMUSAGE_H
+#endif

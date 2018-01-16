@@ -18,8 +18,8 @@
  * along with this program.  If not, see <http://www.gnu.org/licenses/>.
  */
 
-#ifndef BITCOIN_PRIMITIVES_TRANSACTION_H
-#define BITCOIN_PRIMITIVES_TRANSACTION_H
+#ifndef FLOWEE_PRIMITIVES_TRANSACTION_H
+#define FLOWEE_PRIMITIVES_TRANSACTION_H
 
 #include "amount.h"
 #include "script/script.h"
@@ -369,4 +369,4 @@ inline Log::SilentItem operator<<(Log::SilentItem item, const CTxOut &) {
 }
 
 
-#endif // BITCOIN_PRIMITIVES_TRANSACTION_H
+#endif

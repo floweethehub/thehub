@@ -16,8 +16,8 @@
  * along with this program.  If not, see <http://www.gnu.org/licenses/>.
  */
 
-#ifndef BITCOIN_HTTPRPC_H
-#define BITCOIN_HTTPRPC_H
+#ifndef FLOWEE_HTTPRPC_H
+#define FLOWEE_HTTPRPC_H
 
 #include <string>
 #include <map>

@@ -16,8 +16,8 @@
  * along with this program.  If not, see <http://www.gnu.org/licenses/>.
  */
 
-#ifndef BITCOIN_ZMQ_ZMQNOTIFICATIONINTERFACE_H
-#define BITCOIN_ZMQ_ZMQNOTIFICATIONINTERFACE_H
+#ifndef FLOWEE_ZMQ_ZMQNOTIFICATIONINTERFACE_H
+#define FLOWEE_ZMQ_ZMQNOTIFICATIONINTERFACE_H
 
 #include "validationinterface.h"
 #include <string>
@@ -49,4 +49,4 @@ private:
     std::list<CZMQAbstractNotifier*> notifiers;
 };
 
-#endif // BITCOIN_ZMQ_ZMQNOTIFICATIONINTERFACE_H
+#endif

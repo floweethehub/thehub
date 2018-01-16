@@ -16,8 +16,8 @@
  * along with this program.  If not, see <http://www.gnu.org/licenses/>.
  */
 
-#ifndef BITCOIN_QT_TRANSACTIONVIEW_H
-#define BITCOIN_QT_TRANSACTIONVIEW_H
+#ifndef FLOWEE_QT_TRANSACTIONVIEW_H
+#define FLOWEE_QT_TRANSACTIONVIEW_H
 
 #include "guiutil.h"
 
@@ -128,4 +128,4 @@ public Q_SLOTS:
 
 };
 
-#endif // BITCOIN_QT_TRANSACTIONVIEW_H
+#endif

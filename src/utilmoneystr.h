@@ -20,8 +20,8 @@
 /**
  * Money parsing/formatting utilities.
  */
-#ifndef BITCOIN_UTILMONEYSTR_H
-#define BITCOIN_UTILMONEYSTR_H
+#ifndef FLOWEE_UTILMONEYSTR_H
+#define FLOWEE_UTILMONEYSTR_H
 
 #include <cstdint>
 #include <string>
@@ -32,4 +32,4 @@ std::string FormatMoney(const CAmount& n);
 bool ParseMoney(const std::string& str, CAmount& nRet);
 bool ParseMoney(const char* pszIn, CAmount& nRet);
 
-#endif // BITCOIN_UTILMONEYSTR_H
+#endif

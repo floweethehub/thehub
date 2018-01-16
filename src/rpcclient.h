@@ -17,8 +17,8 @@
  * along with this program.  If not, see <http://www.gnu.org/licenses/>.
  */
 
-#ifndef BITCOIN_RPCCLIENT_H
-#define BITCOIN_RPCCLIENT_H
+#ifndef FLOWEE_RPCCLIENT_H
+#define FLOWEE_RPCCLIENT_H
 
 #include <univalue.h>
 
@@ -28,4 +28,4 @@ UniValue RPCConvertValues(const std::string& strMethod, const std::vector<std::s
  */
 UniValue ParseNonRFCJSONValue(const std::string& strVal);
 
-#endif // BITCOIN_RPCCLIENT_H
+#endif

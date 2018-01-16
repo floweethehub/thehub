@@ -16,8 +16,8 @@
  * along with this program.  If not, see <http://www.gnu.org/licenses/>.
  */
 
-#ifndef BITCOIN_ALLOWED_ARGS_H
-#define BITCOIN_ALLOWED_ARGS_H
+#ifndef FLOWEE_ALLOWED_ARGS_H
+#define FLOWEE_ALLOWED_ARGS_H
 
 #include <functional>
 #include <list>
@@ -151,4 +151,4 @@ public:
 
 } // namespace AllowedArgs
 
-#endif // BITCOIN_ALLOWED_ARGS_H
+#endif

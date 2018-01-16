@@ -16,11 +16,11 @@
  * along with this program.  If not, see <http://www.gnu.org/licenses/>.
  */
 
-#ifndef BITCOIN_COMPAT_BYTESWAP_H
-#define BITCOIN_COMPAT_BYTESWAP_H
+#ifndef FLOWEE_COMPAT_BYTESWAP_H
+#define FLOWEE_COMPAT_BYTESWAP_H
 
 #if defined(HAVE_CONFIG_H)
-#include "config/bitcoin-config.h"
+#include "config/flowee-config.h"
 #endif
 
 #include <cstdint>
@@ -77,4 +77,4 @@ inline uint64_t bswap_64(uint64_t x)
 
 #endif // defined(__APPLE__)
 
-#endif // BITCOIN_COMPAT_BYTESWAP_H
+#endif

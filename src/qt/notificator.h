@@ -16,11 +16,11 @@
  * along with this program.  If not, see <http://www.gnu.org/licenses/>.
  */
 
-#ifndef BITCOIN_QT_NOTIFICATOR_H
-#define BITCOIN_QT_NOTIFICATOR_H
+#ifndef FLOWEE_QT_NOTIFICATOR_H
+#define FLOWEE_QT_NOTIFICATOR_H
 
 #if defined(HAVE_CONFIG_H)
-#include "config/bitcoin-config.h"
+#include "config/flowee-config.h"
 #endif
 
 #include <QIcon>
@@ -91,4 +91,4 @@ private:
 #endif
 };
 
-#endif // BITCOIN_QT_NOTIFICATOR_H
+#endif

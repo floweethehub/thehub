@@ -16,8 +16,8 @@
  * along with this program.  If not, see <http://www.gnu.org/licenses/>.
  */
 
-#ifndef BITCOIN_CHAINPARAMSBASE_H
-#define BITCOIN_CHAINPARAMSBASE_H
+#ifndef FLOWEE_CHAINPARAMSBASE_H
+#define FLOWEE_CHAINPARAMSBASE_H
 
 #include <string>
 #include <vector>
@@ -70,4 +70,4 @@ std::string ChainNameFromCommandLine();
  */
 bool AreBaseParamsConfigured();
 
-#endif // BITCOIN_CHAINPARAMSBASE_H
+#endif

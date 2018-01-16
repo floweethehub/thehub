@@ -16,8 +16,8 @@
  * along with this program.  If not, see <http://www.gnu.org/licenses/>.
  */
 
-#ifndef BITCOIN_DBWRAPPER_H
-#define BITCOIN_DBWRAPPER_H
+#ifndef FLOWEE_DBWRAPPER_H
+#define FLOWEE_DBWRAPPER_H
 
 #include "clientversion.h"
 #include "serialize.h"
@@ -290,5 +290,5 @@ public:
 
 };
 
-#endif // BITCOIN_DBWRAPPER_H
+#endif
 

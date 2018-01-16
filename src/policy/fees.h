@@ -16,8 +16,8 @@
  * You should have received a copy of the GNU General Public License
  * along with this program.  If not, see <http://www.gnu.org/licenses/>.
  */
-#ifndef BITCOIN_POLICYESTIMATOR_H
-#define BITCOIN_POLICYESTIMATOR_H
+#ifndef FLOWEE_POLICYESTIMATOR_H
+#define FLOWEE_POLICYESTIMATOR_H
 
 #include "amount.h"
 #include "uint256.h"
@@ -300,4 +300,4 @@ private:
     CFeeRate feeLikely, feeUnlikely;
     double priLikely, priUnlikely;
 };
-#endif /*BITCOIN_POLICYESTIMATOR_H */
+#endif

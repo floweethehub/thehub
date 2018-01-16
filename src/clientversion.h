@@ -16,11 +16,11 @@
  * along with this program.  If not, see <http://www.gnu.org/licenses/>.
  */
 
-#ifndef BITCOIN_CLIENTVERSION_H
-#define BITCOIN_CLIENTVERSION_H
+#ifndef FLOWEE_CLIENTVERSION_H
+#define FLOWEE_CLIENTVERSION_H
 
 #if defined(HAVE_CONFIG_H)
-#include "config/bitcoin-config.h"
+#include "config/flowee-config.h"
 #else
 
 /**
@@ -78,4 +78,4 @@ std::string FormatFullVersion();
 
 #endif // WINDRES_PREPROC
 
-#endif // BITCOIN_CLIENTVERSION_H
+#endif
