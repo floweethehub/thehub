@@ -1,6 +1,6 @@
 /*
  * This file is part of the Flowee project
- * Copyright (C) 2016-2017 Tom Zander <tomz@freedommail.ch>
+ * Copyright (C) 2016-2018 Tom Zander <tomz@freedommail.ch>
  *
  * This program is free software: you can redistribute it and/or modify
  * it under the terms of the GNU General Public License as published by
@@ -31,10 +31,7 @@
 
 #include <boost/foreach.hpp>
 #include <boost/lexical_cast.hpp>
-
-#ifndef UAHF_CLIENT
-# define UAHF_CLIENT 0
-#endif
+#include <boost/algorithm/string/case_conv.hpp> // for to_lower()
 
 
 // static
@@ -78,8 +75,10 @@ void Application::init()
 {
     m_closingDown = false;
 
-    const bool fallback = GetArg("-uahfstarttime", UAHF_CLIENT) > 0;
-    if (GetBoolArg("-uahf", fallback)) {
+    if (boost::to_lower_copy(GetArg("-chain", "")) == "btc") {
+        m_uahfState = UAHFDisabled;
+        m_uahfStartTme = 0;
+    } else {
         m_uahfState = UAHFWaiting;
         const std::string chain = Params().NetworkIDString();
         if (chain == CBaseChainParams::REGTEST) {
@@ -88,11 +87,7 @@ void Application::init()
         } else {
             m_uahfStartTme = 1501590000;
         }
-    } else {
-        m_uahfState = UAHFDisabled;
-        m_uahfStartTme = 0;
     }
-    logInfo(8002) << "UAHF state:" << m_uahfState << "start time:" << m_uahfStartTme;
 }
 
 void Application::startThreads()
@@ -110,7 +105,7 @@ void Application::startThreads()
                 } catch (const boost::thread_interrupted&) {
                     return;
                 } catch (const std::exception& ex) {
-                    LogPrintf("Threadgroup: uncaught exception: %s\n", ex.what());
+                    logCritical(Log::Bitcoin) << "Threadgroup: uncaught exception" << ex;
                 }
             }
         });
@@ -132,7 +127,7 @@ Admin::Server *Application::adminServer()
         try {
             m_adminServer.reset(new Admin::Server(*m_ioservice));
         } catch (const std::exception &e) {
-            LogPrintf("Can't srart Admin::Server %s\n", e.what());
+            logCritical(Log::NWM) << "Can't start Admin::Server" << e;
         }
     }
     return m_adminServer.get();
@@ -199,7 +194,6 @@ Application::UAHFState Application::uahfChainState()
 
 void Application::setUahfChainState(Application::UAHFState state)
 {
-    logInfo(8002) << "Set UAHF:" << state;
     Application::instance()->m_uahfState = state;
 }
 

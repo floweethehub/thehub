@@ -290,15 +290,17 @@ void PrintExceptionContinue(const std::exception* pex, const char* pszThread)
     fprintf(stderr, "\n\n************************\n%s\n", message.c_str());
 }
 
-boost::filesystem::path GetDefaultDataDir(bool useCashName)
+boost::filesystem::path GetDefaultDataDir()
 {
     namespace fs = boost::filesystem;
-    // Windows: C:\Users\Username\AppData\Roaming\Bitcoin
-    // Mac: ~/Library/Application Support/Bitcoin
-    // Unix: $XDG_DATA_HOME/Bitcoin (fall back to ~/.bitcoin if it exists)
+    // Windows: C:\Users\Username\AppData\Roaming\Flowee
+    // Mac: ~/Library/Application Support/Flowee
+    // Unix: $XDG_DATA_HOME/Flowee (typically $HOME/.local/share/Flowee)
 
-    // replace "bitcoin" above with "bitcoincash" for the uahf fork.
-    std::string dirName = useCashName ? "BitcoinCash" : "Bitcoin";
+    std::string dirName = "Flowee";
+    // append "/BTC" to the above for the legacy bitcoin chain.
+    if (boost::to_lower_copy(GetArg("-chain", "")) == "btc")
+        dirName += "/BTC";
 
 #ifdef WIN32
     // Windows
@@ -314,10 +316,6 @@ boost::filesystem::path GetDefaultDataDir(bool useCashName)
     // Mac
     return pathHome / "Library/Application Support" / dirName;
 #else
-    // Unix
-    fs::path pathLegacy = pathHome / (useCashName ? ".bitcoincash" : ".bitcoin");
-    if (fs::exists(pathLegacy))
-        return pathLegacy;
 
     fs::path pathDataHome;
     char* pszDataHome = getenv("XDG_DATA_HOME");
@@ -355,7 +353,7 @@ const boost::filesystem::path &GetDataDir(bool fNetSpecific)
             return path;
         }
     } else {
-        path = GetDefaultDataDir(false);
+        path = GetDefaultDataDir();
     }
     if (fNetSpecific)
         path /= BaseParams().DataDir();

@@ -44,7 +44,7 @@ class FullBlockTest(ComparisonTestFramework):
 
     def setup_network(self):
         self.nodes = start_nodes(1, self.options.tmpdir,
-                extra_args = [['-whitelist=127.0.0.1', '-blocksizeacceptlimit=2' ,'-uahf=false']])
+                extra_args = [['-whitelist=127.0.0.1', '-blocksizeacceptlimit=2' ,'-chain=btc']])
 
     def run_test(self):
         test = TestManager(self, self.options.tmpdir)

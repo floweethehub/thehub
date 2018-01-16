@@ -71,6 +71,7 @@
 #include <boost/algorithm/string/predicate.hpp>
 #include <boost/algorithm/string/replace.hpp>
 #include <boost/algorithm/string/split.hpp>
+#include <boost/algorithm/string/case_conv.hpp> // for to_lower()
 #include <boost/bind.hpp>
 #include <boost/filesystem.hpp>
 #include <boost/function.hpp>
@@ -528,6 +529,7 @@ bool AppInit2(boost::thread_group& threadGroup, CScheduler& scheduler)
     if (setProcDEPPol != NULL) setProcDEPPol(PROCESS_DEP_ENABLE);
 #endif
 
+
     if (!SetupNetworking())
         return InitError("Initializing networking failed");
 
@@ -559,6 +561,11 @@ bool AppInit2(boost::thread_group& threadGroup, CScheduler& scheduler)
     const CChainParams& chainparams = Params();
 
     // also see: InitParameterInteraction()
+
+    const std::string chainChoice = boost::to_lower_copy(GetArg("-chain", "bch"));
+    if (chainChoice != "btc" && chainChoice != "bch") {
+        return InitError("Unknown value passed to 'chain' param");
+    }
 
     // if using block pruning, then disable txindex
     if (GetArg("-prune", 0)) {
@@ -728,7 +735,6 @@ bool AppInit2(boost::thread_group& threadGroup, CScheduler& scheduler)
 
     if (GetBoolArg("-use-thinblocks", true))
         nLocalServices |= NODE_XTHIN;
-
     if (Application::uahfChainState() != Application::UAHFDisabled) {
         nLocalServices |= NODE_BITCOIN_CASH;
         if (Params().NetworkIDString() ==  CBaseChainParams::MAIN) {

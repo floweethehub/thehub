@@ -132,7 +132,7 @@ BOOST_AUTO_TEST_CASE(rpc_rawparams)
 
 BOOST_AUTO_TEST_CASE(rpc_rawsign)
 {
-    mapArgs["-uahf"] = "false";
+    mapArgs["-chain"] = "btc";
     MockApplication::doInit();
     UniValue r;
     // input is a 1-of-2 multisig (so is output):

@@ -175,12 +175,6 @@ AC_ARG_ENABLE([zmq],
   [use_zmq=$enableval],
   [use_zmq=yes])
 
-AC_ARG_ENABLE([uahf],
-  [AS_HELP_STRING([--enable-uahf],
-  [set the default to follow the UAHF (BCH) chain])],
-  [use_uahf=yes],
-  [use_uahf=no])
-
 AC_ARG_WITH([protoc-bindir],[AS_HELP_STRING([--with-protoc-bindir=BIN_DIR],[specify protoc bin path])], [protoc_bin_path=$withval], [])
 
 # Enable debug
@@ -799,10 +793,6 @@ else
     BITCOIN_QT_CHECK([AC_CHECK_LIB([qrencode], [main],[QR_LIBS=-lqrencode], [have_qrencode=no])])
     BITCOIN_QT_CHECK([AC_CHECK_HEADER([qrencode.h],, have_qrencode=no)])
   fi
-fi
-
-if test "x$use_uahf" = "xyes"; then
-    CPPFLAGS="$CPPFLAGS -DUAHF_CLIENT=1"
 fi
 
 dnl univalue check

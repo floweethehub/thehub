@@ -2,7 +2,7 @@
  * This file is part of the Flowee project
  * Copyright (c) 2010 Satoshi Nakamoto
  * Copyright (c) 2009-2015 The Bitcoin Core developers
- * Copyright (C) 2016-2017 Tom Zander <tomz@freedommail.ch>
+ * Copyright (C) 2016-2018 Tom Zander <tomz@freedommail.ch>
  *
  * This program is free software: you can redistribute it and/or modify
  * it under the terms of the GNU General Public License as published by
@@ -25,6 +25,7 @@
 #include "utilstrencodings.h"
 
 #include <boost/assign/list_of.hpp>
+#include <boost/algorithm/string/case_conv.hpp> // for to_lower()
 
 #include "chainparamsseeds.h"
 
@@ -147,17 +148,17 @@ public:
         assert(consensus.hashGenesisBlock == uint256S("0x000000000019d6689c085ae165831e934ff763ae46a2a6c172b3f1b60a8ce26f"));
         assert(genesis.hashMerkleRoot == uint256S("0x4a5e1e4baab89f3a32518a88c31bc87f618f76673e2cc77ab2127b7afdeda33b"));
 
-        const bool fallback = GetArg("-uahfstarttime", UAHF_CLIENT) > 0;
-        if (GetBoolArg("-uahf", fallback)) {
-            vSeeds.push_back(CDNSSeedData("thomaszander.se", "cash-seed.bitcoin.thomaszander.se"));
-            vSeeds.push_back(CDNSSeedData("bitprim.org", "seed.bitprim.org"));
-        } else {
+        const bool isLegacy = boost::to_lower_copy(GetArg("-chain", "")) == "btc";
+        if (isLegacy) {
             vSeeds.push_back(CDNSSeedData("bitcoin.sipa.be", "seed.bitcoin.sipa.be")); // Pieter Wuille
             vSeeds.push_back(CDNSSeedData("bluematt.me", "dnsseed.bluematt.me")); // Matt Corallo
             vSeeds.push_back(CDNSSeedData("dashjr.org", "dnsseed.bitcoin.dashjr.org")); // Luke Dashjr
             vSeeds.push_back(CDNSSeedData("bitcoinstats.com", "seed.bitcoinstats.com")); // Christian Decker
             vSeeds.push_back(CDNSSeedData("xf2.org", "bitseed.xf2.org")); // Jeff Garzik
             vSeeds.push_back(CDNSSeedData("bitcoin.jonasschnelli.ch", "seed.bitcoin.jonasschnelli.ch")); // Jonas Schnelli
+        } else {
+            vSeeds.push_back(CDNSSeedData("bitprim.org", "seed.bitprim.org"));
+            vSeeds.push_back(CDNSSeedData("criptolayer.net", "seeder.criptolayer.net"));
         }
 
         base58Prefixes[PUBKEY_ADDRESS] = std::vector<unsigned char>(1,0);
@@ -195,11 +196,12 @@ public:
             (225430, uint256S("0x00000000000001c108384350f74090433e7fcf79a606b8e797f065b130575932"))
             (250000, uint256S("0x000000000000003887df1f29024b06fc2200b55f8af8f35453d7be294df2d214"))
             (279000, uint256S("0x0000000000000001ae8c72a0b0c301f67e3afca10e819efa9041e458e9bd7e40"))
-            (295000, uint256S("0x00000000000000004d9b4ef50f0f9d686fd69db2e03af35a100370c64632a983")),
-            1397080064, // * UNIX timestamp of last checkpoint block
-            36544669,   // * total number of transactions between genesis and last checkpoint
-                        //   (the tx=... number in the SetBestChain debug.log lines)
-            60000.0     // * estimated number of transactions per day after checkpoint
+            (295000, uint256S("0x00000000000000004d9b4ef50f0f9d686fd69db2e03af35a100370c64632a983"))
+            (478558, uint256S("0x0000000000000000011865af4122fe3b144e2cbeea86142e8ff2fb4107352d43")),
+            1501593400, // * UNIX timestamp of last checkpoint block
+            243276768,   // * total number of transactions between genesis and last checkpoint
+                        //   (the tx=... number in the processNewBlock debug.log lines)
+            250000.0     // * estimated number of transactions per day after checkpoint
         };
     }
 };
@@ -265,17 +267,15 @@ public:
 
         vFixedSeeds.clear();
         vSeeds.clear();
-        const bool fallback = GetArg("-uahfstarttime", UAHF_CLIENT) > 0;
-        if (GetBoolArg("-uahf", fallback)) {
-            // nodes with support for servicebits filtering should be at the top
-            vSeeds.push_back(CDNSSeedData("bitcoinforks.org", "testnet-seed-abc.bitcoinforks.org"));
-            vSeeds.push_back(CDNSSeedData("bitprim.org", "testnet-seed.bitprim.org"));
-        } else {
+        const bool isLegacy = boost::to_lower_copy(GetArg("-chain", "")) == "btc";
+        if (isLegacy) {
             vSeeds.push_back(CDNSSeedData("bitcoin.petertodd.org", "testnet-seed.bitcoin.petertodd.org"));
             vSeeds.push_back(CDNSSeedData("bluematt.me", "testnet-seed.bluematt.me"));
             vSeeds.push_back(CDNSSeedData("bitcoin.schildbach.de", "testnet-seed.bitcoin.schildbach.de"));
+        } else {
+            vSeeds.push_back(CDNSSeedData("bitcoinforks.org", "testnet-seed-abc.bitcoinforks.org"));
+            vSeeds.push_back(CDNSSeedData("bitprim.org", "testnet-seed.bitprim.org"));
         }
-
 
         base58Prefixes[PUBKEY_ADDRESS] = std::vector<unsigned char>(1,111);
         base58Prefixes[SCRIPT_ADDRESS] = std::vector<unsigned char>(1,196);
@@ -447,8 +447,8 @@ void SelectParams(const std::string& network)
 
 const CMessageHeader::MessageStartChars &CChainParams::magic() const
 {
-    const bool fallback = GetArg("-uahfstarttime", UAHF_CLIENT) > 0;
-    if (GetBoolArg("-uahf", fallback))
-        return pchMessageStartCash;
-    return pchMessageStart;
+    const bool isLegacy = boost::to_lower_copy(GetArg("-chain", "")) == "btc";
+    if (isLegacy)
+        return pchMessageStart;
+    return pchMessageStartCash;
 }

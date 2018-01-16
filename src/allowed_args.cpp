@@ -258,8 +258,7 @@ static void addGeneralOptions(AllowedArgs& allowedArgs, HelpMessageMode mode)
                 "(default: 0 = disable pruning blocks, >%u = target size in MiB to use for block files)"), MIN_DISK_SPACE_FOR_BLOCK_FILES / 1024 / 1024))
         .addArg("reindex", optionalBool, _("Rebuild block chain index from current blk000??.dat files on startup"))
         .addArg("txindex", optionalBool, strprintf(_("Maintain a full transaction index, used by the getrawtransaction rpc call (default: %u)"), DEFAULT_TXINDEX))
-        .addArg("uahfstarttime", requiredInt, "Obsolete")
-        .addArg("uahf", optionalBool, "If selected, we follow the BCH (UAHF) chain")
+        .addArg("chain", requiredStr, "Which chain to select, either BTC or BCH (=default)")
         .addArg("blockdatadir=<dir>", requiredStr, "List a fallback directory to find blocks/blk* files")
         ;
 }

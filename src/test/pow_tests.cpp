@@ -147,14 +147,14 @@ BOOST_AUTO_TEST_CASE(retargeting_test) {
     }
 
     // turn UAHF off.
-    mapArgs["-uahf"] = "0";
+    mapArgs["-chain"] = "BTC";
     MockApplication::doInit();
     // Add one more 2 hour block. Without UAHF this makes the POW unchanged.
     blocks[1010] = GetBlockIndex(&blocks[1009], 2 * 3600, 0x207fffff);
     BOOST_CHECK_EQUAL(GetNextWorkRequired(&blocks[1010], &blkHeaderDummy, params), 0x207fffff);
 
     // turn it on.
-    mapArgs["-uahf"] = "true";
+    mapArgs["-chain"] = "BCH";
     MockApplication::doInit();
     // Now we expect the difficulty to decrease.
     BOOST_CHECK_EQUAL(GetNextWorkRequired(&blocks[1010], &blkHeaderDummy, params), 0x1d00ffff);

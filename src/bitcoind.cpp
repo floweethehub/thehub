@@ -27,7 +27,6 @@
 #include "httpserver.h"
 #include "httprpc.h"
 #include "rpcserver.h"
-#include "datadirmigration.h"
 
 #include <boost/algorithm/string/predicate.hpp>
 #include <boost/filesystem.hpp>
@@ -102,14 +101,6 @@ bool AppInit(int argc, char* argv[])
                 return false;
             }
         }
-        DatadirMigration migration; // for Bitcoin Cash
-        try {
-            migration.migrateToCashIfNeeded();
-        } catch (const std::exception &e) {
-            logFatal(6001) << "Failed to migrate" << e;
-            return 1;
-        }
-        migration.updateConfig();
         try {
             ReadConfigFile(mapArgs, mapMultiArgs);
         } catch (const std::exception& e) {
