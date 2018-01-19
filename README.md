@@ -1,38 +1,23 @@
-Bitcoin Classic integration/staging tree
-=====================================
+Flowee the Hub repository
+=========================
 
-https://bitcoinclassic.com
+# Building a Hub that connects you to Bitcoin
 
-What is Bitcoin?
-----------------
+As the first and most valuable crypto currency in existence Bitcoin is
+still a mysterious black box to most companies that would potentially want
+to use it or build applications on top of.
 
-Bitcoin is an experimental new digital currency that enables instant payments to
-anyone, anywhere in the world. Bitcoin uses peer-to-peer technology to operate
-with no central authority: managing transactions and issuing money are carried
-out collectively by the network.
+Flowee is being built to help you connect to the Bitcoin network and handle all
+the validation, parsing and low level database access for all your Bitcoin
+needs. Including many needs you didn't even know you had!
 
-For more information, as well as an immediately useable, binary version of
-the Bitcoin Classic software, see https://bitcoinclassic.com.
+The codebase is derived from the one that originally was created by Satoshi
+Nakamoto, the inventor of Bitcoin. This way you know you won't get
+compatibility issues. Flowee is adjusted for greatly increased speed and
+reliability as well as for scaling up to much larger blocks than the
+competition.
 
-License
--------
 
-Bitcoin Classic is released under the terms of the MIT license. See [COPYING](COPYING) for more
-information or see https://opensource.org/licenses/MIT.
+More details;
 
-Development Process
--------------------
-
-The classic team uses two branches, a stable and an develop branch (called master).
-The stable is one that
-has only tested code on it and this is where releases are made from. The 'master' branch
-is used for actual development and that branch should be used with caution.
-
-The contribution workflow is described in [CONTRIBUTING.md](CONTRIBUTING.md).
-
-Community
----------
-
-- Primary Website: https://bitcoinclassic.com/
-- Reddit: https://www.reddit.com/r/Bitcoin_Classic/
-- GitHub: https://github.com/bitcoinclassic/
+http://floweethehub.com
