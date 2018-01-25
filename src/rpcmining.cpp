@@ -2,6 +2,7 @@
  * This file is part of the Flowee project
  * Copyright (C) 2010 Satoshi Nakamoto
  * Copyright (C) 2009-2015 The Bitcoin Core developers
+ * Copyright (C) 2017-2018 Tom Zander <toms@freedommail.ch>
  *
  * This program is free software: you can redistribute it and/or modify
  * it under the terms of the GNU General Public License as published by
@@ -325,7 +326,7 @@ UniValue getblocktemplate(const UniValue& params, bool fHelp)
             "getblocktemplate ( \"jsonrequestobject\" )\n"
             "\nIf the request parameters include a 'mode' key, that is used to explicitly select between the default 'template' request or a 'proposal'.\n"
             "It returns data needed to construct a block to work on.\n"
-            "See https://en.bitcoin.it/wiki/BIP_0022 for full specification.\n"
+            "See https://github.com/bitcoin/bips/blob/master/bip-0022.mediawiki for full specification.\n"
 
             "\nArguments:\n"
             "1. \"jsonrequestobject\"       (string, optional) A json object in the following spec\n"
@@ -380,8 +381,6 @@ UniValue getblocktemplate(const UniValue& params, bool fHelp)
             + HelpExampleRpc("getblocktemplate", "")
          );
 
-    LOCK(cs_main);
-
     std::string strMode = "template";
     UniValue lpval = NullUniValue;
     if (params.size() > 0)
@@ -427,8 +426,9 @@ UniValue getblocktemplate(const UniValue& params, bool fHelp)
             settings.setOnlyCheckValidity(true);
             settings.start();
             settings.waitUntilFinished();
-            if (!settings.error().empty())
-                throw JSONRPCError(RPC_VERIFY_ERROR, settings.error());
+            if (settings.error().empty())
+                return NullUniValue;
+            return settings.error();
         }
     }
 
@@ -443,6 +443,7 @@ UniValue getblocktemplate(const UniValue& params, bool fHelp)
 
     static unsigned int nTransactionsUpdatedLast;
 
+    LOCK(cs_main);
     if (!lpval.isNull())
     {
         // Wait to respond until either the best block changes, OR a minute has passed and there are more transactions

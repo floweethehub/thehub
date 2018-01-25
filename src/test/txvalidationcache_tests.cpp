@@ -45,12 +45,15 @@ public:
         dummy.nTime = parent->nTime;
         dummy.phashBlock = parent->phashBlock;
         uint256 dummySha;
+        uint32_t bits = parent->nBits;
 
         // std::vector<FastBlock> answer;
         for (int i = 0; i < COINBASE_MATURITY; ++i) {
             dummy.nHeight = parent->nHeight + i;
             dummy.nTime += 10;
+            dummy.nBits = bits;
             FastBlock block = bv.createBlock(&dummy, scriptPubKey);
+            bits = block.bits();
             bv.addBlock(block, Validation::SaveGoodToDisk, 0);
             coinbaseTxns.push_back(block.createOldBlock().vtx[0]);
             dummySha = block.createHash();

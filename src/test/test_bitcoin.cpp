@@ -177,8 +177,10 @@ FastBlock MockBlockValidation::createBlock(CBlockIndex *parent, const CScript& s
     block.nVersion = 4;
     block.hashPrevBlock = *parent->phashBlock;
     block.nTime = parent->nTime + 2;
-    block.nBits = 0x207fffff;
     block.nNonce = 0;
+
+    // don't call this in testNet, it will crash due to that null
+    block.nBits = GetNextWorkRequired(parent, nullptr, Params().GetConsensus());
 
     for (const CTransaction &tx : txns) {
         block.vtx.push_back(tx);
@@ -241,12 +243,15 @@ std::vector<FastBlock> MockBlockValidation::createChain(CBlockIndex *parent, int
     dummy.nTime = parent->nTime;
     dummy.phashBlock = parent->phashBlock;
     uint256 dummySha;
+    uint32_t bits = parent->nBits;
 
     std::vector<FastBlock> answer;
     for (int i = 0; i < blocks; ++i) {
         dummy.nHeight = parent->nHeight + i;
         dummy.nTime += 10;
+        dummy.nBits = bits;
         FastBlock block = createBlock(&dummy, scriptPubKey);
+        bits = block.bits();
         answer.push_back(block);
         dummySha = block.createHash();
         dummy.phashBlock = &dummySha;

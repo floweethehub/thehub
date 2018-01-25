@@ -1349,7 +1349,7 @@ void BlockValidationState::checks2HaveParentHeaders()
         if (m_blockIndex->pprev) { // not genesis
             const auto consensusParams = Params().GetConsensus();
             // Check proof of work
-            if (m_checkPow && block.nBits != GetNextWorkRequired(m_blockIndex->pprev, &block, consensusParams))
+            if (block.nBits != GetNextWorkRequired(m_blockIndex->pprev, &block, consensusParams))
                 throw Exception("bad-diffbits");
 
             // Check timestamp against prev
