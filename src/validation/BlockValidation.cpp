@@ -681,7 +681,7 @@ void ValidationEnginePrivate::processNewBlock(std::shared_ptr<BlockValidationSta
                     issuedWarningForVersion = true;
                 }
             } else if (state == THRESHOLD_LOCKED_IN) {
-                logInfo(Log::BlockValidation) << "unknown new rules are about to activate (versionbit" << bit << ")";
+                logInfo(Log::BlockValidation).nospace() << "unknown new rules are about to activate (versionbit " << bit << ")";
             }
         }
         for (int i = 0; i < 100 && pindex != NULL; i++) {
