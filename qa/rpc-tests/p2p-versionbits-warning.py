@@ -1,5 +1,6 @@
 #!/usr/bin/env python2
 # Copyright (c) 2016 The Bitcoin Core developers
+# Copyright (C) 2018 Tom Zander <tomz@freedommail.ch>
 # Distributed under the MIT/X11 software license, see the accompanying
 # file COPYING or http://www.opensource.org/licenses/mit-license.php.
 #
@@ -146,7 +147,15 @@ class VersionBitsWarningTest(BitcoinTestFramework):
         self.nodes[0] = start_node(0, self.options.tmpdir, ["-alertnotify=echo %s >> \"" + self.alert_filename + "\""])
 
         # Connecting one block should be enough to generate an error.
-        self.nodes[0].wallet.generate(1)
+        self.nodes[0].wallet.generate(1)[0].encode("ascii")
+        # wait for message to reach us
+        timeout = 30
+        while timeout > 0:
+            if (len(self.nodes[0].getinfo()["errors"]) == 0):
+                break
+            time.sleep(1)
+            timeout -= 1
+
         assert(len(self.nodes[0].getinfo()["errors"]) != 0)
         stop_node(self.nodes[0], 0)
         wait_bitcoinds()

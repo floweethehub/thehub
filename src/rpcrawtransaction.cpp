@@ -873,8 +873,8 @@ UniValue sendrawtransaction(const UniValue& params, bool fHelp)
     if (future.valid()) {
         const std::string result = future.get();
         if (!result.empty()) {
-            if (result == "missing-inputs")
-                throw JSONRPCError(RPC_TRANSACTION_ERROR, "Missing inputs");
+            if (result == "16: missing-inputs")
+                throw JSONRPCError(RPC_TRANSACTION_ERROR, result);
             throw JSONRPCError(RPC_TRANSACTION_REJECTED, result);
         }
     }
