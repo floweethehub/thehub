@@ -541,7 +541,7 @@ bool Blocks::Index::reconsiderBlock(CBlockIndex *pindex) {
     while (it != priv->indexMap.end()) {
         if (!it->second->IsValid() && it->second->GetAncestor(nHeight) == pindex) {
             it->second->nStatus &= ~BLOCK_FAILED_MASK;
-            markIndexUnsaved(it->second);
+            MarkIndexUnsaved(it->second);
         }
         it++;
     }
@@ -550,7 +550,7 @@ bool Blocks::Index::reconsiderBlock(CBlockIndex *pindex) {
     while (pindex != NULL) {
         if (pindex->nStatus & BLOCK_FAILED_MASK) {
             pindex->nStatus &= ~BLOCK_FAILED_MASK;
-            markIndexUnsaved(pindex);
+            MarkIndexUnsaved(pindex);
         }
         pindex = pindex->pprev;
     }

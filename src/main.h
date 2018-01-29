@@ -461,7 +461,7 @@ bool ContextualCheckBlock(const CBlock& block, CValidationState& state, CBlockIn
 bool TestBlockValidity(CValidationState& state, const CChainParams& chainparams, const CBlock& block, CBlockIndex* pindexPrev, bool fCheckPOW = true, bool fCheckMerkleRoot = true);
 
 /**  Mark this index as 'dirty' to be saved to disk soon */
-void markIndexUnsaved(CBlockIndex *index);
+void MarkIndexUnsaved(CBlockIndex *index);
 
 class CBlockFileInfo
 {

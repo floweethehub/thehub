@@ -38,7 +38,7 @@ class Engine;
  * The Block validation code is entirely a-synchronous. Adding a block will return immediately and processing
  * will happen in a separate worker thread.
  *
- * The method Validation::Engine:addBlock() return an instance of Settings. This instance allows you
+ * The method Validation::Engine:addBlock() returns an instance of Settings. This instance allows you
  * to set more settings on the block before the actual validation starts and also it allows you to introspect
  * information about the validation as it happens in the background.
  *
@@ -57,10 +57,10 @@ public:
     /**
      * After the header validation has succeded and no errors have been found, a block index will be created.
      * A BlockIndex in various cases will not have its ownership moved to the Blocks::DB, for instance
-     * if only a header was being validated.
+     * if no direct line to the genesis was found.
      * In such cases the blockIndex is owned by the ValidationSettings instance and the pointer will
      * become dangling as soon as the Settings object is deleted!
-     * Please note that the index may not have a height or parent yet either.
+     * Please note that the index may not have a height or parent yet, it is guarenteed to have a blockhash.
      */
     CBlockIndex *blockIndex() const;
 
@@ -97,18 +97,18 @@ public:
 
     /**
      * @brief waitUntilFinished returns when the block has finished validation.
-     * A block is either rejected or added to the main chain after this method returns.
-     * Notice that this means a block doesn't finish validation until such a moment that all
-     * parent blocks have finished validation too.
+     * A block that isn't very close to the tip may be finished after only inspecting its header.
+     * Blocks that are expected to become the new tip will cause this method to block until the
+     * main chain and mempool etc are updated.
      */
-    void waitUntilFinished();
+    void waitUntilFinished() const;
 
     /**
      * @brief waitHeaderFinshed won't return until the header has been validated and a blockIndex() assigned.
      * On valid blocks the blockIndex() getter will return an actual index.
-     * Please note that the index may not have a height or a parent yet.
+     * @see blockIndex()
      */
-    void waitHeaderFinished();
+    void waitHeaderFinished() const;
 
     Validation::Settings operator=(const Validation::Settings&);
 

@@ -130,8 +130,10 @@ void ValidationEnginePrivate::blockHeaderValidated(std::shared_ptr<BlockValidati
 {
     assert(strand.running_in_this_thread());
     assert(state->m_blockIndex == nullptr);
-    if (state->m_block.size() < 80) // malformed block, without header we can't report issues, just return
+    if (state->m_block.size() < 80) {// malformed block, without header we can't report issues, just return
+        state->error = "Malformed block (too short)";
         return;
+    }
 
     struct RAII {
         RAII(const std::shared_ptr<BlockValidationState> &state)
@@ -141,12 +143,21 @@ void ValidationEnginePrivate::blockHeaderValidated(std::shared_ptr<BlockValidati
         ~RAII() {
             std::shared_ptr<ValidationSettingsPrivate> settingsPriv = m_state->m_settings.lock();
             if (settingsPriv) {
-                if (m_state->m_blockIndex)
-                    settingsPriv->setBlockIndex(m_state->m_blockIndex, m_state->m_block.createHash());
-                if (finished)
-                    settingsPriv->markFinished();
                 if (!error.empty())
                     settingsPriv->error = error;
+                if (m_state->m_ownsIndex) {
+                    settingsPriv->blockHash = m_state->m_block.createHash();
+                    if (!m_state->m_blockIndex->phashBlock) {
+                        // make sure a non-global index still has a working blockhash pointer
+                        m_state->m_blockIndex->phashBlock = &settingsPriv->blockHash;
+                    }
+                } else {
+                    // destructor of state will not delete index, so we can safely deref
+                    settingsPriv->state.reset();
+                }
+                settingsPriv->setBlockIndex(m_state->m_blockIndex);
+                if (finished)
+                    settingsPriv->markFinished();
             }
         }
 
@@ -220,7 +231,7 @@ void ValidationEnginePrivate::blockHeaderValidated(std::shared_ptr<BlockValidati
         if (!state->m_checkValidityOnly && state->m_checkMerkleRoot) {
             handleFailedBlock(state);
             if (index)
-                markIndexUnsaved(index);
+                MarkIndexUnsaved(index);
         }
         return;
     }
@@ -280,7 +291,7 @@ void ValidationEnginePrivate::blockHeaderValidated(std::shared_ptr<BlockValidati
         item->m_blockIndex->RaiseValidity(BLOCK_VALID_TREE);
 
         item->m_blockIndex->phashBlock = Blocks::Index::insert(item->m_block.createHash(), item->m_blockIndex);
-        markIndexUnsaved(item->m_blockIndex); // Save it to the DB.
+        MarkIndexUnsaved(item->m_blockIndex); // Save it to the DB.
         assert(item->m_blockIndex->pprev || item->m_blockIndex->nHeight == 0);
         Blocks::DB::instance()->appendHeader(item->m_blockIndex);
         DEBUGBV << "appendHeader block at height:" << item->m_blockIndex->nHeight;
@@ -663,7 +674,7 @@ void ValidationEnginePrivate::processNewBlock(std::shared_ptr<BlockValidationSta
 
     chainTipChildren = state->m_chainChildren;
     state->m_blockIndex = 0;
-    markIndexUnsaved(index);
+    MarkIndexUnsaved(index);
     if (!addToChain)
         return;
 
@@ -769,7 +780,7 @@ void ValidationEnginePrivate::handleFailedBlock(const std::shared_ptr<BlockValid
             if (tip->GetAncestor(index->nHeight) == index) {
                 while (tip != index) {
                     tip->nStatus |= BLOCK_FAILED_CHILD;
-                    markIndexUnsaved(tip);
+                    MarkIndexUnsaved(tip);
                     tip = tip->pprev;
                 }
             }
@@ -778,7 +789,7 @@ void ValidationEnginePrivate::handleFailedBlock(const std::shared_ptr<BlockValid
             // transfer ownership so we can remember this failed block.
             index->phashBlock = Blocks::Index::insert(state->m_block.createHash(), index);
             state->m_ownsIndex = false;
-            markIndexUnsaved(index);
+            MarkIndexUnsaved(index);
         }
 
         auto currentHeaderTip = Blocks::DB::instance()->headerChain().Tip();
@@ -1554,7 +1565,7 @@ void BlockValidationState::storeUndoBlock(CBlockIndex *index)
         FastUndoBlock block = FastUndoBlock::fromOldBlock(m_undoBlock);
         Blocks::DB::instance()->writeUndoBlock(block, index->pprev->GetBlockHash(), index->nFile, &index->nUndoPos);
         index->nStatus |= BLOCK_HAVE_UNDO;
-        markIndexUnsaved(index);
+        MarkIndexUnsaved(index);
     } catch (std::exception &ex) {
         logFatal(Log::DB) << ex;
         auto parent = m_parent.lock();

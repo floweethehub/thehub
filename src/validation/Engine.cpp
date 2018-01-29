@@ -200,7 +200,7 @@ void Validation::Engine::invalidateBlock(CBlockIndex *index)
         return;
     // Mark the block itself as invalid.
     index->nStatus |= BLOCK_FAILED_VALID;
-    markIndexUnsaved(index);
+    MarkIndexUnsaved(index);
     Blocks::DB::instance()->appendHeader(index);
     WaitUntilFinishedHelper helper(std::bind(&ValidationEnginePrivate::prepareChain, d), &d->strand);
     helper.run();

@@ -125,7 +125,7 @@ BOOST_AUTO_TEST_CASE(retargeting_test) {
     std::vector<CBlockIndex> blocks(1013);
 
     // Genesis block?
-    blocks[0] = CBlockIndex();
+    blocks[0].SetNull();
     blocks[0].nHeight = 0;
     blocks[0].nTime = 1269211443;
     blocks[0].nBits = 0x207fffff;

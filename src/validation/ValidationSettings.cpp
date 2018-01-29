@@ -58,31 +58,35 @@ const std::string &Validation::Settings::error() const
 void Validation::Settings::setCheckPoW(bool on)
 {
     assert(d->state.get());
+    assert(!d->started);
     d->state->m_checkPow = on;
 }
 
 void Validation::Settings::setCheckMerkleRoot(bool on)
 {
     assert(d->state.get());
+    assert(!d->started);
     d->state->m_checkMerkleRoot = on;
 }
 
 void Validation::Settings::setCheckTransactionValidity(bool on)
 {
     assert(d->state.get());
+    assert(!d->started);
     d->state->m_checkTransactionValidity = on;
 }
 
 void Validation::Settings::setOnlyCheckValidity(bool on)
 {
     assert(d->state.get());
+    assert(!d->started);
     d->state->m_checkValidityOnly = on;
 }
 
-void Validation::Settings::waitHeaderFinished()
+void Validation::Settings::waitHeaderFinished() const
 {
     std::unique_lock<decltype(d->lock)> lock(d->lock);
-    if (d->state.get())
+    if (!d->started)
         logDebug(Log::BlockValidation) << "Doing a waitHeaderFinished() before start(), possible deadlock";
     while (!d->headerFinished)
         d->waitVariable.wait(lock);
@@ -97,33 +101,25 @@ Validation::Settings Validation::Settings::operator=(const Validation::Settings 
     return *this;
 }
 
-void Validation::Settings::waitUntilFinished()
+void Validation::Settings::waitUntilFinished() const
 {
     std::unique_lock<decltype(d->lock)> lock(d->lock);
-    if (d->state.get())
-        logDebug(Log::BlockValidation) << "Doing a waitUntilFinished() before start(), possible deadlock";
+    if (!d->started)
+         logDebug(Log::BlockValidation) << "Doing a waitUntilFinished() before start(), possible deadlock";
     while (!d->finished)
         d->waitVariable.wait(lock);
 }
 
 ValidationSettingsPrivate::ValidationSettingsPrivate()
-    : blockIndex(nullptr),
-    ref(1),
-    headerFinished(false),
-    finished(false)
+    : ref(1)
 {
 }
 
-void ValidationSettingsPrivate::setBlockIndex(CBlockIndex *index, const uint256 &hash)
+void ValidationSettingsPrivate::setBlockIndex(CBlockIndex *index)
 {
-    std::unique_lock<decltype(lock)> waitLock(lock);
     assert(index);
+    std::unique_lock<decltype(lock)> waitLock(lock);
     blockIndex = index;
-    if (blockIndex->phashBlock == nullptr) {
-        // yes this feels less than grand, lets schedule a rewrite of the blockindex database as this is as good as it gets.
-        blockIndex->phashBlock = &blockHash;
-    }
-    blockHash = hash;
     headerFinished = true;
     waitVariable.notify_all();
 }
@@ -131,9 +127,9 @@ void ValidationSettingsPrivate::setBlockIndex(CBlockIndex *index, const uint256 
 
 void ValidationSettingsPrivate::startRun()
 {
-    if (state.get()) {
+    if (!started && state.get()) {
+        started = true;
         Application::instance()->ioService().post(std::bind(&BlockValidationState::checks1NoContext, state));
-        state.reset();
     }
 }
 

@@ -31,22 +31,23 @@ struct ValidationSettingsPrivate {
 
     void startRun();
 
-    // allows waitHeaderValidated to return.
+    // allows waitHeaderFinished to return.
     // the usage of the info and the hash is such that the user can't use it longer than the lifetime of the settings object.
-    // pass in a hash and we'll set it on the info if it doesn't have one yet.
-    void setBlockIndex(CBlockIndex *info, const uint256 &hash);
+    void setBlockIndex(CBlockIndex *info);
     void markFinished();
 
     std::shared_ptr<BlockValidationState> state;
-    CBlockIndex *blockIndex;
+    CBlockIndex *blockIndex = nullptr;
     std::mutex lock;
     std::condition_variable waitVariable;
     std::string error;
 
-    short ref;
-    bool headerFinished;
-    bool finished;
     uint256 blockHash;
+    /// ref-count of the Settings main object, when it hits 0 we start the validation.
+    short ref;
+    bool headerFinished = false;
+    bool finished = false;
+    bool started = false;
 };
 
 #endif
