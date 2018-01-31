@@ -1,6 +1,7 @@
 /*
  * This file is part of the Flowee project
  * Copyright (C) 2015 The Bitcoin Core developers
+ * Copyright (C) 2018 Tom Zander <tomz@freedommail.ch>
  *
  * This program is free software: you can redistribute it and/or modify
  * it under the terms of the GNU General Public License as published by
@@ -19,11 +20,14 @@
 #ifndef _FLOWEE_PREVECTOR_H_
 #define _FLOWEE_PREVECTOR_H_
 
+#include <streaming/ConstBuffer.h>
+
 #include <cstdlib>
 #include <cstdint>
 #include <cstring>
 
 #include <iterator>
+#include <assert.h>
 
 #pragma pack(push, 1)
 /** Implements a drop-in replacement for std::vector<T> which stores up to N
@@ -163,6 +167,7 @@ private:
         struct {
             size_type capacity;
             char* indirect;
+            bool owned;
         };
     } _union;
 
@@ -185,6 +190,7 @@ private:
         } else {
             if (!is_direct()) {
                 _union.indirect = static_cast<char*>(realloc(_union.indirect, ((size_t)sizeof(T)) * new_capacity));
+                _union.owned = true;
                 _union.capacity = new_capacity;
             } else {
                 char* new_indirect = static_cast<char*>(malloc(((size_t)sizeof(T)) * new_capacity));
@@ -193,6 +199,7 @@ private:
                 memcpy(dst, src, size() * sizeof(T));
                 _union.indirect = new_indirect;
                 _union.capacity = new_capacity;
+                _union.owned = true;
                 _size += N + 1;
             }
         }
@@ -260,6 +267,14 @@ public:
             new(static_cast<void*>(item_ptr(size() - 1))) T(*it);
             ++it;
         }
+    }
+    prevector(const Streaming::ConstBuffer &buffer)
+        : _size(buffer.size() + N + 1)
+    {
+        static_assert(sizeof(T) == 1, "Can only be used for byte-arrays");
+        _union.capacity = buffer.size();
+        _union.owned = false;
+        _union.indirect = const_cast<char*>(buffer.begin());
     }
 
     prevector& operator=(const prevector<N, T, Size, Diff>& other) {
@@ -433,7 +448,8 @@ public:
     ~prevector() {
         clear();
         if (!is_direct()) {
-            free(_union.indirect);
+            if (_union.owned)
+                free(_union.indirect);
             _union.indirect = NULL;
         }
     }

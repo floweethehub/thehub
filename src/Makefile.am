@@ -131,6 +131,7 @@ BITCOIN_CORE_H = \
   prevector.h \
   primitives/block.h \
   primitives/transaction.h \
+  primitives/TxIterator_p.h \
   primitives/FastBlock.h \
   primitives/FastTransaction.h \
   primitives/FastUndoBlock.h \

@@ -21,6 +21,7 @@
 #include "wallet/wallet.h"
 
 #include <Application.h>
+#include <BlocksDB.h>
 #include "base58.h"
 #include "checkpoints.h"
 #include "chain.h"
@@ -28,12 +29,14 @@
 #include "consensus/consensus.h"
 #include "consensus/validation.h"
 #include "key.h"
+#include "init.h"
 #include "keystore.h"
 #include "main.h"
 #include "net.h"
 #include "policy/policy.h"
 #include "primitives/block.h"
 #include "primitives/transaction.h"
+#include <primitives/FastBlock.h>
 #include "script/script.h"
 #include "script/sign.h"
 #include "timedata.h"
@@ -90,7 +93,7 @@ std::string COutput::ToString() const
 const CWalletTx* CWallet::GetWalletTx(const uint256& hash) const
 {
     LOCK(cs_wallet);
-    std::map<uint256, CWalletTx>::const_iterator it = mapWallet.find(hash);
+    auto it = mapWallet.find(hash);
     if (it == mapWallet.end())
         return NULL;
     return &(it->second);
@@ -354,7 +357,7 @@ std::set<uint256> CWallet::GetConflicts(const uint256& txid) const
     std::set<uint256> result;
     AssertLockHeld(cs_wallet);
 
-    std::map<uint256, CWalletTx>::const_iterator it = mapWallet.find(txid);
+    auto it = mapWallet.find(txid);
     if (it == mapWallet.end())
         return result;
     const CWalletTx& wtx = it->second;
@@ -474,7 +477,7 @@ bool CWallet::IsSpent(const uint256& hash, unsigned int n) const
     for (TxSpends::const_iterator it = range.first; it != range.second; ++it)
     {
         const uint256& wtxid = it->second;
-        std::map<uint256, CWalletTx>::const_iterator mit = mapWallet.find(wtxid);
+        auto mit = mapWallet.find(wtxid);
         if (mit != mapWallet.end()) {
             int depth = mit->second.GetDepthInMainChain();
             if (depth > 0  || (depth == 0 && !mit->second.isAbandoned()))
@@ -643,7 +646,7 @@ bool CWallet::AddToWallet(const CWalletTx& wtxIn, bool fFromLoadWallet, CWalletD
     {
         LOCK(cs_wallet);
         // Inserts only if not already there, returns tx inserted or tx found
-        std::pair<std::map<uint256, CWalletTx>::iterator, bool> ret = mapWallet.insert(std::make_pair(hash, wtxIn));
+        auto ret = mapWallet.insert(std::make_pair(hash, wtxIn));
         CWalletTx& wtx = (*ret.first).second;
         wtx.BindWallet(this);
         bool fInsertedNew = ret.second;
@@ -857,7 +860,7 @@ bool CWallet::AbandonTransaction(const uint256& hashTx)
 
 void CWallet::MarkConflicted(const uint256& hashBlock, const uint256& hashTx)
 {
-    LOCK2(cs_main, cs_wallet);
+    LOCK(cs_wallet);
 
     int conflictconfirms = 0;
     if (Blocks::Index::exists(hashBlock)) {
@@ -956,7 +959,7 @@ isminetype CWallet::IsMine(const CTxIn &txin) const
 {
     {
         LOCK(cs_wallet);
-        std::map<uint256, CWalletTx>::const_iterator mi = mapWallet.find(txin.prevout.hash);
+        auto mi = mapWallet.find(txin.prevout.hash);
         if (mi != mapWallet.end())
         {
             const CWalletTx& prev = (*mi).second;
@@ -971,7 +974,7 @@ CAmount CWallet::GetDebit(const CTxIn &txin, const isminefilter& filter) const
 {
     {
         LOCK(cs_wallet);
-        std::map<uint256, CWalletTx>::const_iterator mi = mapWallet.find(txin.prevout.hash);
+        auto mi = mapWallet.find(txin.prevout.hash);
         if (mi != mapWallet.end())
         {
             const CWalletTx& prev = (*mi).second;
@@ -1215,25 +1218,244 @@ bool CWalletTx::WriteToDisk(CWalletDB *pwalletdb)
     return pwalletdb->WriteTx(GetHash(), *this);
 }
 
+struct NewTxData {
+    Tx tx;
+    int indexInBlock = -1;
+};
+typedef boost::unordered_map<uint256, NewTxData, Blocks::BlockHashShortener> NewTxDataMap;
+struct ScanContext {
+    CBlockIndex *block = nullptr;
+    std::list<uint256> txConflicted;
+    NewTxDataMap txToAdd;
+    int sequence = 0;
+};
+
+#include <boost/asio/strand.hpp>
+class ChainScanner {
+    inline int blocksInFlightLimit() {
+        return ((int) boost::thread::hardware_concurrency());
+    }
+public:
+    ChainScanner(CWallet *wallet)
+        : m_wallet(wallet),
+        m_strand(Application::instance()->ioService()),
+        m_blocksInFlight(0),
+        m_blocksStarted(0)
+    {
+    }
+
+    void setStartIndex(CBlockIndex *i) {
+        m_lastBlockDone = i->nHeight - 1;
+    }
+
+    void addBlock(CBlockIndex *index) {
+        assert(m_lastBlockDone >= -1);
+        std::shared_ptr<ScanContext> c(new ScanContext());
+        c->block = index;
+        c->sequence = m_blocksStarted.fetch_add(1);
+        flApp->ioService().post(std::bind(&ChainScanner::processBlock, this, c));
+        m_blocksInFlight.fetch_add(1);
+    }
+    void waitForSpace() {
+        std::unique_lock<decltype(lock)> lock_(lock);
+        while (m_blocksInFlight >= blocksInFlightLimit())
+            waitVariable.wait(lock_);
+    }
+    void waitForFinished() {
+        std::unique_lock<decltype(lock)> lock_(lock);
+        while (m_blocksInFlight > 0)
+            waitVariable.wait(lock_);
+    }
+
+private:
+    void processBlock(std::shared_ptr<ScanContext> context) {
+        try {
+            int txcount = 0;
+            bool oneEnd = false;
+            bool addTx = false;
+            std::list<uint256*> conflictingTx; // conflicts may be the tx itself, wait until end of tx so we can create the hash and check
+
+            FastBlock block = Blocks::DB::instance()->loadBlock(context->block->GetBlockPos());
+            Tx::Iterator iter(block);
+            while (true) {
+                Tx::Component type = iter.next();
+                if (type == Tx::End) { // end of transaction
+                    int wasConflicted = 0;
+                    if (!conflictingTx.empty()) {
+                        Tx tx(iter.prevTx());
+                        uint256 txId = tx.createHash();
+                        for (auto conflict : conflictingTx) {
+                            if (txId != *conflict) {
+                                context->txConflicted.push_back(*conflict);
+                                wasConflicted++;
+                            }
+                        }
+                        conflictingTx.clear();
+                    }
+                    if (addTx) {
+                        NewTxData data;
+                        data.tx = Tx(iter.prevTx());
+                        data.indexInBlock = txcount;
+                        context->txToAdd.insert(std::make_pair(data.tx.createHash(), data));
+                    }
+
+                    if (oneEnd) // then the second end means end of block
+                        break;
+                    addTx = false;
+                    txcount++;
+                }
+                oneEnd = type == Tx::End;
+
+                if (txcount != 0 && type == Tx::PrevTxHash) {
+                    COutPoint prevout;
+                    prevout.hash = iter.uint256Data();
+                    type = iter.next();
+                    assert(type == Tx::PrevTxIndex);
+                    prevout.n = iter.intData();
+
+                    {
+                        LOCK(m_wallet->cs_wallet);
+                        auto range = m_wallet->mapTxSpends.equal_range(prevout);
+                        while (range.first != range.second) {
+                            conflictingTx.push_back(&(range.first->second));
+                            range.first++;
+                        }
+
+                        if (!addTx) {
+                            auto mi = m_wallet->mapWallet.find(prevout.hash);
+                            if (mi != m_wallet->mapWallet.end()) {
+                                const CWalletTx &prev = (*mi).second;
+                                if (prevout.n < prev.vout.size() && m_wallet->IsMine(prev.vout[prevout.n]) & ISMINE_ALL)
+                                    addTx = prev.vout[prevout.n].nValue > 0;
+                            }
+                        }
+                    }
+                    if (!addTx) { // chained Txs
+                        auto mi = context->txToAdd.find(prevout.hash);
+                        if (mi != context->txToAdd.end())
+                            addTx = true;
+                    }
+                }
+                else if (!addTx && type == Tx::OutputScript) {
+                    CScript script(iter.byteData());
+                    addTx = ::IsMine(*m_wallet, script);
+                }
+            }
+        } catch (std::exception &e) {
+            logFatal(Log::Wallet) << "Block" << context->block->nHeight << "failed to parse." << e<< "Skipping!";
+        }
+
+        m_strand.post(std::bind(&ChainScanner::blockFinished, this, context));
+    }
+
+    // this is called in a strand, to make sure we process the found transactions
+    // in serial.
+    // Notice that the design is optimized for the usecase where we have transactions
+    // applying to us in a low percentage of blocks, there is a little waste (double processing)
+    // for blocks that come directly after the one that has a tx for us.
+    // but the gain of being able to use multi-cores over the entire lifespan of the wallet will
+    // definitely be a plus in total.
+    void blockFinished(std::shared_ptr<ScanContext> context) {
+        if (m_lastBlockDone + 1 != context->block->nHeight) {
+            // try to do things in order.
+            m_orphans.push_back(context);
+        } else {
+            // process it and orphans that may now be reachable
+            postProcessBlock(context);
+            processOrphans();
+        }
+
+        std::unique_lock<decltype(lock)> waitLock(lock);
+        int beforeCount = m_blocksInFlight.fetch_sub(1);
+        if (beforeCount <= blocksInFlightLimit())
+            waitVariable.notify_all();
+    }
+
+    void processOrphans() {
+        bool didOne = false;
+        for (auto iter = m_orphans.begin(); iter != m_orphans.end(); ++iter) {
+            if ((*iter)->block->nHeight == m_lastBlockDone +1) {
+                postProcessBlock(*iter);
+                didOne = true;
+                iter = m_orphans.erase(iter);
+            }
+        }
+        if (didOne) // maybe there is another one!
+            processOrphans();
+    }
+
+    void postProcessBlock(std::shared_ptr<ScanContext> context) {
+        if (context->sequence < m_firstUsefulblock) {
+            // this block was processed before a prev blocks caused txs to be added, do it again.
+            context->sequence = m_blocksStarted.fetch_add(1);
+            m_blocksInFlight.fetch_add(1);
+            flApp->ioService().post(std::bind(&ChainScanner::processBlock, this, context));
+            return;
+        }
+        m_lastBlockDone = context->block->nHeight;
+
+        if (!context->txConflicted.empty()) {
+            LOCK(m_wallet->cs_wallet);
+            for (auto conflict : context->txConflicted) {
+                m_wallet->MarkConflicted(context->block->GetBlockHash(), conflict);
+            }
+        }
+        if (context->txToAdd.empty())
+            return;
+        LOCK(m_wallet->cs_wallet);
+        // we are going to modify the wallet, ignore all blocks added since me as they
+        // will miss transactions that use the ones we are about to add as inputs.
+        m_firstUsefulblock = m_blocksStarted.load();
+
+        for (auto txIter = context->txToAdd.begin(); txIter != context->txToAdd.end(); ++txIter) {
+            const NewTxData &newTx = txIter->second;
+            if ((m_txsAdded % 100) == 0) {// flush once every 100 tx added.
+                m_walletdb.release(); // flush before create
+                m_walletdb.reset(new CWalletDB(m_wallet->strWalletFile, "r+"));
+            }
+
+            CWalletTx wtx(m_wallet, newTx.tx.createOldTransaction());
+            wtx.hashBlock = context->block->GetBlockHash();
+            wtx.nIndex = newTx.indexInBlock;
+            m_wallet->AddToWallet(wtx, false, m_walletdb.get());
+            ++m_txsAdded;
+        }
+    }
+
+    CWallet *m_wallet;
+    boost::asio::strand m_strand;
+    int m_lastBlockDone = -2;
+    int m_txsAdded = 0;
+    std::list<std::shared_ptr<ScanContext> > m_orphans;
+    std::atomic_int m_blocksInFlight;
+    std::atomic_int m_blocksStarted;
+    int m_firstUsefulblock = 0;
+    mutable std::mutex lock;
+    std::condition_variable waitVariable;
+    std::unique_ptr<CWalletDB> m_walletdb;
+};
+
 /**
  * Scan the block chain (starting in pindexStart) for transactions
  * from or to us. If fUpdate is true, found transactions that already
  * exist in the wallet will be updated.
  */
-int CWallet::ScanForWalletTransactions(CBlockIndex* pindexStart, bool fUpdate)
+void CWallet::ScanForWalletTransactions(CBlockIndex* pindexStart, bool fUpdate)
 {
-    int ret = 0;
     int64_t nNow = GetTime();
     const CChainParams& chainParams = Params();
 
     CBlockIndex* pindex = pindexStart;
+    ChainScanner chainScanner(this);
     {
-        LOCK2(cs_main, cs_wallet);
-
-        // no need to read and scan block, if block was created before
-        // our wallet birthday (as adjusted for block time variability)
-        while (pindex && nTimeFirstKey && (pindex->GetBlockTime() < (nTimeFirstKey - 7200)))
-            pindex = chainActive.Next(pindex);
+        {
+            LOCK(cs_main);
+            // no need to read and scan block, if block was created before
+            // our wallet birthday (as adjusted for block time variability)
+            while (pindex && nTimeFirstKey && (pindex->GetBlockTime() < (nTimeFirstKey - 7200)))
+                pindex = chainActive.Next(pindex);
+        }
+        chainScanner.setStartIndex(pindex);
 
         ShowProgress(_("Rescanning..."), 0); // show rescan progress in GUI as dialog or on splashscreen, if -rescan on startup
         double dProgressStart = Checkpoints::GuessVerificationProgress(chainParams.Checkpoints(), pindex, false);
@@ -1242,23 +1464,21 @@ int CWallet::ScanForWalletTransactions(CBlockIndex* pindexStart, bool fUpdate)
         {
             if (pindex->nHeight % 100 == 0 && dProgressTip - dProgressStart > 0.0)
                 ShowProgress(_("Rescanning..."), std::max(1, std::min(99, (int)((Checkpoints::GuessVerificationProgress(chainParams.Checkpoints(), pindex, false) - dProgressStart) / (dProgressTip - dProgressStart) * 100))));
-
-            CBlock block;
-            ReadBlockFromDisk(block, pindex, Params().GetConsensus());
-            BOOST_FOREACH(CTransaction& tx, block.vtx)
-            {
-                if (AddToWalletIfInvolvingMe(tx, &block, fUpdate))
-                    ret++;
-            }
+            chainScanner.waitForSpace();
+            if (ShutdownRequested())
+                break;
+            chainScanner.addBlock(pindex);
+            LOCK(cs_main);
             pindex = chainActive.Next(pindex);
             if (GetTime() >= nNow + 60) {
                 nNow = GetTime();
-                LogPrintf("Still rescanning. At block %d. Progress=%f\n", pindex->nHeight, Checkpoints::GuessVerificationProgress(chainParams.Checkpoints(), pindex));
+                logCritical(Log::Wallet) << "Still rescanning. At block" << pindex->nHeight << "Progress"
+                                         << Checkpoints::GuessVerificationProgress(chainParams.Checkpoints(), pindex);
             }
         }
         ShowProgress(_("Rescanning..."), 100); // hide progress dialog in GUI
+        chainScanner.waitForFinished();
     }
-    return ret;
 }
 
 void CWallet::ReacceptWalletTransactions()
@@ -1589,7 +1809,7 @@ CAmount CWallet::GetBalance() const
     CAmount nTotal = 0;
     {
         LOCK2(cs_main, cs_wallet);
-        for (std::map<uint256, CWalletTx>::const_iterator it = mapWallet.begin(); it != mapWallet.end(); ++it)
+        for (auto it = mapWallet.begin(); it != mapWallet.end(); ++it)
         {
             const CWalletTx* pcoin = &(*it).second;
             if (pcoin->IsTrusted())
@@ -1605,7 +1825,7 @@ CAmount CWallet::GetUnconfirmedBalance() const
     CAmount nTotal = 0;
     {
         LOCK2(cs_main, cs_wallet);
-        for (std::map<uint256, CWalletTx>::const_iterator it = mapWallet.begin(); it != mapWallet.end(); ++it)
+        for (auto it = mapWallet.begin(); it != mapWallet.end(); ++it)
         {
             const CWalletTx* pcoin = &(*it).second;
             if (!pcoin->IsTrusted() && pcoin->GetDepthInMainChain() == 0 && pcoin->InMempool())
@@ -1620,7 +1840,7 @@ CAmount CWallet::GetImmatureBalance() const
     CAmount nTotal = 0;
     {
         LOCK2(cs_main, cs_wallet);
-        for (std::map<uint256, CWalletTx>::const_iterator it = mapWallet.begin(); it != mapWallet.end(); ++it)
+        for (auto it = mapWallet.begin(); it != mapWallet.end(); ++it)
         {
             const CWalletTx* pcoin = &(*it).second;
             nTotal += pcoin->GetImmatureCredit();
@@ -1634,7 +1854,7 @@ CAmount CWallet::GetWatchOnlyBalance() const
     CAmount nTotal = 0;
     {
         LOCK2(cs_main, cs_wallet);
-        for (std::map<uint256, CWalletTx>::const_iterator it = mapWallet.begin(); it != mapWallet.end(); ++it)
+        for (auto it = mapWallet.begin(); it != mapWallet.end(); ++it)
         {
             const CWalletTx* pcoin = &(*it).second;
             if (pcoin->IsTrusted())
@@ -1650,7 +1870,7 @@ CAmount CWallet::GetUnconfirmedWatchOnlyBalance() const
     CAmount nTotal = 0;
     {
         LOCK2(cs_main, cs_wallet);
-        for (std::map<uint256, CWalletTx>::const_iterator it = mapWallet.begin(); it != mapWallet.end(); ++it)
+        for (auto it = mapWallet.begin(); it != mapWallet.end(); ++it)
         {
             const CWalletTx* pcoin = &(*it).second;
             if (!pcoin->IsTrusted() && pcoin->GetDepthInMainChain() == 0 && pcoin->InMempool())
@@ -1665,7 +1885,7 @@ CAmount CWallet::GetImmatureWatchOnlyBalance() const
     CAmount nTotal = 0;
     {
         LOCK2(cs_main, cs_wallet);
-        for (std::map<uint256, CWalletTx>::const_iterator it = mapWallet.begin(); it != mapWallet.end(); ++it)
+        for (auto it = mapWallet.begin(); it != mapWallet.end(); ++it)
         {
             const CWalletTx* pcoin = &(*it).second;
             nTotal += pcoin->GetImmatureWatchOnlyCredit();
@@ -1680,7 +1900,7 @@ void CWallet::AvailableCoins(std::vector<COutput>& vCoins, bool fOnlyConfirmed, 
 
     {
         LOCK2(cs_main, cs_wallet);
-        for (std::map<uint256, CWalletTx>::const_iterator it = mapWallet.begin(); it != mapWallet.end(); ++it)
+        for (auto it = mapWallet.begin(); it != mapWallet.end(); ++it)
         {
             const uint256& wtxid = it->first;
             const CWalletTx* pcoin = &(*it).second;
@@ -1900,7 +2120,7 @@ bool CWallet::SelectCoins(const CAmount& nTargetValue, std::set<std::pair<const 
         coinControl->ListSelected(vPresetInputs);
     BOOST_FOREACH(const COutPoint& outpoint, vPresetInputs)
     {
-        std::map<uint256, CWalletTx>::const_iterator it = mapWallet.find(outpoint.hash);
+        auto it = mapWallet.find(outpoint.hash);
         if (it != mapWallet.end())
         {
             const CWalletTx* pcoin = &it->second;
@@ -2771,7 +2991,7 @@ void CWallet::UpdatedTransaction(const uint256 &hashTx)
     {
         LOCK(cs_wallet);
         // Only notify UI if this transaction is in this wallet
-        std::map<uint256, CWalletTx>::const_iterator mi = mapWallet.find(hashTx);
+        auto mi = mapWallet.find(hashTx);
         if (mi != mapWallet.end())
             NotifyTransactionChanged(this, hashTx, CT_UPDATED);
     }
@@ -2884,7 +3104,7 @@ void CWallet::GetKeyBirthTimes(std::map<CKeyID, int64_t> &mapKeyBirth) const {
 
     // find first block that affects those keys, if there are any left
     std::vector<CKeyID> vAffected;
-    for (std::map<uint256, CWalletTx>::const_iterator it = mapWallet.begin(); it != mapWallet.end(); it++) {
+    for (auto it = mapWallet.begin(); it != mapWallet.end(); it++) {
         // iterate over all wallet transactions...
         const CWalletTx &wtx = (*it).second;
         auto blit = Blocks::Index::get(wtx.hashBlock);

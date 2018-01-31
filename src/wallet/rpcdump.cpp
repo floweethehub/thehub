@@ -27,6 +27,7 @@
 #include "util.h"
 #include "utiltime.h"
 #include "wallet.h"
+#include <Application.h>
 
 #include <fstream>
 
@@ -106,23 +107,23 @@ UniValue importprivkey(const UniValue& params, bool fHelp)
         );
 
 
-    LOCK2(cs_main, pwalletMain->cs_wallet);
-
-    EnsureWalletIsUnlocked();
-
+    // Whether to perform rescan after import
+    bool fRescan = true;
     std::string strSecret = params[0].get_str();
     std::string strLabel = "";
     if (params.size() > 1)
         strLabel = params[1].get_str();
 
-    // Whether to perform rescan after import
-    bool fRescan = true;
     if (params.size() > 2)
         fRescan = params[2].get_bool();
 
     if (fRescan && fPruneMode)
         throw JSONRPCError(RPC_WALLET_ERROR, "Rescan is disabled in pruned mode");
 
+    {
+    LOCK2(cs_main, pwalletMain->cs_wallet);
+
+    EnsureWalletIsUnlocked();
     CBitcoinSecret vchSecret;
     bool fGood = vchSecret.SetString(strSecret);
 
@@ -134,26 +135,24 @@ UniValue importprivkey(const UniValue& params, bool fHelp)
     CPubKey pubkey = key.GetPubKey();
     assert(key.VerifyPubKey(pubkey));
     CKeyID vchAddress = pubkey.GetID();
-    {
-        pwalletMain->MarkDirty();
-        pwalletMain->SetAddressBook(vchAddress, strLabel, "receive");
+    pwalletMain->MarkDirty();
+    pwalletMain->SetAddressBook(vchAddress, strLabel, "receive");
 
-        // Don't throw error in case a key is already there
-        if (pwalletMain->HaveKey(vchAddress))
-            return NullUniValue;
+    // Don't throw error in case a key is already there
+    if (pwalletMain->HaveKey(vchAddress))
+        return NullUniValue;
 
-        pwalletMain->mapKeyMetadata[vchAddress].nCreateTime = 1;
+    pwalletMain->mapKeyMetadata[vchAddress].nCreateTime = 1;
 
-        if (!pwalletMain->AddKeyPubKey(key, pubkey))
-            throw JSONRPCError(RPC_WALLET_ERROR, "Error adding key to wallet");
+    if (!pwalletMain->AddKeyPubKey(key, pubkey))
+        throw JSONRPCError(RPC_WALLET_ERROR, "Error adding key to wallet");
 
-        // whenever a key is imported, we need to scan the whole chain
-        pwalletMain->nTimeFirstKey = 1; // 0 would be considered 'no value'
+    // whenever a key is imported, we need to scan the whole chain
+    pwalletMain->nTimeFirstKey = 1; // 0 would be considered 'no value'
 
-        if (fRescan) {
-            pwalletMain->ScanForWalletTransactions(chainActive.Genesis(), true);
-        }
     }
+    if (fRescan)
+        pwalletMain->ScanForWalletTransactions(chainActive.Genesis(), true);
 
     return NullUniValue;
 }
@@ -164,6 +163,7 @@ void ImportScript(const CScript& script, const std::string& strLabel, bool isRed
     if (!isRedeemScript && ::IsMine(*pwalletMain, script) == ISMINE_SPENDABLE)
         throw JSONRPCError(RPC_WALLET_ERROR, "The wallet already contains the private key for this address or script");
 
+    LOCK(pwalletMain->cs_wallet);
     pwalletMain->MarkDirty();
 
     if (!pwalletMain->HaveWatchOnly(script) && !pwalletMain->AddWatchOnly(script))
@@ -227,8 +227,6 @@ UniValue importaddress(const UniValue& params, bool fHelp)
     bool fP2SH = false;
     if (params.size() > 3)
         fP2SH = params[3].get_bool();
-
-    LOCK2(cs_main, pwalletMain->cs_wallet);
 
     CBitcoinAddress address(params[0].get_str());
     if (address.IsValid()) {
@@ -294,8 +292,6 @@ UniValue importpubkey(const UniValue& params, bool fHelp)
     if (!pubKey.IsFullyValid())
         throw JSONRPCError(RPC_INVALID_ADDRESS_OR_KEY, "Pubkey is not a valid public key");
 
-    LOCK2(cs_main, pwalletMain->cs_wallet);
-
     ImportAddress(CBitcoinAddress(pubKey.GetID()), strLabel);
     ImportScript(GetScriptForRawPubKey(pubKey), strLabel, false);
 
@@ -332,6 +328,9 @@ UniValue importwallet(const UniValue& params, bool fHelp)
     if (fPruneMode)
         throw JSONRPCError(RPC_WALLET_ERROR, "Importing wallets is disabled in pruned mode");
 
+    CBlockIndex *pindex = nullptr;
+    bool fGood = true;
+    {
     LOCK2(cs_main, pwalletMain->cs_wallet);
 
     EnsureWalletIsUnlocked();
@@ -342,8 +341,6 @@ UniValue importwallet(const UniValue& params, bool fHelp)
         throw JSONRPCError(RPC_INVALID_PARAMETER, "Cannot open wallet dump file");
 
     int64_t nTimeBegin = chainActive.Tip()->GetBlockTime();
-
-    bool fGood = true;
 
     int64_t nFilesize = std::max((int64_t)1, (int64_t)file.tellg());
     file.seekg(0, file.beg);
@@ -399,12 +396,14 @@ UniValue importwallet(const UniValue& params, bool fHelp)
     file.close();
     pwalletMain->ShowProgress("", 100); // hide progress dialog in GUI
 
-    CBlockIndex *pindex = chainActive.Tip();
+    pindex = chainActive.Tip();
     while (pindex && pindex->pprev && pindex->GetBlockTime() > nTimeBegin - 7200)
         pindex = pindex->pprev;
 
     if (!pwalletMain->nTimeFirstKey || nTimeBegin < pwalletMain->nTimeFirstKey)
         pwalletMain->nTimeFirstKey = nTimeBegin;
+
+    }
 
     LogPrintf("Rescanning last %i blocks\n", chainActive.Height() - pindex->nHeight + 1);
     pwalletMain->ScanForWalletTransactions(pindex);

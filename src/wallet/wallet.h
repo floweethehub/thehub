@@ -29,6 +29,7 @@
 #include "wallet/crypter.h"
 #include "wallet/wallet_ismine.h"
 #include "wallet/walletdb.h"
+#include <BlocksDB.h>
 
 #include <stdexcept>
 
@@ -76,6 +77,8 @@ class CReserveKey;
 class CScript;
 class CTxMemPool;
 class CWalletTx;
+class Tx;
+class FastBlock;
 
 /** (client) version numbers for particular wallet features */
 enum WalletFeature
@@ -581,6 +584,7 @@ private:
     void AddToSpends(const uint256& wtxid);
 
     /* Mark a transaction (and its in-wallet descendants) as conflicting with a particular block. */
+    friend class ChainScanner;
     void MarkConflicted(const uint256& hashBlock, const uint256& hashTx);
 
     void SyncMetaData(std::pair<TxSpends::iterator, TxSpends::iterator>);
@@ -638,7 +642,7 @@ public:
         fBroadcastTransactions = false;
     }
 
-    std::map<uint256, CWalletTx> mapWallet;
+    boost::unordered_map<uint256, CWalletTx, Blocks::BlockHashShortener> mapWallet;
     std::list<CAccountingEntry> laccentries;
 
     typedef std::pair<CWalletTx*, CAccountingEntry*> TxPair;
@@ -735,7 +739,7 @@ public:
     void SyncTransaction(const CTransaction& tx, const CBlock* pblock);
     virtual void SyncAllTransactionsInBlock(const CBlock *pblock);
     bool AddToWalletIfInvolvingMe(const CTransaction& tx, const CBlock* pblock, bool fUpdate);
-    int ScanForWalletTransactions(CBlockIndex* pindexStart, bool fUpdate = false);
+    void ScanForWalletTransactions(CBlockIndex* pindexStart, bool fUpdate = false);
     void ReacceptWalletTransactions();
     void ResendWalletTransactions(int64_t nBestBlockTime);
     std::vector<uint256> ResendWalletTransactionsBefore(int64_t nTime);
