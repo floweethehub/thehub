@@ -20,7 +20,7 @@
 #ifndef FLOWEE_UINT256_H
 #define FLOWEE_UINT256_H
 
-#include "crypto/common.h"
+#include <crypto/common.h>
 #include "Logger.h"
 
 #include <cassert>

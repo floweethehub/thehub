@@ -19,9 +19,11 @@
 
 #include "utilmoneystr.h"
 
-#include "primitives/transaction.h"
 #include "tinyformat.h"
 #include "utilstrencodings.h"
+
+static const CAmount COIN = 100000000;
+static const CAmount CENT = 1000000;
 
 std::string FormatMoney(const CAmount& n)
 {

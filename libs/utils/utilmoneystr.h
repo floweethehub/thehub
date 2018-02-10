@@ -26,7 +26,7 @@
 #include <cstdint>
 #include <string>
 
-#include "amount.h"
+typedef int64_t CAmount;
 
 std::string FormatMoney(const CAmount& n);
 bool ParseMoney(const std::string& str, CAmount& nRet);
