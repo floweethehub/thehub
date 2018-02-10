@@ -25,7 +25,7 @@
 #include "netbase.h"
 #include "rpcprotocol.h" // For HTTP status codes
 #include "sync.h"
-#include "ui_interface.h"
+#include "UiInterface.h"
 
 #include <cstdio>
 #include <cstdlib>

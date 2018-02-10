@@ -23,7 +23,7 @@
 #include "init.h"
 #include "random.h"
 #include "sync.h"
-#include "ui_interface.h"
+#include "UiInterface.h"
 #include "util.h"
 #include "utilstrencodings.h"
 

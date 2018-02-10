@@ -29,7 +29,7 @@
 #include <txorphancache.h>
 #include <policy/policy.h>
 #include <timedata.h>
-#include <ui_interface.h>
+#include <UiInterface.h>
 #include <Logger.h>
 #include <validationinterface.h>
 #include <chainparams.h>

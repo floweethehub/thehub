@@ -20,7 +20,7 @@
 #include <primitives/FastBlock.h>
 #include <Application.h>
 #include <coins.h>
-#include <ui_interface.h>
+#include <UiInterface.h>
 #include <main.h>
 #include <util.h>
 #include <chain.h>

@@ -21,7 +21,7 @@
 #include "utilstrencodings.h"
 #include "net.h"
 #include "util.h"
-#include "crypto/hmac_sha256.h"
+#include <hmac_sha256.h>
 
 #include <deque>
 #include <set>

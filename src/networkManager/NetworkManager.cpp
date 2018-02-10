@@ -17,7 +17,7 @@
  */
 #include "NetworkManager.h"
 #include "NetworkManager_p.h"
-#include "NetworkEnums.h"
+#include "networkManager/NetworkEnums.h"
 
 #include <streaming/MessageBuilder.h>
 #include <streaming/MessageParser.h>

@@ -35,7 +35,7 @@
 #include "hash.h"
 #include "primitives/transaction.h"
 #include "scheduler.h"
-#include "ui_interface.h"
+#include "UiInterface.h"
 #include "utilstrencodings.h"
 #include "thinblock.h"
 #include "policy/policy.h"

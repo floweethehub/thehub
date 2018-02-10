@@ -21,7 +21,7 @@
 #define FLOWEE_WALLET_WALLETDB_H
 
 #include "amount.h"
-#include "wallet/db.h"
+#include "db.h"
 #include "key.h"
 
 #include <list>

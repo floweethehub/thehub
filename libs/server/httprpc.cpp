@@ -27,8 +27,8 @@
 #include "sync.h"
 #include "util.h"
 #include "utilstrencodings.h"
-#include "ui_interface.h"
-#include "crypto/hmac_sha256.h"
+#include "UiInterface.h"
+#include <hmac_sha256.h>
 #include <cstdio>
 #include "utilstrencodings.h"
 

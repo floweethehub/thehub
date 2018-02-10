@@ -18,7 +18,7 @@
  * along with this program.  If not, see <http://www.gnu.org/licenses/>.
  */
 
-#include "wallet/wallet.h"
+#include "wallet.h"
 
 #include <SettingsDefaults.h>
 

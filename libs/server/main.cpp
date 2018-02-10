@@ -38,7 +38,7 @@
 #include "thinblock.h"
 #include "txmempool.h"
 #include "txorphancache.h"
-#include "ui_interface.h"
+#include "UiInterface.h"
 #include "undo.h"
 #include "utilmoneystr.h"
 #include "validationinterface.h"

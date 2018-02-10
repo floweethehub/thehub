@@ -20,8 +20,8 @@
 #ifndef FLOWEE_HASH_H
 #define FLOWEE_HASH_H
 
-#include "crypto/ripemd160.h"
-#include "crypto/sha256.h"
+#include "ripemd160.h"
+#include "sha256.h"
 #include "prevector.h"
 #include "serialize.h"
 #include "uint256.h"

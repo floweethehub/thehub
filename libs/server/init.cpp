@@ -47,7 +47,7 @@
 #include "BlocksDB.h"
 #include "txmempool.h"
 #include "torcontrol.h"
-#include "ui_interface.h"
+#include "UiInterface.h"
 #include "util.h"
 #include "utilmoneystr.h"
 #include "utilstrencodings.h"

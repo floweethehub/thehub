@@ -20,7 +20,7 @@
 // prevents undefined reference to boost::filesystem::detail::copy_file with C++11
 #define BOOST_NO_CXX11_SCOPED_ENUMS
 
-#include "wallet/walletdb.h"
+#include "walletdb.h"
 
 #include "SettingsDefaults.h"
 #include "base58.h"
@@ -31,7 +31,7 @@
 #include "sync.h"
 #include "util.h"
 #include "utiltime.h"
-#include "wallet/wallet.h"
+#include "wallet.h"
 
 #include <boost/filesystem.hpp>
 #include <boost/foreach.hpp>

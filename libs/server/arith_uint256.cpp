@@ -21,7 +21,7 @@
 
 #include "uint256.h"
 #include "utilstrencodings.h"
-#include "crypto/common.h"
+#include <crypto/common.h>
 
 #include <cstdio>
 #include <cstring>

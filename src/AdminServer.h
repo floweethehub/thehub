@@ -19,9 +19,9 @@
 #define ADMINSERVER_H
 
 #include "streaming/BufferPool.h"
-#include "networkManager/NetworkManager.h"
+#include "networkmanager/NetworkManager.h"
 
-#include <univalue/include/univalue.h>
+#include <univalue.h>
 #include <vector>
 #include <string>
 #include <list>
