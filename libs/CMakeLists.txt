@@ -1,0 +1,7 @@
+add_subdirectory(3rdparty)
+add_subdirectory(networkmanager)
+add_subdirectory(utils)
+add_subdirectory(server)
+add_subdirectory(crypto)
+add_subdirectory(console)
+add_subdirectory(api)

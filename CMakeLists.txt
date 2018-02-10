@@ -1,0 +1,235 @@
+cmake_minimum_required (VERSION 3.0.2)
+project (Flowee)
+
+set(CLIENT_VERSION_BUILD 0)
+set(CLIENT_VERSION_IS_RELEASE 0)
+set(CLIENT_VERSION_MAJOR 0)
+set(CLIENT_VERSION_MINOR 1)
+set(CLIENT_VERSION_REVISION 0)
+set(COPYRIGHT_YEAR 2018)
+
+# ------------------------------------------------------------------------------------
+
+set(CMAKE_CXX_STANDARD 11)
+set(CMAKE_CXX_STANDARD_REQUIRED ON)
+set(CMAKE_MODULE_PATH ${CMAKE_MODULE_PATH} ${CMAKE_SOURCE_DIR}/support/cmake)
+
+message(STATUS "Flowee version ${CLIENT_VERSION_MAJOR}.${CLIENT_VERSION_MINOR}.${CLIENT_VERSION_REVISION}")
+
+set(FLOWEE_GIT_SHA1_STRING "")
+set(FLOWEE_GIT_BRANCH_STRING "")
+
+include(GetGitRevisionDescription)
+get_git_head_revision(GIT_REFSPEC GIT_SHA1)
+get_git_branch(GIT_BRANCH)
+
+if(GIT_SHA1 AND GIT_BRANCH)
+    string(SUBSTRING ${GIT_SHA1} 0 7 GIT_SHA1)
+    set(FLOWEE_GIT_SHA1_STRING ${GIT_SHA1})
+    set(FLOWEE_GIT_BRANCH_STRING ${GIT_BRANCH})
+endif()
+
+
+ ############
+#############
+## Options ##
+#############
+############
+
+option(enable_wallet "Compile the legacy wallet" OFF)
+if (enable_wallet)
+    add_definitions(-DENABLE_WALLET)
+endif ()
+
+option(dev_setup "Enable developer build, not safe for real-life usage!" OFF)
+option(build_tests "Compile the unit tests" ${dev_setup})
+if (dev_setup)
+    set(CMAKE_BUILD_TYPE Debug FORCE)
+    set(CMAKE_CXX_FLAGS_DEBUG "${CMAKE_CXX_FLAGS_DEBUG} -DBTC_LOGCONTEXT -DUSE_UNSAFE_RANDOM -DENABLE_CRASH_CATCHER")
+    message(STATUS "Setting built type to Debug, with unsafe random and other dev options.")
+elseif(NOT CMAKE_BUILD_TYPE AND NOT CMAKE_CONFIGURATION_TYPES)
+    message(STATUS "Setting build type to 'ReleaseWithDebugInfo' as none was specified.")
+    set(CMAKE_BUILD_TYPE RELWITHDEBINFO CACHE STRING "Choose the type of build." FORCE)
+    # Set the possible values of build type for cmake-gui
+    set_property(CACHE CMAKE_BUILD_TYPE PROPERTY STRINGS "Debug" "Release" "RelWithDebInfo")
+elseif (NOT CMAKE_CONFIGURATION_TYPES)
+    message(STATUS "Built type is ${CMAKE_BUILD_TYPE}")
+endif()
+
+# turn off debug logging for release builds
+set(CMAKE_CXX_FLAGS_RELEASE "${CMAKE_CXX_FLAGS_RELEASE} -DBTC_NO_DEBUG_OUTPUT")
+
+if (build_tests)
+    # add dependency
+    set (boost_test_lib "unit_test_framework")
+endif()
+
+option(enable_gui "Compile the GUI client (hub-qt)" ON)
+
+
+######################
+#### Include hierarchy
+######################
+
+set(UNIVALUE_LIBRARY "${CMAKE_BINARY_DIR}/lib/${CMAKE_STATIC_LIBRARY_PREFIX}univalue${CMAKE_STATIC_LIBRARY_SUFFIX}")
+set(LEVELDB_LIBRARY
+    "${CMAKE_BINARY_DIR}/lib/${CMAKE_STATIC_LIBRARY_PREFIX}leveldb${CMAKE_STATIC_LIBRARY_SUFFIX}"
+    "${CMAKE_BINARY_DIR}/lib/${CMAKE_STATIC_LIBRARY_PREFIX}memenv${CMAKE_STATIC_LIBRARY_SUFFIX}"
+)
+set(SECP256K1_LIBRARY "${CMAKE_BINARY_DIR}/lib/${CMAKE_STATIC_LIBRARY_PREFIX}secp256k1${CMAKE_STATIC_LIBRARY_SUFFIX}")
+
+# define the include dirs for each section
+set(3RDPARTY_INCLUDES ${CMAKE_BINARY_DIR}/include)
+find_package(OpenSSL REQUIRED)
+message ("Using OpenSSL ${OPENSSL_VERSION}")
+set(LIBCRYPTO_INCLUDES
+    ${3RDPARTY_INCLUDES}
+    ${OPENSSL_INCLUDE_DIR}
+    ${CMAKE_SOURCE_DIR}/libs/crypto
+    ${CMAKE_SOURCE_DIR}/libs
+)
+set(FLOWEE_GLOBAL_INCLUDES ${CMAKE_BINARY_DIR} ${Boost_INCLUDE_DIRS})
+set(LIBUTILS_INCLUDES ${LIBCRYPTO_INCLUDES} ${CMAKE_SOURCE_DIR}/libs/utils)
+set(LIBNETWORKMANAGER_INCLUDES ${LIBUTILS_INCLUDES} ${CMAKE_SOURCE_DIR}/libs/networkmanager)
+set(LIBSERVER_INCLUDES ${LIBNETWORKMANAGER_INCLUDES} ${CMAKE_SOURCE_DIR}/libs/server ${CMAKE_SOURCE_DIR}/libs/server/wallet)
+set(LIBAPI_INCLUDES ${LIBSERVER_INCLUDES} ${CMAKE_SOURCE_DIR}/libs/api)
+set(LIBCONSOLE_INCLUDES ${LIBUTILS_INCLUDES} ${CMAKE_SOURCE_DIR}/libs/console)
+set(LIBS_INCLUDES ${LIBAPI_INCLUDES}
+    ${LIBCONSOLE_INCLUDES}
+)
+
+######################
+#### Generate config.h
+######################
+
+# first optional stuff so all the non-optional errors are at the bottom;
+
+include(CheckSymbolExists)
+find_path (HAVE_BYTESWAP_H byteswap.h)
+check_symbol_exists(bswap_16 "byteswap.h" HAVE_DECL_BSWAP_16)
+check_symbol_exists(bswap_32 "byteswap.h" HAVE_DECL_BSWAP_32)
+check_symbol_exists(bswap_64 "byteswap.h" HAVE_DECL_BSWAP_64)
+find_path (HAVE_ENDIAN_H endian.h)
+find_path (HAVE_SYS_ENDIAN_H sys/endian.h)
+check_symbol_exists(le16toh "endian.h" HAVE_DECL_LE16TOH)
+check_symbol_exists(be16toh "endian.h" HAVE_DECL_BE16TOH)
+check_symbol_exists(be32toh "endian.h" HAVE_DECL_BE32TOH)
+check_symbol_exists(be64toh "endian.h" HAVE_DECL_BE64TOH)
+check_symbol_exists(htobe16 "endian.h" HAVE_DECL_HTOBE16)
+check_symbol_exists(htobe32 "endian.h" HAVE_DECL_HTOBE32)
+check_symbol_exists(htobe64 "endian.h" HAVE_DECL_HTOBE64)
+check_symbol_exists(htole16 "endian.h" HAVE_DECL_HTOLE16)
+check_symbol_exists(htole32 "endian.h" HAVE_DECL_HTOLE32)
+check_symbol_exists(htole64 "endian.h" HAVE_DECL_HTOLE64)
+check_symbol_exists(le16toh "endian.h" HAVE_DECL_LE16TOH)
+check_symbol_exists(le32toh "endian.h" HAVE_DECL_LE32TOH)
+check_symbol_exists(le64toh "endian.h" HAVE_DECL_LE64TOH)
+find_path (HAVE_SYS_PRCTL_H sys/prctl.h)
+find_path (HAVE_SYS_SELECT_H sys/select.h)
+check_symbol_exists(strnlen "string.h" HAVE_DECL_STRNLEN)
+if (HAVE_DECL_STRNLEN) #default is 1.
+else () # set to zero instead of empty
+    set (HAVE_DECL_STRNLEN 0)
+endif ()
+
+set (WORDS_BIGENDIAN ${CMAKE_WORDS_BIGENDIAN})
+include (TestBigEndian)
+test_big_endian(CMAKE_WORDS_BIGENDIAN)
+
+include(CheckCXXSourceCompiles)
+check_cxx_source_compiles(
+    "#include <string.h>
+    int main() {
+        char buffer[1];
+        char* c = strerror_r(0, buffer, 0);
+        (void)c;
+    }
+    "
+    STRERROR_R_CHAR_P)
+
+# older cmake doesn't set C++11 flags, do it ourselves.
+set (_V "CPP11_ARGS")
+foreach (ARG "" "-std=gnu++11" "-std=c++11")
+    set (CMAKE_REQUIRED_FLAGS ${ARG})
+    check_cxx_source_compiles(
+        "#if __cplusplus < 201103L
+        # error
+        #endif
+        int main() {}
+        "
+        ${_V})
+    if (${_V})
+        set(CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS} ${ARG}")
+        break()
+    endif()
+    set (_V "${_V}_")
+endforeach()
+
+message ("===== Find optional dependencies")
+
+find_package(ZeroMQ 4.0)
+if (${ZMQ_FOUND})
+    set (ENABLE_ZMQ 1)
+else ()
+    # remove "NOTFOUND" so we can just link to it, which then is a no-op
+    set (ZMQ_LIBRARIES "")
+endif ()
+
+find_package(Miniupnpc)
+if (${MINIUPNP_FOUND})
+    set (USE_UPNP)
+else ()
+    set (MINIUPNP_LIBRARY "")
+endif ()
+
+if (enable_gui)
+    find_package(Qt5DBus)
+    if (${Qt5DBus_FOUND})
+        set (USE_DBUS 1)
+    endif ()
+endif ()
+
+# required packages below this
+message ("===== Find required dependencies")
+
+find_package(Boost 1.56.0
+    REQUIRED
+    chrono filesystem iostreams program_options system thread ${boost_test_lib}
+)
+
+if (enable_wallet)
+    find_package(BerkeleyDB REQUIRED)
+endif ()
+
+# Since our 3rd party require this, lets give a nice warning here.
+find_program(AUTOCONF autoconf)
+if (NOT AUTOCONF)
+    message ("ERROR: autoconf is required for 3rd-party libraries compilation.")
+endif()
+
+find_package(Event REQUIRED)
+
+configure_file (
+    "${CMAKE_SOURCE_DIR}/libs/config/flowee-config.h.in"
+    ${CMAKE_BINARY_DIR}/include/config/flowee-config.h
+    @ONLY
+)
+
+execute_process(
+    COMMAND support/genbuild.sh ${CMAKE_BINARY_DIR}/include/build.h ${CMAKE_SOURCE_DIR}
+    WORKING_DIRECTORY ${CMAKE_SOURCE_DIR}
+)
+add_definitions(-DHAVE_CONFIG_H -DHAVE_BUILD_INFO)
+
+# remove warnings from berkley-db
+set(CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS} -Wno-deprecated -pthread ")
+
+add_subdirectory(libs)
+add_subdirectory(hub)
+add_subdirectory(hub-cli)
+if (enable_gui)
+    add_subdirectory(hub-qt)
+endif ()
+if (build_tests)
+    add_subdirectory(testing)
+endif ()
