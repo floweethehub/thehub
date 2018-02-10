@@ -20,7 +20,7 @@
 #define FLOWEE_CRYPTO_COMMON_H
 
 #if defined(HAVE_CONFIG_H)
-#include "flowee-config.h"
+#include "config/flowee-config.h"
 #endif
 
 #include <cstdint>

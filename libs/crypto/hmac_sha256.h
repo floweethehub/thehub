@@ -16,26 +16,26 @@
  * along with this program.  If not, see <http://www.gnu.org/licenses/>.
  */
 
-#ifndef FLOWEE_CRYPTO_HMAC_SHA512_H
-#define FLOWEE_CRYPTO_HMAC_SHA512_H
+#ifndef FLOWEE_CRYPTO_HMAC_SHA256_H
+#define FLOWEE_CRYPTO_HMAC_SHA256_H
 
-#include "crypto/sha512.h"
+#include "sha256.h"
 
 #include <cstdint>
 #include <cstdlib>
 
 /** A hasher class for HMAC-SHA-512. */
-class CHMAC_SHA512
+class CHMAC_SHA256
 {
 private:
-    CSHA512 outer;
-    CSHA512 inner;
+    CSHA256 outer;
+    CSHA256 inner;
 
 public:
-    static const size_t OUTPUT_SIZE = 64;
+    static const size_t OUTPUT_SIZE = 32;
 
-    CHMAC_SHA512(const unsigned char* key, size_t keylen);
-    CHMAC_SHA512& Write(const unsigned char* data, size_t len)
+    CHMAC_SHA256(const unsigned char* key, size_t keylen);
+    CHMAC_SHA256& Write(const unsigned char* data, size_t len)
     {
         inner.Write(data, len);
         return *this;

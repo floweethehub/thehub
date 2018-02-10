@@ -16,8 +16,8 @@
  * along with this program.  If not, see <http://www.gnu.org/licenses/>.
  */
 
-#include "crypto/sha256.h"
-#include "crypto/common.h"
+#include "sha256.h"
+#include "common.h"
 
 #include <cstring>
 

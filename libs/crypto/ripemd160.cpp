@@ -16,8 +16,8 @@
  * along with this program.  If not, see <http://www.gnu.org/licenses/>.
  */
 
-#include "crypto/ripemd160.h"
-#include "crypto/common.h"
+#include "ripemd160.h"
+#include "common.h"
 
 #include <cstring>
 

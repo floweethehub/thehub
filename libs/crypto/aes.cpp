@@ -17,13 +17,13 @@
  */
 
 #include "aes.h"
-#include "crypto/common.h"
+#include "common.h"
 
 #include <cassert>
 #include <cstring>
 
 extern "C" {
-#include "crypto/ctaes/ctaes.c"
+#include "ctaes/ctaes.c"
 }
 
 AES128Encrypt::AES128Encrypt(const unsigned char key[16])
