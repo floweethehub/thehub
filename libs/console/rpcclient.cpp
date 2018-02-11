@@ -18,8 +18,8 @@
  */
 
 #include "rpcclient.h"
-#include "rpcprotocol.h"
-#include "util.h"
+#include <rpcprotocol.h>
+#include <util.h>
 
 #include <set>
 #include <boost/algorithm/string/case_conv.hpp> // for to_lower()
