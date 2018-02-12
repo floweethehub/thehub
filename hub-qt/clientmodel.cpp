@@ -27,7 +27,7 @@
 #include "clientversion.h"
 #include "net.h"
 #include "txmempool.h"
-#include "ui_interface.h"
+#include "UiInterface.h"
 #include "util.h"
 #include <Application.h>
 

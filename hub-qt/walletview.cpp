@@ -33,7 +33,7 @@
 #include "transactionview.h"
 #include "walletmodel.h"
 
-#include "ui_interface.h"
+#include "UiInterface.h"
 
 #include <QAction>
 #include <QActionGroup>

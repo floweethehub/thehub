@@ -27,7 +27,7 @@
 #endif
 
 #include "init.h"
-#include "ui_interface.h"
+#include "UiInterface.h"
 #include "util.h"
 
 #include <iostream>

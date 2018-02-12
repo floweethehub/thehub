@@ -42,7 +42,7 @@
 #include "init.h"
 #include "rpcserver.h"
 #include "scheduler.h"
-#include "ui_interface.h"
+#include "UiInterface.h"
 #include "util.h"
 #include <SettingsDefaults.h>
 

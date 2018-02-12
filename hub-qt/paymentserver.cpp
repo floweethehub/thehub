@@ -11,7 +11,7 @@
 #include "base58.h"
 #include "chainparams.h"
 #include "main.h" // For minRelayTxFee
-#include "ui_interface.h"
+#include "UiInterface.h"
 #include "util.h"
 #include "wallet/wallet.h"
 #include <Application.h>

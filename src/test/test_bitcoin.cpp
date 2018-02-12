@@ -27,7 +27,7 @@
 #include <key.h>
 #include <net.h>
 #include <random.h>
-#include <ui_interface.h>
+#include <UiInterface.h>
 #ifdef ENABLE_WALLET
 # include <wallet/wallet.h>
 CWallet* pwalletMain;
@@ -36,7 +36,7 @@ CWallet* pwalletMain;
 
 #include <boost/test/unit_test.hpp>
 
-CClientUIInterface uiInterface; // Declared but not defined in ui_interface.h
+CClientUIInterface uiInterface; // Declared but not defined in UiInterface.h
 
 extern void noui_connect();
 
