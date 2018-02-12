@@ -18,6 +18,7 @@
 
 #include "sendcoinsdialog.h"
 #include "ui_sendcoinsdialog.h"
+#include <SettingsDefaults.h>
 
 #include <Application.h>
 #include "addresstablemodel.h"
@@ -116,7 +117,7 @@ SendCoinsDialog::SendCoinsDialog(const PlatformStyle *platformStyle, QWidget *pa
     if (!settings.contains("nSmartFeeSliderPosition"))
         settings.setValue("nSmartFeeSliderPosition", 0);
     if (!settings.contains("nTransactionFee"))
-        settings.setValue("nTransactionFee", (qint64)DEFAULT_TRANSACTION_FEE);
+        settings.setValue("nTransactionFee", (qint64) Settings::DefaultTransactionFee);
     if (!settings.contains("fPayOnlyMinFee"))
         settings.setValue("fPayOnlyMinFee", false);
     if (!settings.contains("fSendFreeTransactions"))

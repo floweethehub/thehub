@@ -21,6 +21,7 @@
 #include "config/flowee-config.h"
 #endif
 
+#include <SettingsDefaults.h>
 #include "netbase.h"
 
 #include "hash.h"
@@ -53,8 +54,8 @@
 static proxyType proxyInfo[CNetAddr::NET_MAX];
 static proxyType nameProxy;
 static CCriticalSection cs_proxyInfos;
-int nConnectTimeout = DEFAULT_CONNECT_TIMEOUT;
-bool fNameLookup = DEFAULT_NAME_LOOKUP;
+int nConnectTimeout = Settings::DefaultConnectTimeout;
+bool fNameLookup = Settings::DefaultNameLookup;
 
 static const unsigned char pchIPv4[12] = { 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0xff, 0xff };
 

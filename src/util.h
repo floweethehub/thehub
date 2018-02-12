@@ -66,9 +66,6 @@ extern std::string strMiscWarning;
 extern bool fLogIPs;
 extern CTranslationInterface translationInterface;
 
-extern const char * const BITCOIN_CONF_FILENAME;
-extern const char * const BITCOIN_PID_FILENAME;
-
 /**
  * Translation function: Call Translate signal on UI interface, which returns a boost::optional result.
  * If no translation slot is registered, nothing is returned, and simply return the input.
@@ -118,7 +115,7 @@ static inline bool error(const char* format)
 }
 
 void PrintExceptionContinue(const std::exception *pex, const char* pszThread);
-void ParseParameters(int argc, const char*const argv[], const AllowedArgs::AllowedArgs& allowedArgs);
+void ParseParameters(int argc, const char*const argv[], const Settings::AllowedArgs& allowedArgs);
 void FileCommit(FILE *fileout);
 bool TruncateFile(FILE *file, unsigned int length);
 int RaiseFileDescriptorLimit(int nMinFD);
@@ -194,13 +191,6 @@ bool SoftSetArg(const std::string& strArg, const std::string& strValue);
  * @return true if argument gets set, false if it already had a value
  */
 bool SoftSetBoolArg(const std::string& strArg, bool fValue);
-
-/**
- * Return the number of physical cores available on the current system.
- * @note This does not count virtual cores, such as those provided by HyperThreading
- * when boost is newer than 1.56.
- */
-int GetNumCores();
 
 void SetThreadPriority(int nPriority);
 void RenameThread(const char* name);

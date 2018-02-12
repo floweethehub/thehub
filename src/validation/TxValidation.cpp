@@ -17,6 +17,7 @@
  */
 
 #include "Engine.h"
+#include <SettingsDefaults.h>
 #include "ValidationException.h"
 #include "TxValidation_p.h"
 #include <Application.h>
@@ -295,11 +296,11 @@ void TxValidationState::checkTransaction()
             if ((entry.sigOpCount > MAX_STANDARD_TX_SIGOPS) || (nBytesPerSigOp && entry.sigOpCount > nSize / nBytesPerSigOp))
                 throw Exception("bad-txns-too-many-sigops", Validation::RejectNonstandard);
 
-            CAmount mempoolRejectFee = parent->mempool->GetMinFee(GetArg("-maxmempool", DEFAULT_MAX_MEMPOOL_SIZE) * 1000000).GetFee(nSize);
+            CAmount mempoolRejectFee = parent->mempool->GetMinFee(GetArg("-maxmempool", Settings::DefaultMaxMempoolSize) * 1000000).GetFee(nSize);
             if (mempoolRejectFee > 0 && nModifiedFees < mempoolRejectFee) {
                 // return state.DoS(0, false, REJECT_INSUFFICIENTFEE, "mempool min fee not met", false, strprintf("%d < %d", nFees, mempoolRejectFee));
                 throw Exception("mempool min fee not met", Validation::RejectInsufficientFee, 0);
-            } else if (GetBoolArg("-relaypriority", DEFAULT_RELAYPRIORITY) && nModifiedFees < ::minRelayTxFee.GetFee(nSize)
+            } else if (GetBoolArg("-relaypriority", Settings::DefaultRelayPriority) && nModifiedFees < ::minRelayTxFee.GetFee(nSize)
                        && !AllowFree(entry.GetPriority(tip->nHeight + 1))) {
                 // Require that free transactions have sufficient priority to be mined in the next block.
                 raii.result = std::string("insufficient priority");
@@ -322,7 +323,7 @@ void TxValidationState::checkTransaction()
                 nLastTime = nNow;
                 // -limitfreerelay unit is thousand-bytes-per-minute
                 // At default rate it would take over a month to fill 1GB
-                if (dFreeCount >= GetArg("-limitfreerelay", DEFAULT_LIMITFREERELAY) * 10 * 1000)
+                if (dFreeCount >= GetArg("-limitfreerelay", Settings::DefaultLimitFreeRelay) * 10 * 1000)
                     throw Exception("rate limited free transaction", Validation::RejectInsufficientFee, 0);
                 logInfo(Log::TxValidation) << "Rate limit dFreeCount:" << dFreeCount << "=>" << dFreeCount + nSize;
                 dFreeCount += nSize;
@@ -333,10 +334,10 @@ void TxValidationState::checkTransaction()
 
             // Calculate in-mempool ancestors, up to a limit.
             CTxMemPool::setEntries setAncestors;
-            int64_t nLimitAncestors = GetArg("-limitancestorcount", DEFAULT_ANCESTOR_LIMIT);
-            int64_t nLimitAncestorSize = GetArg("-limitancestorsize", DEFAULT_ANCESTOR_SIZE_LIMIT)*1000;
-            int64_t nLimitDescendants = GetArg("-limitdescendantcount", DEFAULT_DESCENDANT_LIMIT);
-            int64_t nLimitDescendantSize = GetArg("-limitdescendantsize", DEFAULT_DESCENDANT_SIZE_LIMIT)*1000;
+            int64_t nLimitAncestors = GetArg("-limitancestorcount", Settings::DefaultAncestorLimit);
+            int64_t nLimitAncestorSize = GetArg("-limitancestorsize", Settings::DefaultAncestorSizeLimit)*1000;
+            int64_t nLimitDescendants = GetArg("-limitdescendantcount", Settings::DefaultDescendantLimit);
+            int64_t nLimitDescendantSize = GetArg("-limitdescendantsize", Settings::DefaultDescendantSizeLimit)*1000;
             std::string errString;
             if (!parent->mempool->CalculateMemPoolAncestors(entry, setAncestors, nLimitAncestors, nLimitAncestorSize,
                                                             nLimitDescendants, nLimitDescendantSize, errString)) {
@@ -427,8 +428,8 @@ void TxValidationState::sync()
         return;
     assert(parent->strand.running_in_this_thread());
 
-    LimitMempoolSize(*parent->mempool, GetArg("-maxmempool", DEFAULT_MAX_MEMPOOL_SIZE) * 1000000,
-                     GetArg("-mempoolexpiry", DEFAULT_MEMPOOL_EXPIRY) * 60 * 60);
+    LimitMempoolSize(*parent->mempool, GetArg("-maxmempool", Settings::DefaultMaxMempoolSize) * 1000000,
+                     GetArg("-mempoolexpiry", Settings::DefaultMempoolExpiry) * 60 * 60);
 
     SyncWithWallets(m_tx.createOldTransaction(), nullptr);
 }

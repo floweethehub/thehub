@@ -19,6 +19,7 @@
 
 #include "script/standard.h"
 
+#include <SettingsDefaults.h>
 #include "pubkey.h"
 #include "script/script.h"
 #include "util.h"
@@ -28,8 +29,8 @@
 
 typedef std::vector<unsigned char> valtype;
 
-bool fAcceptDatacarrier = DEFAULT_ACCEPT_DATACARRIER;
-unsigned nMaxDatacarrierBytes = MAX_OP_RETURN_RELAY;
+bool fAcceptDatacarrier = Settings::DefaultAcceptDataCarrier;
+unsigned nMaxDatacarrierBytes = Settings::MaxOpReturnRelay;
 
 CScriptID::CScriptID(const CScript& in) : uint160(Hash160(in.begin(), in.end())) {}
 

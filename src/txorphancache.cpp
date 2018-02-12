@@ -16,6 +16,7 @@
  * along with this program.  If not, see <http://www.gnu.org/licenses/>.
  */
 #include "txorphancache.h"
+#include <SettingsDefaults.h>
 #include "main.h"
 
 #include "util.h"
@@ -23,7 +24,7 @@
 #include <boost/foreach.hpp>
 
 CTxOrphanCache::CTxOrphanCache()
-    : m_limit(DEFAULT_MAX_ORPHAN_TRANSACTIONS)
+    : m_limit(Settings::DefaultMaxOrphanTransactions)
 {
 }
 
@@ -98,7 +99,7 @@ void CTxOrphanCache::EraseOrphansByTime()
     // every time a tx enters the mempool but just once every 5 minutes is good enough.
     if (GetTime() <  nLastOrphanCheck + 5 * 60)
         return;
-    int64_t nOrphanTxCutoffTime = GetTime() - GetArg("-mempoolexpiry", DEFAULT_MEMPOOL_EXPIRY) * 60 * 60;
+    int64_t nOrphanTxCutoffTime = GetTime() - GetArg("-mempoolexpiry", Settings::DefaultMempoolExpiry) * 60 * 60;
     std::map<uint256, COrphanTx>::iterator iter = m_mapOrphanTransactions.begin();
     while (iter != m_mapOrphanTransactions.end()) {
         const auto entry = iter++;

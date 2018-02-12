@@ -42,12 +42,6 @@ void InitLogging();
 //!Parameter interaction: change current parameters depending on various rules
 void InitParameterInteraction();
 bool AppInit2(boost::thread_group& threadGroup, CScheduler& scheduler);
-
-static const bool DEFAULT_PROXYRANDOMIZE = true;
-static const bool DEFAULT_REST_ENABLE = false;
-static const bool DEFAULT_DISABLE_SAFEMODE = false;
-static const bool DEFAULT_STOPAFTERBLOCKIMPORT = false;
-
 void StartShutdown();
 bool ShutdownRequested();
 

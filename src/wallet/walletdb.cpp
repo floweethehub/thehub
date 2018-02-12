@@ -22,6 +22,7 @@
 
 #include "wallet/walletdb.h"
 
+#include "SettingsDefaults.h"
 #include "base58.h"
 #include "consensus/validation.h"
 #include "main.h" // For CheckTransaction
@@ -803,7 +804,7 @@ void ThreadFlushWalletDB(const std::string& strFile)
     if (fOneThread)
         return;
     fOneThread = true;
-    if (!GetBoolArg("-flushwallet", DEFAULT_FLUSHWALLET))
+    if (!GetBoolArg("-flushwallet", Settings::DefaultFlushWallet))
         return;
 
     unsigned int nLastSeen = nWalletDBUpdated;

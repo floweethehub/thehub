@@ -24,6 +24,7 @@
 #endif
 
 #include "net.h"
+#include "SettingsDefaults.h"
 
 #include "addrman.h"
 #include "chainparams.h"
@@ -99,7 +100,7 @@ static CNode* pnodeLocalHost = NULL;
 uint64_t nLocalHostNonce = 0;
 static std::vector<ListenSocket> vhListenSocket;
 CAddrMan addrman;
-int nMaxConnections = DEFAULT_MAX_PEER_CONNECTIONS;
+int nMaxConnections = Settings::DefaultMaxPeerConnections;
 bool fAddressesInitialized = false;
 
 std::vector<CNode*> vNodes;
@@ -478,7 +479,7 @@ void CNode::PushVersion()
     else
         logDebug(Log::Net) << "send version message: version" << PROTOCOL_VERSION << "blocks" << nBestHeight << "us" << addrMe << "peer" << id;
     PushMessage(NetMsgType::VERSION, PROTOCOL_VERSION, nLocalServices, nTime, addrYou, addrMe,
-                nLocalHostNonce, Application::userAgent(), nBestHeight, !GetBoolArg("-blocksonly", DEFAULT_BLOCKSONLY));
+                nLocalHostNonce, Application::userAgent(), nBestHeight, !GetBoolArg("-blocksonly", Settings::DefaultBlocksOnly));
 }
 
 const CMessageHeader::MessageStartChars &CNode::magic() const
@@ -546,7 +547,7 @@ void CNode::Ban(const CSubNet& subNet, const BanReason &banReason, int64_t banti
     banEntry.banReason = banReason;
     if (bantimeoffset <= 0)
     {
-        bantimeoffset = GetArg("-bantime", DEFAULT_MISBEHAVING_BANTIME);
+        bantimeoffset = GetArg("-bantime", Settings::DefaultMisbehavingBantime);
         sinceUnixEpoch = false;
     }
     banEntry.nBanUntil = (sinceUnixEpoch ? 0 : GetTime() )+bantimeoffset;
@@ -1447,7 +1448,7 @@ void ThreadDNSAddressSeed()
 {
     // goal: only query DNS seeds if address need is acute
     if ((addrman.size() > 0) &&
-        (!GetBoolArg("-forcednsseed", DEFAULT_FORCEDNSSEED))) {
+        (!GetBoolArg("-forcednsseed", Settings::DefaultForceDnsSeed))) {
         MilliSleep(11 * 1000);
 
         LOCK(cs_vNodes);
@@ -1573,7 +1574,7 @@ void ThreadOpenConnections()
     }
 
     const int maxOutBound = std::min(MAX_OUTBOUND_CONNECTIONS, nMaxConnections);
-    const int minXThinNodesConf = IsThinBlocksEnabled() ? std::min(maxOutBound, (int) GetArg("-min-thin-peers", DEFAULT_MIN_THIN_PEERS)) : 0;
+    const int minXThinNodesConf = IsThinBlocksEnabled() ? std::min(maxOutBound, (int) GetArg("-min-thin-peers", Settings::DefaultMinThinPeers)) : 0;
     // Initiate network connections
     int64_t nStart = GetTime();
     int nDisconnects = 0;
@@ -2453,8 +2454,8 @@ bool CAddrDB::Read(CAddrMan& addr, CDataStream& ssPeers)
     return true;
 }
 
-unsigned int ReceiveFloodSize() { return 1000*GetArg("-maxreceivebuffer", DEFAULT_MAXRECEIVEBUFFER); }
-unsigned int SendBufferSize() { return 1000*GetArg("-maxsendbuffer", DEFAULT_MAXSENDBUFFER); }
+unsigned int ReceiveFloodSize() { return 1000*GetArg("-maxreceivebuffer", Settings::DefaultMaxReceiveBuffer); }
+unsigned int SendBufferSize() { return 1000*GetArg("-maxsendbuffer", Settings::DefaultMaxSendBuffer); }
 
 CNode::CNode(SOCKET hSocketIn, const CAddress& addrIn, const std::string& addrNameIn, bool fInboundIn) :
     ssSend(SER_NETWORK, INIT_PROTO_VERSION),

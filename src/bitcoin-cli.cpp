@@ -59,7 +59,7 @@ static bool AppInitRPC(int argc, char* argv[])
     //
     // Parameters
     //
-    AllowedArgs::BitcoinCli allowedArgs;
+    Settings::BitcoinCli allowedArgs;
     try {
         ParseParameters(argc, argv, allowedArgs);
     } catch (const std::exception& e) {

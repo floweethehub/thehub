@@ -23,6 +23,7 @@
 #endif
 
 #include "util.h"
+#include <SettingsDefaults.h>
 
 #include "chainparamsbase.h"
 #include "random.h"
@@ -113,9 +114,6 @@ namespace boost {
 
 } // namespace boost
 
-const char * const BITCOIN_CONF_FILENAME = "bitcoin.conf";
-const char * const BITCOIN_PID_FILENAME = "bitcoind.pid";
-
 std::map<std::string, std::string> mapArgs;
 std::map<std::string, std::vector<std::string> > mapMultiArgs;
 bool fDaemon = false;
@@ -194,7 +192,7 @@ static void InterpretNegativeSetting(std::string& strKey, std::string& strValue)
     }
 }
 
-void ParseParameters(int argc, const char* const argv[], const AllowedArgs::AllowedArgs& allowedArgs)
+void ParseParameters(int argc, const char* const argv[], const Settings::AllowedArgs& allowedArgs)
 {
     mapArgs.clear();
     mapMultiArgs.clear();
@@ -373,7 +371,7 @@ boost::filesystem::path GetConfigFile()
 {
     namespace fs = boost::filesystem;
 
-    fs::path pathConfigFile(GetArg("-conf", BITCOIN_CONF_FILENAME));
+    fs::path pathConfigFile(GetArg("-conf", Settings::hubConfFilename()));
     if (pathConfigFile.is_complete())
         return pathConfigFile;
 
@@ -413,7 +411,7 @@ void ReadConfigFile(std::map<std::string, std::string>& mapSettingsRet,
 
     std::set<std::string> setOptions;
     setOptions.insert("*");
-    AllowedArgs::ConfigFile allowedArgs;
+    Settings::ConfigFile allowedArgs;
 
     for (boost::program_options::detail::config_file_iterator it(streamConfig, setOptions), end; it != end; ++it)
     {
@@ -433,7 +431,7 @@ void ReadConfigFile(std::map<std::string, std::string>& mapSettingsRet,
 #ifndef WIN32
 boost::filesystem::path GetPidFile()
 {
-    boost::filesystem::path pathPidFile(GetArg("-pid", BITCOIN_PID_FILENAME));
+    boost::filesystem::path pathPidFile(GetArg("-pid", Settings::hubPidFilename()));
     if (!pathPidFile.is_complete()) pathPidFile = GetDataDir() / pathPidFile;
     return pathPidFile;
 }
@@ -701,15 +699,6 @@ void SetThreadPriority(int nPriority)
     setpriority(PRIO_PROCESS, 0, nPriority);
 #endif // PRIO_THREAD
 #endif // WIN32
-}
-
-int GetNumCores()
-{
-#if BOOST_VERSION >= 105600
-    return boost::thread::physical_concurrency();
-#else // Must fall back to hardware_concurrency, which unfortunately counts virtual cores
-    return boost::thread::hardware_concurrency();
-#endif
 }
 
 

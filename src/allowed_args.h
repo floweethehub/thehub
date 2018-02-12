@@ -24,7 +24,7 @@
 #include <map>
 #include <string>
 
-namespace AllowedArgs {
+namespace Settings {
 
 /**
  * Format a string to be used as group of options in help messages.
@@ -149,6 +149,6 @@ public:
     ConfigFile();
 };
 
-} // namespace AllowedArgs
+}
 
 #endif

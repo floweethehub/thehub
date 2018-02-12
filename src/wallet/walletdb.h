@@ -26,8 +26,6 @@
 
 #include <list>
 
-static const bool DEFAULT_FLUSHWALLET = true;
-
 class CAccount;
 class CAccountingEntry;
 struct CBlockLocator;

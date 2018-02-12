@@ -76,7 +76,7 @@ HelpMessageDialog::HelpMessageDialog(QWidget *parent, bool about) :
         cursor.insertText(header);
         cursor.insertBlock();
 
-        std::string strUsage = AllowedArgs::BitcoinQt().helpMessage();
+        std::string strUsage = Settings::BitcoinQt().helpMessage();
         QString coreOptions = QString::fromStdString(strUsage);
         text = version + "\n" + header + "\n" + coreOptions;
 

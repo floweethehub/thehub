@@ -18,29 +18,16 @@
  */
 
 #include "allowed_args.h"
+#include <SettingsDefaults.h>
 
-#include "chainparams.h"
-#include "httpserver.h"
-#include "init.h"
-#include "main.h"
-#include "miner.h"
-#include "net.h"
-#include "policy/policy.h"
-#include "script/sigcache.h"
-#include "tinyformat.h"
-#include "torcontrol.h"
-#include "BlocksDB.h"
-#include "qt/guiconstants.h"
-#include "util.h"
+#include "chainparamsbase.h"
+#include "util.h" // for translate _()
 #include "utilmoneystr.h"
 #include "utilstrencodings.h"
-#ifdef ENABLE_WALLET
-# include "wallet/wallet.h"
-#endif
 
 #include <set>
 
-namespace AllowedArgs {
+namespace Settings {
 
 enum HelpMessageMode {
     HMM_BITCOIND,
@@ -222,7 +209,7 @@ static void addConfigurationLocationOptions(AllowedArgs& allowedArgs)
 {
     allowedArgs
         .addHeader(_("Configuration location options:"))
-        .addArg("conf=<file>", requiredStr, strprintf(_("Specify configuration file (default: %s)"), BITCOIN_CONF_FILENAME))
+        .addArg("conf=<file>", requiredStr, strprintf(_("Specify configuration file (default: %s)"), hubConfFilename()))
         .addArg("datadir=<dir>", requiredStr, _("Specify data directory"))
         ;
 }
@@ -233,9 +220,9 @@ static void addGeneralOptions(AllowedArgs& allowedArgs, HelpMessageMode mode)
         .addHeader(_("General options:"))
         .addArg("alertnotify=<cmd>", requiredStr, _("Execute command when a relevant alert is received or we see a really long fork (%s in cmd is replaced by message)"))
         .addArg("blocknotify=<cmd>", requiredStr, _("Execute command when the best block changes (%s in cmd is replaced by block hash)"))
-        .addDebugArg("blocksonly", optionalBool, strprintf(_("Whether to operate in a blocks only mode (default: %u)"), DEFAULT_BLOCKSONLY))
-        .addArg("checkblocks=<n>", requiredInt, strprintf(_("How many blocks to check at startup (default: %u, 0 = all)"), DEFAULT_CHECKBLOCKS))
-        .addArg("checklevel=<n>", requiredInt, strprintf(_("How thorough the block verification of -checkblocks is (0-4, default: %u)"), DEFAULT_CHECKLEVEL))
+        .addDebugArg("blocksonly", optionalBool, strprintf(_("Whether to operate in a blocks only mode (default: %u)"), DefaultBlocksOnly))
+        .addArg("checkblocks=<n>", requiredInt, strprintf(_("How many blocks to check at startup (default: %u, 0 = all)"), DefaultCheckBlocks))
+        .addArg("checklevel=<n>", requiredInt, strprintf(_("How thorough the block verification of -checkblocks is (0-4, default: %u)"), DefaultCheckLevel))
         ;
 
 #ifndef WIN32
@@ -244,20 +231,18 @@ static void addGeneralOptions(AllowedArgs& allowedArgs, HelpMessageMode mode)
 #endif
 
     allowedArgs
-        .addArg("dbcache=<n>", requiredInt, strprintf(_("Set database cache size in megabytes (%d to %d, default: %d)"), nMinDbCache, nMaxDbCache, nDefaultDbCache))
-        .addArg("maxorphantx=<n>", requiredInt, strprintf(_("Keep at most <n> unconnectable transactions in memory (default: %u)"), DEFAULT_MAX_ORPHAN_TRANSACTIONS))
-        .addArg("maxmempool=<n>", requiredInt, strprintf(_("Keep the transaction memory pool below <n> megabytes (default: %u)"), DEFAULT_MAX_MEMPOOL_SIZE))
-        .addArg("mempoolexpiry=<n>", requiredInt, strprintf(_("Do not keep transactions in the mempool longer than <n> hours (default: %u)"), DEFAULT_MEMPOOL_EXPIRY))
-        .addArg("par=<n>", requiredInt, strprintf(_("Set the number of script verification threads (%u to %d, 0 = auto, <0 = leave that many cores free, default: %d)"),
-            -GetNumCores(), MAX_SCRIPTCHECK_THREADS, DEFAULT_SCRIPTCHECK_THREADS))
+        .addArg("dbcache=<n>", requiredInt, strprintf(_("Set database cache size in megabytes (%d to %d, default: %d)"), MinDbCache, MaxDbCache, DefaultDbCacheSize))
+        .addArg("maxorphantx=<n>", requiredInt, strprintf(_("Keep at most <n> unconnectable transactions in memory (default: %u)"), DefaultMaxOrphanTransactions))
+        .addArg("maxmempool=<n>", requiredInt, strprintf(_("Keep the transaction memory pool below <n> megabytes (default: %u)"), DefaultMaxMempoolSize))
+        .addArg("mempoolexpiry=<n>", requiredInt, strprintf(_("Do not keep transactions in the mempool longer than <n> hours (default: %u)"), DefaultMempoolExpiry))
 #ifndef WIN32
-        .addArg("pid=<file>", requiredStr, strprintf(_("Specify pid file (default: %s)"), BITCOIN_PID_FILENAME))
+        .addArg("pid=<file>", requiredStr, strprintf(_("Specify pid file (default: %s)"), hubPidFilename()))
 #endif
         .addArg("prune=<n>", requiredInt, strprintf(_("Reduce storage requirements by pruning (deleting) old blocks. This mode is incompatible with -txindex and -rescan. "
                 "Warning: Reverting this setting requires re-downloading the entire blockchain. "
-                "(default: 0 = disable pruning blocks, >%u = target size in MiB to use for block files)"), MIN_DISK_SPACE_FOR_BLOCK_FILES / 1024 / 1024))
+                "(default: 0 = disable pruning blocks, >%u = target size in MiB to use for block files)"), MinDiskSpaceForBlockFiles / 1024 / 1024))
         .addArg("reindex", optionalBool, _("Rebuild block chain index from current blk000??.dat files on startup"))
-        .addArg("txindex", optionalBool, strprintf(_("Maintain a full transaction index, used by the getrawtransaction rpc call (default: %u)"), DEFAULT_TXINDEX))
+        .addArg("txindex", optionalBool, strprintf(_("Maintain a full transaction index, used by the getrawtransaction rpc call (default: %u)"), DefaultTxIndex))
         .addArg("chain", requiredStr, "Which chain to select, either BTC or BCH (=default)")
         .addArg("blockdatadir=<dir>", requiredStr, "List a fallback directory to find blocks/blk* files")
         ;
@@ -268,32 +253,32 @@ static void addConnectionOptions(AllowedArgs& allowedArgs)
     allowedArgs
         .addHeader(_("Connection options:"))
         .addArg("addnode=<ip>", requiredStr, _("Add a node to connect to and attempt to keep the connection open"))
-        .addArg("banscore=<n>", requiredInt, strprintf(_("Threshold for disconnecting misbehaving peers (default: %u)"), DEFAULT_BANSCORE_THRESHOLD))
-        .addArg("bantime=<n>", requiredInt, strprintf(_("Number of seconds to keep misbehaving peers from reconnecting (default: %u)"), DEFAULT_MISBEHAVING_BANTIME))
+        .addArg("banscore=<n>", requiredInt, strprintf(_("Threshold for disconnecting misbehaving peers (default: %u)"), DefaultBanscoreThreshold))
+        .addArg("bantime=<n>", requiredInt, strprintf(_("Number of seconds to keep misbehaving peers from reconnecting (default: %u)"), DefaultMisbehavingBantime))
         .addArg("bind=<addr>", requiredStr, _("Bind to given address and always listen on it. Use [host]:port notation for IPv6"))
         .addArg("connect=<ip>", optionalStr, _("Connect only to the specified node(s)"))
         .addArg("discover", optionalBool, _("Discover own IP addresses (default: true when listening and no -externalip or -proxy)"))
-        .addArg("dns", optionalBool, _("Allow DNS lookups for -addnode, -seednode and -connect") + " " + strprintf(_("(default: %u)"), DEFAULT_NAME_LOOKUP))
+        .addArg("dns", optionalBool, _("Allow DNS lookups for -addnode, -seednode and -connect") + " " + strprintf(_("(default: %u)"), DefaultNameLookup))
         .addArg("dnsseed", optionalBool, _("Query for peer addresses via DNS lookup, if low on addresses (default: true unless -connect)"))
         .addArg("externalip=<ip>", requiredStr, _("Specify your own public address"))
-        .addArg("forcednsseed", optionalBool, strprintf(_("Always query for peer addresses via DNS lookup (default: %u)"), DEFAULT_FORCEDNSSEED))
+        .addArg("forcednsseed", optionalBool, strprintf(_("Always query for peer addresses via DNS lookup (default: %u)"), DefaultForceDnsSeed))
         .addArg("listen", optionalBool, _("Accept connections from outside (default: true if no -proxy or -connect)"))
-        .addArg("listenonion", optionalBool, strprintf(_("Automatically create Tor hidden service (default: %d)"), DEFAULT_LISTEN_ONION))
-        .addArg("maxconnections=<n>", optionalInt, strprintf(_("Maintain at most <n> connections to peers (default: %u)"), DEFAULT_MAX_PEER_CONNECTIONS))
-        .addArg("min-thin-peers=<n>", requiredInt, strprintf(_("Maintain at minimum <n> connections to thin-capable peers (default: %d)"), DEFAULT_MIN_THIN_PEERS))
-        .addArg("maxreceivebuffer=<n>", requiredInt, strprintf(_("Maximum per-connection receive buffer, <n>*1000 bytes (default: %u)"), DEFAULT_MAXRECEIVEBUFFER))
-        .addArg("maxsendbuffer=<n>", requiredInt, strprintf(_("Maximum per-connection send buffer, <n>*1000 bytes (default: %u)"), DEFAULT_MAXSENDBUFFER))
+        .addArg("listenonion", optionalBool, strprintf(_("Automatically create Tor hidden service (default: %d)"), DefaultListenOnion))
+        .addArg("maxconnections=<n>", optionalInt, strprintf(_("Maintain at most <n> connections to peers (default: %u)"), DefaultMaxPeerConnections))
+        .addArg("min-thin-peers=<n>", requiredInt, strprintf(_("Maintain at minimum <n> connections to thin-capable peers (default: %d)"), DefaultMinThinPeers))
+        .addArg("maxreceivebuffer=<n>", requiredInt, strprintf(_("Maximum per-connection receive buffer, <n>*1000 bytes (default: %u)"), DefaultMaxReceiveBuffer))
+        .addArg("maxsendbuffer=<n>", requiredInt, strprintf(_("Maximum per-connection send buffer, <n>*1000 bytes (default: %u)"), DefaultMaxSendBuffer))
         .addArg("onion=<ip:port>", requiredStr, strprintf(_("Use separate SOCKS5 proxy to reach peers via Tor hidden services (default: %s)"), "-proxy"))
         .addArg("onlynet=<net>", requiredStr, _("Only connect to nodes in network <net> (ipv4, ipv6 or onion)"))
-        .addArg("permitbaremultisig", optionalBool, strprintf(_("Relay non-P2SH multisig (default: %u)"), DEFAULT_PERMIT_BAREMULTISIG))
+        .addArg("permitbaremultisig", optionalBool, strprintf(_("Relay non-P2SH multisig (default: %u)"), DefaultPermitBareMultisig))
         .addArg("peerbloomfilters", optionalBool, strprintf(_("Support filtering of blocks and transaction with bloom filters (default: %u)"), 1))
         .addDebugArg("enforcenodebloom", optionalBool, strprintf("Enforce minimum protocol version to limit use of bloom filters (default: %u)", 0))
-        .addArg("port=<port>", requiredInt, strprintf(_("Listen for connections on <port> (default: %u or testnet: %u)"), DEFAULT_MAINNET_PORT, DEFAULT_TESTNET_PORT))
+        .addArg("port=<port>", requiredInt, strprintf(_("Listen for connections on <port> (default: %u or testnet: %u)"), DefaultMainnetPort, DefaultTestnetPort))
         .addArg("proxy=<ip:port>", requiredStr, _("Connect through SOCKS5 proxy"))
-        .addArg("proxyrandomize", optionalBool, strprintf(_("Randomize credentials for every proxy connection. This enables Tor stream isolation (default: %u)"), DEFAULT_PROXYRANDOMIZE))
+        .addArg("proxyrandomize", optionalBool, strprintf(_("Randomize credentials for every proxy connection. This enables Tor stream isolation (default: %u)"), DefaultProxyRandomize))
         .addArg("seednode=<ip>", requiredStr, _("Connect to a node to retrieve peer addresses, and disconnect"))
-        .addArg("timeout=<n>", requiredInt, strprintf(_("Specify connection timeout in milliseconds (minimum: 1, default: %d)"), DEFAULT_CONNECT_TIMEOUT))
-        .addArg("torcontrol=<ip>:<port>", requiredStr, strprintf(_("Tor control port to use if onion listening enabled (default: %s)"), DEFAULT_TOR_CONTROL))
+        .addArg("timeout=<n>", requiredInt, strprintf(_("Specify connection timeout in milliseconds (minimum: 1, default: %d)"), DefaultConnectTimeout))
+        .addArg("torcontrol=<ip>:<port>", requiredStr, strprintf(_("Tor control port to use if onion listening enabled (default: %s)"), DefaultTorControl))
         .addArg("torpassword=<pass>", requiredStr, _("Tor control port password (default: empty)"))
 #ifdef USE_UPNP
 #if USE_UPNP
@@ -305,9 +290,9 @@ static void addConnectionOptions(AllowedArgs& allowedArgs)
         .addArg("whitebind=<addr>", requiredStr, _("Bind to given address and whitelist peers connecting to it. Use [host]:port notation for IPv6"))
         .addArg("whitelist=<netmask>", requiredStr, _("Whitelist peers connecting from the given netmask or IP address. Can be specified multiple times.") +
             " " + _("Whitelisted peers cannot be DoS banned and their transactions are always relayed, even if they are already in the mempool, useful e.g. for a gateway"))
-        .addArg("whitelistrelay", optionalBool, strprintf(_("Accept relayed transactions received from whitelisted peers even when not relaying transactions (default: %d)"), DEFAULT_WHITELISTRELAY))
-        .addArg("whitelistforcerelay", optionalBool, strprintf(_("Force relay of transactions from whitelisted peers even they violate local relay policy (default: %d)"), DEFAULT_WHITELISTFORCERELAY))
-        .addArg("maxuploadtarget=<n>", requiredInt, strprintf(_("Tries to keep outbound traffic under the given target (in MiB per 24h), 0 = no limit (default: %d)"), DEFAULT_MAX_UPLOAD_TARGET))
+        .addArg("whitelistrelay", optionalBool, strprintf(_("Accept relayed transactions received from whitelisted peers even when not relaying transactions (default: %d)"), DefaultWhitelistRelay))
+        .addArg("whitelistforcerelay", optionalBool, strprintf(_("Force relay of transactions from whitelisted peers even they violate local relay policy (default: %d)"), DefaultWhitelistForceRelay))
+        .addArg("maxuploadtarget=<n>", requiredInt, strprintf(_("Tries to keep outbound traffic under the given target (in MiB per 24h), 0 = no limit (default: %d)"), DefaultMaxUploadTarget))
         .addArg("initiatecashconnections", optionalBool, "When using the BitcoinCash network, initiate connections only Cash nodes understand. (default: true)")
         .addArg("flexiblehandshake", optionalBool, "Allow connections from the legacy network when using the BitcoinCash network, or vice-versa. (default: true)")
         ;
@@ -319,22 +304,22 @@ static void addWalletOptions(AllowedArgs& allowedArgs)
     allowedArgs
         .addHeader(_("Wallet options:"))
         .addArg("disablewallet", optionalBool, _("Do not load the wallet and disable wallet RPC calls"))
-        .addArg("keypool=<n>", requiredInt, strprintf(_("Set key pool size to <n> (default: %u)"), DEFAULT_KEYPOOL_SIZE))
-        .addArg("fallbackfee=<amt>", requiredAmount, strprintf(_("A fee rate (in %s/kB) that will be used when fee estimation has insufficient data (default: %s)"),
-            CURRENCY_UNIT, FormatMoney(DEFAULT_FALLBACK_FEE)))
-        .addArg("mintxfee=<amt>", requiredAmount, strprintf(_("Fees (in %s/kB) smaller than this are considered zero fee for transaction creation (default: %s)"),
-                CURRENCY_UNIT, FormatMoney(DEFAULT_TRANSACTION_MINFEE)))
-        .addArg("paytxfee=<amt>", requiredAmount, strprintf(_("Fee (in %s/kB) to add to transactions you send (default: %s)"),
-            CURRENCY_UNIT, FormatMoney(DEFAULT_TRANSACTION_FEE)))
+        .addArg("keypool=<n>", requiredInt, strprintf(_("Set key pool size to <n> (default: %u)"), DefaultKeypoolSize))
+        .addArg("fallbackfee=<amt>", requiredAmount, strprintf(_("A fee rate (in BCH/kB) that will be used when fee estimation has insufficient data (default: %s)"),
+            FormatMoney(DefaultFallbackFee)))
+        .addArg("mintxfee=<amt>", requiredAmount, strprintf(_("Fees (in BCH/kB) smaller than this are considered zero fee for transaction creation (default: %s)"),
+                FormatMoney(DefaultTransactionMinfee)))
+        .addArg("paytxfee=<amt>", requiredAmount, strprintf(_("Fee (in BCH/kB) to add to transactions you send (default: %s)"),
+            FormatMoney(DefaultTransactionFee)))
         .addArg("rescan", optionalBool, _("Rescan the block chain for missing wallet transactions on startup"))
         .addArg("salvagewallet", optionalBool, _("Attempt to recover private keys from a corrupt wallet.dat on startup"))
-        .addArg("sendfreetransactions", optionalBool, strprintf(_("Send transactions as zero-fee transactions if possible (default: %u)"), DEFAULT_SEND_FREE_TRANSACTIONS))
-        .addArg("spendzeroconfchange", optionalBool, strprintf(_("Spend unconfirmed change when sending transactions (default: %u)"), DEFAULT_SPEND_ZEROCONF_CHANGE))
-        .addArg("txconfirmtarget=<n>", requiredInt, strprintf(_("If paytxfee is not set, include enough fee so transactions begin confirmation on average within n blocks (default: %u)"), DEFAULT_TX_CONFIRM_TARGET))
-        .addArg("maxtxfee=<amt>", requiredAmount, strprintf(_("Maximum total fees (in %s) to use in a single wallet transaction; setting this too low may abort large transactions (default: %s)"),
-            CURRENCY_UNIT, FormatMoney(DEFAULT_TRANSACTION_MAXFEE)))
+        .addArg("sendfreetransactions", optionalBool, strprintf(_("Send transactions as zero-fee transactions if possible (default: %u)"), DefaultSendFreeTransactions))
+        .addArg("spendzeroconfchange", optionalBool, strprintf(_("Spend unconfirmed change when sending transactions (default: %u)"), DefaultSpendZeroconfChange))
+        .addArg("txconfirmtarget=<n>", requiredInt, strprintf(_("If paytxfee is not set, include enough fee so transactions begin confirmation on average within n blocks (default: %u)"), defaultTxConfirmTarget))
+        .addArg("maxtxfee=<amt>", requiredAmount, strprintf(_("Maximum total fees (in BCH) to use in a single wallet transaction; setting this too low may abort large transactions (default: %s)"),
+            FormatMoney(DefaultTransactionMaxFee)))
         .addArg("wallet=<file>", requiredStr, _("Specify wallet file (within data directory)") + " " + strprintf(_("(default: %s)"), "wallet.dat"))
-        .addArg("walletbroadcast", optionalBool, _("Make the wallet broadcast transactions") + " " + strprintf(_("(default: %u)"), DEFAULT_WALLETBROADCAST))
+        .addArg("walletbroadcast", optionalBool, _("Make the wallet broadcast transactions") + " " + strprintf(_("(default: %u)"), DefaultWalletBroadcast))
         .addArg("walletnotify=<cmd>", requiredStr, _("Execute command when a wallet transaction changes (%s in cmd is replaced by TxID)"))
         .addArg("zapwallettxes=<mode>", optionalInt, _("Delete all wallet transactions and only recover those parts of the blockchain through -rescan on startup") +
             " " + _("(1 = keep tx meta data e.g. account owner and payment request information, 2 = drop tx meta data)"))
@@ -366,37 +351,37 @@ static void addDebuggingOptions(AllowedArgs& allowedArgs, HelpMessageMode mode)
         .addArg("uacomment=<cmt>", requiredStr, _("Append comment to the user agent string"))
         .addDebugArg("checkblockindex", optionalBool, strprintf("Do a full consistency check for mapBlockIndex, setBlockIndexCandidates, chainActive and mapBlocksUnlinked occasionally (default: %u)", false))
         .addDebugArg("checkmempool=<n>", requiredInt, strprintf("Run checks every <n> transactions (default: %u)", 0))
-        .addDebugArg("checkpoints", optionalBool, strprintf("Disable expensive verification for known chain history (default: %u)", DEFAULT_CHECKPOINTS_ENABLED))
+        .addDebugArg("checkpoints", optionalBool, strprintf("Disable expensive verification for known chain history (default: %u)", DefaultCheckpointsEnabled))
 #ifdef ENABLE_WALLET
-        .addDebugArg("dblogsize=<n>", requiredInt, strprintf("Flush wallet database activity from memory to disk log every <n> megabytes (default: %u)", DEFAULT_WALLET_DBLOGSIZE))
+        .addDebugArg("dblogsize=<n>", requiredInt, strprintf("Flush wallet database activity from memory to disk log every <n> megabytes (default: %u)", DefaultWalletDBLogSize))
 #endif
-        .addDebugArg("disablesafemode", optionalBool, strprintf("Disable safemode, override a real safe mode event (default: %u)", DEFAULT_DISABLE_SAFEMODE))
-        .addDebugArg("testsafemode", optionalBool, strprintf("Force safe mode (default: %u)", DEFAULT_TESTSAFEMODE))
+        .addDebugArg("disablesafemode", optionalBool, strprintf("Disable safemode, override a real safe mode event (default: %u)", DefaultDisableSafemode))
+        .addDebugArg("testsafemode", optionalBool, strprintf("Force safe mode (default: %u)", DefaultTestSafeMode))
         .addDebugArg("dropmessagestest=<n>", requiredInt, "Randomly drop 1 of every <n> network messages")
         .addDebugArg("fuzzmessagestest=<n>", requiredInt, "Randomly fuzz 1 of every <n> network messages")
 #ifdef ENABLE_WALLET
-        .addDebugArg("flushwallet", optionalBool, strprintf("Run a thread to flush wallet periodically (default: %u)", DEFAULT_FLUSHWALLET))
+        .addDebugArg("flushwallet", optionalBool, strprintf("Run a thread to flush wallet periodically (default: %u)", DefaultFlushWallet))
 #endif
-        .addDebugArg("stopafterblockimport", optionalBool, strprintf("Stop running after importing blocks from disk (default: %u)", DEFAULT_STOPAFTERBLOCKIMPORT))
-        .addDebugArg("limitancestorcount=<n>", requiredInt, strprintf("Do not accept transactions if number of in-mempool ancestors is <n> or more (default: %u)", DEFAULT_ANCESTOR_LIMIT))
-        .addDebugArg("limitancestorsize=<n>", requiredInt, strprintf("Do not accept transactions whose size with all in-mempool ancestors exceeds <n> kilobytes (default: %u)", DEFAULT_ANCESTOR_SIZE_LIMIT))
-        .addDebugArg("limitdescendantcount=<n>", requiredInt, strprintf("Do not accept transactions if any ancestor would have <n> or more in-mempool descendants (default: %u)", DEFAULT_DESCENDANT_LIMIT))
-        .addDebugArg("limitdescendantsize=<n>", requiredInt, strprintf("Do not accept transactions if any ancestor would have more than <n> kilobytes of in-mempool descendants (default: %u).", DEFAULT_DESCENDANT_SIZE_LIMIT))
+        .addDebugArg("stopafterblockimport", optionalBool, strprintf("Stop running after importing blocks from disk (default: %u)", DefaultStopAfterBlockImport))
+        .addDebugArg("limitancestorcount=<n>", requiredInt, strprintf("Do not accept transactions if number of in-mempool ancestors is <n> or more (default: %u)", DefaultAncestorLimit))
+        .addDebugArg("limitancestorsize=<n>", requiredInt, strprintf("Do not accept transactions whose size with all in-mempool ancestors exceeds <n> kilobytes (default: %u)", DefaultAncestorSizeLimit))
+        .addDebugArg("limitdescendantcount=<n>", requiredInt, strprintf("Do not accept transactions if any ancestor would have <n> or more in-mempool descendants (default: %u)", DefaultDescendantLimit))
+        .addDebugArg("limitdescendantsize=<n>", requiredInt, strprintf("Do not accept transactions if any ancestor would have more than <n> kilobytes of in-mempool descendants (default: %u).", DefaultDescendantSizeLimit))
         .addArg("debug=<category>", optionalStr, strprintf(_("Output debugging information (default: %u, supplying <category> is optional)"), 0) + ". " +
             _("If <category> is not supplied or if <category> = 1, output all debugging information.") + _("<category> can be:") + " " + debugCategories + ".")
-        .addArg("gen", optionalBool,  strprintf(_("Generate coins (default: %u)"), DEFAULT_GENERATE))
-        .addArg("genproclimit=<n>", requiredInt, strprintf(_("Set the number of threads for coin generation if enabled (-1 = all cores, default: %d)"), DEFAULT_GENERATE_THREADS))
+        .addArg("gen", optionalBool,  strprintf(_("Generate coins (default: %u)"), DefaultGenerateCoins))
+        .addArg("genproclimit=<n>", requiredInt, strprintf(_("Set the number of threads for coin generation if enabled (-1 = all cores, default: %d)"), DefaultGenerateThreads))
         .addArg("gencoinbase=<pubkey>", requiredStr, "When generating coins a coinbase has to be provided in the form of a public key")
         .addArg("logips", optionalBool, strprintf(_("Include IP addresses in debug output (default: %u)"), DEFAULT_LOGIPS))
         .addArg("logtimestamps", optionalBool, strprintf(_("Prepend debug output with timestamp (default: %u)"), DEFAULT_LOGTIMESTAMPS))
         .addDebugArg("mocktime=<n>", requiredInt, "Replace actual time with <n> seconds since epoch (default: 0)")
-        .addDebugArg("limitfreerelay=<n>", optionalInt, strprintf("Continuously rate-limit free transactions to <n>*1000 bytes per minute (default: %u)", DEFAULT_LIMITFREERELAY))
-        .addDebugArg("relaypriority", optionalBool, strprintf("Require high priority for relaying free or low-fee transactions (default: %u)", DEFAULT_RELAYPRIORITY))
-        .addDebugArg("maxsigcachesize=<n>", requiredInt, strprintf("Limit size of signature cache to <n> MiB (default: %u)", DEFAULT_MAX_SIG_CACHE_SIZE))
+        .addDebugArg("limitfreerelay=<n>", optionalInt, strprintf("Continuously rate-limit free transactions to <n>*1000 bytes per minute (default: %u)", DefaultLimitFreeRelay))
+        .addDebugArg("relaypriority", optionalBool, strprintf("Require high priority for relaying free or low-fee transactions (default: %u)", DefaultRelayPriority))
+        .addDebugArg("maxsigcachesize=<n>", requiredInt, strprintf("Limit size of signature cache to <n> MiB (default: %u)", DefaultMaxSigCacheSize))
         .addArg("printtoconsole", optionalBool, _("Send trace/debug info to console instead of debug.log file"))
-        .addDebugArg("printpriority", optionalBool, strprintf("Log transaction priority and fee per kB when mining blocks (default: %u)", DEFAULT_PRINTPRIORITY))
+        .addDebugArg("printpriority", optionalBool, strprintf("Log transaction priority and fee per kB when mining blocks (default: %u)", DefaultGeneratePriorityLogging))
 #ifdef ENABLE_WALLET
-        .addDebugArg("privdb", optionalBool, strprintf("Sets the DB_PRIVATE flag in the wallet db environment (default: %u)", DEFAULT_WALLET_PRIVDB))
+        .addDebugArg("privdb", optionalBool, strprintf("Sets the DB_PRIVATE flag in the wallet db environment (default: %u)", DefaultWalletPrivDb))
 #endif
         .addArg("shrinkdebugfile", optionalBool, _("Shrink debug.log file on client startup (default: true when no -debug)"))
         .addDebugArg("catch-crash", optionalBool, "Enable the crash-catcher which creates a backtrace file on segfault")
@@ -408,16 +393,16 @@ static void addNodeRelayOptions(AllowedArgs& allowedArgs)
     allowedArgs
         .addHeader(_("Node relay options:"))
         .addDebugArg("acceptnonstdtxn", optionalBool, strprintf("Relay and mine \"non-standard\" transactions (%sdefault: %u)", "testnet/regtest only; ", true))
-        .addArg("blocksizeacceptlimit=<n>", requiredAmount, strprintf("This node will not accept blocks larger than this limit. Unit is in MB (default: %.1f)", DEFAULT_BLOCK_ACCEPT_SIZE / 1e6))
-        .addDebugArg("blocksizeacceptlimitbytes,excessiveblocksize=<n>", requiredInt, strprintf("This node will not accept blocks larger than this limit. Unit is in bytes. Superseded by -blocksizeacceptlimit (default: %u)", DEFAULT_BLOCK_ACCEPT_SIZE))
-        .addArg("bytespersigop=<n>", requiredInt, strprintf(_("Minimum bytes per sigop in transactions we relay and mine (default: %u)"), DEFAULT_BYTES_PER_SIGOP))
-        .addArg("datacarrier", optionalBool, strprintf(_("Relay and mine data carrier transactions (default: %u)"), DEFAULT_ACCEPT_DATACARRIER))
-        .addArg("datacarriersize=<n>", requiredInt, strprintf(_("Maximum size of data in data carrier transactions we relay and mine (default: %u)"), MAX_OP_RETURN_RELAY))
+        .addArg("blocksizeacceptlimit=<n>", requiredAmount, strprintf("This node will not accept blocks larger than this limit. Unit is in MB (default: %.1f)", DefaultBlockAcceptSize / 1e6))
+        .addDebugArg("blocksizeacceptlimitbytes,excessiveblocksize=<n>", requiredInt, strprintf("This node will not accept blocks larger than this limit. Unit is in bytes. Superseded by -blocksizeacceptlimit (default: %u)", DefaultBlockAcceptSize))
+        .addArg("bytespersigop=<n>", requiredInt, strprintf(_("Minimum bytes per sigop in transactions we relay and mine (default: %u)"), DefaultBytesPerSigop))
+        .addArg("datacarrier", optionalBool, strprintf(_("Relay and mine data carrier transactions (default: %u)"), DefaultAcceptDataCarrier))
+        .addArg("datacarriersize=<n>", requiredInt, strprintf(_("Maximum size of data in data carrier transactions we relay and mine (default: %u)"), MaxOpReturnRelay))
         .addArg("expeditedblock=<host>", requiredStr, _("Request expedited blocks from this host whenever we are connected to it"))
         .addArg("maxexpeditedblockrecipients=<n>", requiredInt, _("The maximum number of nodes this node will forward expedited blocks to"))
         .addArg("maxexpeditedtxrecipients=<n>", requiredInt, _("The maximum number of nodes this node will forward expedited transactions to"))
-        .addArg("minrelaytxfee=<amt>", requiredAmount, strprintf(_("Fees (in %s/kB) smaller than this are considered zero fee for relaying, mining and transaction creation (default: %s)"),
-            CURRENCY_UNIT, FormatMoney(DEFAULT_MIN_RELAY_TX_FEE)))
+        .addArg("minrelaytxfee=<amt>", requiredAmount, strprintf(_("Fees (in BCH/kB) smaller than this are considered zero fee for relaying, mining and transaction creation (default: %s)"),
+            FormatMoney(DefaultMinRelayTxFee)))
         .addArg("use-thinblocks", optionalBool, _("Enable thin blocks to speed up the relay of blocks (default: true)"))
         ;
 }
@@ -426,9 +411,9 @@ static void addBlockCreationOptions(AllowedArgs& allowedArgs)
 {
     allowedArgs
         .addHeader(_("Block creation options:"))
-        .addArg("blockminsize=<n>", requiredInt, strprintf(_("Set minimum block size in bytes (default: %u)"), DEFAULT_BLOCK_MIN_SIZE))
-        .addArg("blockmaxsize=<n>", requiredInt, strprintf("Set maximum block size in bytes (default: %d)", DEFAULT_BLOCK_MAX_SIZE))
-        .addArg("blockprioritysize=<n>", requiredInt, strprintf(_("Set maximum size of high-priority/low-fee transactions in bytes (default: %d)"), DEFAULT_BLOCK_PRIORITY_SIZE))
+        .addArg("blockminsize=<n>", requiredInt, strprintf(_("Set minimum block size in bytes (default: %u)"), DefaultBlockMinSize))
+        .addArg("blockmaxsize=<n>", requiredInt, strprintf("Set maximum block size in bytes (default: %d)", DefaultBlockMAxSize))
+        .addArg("blockprioritysize=<n>", requiredInt, strprintf(_("Set maximum size of high-priority/low-fee transactions in bytes (default: %d)"), DefaultBlockPrioritySize))
         .addDebugArg("blockversion=<n>", requiredInt, "Override block version to test forking scenarios")
         ;
 }
@@ -438,7 +423,7 @@ static void addRpcServerOptions(AllowedArgs& allowedArgs)
     allowedArgs
         .addHeader(_("RPC server options:"))
         .addArg("server", optionalBool, _("Accept command line and JSON-RPC commands"))
-        .addArg("rest", optionalBool, strprintf(_("Accept public REST requests (default: %u)"), DEFAULT_REST_ENABLE))
+        .addArg("rest", optionalBool, strprintf(_("Accept public REST requests (default: %u)"), DefaultRestEnable))
         .addArg("rpcbind=<addr>", requiredStr, _("Bind to given address to listen for JSON-RPC connections. Use [host]:port notation for IPv6. This option can be specified multiple times (default: bind to all interfaces)"))
         .addArg("rpccookiefile=<loc>", requiredStr, _("Location of the auth cookie (default: data dir)"))
         .addArg("rpcuser=<user>", requiredStr, _("Username for JSON-RPC connections"))
@@ -446,9 +431,9 @@ static void addRpcServerOptions(AllowedArgs& allowedArgs)
         .addArg("rpcauth=<userpw>", requiredStr, _("Username and hashed password for JSON-RPC connections. The field <userpw> comes in the format: <USERNAME>:<SALT>$<HASH>. A canonical python script is included in share/rpcuser. This option can be specified multiple times"))
         .addArg("rpcport=<port>", requiredInt, strprintf(_("Listen for JSON-RPC connections on <port> (default: %u or testnet: %u)"), BaseParams(CBaseChainParams::MAIN).RPCPort(), BaseParams(CBaseChainParams::TESTNET).RPCPort()))
         .addArg("rpcallowip=<ip>", requiredStr, _("Allow JSON-RPC connections from specified source. Valid for <ip> are a single IP (e.g. 1.2.3.4), a network/netmask (e.g. 1.2.3.4/255.255.255.0) or a network/CIDR (e.g. 1.2.3.4/24). This option can be specified multiple times"))
-        .addArg("rpcthreads=<n>", requiredInt, strprintf(_("Set the number of threads to service RPC calls (default: %d)"), DEFAULT_HTTP_THREADS))
-        .addDebugArg("rpcworkqueue=<n>", requiredInt, strprintf("Set the depth of the work queue to service RPC calls (default: %d)", DEFAULT_HTTP_WORKQUEUE))
-        .addDebugArg("rpcservertimeout=<n>", requiredInt, strprintf("Timeout during HTTP requests (default: %d)", DEFAULT_HTTP_SERVER_TIMEOUT))
+        .addArg("rpcthreads=<n>", requiredInt, strprintf(_("Set the number of threads to service RPC calls (default: %d)"), DefaultHttpThreads))
+        .addDebugArg("rpcworkqueue=<n>", requiredInt, strprintf("Set the depth of the work queue to service RPC calls (default: %d)", DefaultHttpWorkQueue))
+        .addDebugArg("rpcservertimeout=<n>", requiredInt, strprintf("Timeout during HTTP requests (default: %d)", DefaultHttpServerTimeout))
         ;
 }
 
@@ -466,14 +451,14 @@ static void addUiOptions(AllowedArgs& allowedArgs)
 {
     allowedArgs
         .addHeader(_("UI Options:"))
-        .addDebugArg("allowselfsignedrootcertificates", optionalBool, strprintf("Allow self signed root certificates (default: %u)", DEFAULT_SELFSIGNED_ROOTCERTS))
-        .addArg("choosedatadir", optionalBool, strprintf(_("Choose data directory on startup (default: %u)"), DEFAULT_CHOOSE_DATADIR))
+        .addDebugArg("allowselfsignedrootcertificates", optionalBool, strprintf("Allow self signed root certificates (default: %u)", DefaultSelfsignedRootcerts))
+        .addArg("choosedatadir", optionalBool, strprintf(_("Choose data directory on startup (default: %u)"), DefaultChooseDatadir))
         .addArg("lang=<lang>", requiredStr, _("Set language, for example \"de_DE\" (default: system locale)"))
         .addArg("min", optionalBool, _("Start minimized"))
         .addArg("rootcertificates=<file>", optionalStr, _("Set SSL root certificates for payment request (default: -system-)"))
-        .addArg("splash", optionalBool, strprintf(_("Show splash screen on startup (default: %u)"), DEFAULT_SPLASHSCREEN))
+        .addArg("splash", optionalBool, strprintf(_("Show splash screen on startup (default: %u)"), DefaultSplashscreen))
         .addArg("resetguisettings", optionalBool, _("Reset all settings changes made over the GUI"))
-        .addDebugArg("uiplatform=<platform>", requiredStr, strprintf("Select platform to customize UI for (one of windows, macosx, other; default: %s)", DEFAULT_UIPLATFORM))
+        .addDebugArg("uiplatform=<platform>", requiredStr, strprintf("Select platform to customize UI for (one of windows, macosx, other; default: %s)", DefaultUIPlatform))
         ;
 }
 
@@ -550,4 +535,4 @@ ConfigFile::ConfigFile()
     m_args.insert(bitcoinQt.getArgs().begin(), bitcoinQt.getArgs().end());
 }
 
-} // namespace AllowedArgs
+}

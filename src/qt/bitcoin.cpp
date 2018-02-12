@@ -44,6 +44,7 @@
 #include "scheduler.h"
 #include "ui_interface.h"
 #include "util.h"
+#include <SettingsDefaults.h>
 
 #ifdef ENABLE_WALLET
 #include "wallet/wallet.h"
@@ -357,7 +358,7 @@ void BitcoinApplication::createPaymentServer()
 void BitcoinApplication::createPlatformStyle()
 {
     std::string platformName;
-    platformName = GetArg("-uiplatform", DEFAULT_UIPLATFORM);
+    platformName = GetArg("-uiplatform", Settings::DefaultUIPlatform);
     platformStyle = PlatformStyle::instantiate(QString::fromStdString(platformName));
     if (!platformStyle) // Fall back to "other" if specified name not found
         platformStyle = PlatformStyle::instantiate("other");
@@ -565,7 +566,7 @@ int main(int argc, char *argv[])
     /// 2. Parse command-line options. These take precedence over anything else.
     // Command-line options take precedence:
     try {
-        ParseParameters(argc, argv, AllowedArgs::BitcoinQt());
+        ParseParameters(argc, argv, Settings::BitcoinQt());
     } catch (const std::exception& e) {
         QMessageBox::critical(0, QObject::tr("Flowee"),
                               QObject::tr("Error: Cannot parse program options: %1.").arg(e.what()));
@@ -683,7 +684,7 @@ int main(int argc, char *argv[])
     // Subscribe to global signals from core
     uiInterface.InitMessage.connect(InitMessage);
 
-    if (GetBoolArg("-splash", DEFAULT_SPLASHSCREEN) && !GetBoolArg("-min", false))
+    if (GetBoolArg("-splash", Settings::DefaultSplashscreen) && !GetBoolArg("-min", false))
         app.createSplashScreen(networkStyle);
 
     try

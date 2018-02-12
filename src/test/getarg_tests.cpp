@@ -40,7 +40,7 @@ static void ResetArgs(const std::string& strArg)
     BOOST_FOREACH(std::string& s, vecArg)
         vecChar.push_back(s.c_str());
 
-    ParseParameters(vecChar.size(), &vecChar[0], AllowedArgs::Bitcoind());
+    ParseParameters(vecChar.size(), &vecChar[0], Settings::Bitcoind());
 }
 
 BOOST_AUTO_TEST_CASE(boolarg)
@@ -139,8 +139,8 @@ BOOST_AUTO_TEST_CASE(intarg)
     BOOST_CHECK_EQUAL(GetArg("-maxconnections", 0), 11);
     BOOST_CHECK_EQUAL(GetArg("-maxreceivebuffer", 11), 12);
 
-    ResetArgs("-par=-1");
-    BOOST_CHECK_EQUAL(GetArg("-par", 0), -1);
+    ResetArgs("-conf=-1");
+    BOOST_CHECK_EQUAL(GetArg("-conf", 0), -1);
 
     BOOST_CHECK_THROW(ResetArgs("-maxreceivebuffer"), std::runtime_error);
     BOOST_CHECK_THROW(ResetArgs("-maxreceivebuffer="), std::runtime_error);

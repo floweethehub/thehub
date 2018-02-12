@@ -19,6 +19,7 @@
  */
 
 #include "Application.h"
+#include <SettingsDefaults.h>
 #include <validation/Engine.h>
 #include "primitives/FastBlock.h"
 #include "streaming/BufferPool.h"
@@ -139,15 +140,15 @@ CBlockTemplate* Mining::CreateNewBlock(Validation::Engine &validationEngine) con
     pblocktemplate->vTxSigOps.push_back(-1); // updated at end
 
     // Largest block you're willing to create (in bytes):
-    uint32_t nBlockMaxSize = std::max<uint32_t>(1000, GetArg("-blockmaxsize", DEFAULT_BLOCK_MAX_SIZE));
+    uint32_t nBlockMaxSize = std::max<uint32_t>(1000, GetArg("-blockmaxsize", Settings::DefaultBlockMAxSize));
 
     // How much of the block should be dedicated to high-priority transactions,
     // included regardless of the fees they pay
-    const uint32_t nBlockPrioritySize = std::min<uint32_t>(GetArg("-blockprioritysize", DEFAULT_BLOCK_PRIORITY_SIZE), nBlockMaxSize);
+    const uint32_t nBlockPrioritySize = std::min<uint32_t>(GetArg("-blockprioritysize", Settings::DefaultBlockPrioritySize), nBlockMaxSize);
 
     // Minimum block size you want to create; block will be filled with free transactions
     // until there are no more or the block reaches this size:
-    uint32_t nBlockMinSize = std::min<uint32_t>(GetArg("-blockminsize", DEFAULT_BLOCK_MIN_SIZE), nBlockMaxSize);
+    uint32_t nBlockMinSize = std::min<uint32_t>(GetArg("-blockminsize", Settings::DefaultBlockMinSize), nBlockMaxSize);
 
     // Collect memory pool transactions into the block
     CTxMemPool::setEntries inBlock;
@@ -161,7 +162,7 @@ CBlockTemplate* Mining::CreateNewBlock(Validation::Engine &validationEngine) con
     double actualPriority = -1;
 
     std::priority_queue<CTxMemPool::txiter, std::vector<CTxMemPool::txiter>, ScoreCompare> clearedTxs;
-    bool fPrintPriority = GetBoolArg("-printpriority", DEFAULT_PRINTPRIORITY);
+    bool fPrintPriority = GetBoolArg("-printpriority", Settings::DefaultGeneratePriorityLogging);
     const uint32_t nCoinbaseReserveSize = 1000;
     uint64_t nBlockSize = nCoinbaseReserveSize;
     uint64_t nBlockTx = 0;
@@ -566,7 +567,7 @@ CScript Mining::ScriptForCoinbase(const std::string &coinbase)
 void Mining::GenerateBitcoins(bool fGenerate, int nThreads, const CChainParams& chainparams, const std::string &coinbase_)
 {
     if (nThreads < 0)
-        nThreads = GetNumCores();
+        nThreads = boost::thread::physical_concurrency();
 
     Mining *miningInstance = instance();
 

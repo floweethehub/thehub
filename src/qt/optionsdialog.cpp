@@ -29,7 +29,7 @@
 
 #include "main.h" // for DEFAULT_SCRIPTCHECK_THREADS and MAX_SCRIPTCHECK_THREADS
 #include "netbase.h"
-#include <BlocksDB.h> // for -dbcache defaults
+#include <SettingsDefaults.h>
 
 #ifdef ENABLE_WALLET
 #include "wallet/wallet.h" // for CWallet::GetRequiredFee()
@@ -53,10 +53,10 @@ OptionsDialog::OptionsDialog(QWidget *parent, bool enableWallet) :
     ui->setupUi(this);
 
     /* Main elements init */
-    ui->databaseCache->setMinimum(nMinDbCache);
-    ui->databaseCache->setMaximum(nMaxDbCache);
-    ui->threadsScriptVerif->setMinimum(-GetNumCores());
-    ui->threadsScriptVerif->setMaximum(MAX_SCRIPTCHECK_THREADS);
+    ui->databaseCache->setMinimum(Settings::MinDbCache);
+    ui->databaseCache->setMaximum(Settings::MaxDbCache);
+    ui->threadsScriptVerif->setMinimum(-boost::thread::physical_concurrency());
+    ui->threadsScriptVerif->setMaximum(99);
 
     /* Network elements init */
 #ifndef USE_UPNP

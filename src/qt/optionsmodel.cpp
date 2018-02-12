@@ -32,6 +32,7 @@
 #include "policy/policy.h" // for DEFAULT_BLOCK_ACCEPT_SIZE
 #include <BlocksDB.h> // for -dbcache defaults
 #include <Application.h>
+#include <SettingsDefaults.h>
 
 #ifdef ENABLE_WALLET
 #include "wallet/wallet.h"
@@ -98,7 +99,7 @@ void OptionsModel::Init(bool resetSettings)
 
     // Main
     if (!settings.contains("nDatabaseCache"))
-        settings.setValue("nDatabaseCache", (qint64)nDefaultDbCache);
+        settings.setValue("nDatabaseCache", (qint64)Settings::DefaultDbCacheSize);
     if (!SoftSetArg("-dbcache", settings.value("nDatabaseCache").toString().toStdString()))
         addOverriddenOption("-dbcache");
 
@@ -108,7 +109,7 @@ void OptionsModel::Init(bool resetSettings)
         addOverriddenOption("-par");
 
     if (!settings.contains("blockSizeAcceptLimitBytes"))
-        settings.setValue("blockSizeAcceptLimitBytes", DEFAULT_BLOCK_ACCEPT_SIZE);
+        settings.setValue("blockSizeAcceptLimitBytes", Settings::DefaultBlockAcceptSize);
     if (mapArgs.count("-blocksizeacceptlimit"))
         addOverriddenOption("-blocksizeacceptlimit");
     else if (mapArgs.count("-blocksizeacceptlimitbytes"))

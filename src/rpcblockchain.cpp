@@ -19,6 +19,7 @@
 
 
 #include "amount.h"
+#include "SettingsDefaults.h"
 #include "chain.h"
 #include "chainparams.h"
 #include "checkpoints.h"
@@ -562,8 +563,8 @@ UniValue gettxout(const UniValue& params, bool fHelp)
 
 UniValue verifychain(const UniValue& params, bool fHelp)
 {
-    int nCheckLevel = GetArg("-checklevel", DEFAULT_CHECKLEVEL);
-    int nCheckDepth = GetArg("-checkblocks", DEFAULT_CHECKBLOCKS);
+    int nCheckLevel = GetArg("-checklevel", Settings::DefaultCheckLevel);
+    int nCheckDepth = GetArg("-checkblocks", Settings::DefaultCheckBlocks);
     if (fHelp || params.size() > 2)
         throw std::runtime_error(
             "verifychain ( checklevel numblocks )\n"
@@ -811,7 +812,7 @@ UniValue mempoolInfoToJSON()
     ret.push_back(Pair("size", (int64_t) mempool.size()));
     ret.push_back(Pair("bytes", (int64_t) mempool.GetTotalTxSize()));
     ret.push_back(Pair("usage", (int64_t) mempool.DynamicMemoryUsage()));
-    size_t maxmempool = GetArg("-maxmempool", DEFAULT_MAX_MEMPOOL_SIZE) * 1000000;
+    size_t maxmempool = GetArg("-maxmempool", Settings::DefaultMaxMempoolSize) * 1000000;
     ret.push_back(Pair("maxmempool", (int64_t) maxmempool));
     ret.push_back(Pair("mempoolminfee", ValueFromAmount(mempool.GetMinFee(maxmempool).GetFeePerK())));
 

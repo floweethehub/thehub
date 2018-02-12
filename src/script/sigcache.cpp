@@ -20,6 +20,7 @@
 #include "sigcache.h"
 
 #include "memusage.h"
+#include <SettingsDefaults.h>
 #include "pubkey.h"
 #include "random.h"
 #include "uint256.h"
@@ -84,7 +85,7 @@ public:
 
     void Set(const uint256& entry)
     {
-        size_t nMaxCacheSize = GetArg("-maxsigcachesize", DEFAULT_MAX_SIG_CACHE_SIZE) * ((size_t) 1 << 20);
+        size_t nMaxCacheSize = GetArg("-maxsigcachesize", Settings::DefaultMaxSigCacheSize) * ((size_t) 1 << 20);
         if (nMaxCacheSize <= 0) return;
 
         boost::unique_lock<boost::shared_mutex> lock(cs_sigcache);

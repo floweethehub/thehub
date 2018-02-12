@@ -18,6 +18,7 @@
 
 #include "httpserver.h"
 
+#include <SettingsDefaults.h>
 #include "chainparamsbase.h"
 #include "compat.h"
 #include "util.h"
@@ -427,7 +428,7 @@ bool InitHTTPServer()
         return false;
     }
 
-    evhttp_set_timeout(http, GetArg("-rpcservertimeout", DEFAULT_HTTP_SERVER_TIMEOUT));
+    evhttp_set_timeout(http, GetArg("-rpcservertimeout", Settings::DefaultHttpServerTimeout));
     evhttp_set_max_headers_size(http, MAX_HEADERS_SIZE);
     evhttp_set_max_body_size(http, MAX_SIZE);
     evhttp_set_gencb(http, http_request_cb, NULL);
@@ -440,7 +441,7 @@ bool InitHTTPServer()
     }
 
     logCritical(Log::HTTP) << "Initialized HTTP server";
-    int workQueueDepth = std::max((long)GetArg("-rpcworkqueue", DEFAULT_HTTP_WORKQUEUE), 1L);
+    int workQueueDepth = std::max((long)GetArg("-rpcworkqueue", Settings::DefaultHttpWorkQueue), 1L);
     logInfo(Log::HTTP) << "creating work queue of depth" << workQueueDepth;
 
     workQueue = new WorkQueue<HTTPClosure>(workQueueDepth);
@@ -454,7 +455,7 @@ boost::thread threadHTTP;
 bool StartHTTPServer()
 {
     logInfo(Log::HTTP) << "Starting HTTP server";
-    int rpcThreads = std::max((long)GetArg("-rpcthreads", DEFAULT_HTTP_THREADS), 1L);
+    int rpcThreads = std::max((long)GetArg("-rpcthreads", Settings::DefaultHttpThreads), 1L);
     logInfo(Log::HTTP) << "starting" << rpcThreads << "worker threads";
     threadHTTP = boost::thread(boost::bind(&ThreadHTTP, eventBase, eventHTTP));
 

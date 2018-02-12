@@ -29,10 +29,11 @@
 #include "chain.h"
 #include "main.h"
 #include "uint256.h"
+#include <SettingsDefaults.h>
+#include <primitives/FastBlock.h>
 #include <boost/thread.hpp>
 #include <boost/filesystem.hpp>
 #include <boost/filesystem/fstream.hpp>
-#include <primitives/FastBlock.h>
 
 static const char DB_BLOCK_FILES = 'f';
 static const char DB_TXINDEX = 't';
@@ -123,7 +124,7 @@ void reimportBlockFiles()
     // To avoid ending up in a situation without genesis block, re-try initializing (no-op if reindexing worked):
     InitBlockIndex(chainparams);
 
-    if (GetBoolArg("-stopafterblockimport", DEFAULT_STOPAFTERBLOCKIMPORT)) {
+    if (GetBoolArg("-stopafterblockimport", Settings::DefaultStopAfterBlockImport)) {
         logCritical(Log::Bitcoin) << "Stopping after block import";
         StartShutdown();
     }

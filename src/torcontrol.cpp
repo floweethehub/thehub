@@ -17,6 +17,7 @@
  */
 
 #include "torcontrol.h"
+#include <SettingsDefaults.h>
 #include "utilstrencodings.h"
 #include "net.h"
 #include "util.h"
@@ -675,7 +676,7 @@ boost::thread torControlThread;
 
 static void TorControlThread()
 {
-    TorController ctrl(base, GetArg("-torcontrol", DEFAULT_TOR_CONTROL));
+    TorController ctrl(base, GetArg("-torcontrol", Settings::DefaultTorControl));
 
     event_base_dispatch(base);
 }

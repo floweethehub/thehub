@@ -38,13 +38,6 @@ class uint256;
 class FastBlock;
 class CChain;
 
-//! -dbcache default (MiB)
-static const int64_t nDefaultDbCache = 300;
-//! max. -dbcache in (MiB)
-static const int64_t nMaxDbCache = sizeof(void*) > 4 ? 16384 : 1024;
-//! min. -dbcache in (MiB)
-static const int64_t nMinDbCache = 4;
-
 namespace Blocks {
 
 enum ReindexingState {

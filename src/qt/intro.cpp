@@ -18,6 +18,7 @@
 
 #include "intro.h"
 #include "ui_intro.h"
+#include <SettingsDefaults.h>
 
 #include "guiconstants.h"
 #include "guiutil.h"
@@ -187,7 +188,7 @@ void Intro::pickDataDirectory()
     /* 2) Allow QSettings to override default dir */
     dataDir = settings.value("strDataDir", dataDir).toString();
 
-    if(!fs::exists(GUIUtil::qstringToBoostPath(dataDir)) || GetBoolArg("-choosedatadir", DEFAULT_CHOOSE_DATADIR))
+    if(!fs::exists(GUIUtil::qstringToBoostPath(dataDir)) || GetBoolArg("-choosedatadir", Settings::DefaultChooseDatadir))
     {
         /* If current default data directory does not exist, let the user choose one */
         Intro intro;

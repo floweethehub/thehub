@@ -33,11 +33,6 @@
 extern int nConnectTimeout;
 extern bool fNameLookup;
 
-//! -timeout default
-static const int DEFAULT_CONNECT_TIMEOUT = 5000;
-//! -dns default
-static const int DEFAULT_NAME_LOOKUP = true;
-
 #ifdef WIN32
 // In MSVC, this is defined as a macro, undefine it to prevent a compile and link error
 #undef SetPort

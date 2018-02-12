@@ -45,7 +45,6 @@ struct CCheckpointData {
     double fTransactionsPerDay;
 };
 
-static const int DEFAULT_MAINNET_PORT = 8333;
 static const int DEFAULT_TESTNET_PORT = 18333;
 
 /**

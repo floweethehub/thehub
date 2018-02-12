@@ -21,6 +21,7 @@
 #include "main.h"
 
 #include "Application.h"
+#include "SettingsDefaults.h"
 #include "addrman.h"
 #include "Application.h"
 #include "chainparams.h"
@@ -63,15 +64,15 @@ int nScriptCheckThreads = 0;
 bool fTxIndex = false;
 bool fHavePruned = false;
 bool fPruneMode = false;
-bool fIsBareMultisigStd = DEFAULT_PERMIT_BAREMULTISIG;
+bool fIsBareMultisigStd = Settings::DefaultPermitBareMultisig;
 bool fRequireStandard = true;
-unsigned int nBytesPerSigOp = DEFAULT_BYTES_PER_SIGOP;
-bool fCheckpointsEnabled = DEFAULT_CHECKPOINTS_ENABLED;
+unsigned int nBytesPerSigOp = Settings::DefaultBytesPerSigop;
+bool fCheckpointsEnabled = Settings::DefaultCheckpointsEnabled;
 size_t nCoinCacheUsage = 5000 * 300;
 uint64_t nPruneTarget = 0;
 
 /** Fees smaller than this (in satoshi) are considered zero fee (for relaying, mining and transaction creation) */
-CFeeRate minRelayTxFee = CFeeRate(DEFAULT_MIN_RELAY_TX_FEE);
+CFeeRate minRelayTxFee = CFeeRate(Settings::DefaultMinRelayTxFee);
 
 CTxMemPool mempool(::minRelayTxFee);
 
@@ -1062,7 +1063,7 @@ void Misbehaving(NodeId nodeId, int howmuch)
         return;
 
     state->nMisbehavior += howmuch;
-    int banscore = GetArg("-banscore", DEFAULT_BANSCORE_THRESHOLD);
+    int banscore = GetArg("-banscore", Settings::DefaultBanscoreThreshold);
     if (!state->fShouldBan && state->nMisbehavior >= banscore && state->nMisbehavior - howmuch < banscore) {
         logCritical(Log::Net) << "Id:" << nodeId << state->nMisbehavior-howmuch << "=>" <<  state->nMisbehavior
                     << "Ban threshold exceeded";
@@ -1807,7 +1808,7 @@ bool InitBlockIndex(const CChainParams& chainparams)
         return true;
 
     // Use the provided setting for -txindex in the new database
-    fTxIndex = GetBoolArg("-txindex", DEFAULT_TXINDEX);
+    fTxIndex = GetBoolArg("-txindex", Settings::DefaultTxIndex);
     Blocks::DB::instance()->WriteFlag("txindex", fTxIndex);
     LogPrintf("Initializing databases...\n");
 
@@ -1841,7 +1842,7 @@ std::string GetWarnings(const std::string& strFor)
         strGUI = _("This is a pre-release test build - use at your own risk - do not use for mining or merchant applications");
     }
 
-    if (GetBoolArg("-testsafemode", DEFAULT_TESTSAFEMODE))
+    if (GetBoolArg("-testsafemode", Settings::DefaultTestSafeMode))
         strStatusBar = strRPC = strGUI = "testsafemode enabled";
 
     // Misc warnings like out of disk space and clock is wrong
@@ -2308,10 +2309,10 @@ bool static ProcessMessage(CNode* pfrom, std::string strCommand, CDataStream& vR
             return error("message inv size() = %u", vInv.size());
         }
 
-        bool fBlocksOnly = GetBoolArg("-blocksonly", DEFAULT_BLOCKSONLY);
+        bool fBlocksOnly = GetBoolArg("-blocksonly", Settings::DefaultBlocksOnly);
 
         // Allow whitelisted peers to send data other than blocks in blocks only mode if whitelistrelay is true
-        if (pfrom->fWhitelisted && GetBoolArg("-whitelistrelay", DEFAULT_WHITELISTRELAY))
+        if (pfrom->fWhitelisted && GetBoolArg("-whitelistrelay", Settings::DefaultWhitelistRelay))
             fBlocksOnly = false;
 
         LOCK(cs_main);
@@ -2527,7 +2528,7 @@ bool static ProcessMessage(CNode* pfrom, std::string strCommand, CDataStream& vR
     {
         // Stop processing the transaction early if
         // We are in blocks only mode and peer is either not whitelisted or whitelistrelay is off
-        if (GetBoolArg("-blocksonly", DEFAULT_BLOCKSONLY) && (!pfrom->fWhitelisted || !GetBoolArg("-whitelistrelay", DEFAULT_WHITELISTRELAY)))
+        if (GetBoolArg("-blocksonly", Settings::DefaultBlocksOnly) && (!pfrom->fWhitelisted || !GetBoolArg("-whitelistrelay", Settings::DefaultWhitelistRelay)))
         {
             LogPrint("net", "transaction sent in violation of protocol peer=%d\n", pfrom->id);
             return true;

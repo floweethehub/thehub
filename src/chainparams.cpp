@@ -20,6 +20,7 @@
 
 #include "chainparams.h"
 #include "consensus/merkle.h"
+#include <SettingsDefaults.h>
 
 #include "util.h"
 #include "utilstrencodings.h"
@@ -138,7 +139,7 @@ public:
         pchMessageStartCash[2] = 0XF3;
         pchMessageStartCash[3] = 0XE8;
 
-        nDefaultPort = DEFAULT_MAINNET_PORT;
+        nDefaultPort = Settings::DefaultMainnetPort;
         nMaxTipAge = 24 * 60 * 60;
         nPruneAfterHeight = 100000;
 
@@ -254,7 +255,7 @@ public:
         pchMessageStartCash[2] = 0xF3;
         pchMessageStartCash[3] = 0xF4;
 
-        nDefaultPort = DEFAULT_TESTNET_PORT;
+        nDefaultPort = Settings::DefaultTestnetPort;
         nMaxTipAge = 0x7fffffff;
         nPruneAfterHeight = 1000;
 

@@ -17,6 +17,7 @@
  */
 
 #include "Engine.h"
+#include <SettingsDefaults.h>
 #include "BlockValidation_p.h"
 #include "TxValidation_p.h"
 #include "ValidationException.h"
@@ -876,7 +877,7 @@ void ValidationEnginePrivate::prepareChain()
         }
     }
     mempool->AddTransactionsUpdated(1);
-    LimitMempoolSize(*mempool, GetArg("-maxmempool", DEFAULT_MAX_MEMPOOL_SIZE) * 1000000, GetArg("-mempoolexpiry", DEFAULT_MEMPOOL_EXPIRY) * 60 * 60);
+    LimitMempoolSize(*mempool, GetArg("-maxmempool", Settings::DefaultMaxMempoolSize) * 1000000, GetArg("-mempoolexpiry", Settings::DefaultMempoolExpiry) * 60 * 60);
 }
 
 void ValidationEnginePrivate::fatal(const char *error)

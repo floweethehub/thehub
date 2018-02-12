@@ -21,6 +21,7 @@
 
 #include "policy/policy.h"
 
+#include <SettingsDefaults.h>
 #include "main.h"
 #include "tinyformat.h"
 #include "util.h"
@@ -221,7 +222,7 @@ int32_t Policy::blockSizeAcceptLimit()
         }
     }
     if (limit <= 0)
-        limit = DEFAULT_BLOCK_ACCEPT_SIZE;
+        limit = Settings::DefaultBlockAcceptSize;
     if (limit < 1000000)
         LogPrintf("BlockSize set to extremely low value (%d bytes), this may cause failures.\n", limit);
     return limit;

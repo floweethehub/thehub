@@ -44,7 +44,7 @@ static bool AppInitRawTx(int argc, char* argv[])
     //
     // Parameters
     //
-    AllowedArgs::BitcoinTx allowedArgs;
+    Settings::BitcoinTx allowedArgs;
     try {
         ParseParameters(argc, argv, allowedArgs);
     } catch (const std::exception& e) {
@@ -83,25 +83,25 @@ static bool AppInitRawTx(int argc, char* argv[])
 
         fprintf(stdout, "%s", strUsage.c_str());
 
-        strUsage = AllowedArgs::HelpMessageGroup(_("Commands:"));
-        strUsage += AllowedArgs::HelpMessageOpt("delin=N", _("Delete input N from TX"));
-        strUsage += AllowedArgs::HelpMessageOpt("delout=N", _("Delete output N from TX"));
-        strUsage += AllowedArgs::HelpMessageOpt("in=TXID:VOUT", _("Add input to TX"));
-        strUsage += AllowedArgs::HelpMessageOpt("locktime=N", _("Set TX lock time to N"));
-        strUsage += AllowedArgs::HelpMessageOpt("nversion=N", _("Set TX version to N"));
-        strUsage += AllowedArgs::HelpMessageOpt("outaddr=VALUE:ADDRESS", _("Add address-based output to TX"));
-        strUsage += AllowedArgs::HelpMessageOpt("outdata=[VALUE:]DATA", _("Add data-based output to TX"));
-        strUsage += AllowedArgs::HelpMessageOpt("outscript=VALUE:SCRIPT", _("Add raw script output to TX"));
-        strUsage += AllowedArgs::HelpMessageOpt("sign=SIGHASH-FLAGS", _("Add zero or more signatures to transaction") + ". " +
+        strUsage = Settings::HelpMessageGroup(_("Commands:"));
+        strUsage += Settings::HelpMessageOpt("delin=N", _("Delete input N from TX"));
+        strUsage += Settings::HelpMessageOpt("delout=N", _("Delete output N from TX"));
+        strUsage += Settings::HelpMessageOpt("in=TXID:VOUT", _("Add input to TX"));
+        strUsage += Settings::HelpMessageOpt("locktime=N", _("Set TX lock time to N"));
+        strUsage += Settings::HelpMessageOpt("nversion=N", _("Set TX version to N"));
+        strUsage += Settings::HelpMessageOpt("outaddr=VALUE:ADDRESS", _("Add address-based output to TX"));
+        strUsage += Settings::HelpMessageOpt("outdata=[VALUE:]DATA", _("Add data-based output to TX"));
+        strUsage += Settings::HelpMessageOpt("outscript=VALUE:SCRIPT", _("Add raw script output to TX"));
+        strUsage += Settings::HelpMessageOpt("sign=SIGHASH-FLAGS", _("Add zero or more signatures to transaction") + ". " +
             _("This command requires JSON registers:") +
             _("prevtxs=JSON object") + ", " +
             _("privatekeys=JSON object") + ". " +
             _("See signrawtransaction docs for format of sighash flags, JSON objects."));
         fprintf(stdout, "%s", strUsage.c_str());
 
-        strUsage = AllowedArgs::HelpMessageGroup(_("Register Commands:"));
-        strUsage += AllowedArgs::HelpMessageOpt("load=NAME:FILENAME", _("Load JSON file FILENAME into register NAME"));
-        strUsage += AllowedArgs::HelpMessageOpt("set=NAME:JSON-STRING", _("Set register NAME to given JSON-STRING"));
+        strUsage = Settings::HelpMessageGroup(_("Register Commands:"));
+        strUsage += Settings::HelpMessageOpt("load=NAME:FILENAME", _("Load JSON file FILENAME into register NAME"));
+        strUsage += Settings::HelpMessageOpt("set=NAME:JSON-STRING", _("Set register NAME to given JSON-STRING"));
         fprintf(stdout, "%s", strUsage.c_str());
 
         return false;

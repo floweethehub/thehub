@@ -22,6 +22,7 @@
 #endif
 
 #include "init.h"
+#include <SettingsDefaults.h>
 
 #include "Application.h"
 #include "addrman.h"
@@ -320,7 +321,7 @@ void OnRPCPreCommand(const CRPCCommand& cmd)
 {
     // Observe safe mode
     std::string strWarning = GetWarnings("rpc");
-    if (strWarning != "" && !GetBoolArg("-disablesafemode", DEFAULT_DISABLE_SAFEMODE) &&
+    if (strWarning != "" && !GetBoolArg("-disablesafemode", Settings::DefaultDisableSafemode) &&
         !cmd.okSafeMode)
         throw JSONRPCError(RPC_FORBIDDEN_BY_SAFE_MODE, std::string("Safe mode: ") + strWarning);
 }
@@ -405,7 +406,7 @@ bool AppInitServers()
         return false;
     if (!StartHTTPRPC())
         return false;
-    if (GetBoolArg("-rest", DEFAULT_REST_ENABLE) && !StartREST())
+    if (GetBoolArg("-rest", Settings::DefaultRestEnable) && !StartREST())
         return false;
     if (!StartHTTPServer())
         return false;
@@ -476,7 +477,7 @@ void InitParameterInteraction()
     }
 
     // disable walletbroadcast and whitelistrelay in blocksonly mode
-    if (GetBoolArg("-blocksonly", DEFAULT_BLOCKSONLY)) {
+    if (GetBoolArg("-blocksonly", Settings::DefaultBlocksOnly)) {
         if (SoftSetBoolArg("-whitelistrelay", false))
             logCritical(Log::Net) << "parameter interaction: -blocksonly=1 -> setting -whitelistrelay=0";
 #ifdef ENABLE_WALLET
@@ -486,7 +487,7 @@ void InitParameterInteraction()
     }
 
     // Forcing relay from whitelisted hosts implies we will accept relays from them in the first place.
-    if (GetBoolArg("-whitelistforcerelay", DEFAULT_WHITELISTFORCERELAY)) {
+    if (GetBoolArg("-whitelistforcerelay", Settings::DefaultWhitelistForceRelay)) {
         if (SoftSetBoolArg("-whitelistrelay", true))
             logCritical(Log::Net) << "parameter interaction: -whitelistforcerelay=1 -> setting -whitelistrelay=1";
     }
@@ -569,7 +570,7 @@ bool AppInit2(boost::thread_group& threadGroup, CScheduler& scheduler)
 
     // if using block pruning, then disable txindex
     if (GetArg("-prune", 0)) {
-        if (GetBoolArg("-txindex", DEFAULT_TXINDEX))
+        if (GetBoolArg("-txindex", Settings::DefaultTxIndex))
             return InitError(_("Prune mode is incompatible with -txindex."));
 #ifdef ENABLE_WALLET
         if (GetBoolArg("-rescan", false)) {
@@ -580,7 +581,7 @@ bool AppInit2(boost::thread_group& threadGroup, CScheduler& scheduler)
 
     // Make sure enough file descriptors are available
     int nBind = std::max((int)mapArgs.count("-bind") + (int)mapArgs.count("-whitebind"), 1);
-    int nUserMaxConnections = GetArg("-maxconnections", DEFAULT_MAX_PEER_CONNECTIONS);
+    int nUserMaxConnections = GetArg("-maxconnections", Settings::DefaultMaxPeerConnections);
     nMaxConnections = std::max(nUserMaxConnections, 0);
 
     // Trim requested connection counts, to fit into system limitations
@@ -606,22 +607,20 @@ bool AppInit2(boost::thread_group& threadGroup, CScheduler& scheduler)
     if (ratio != 0) {
         mempool.setSanityCheck(1.0 / ratio);
     }
-    fCheckpointsEnabled = GetBoolArg("-checkpoints", DEFAULT_CHECKPOINTS_ENABLED);
+    fCheckpointsEnabled = GetBoolArg("-checkpoints", Settings::DefaultCheckpointsEnabled);
 
     // mempool limits
-    int64_t nMempoolSizeMax = GetArg("-maxmempool", DEFAULT_MAX_MEMPOOL_SIZE) * 1000000;
-    int64_t nMempoolSizeMin = GetArg("-limitdescendantsize", DEFAULT_DESCENDANT_SIZE_LIMIT) * 1000 * 40;
+    int64_t nMempoolSizeMax = GetArg("-maxmempool", Settings::DefaultMaxMempoolSize) * 1000000;
+    int64_t nMempoolSizeMin = GetArg("-limitdescendantsize", Settings::DefaultDescendantSizeLimit) * 1000 * 40;
     if (nMempoolSizeMax < 0 || nMempoolSizeMax < nMempoolSizeMin)
         return InitError(strprintf(_("-maxmempool must be at least %d MB"), std::ceil(nMempoolSizeMin / 1000000.0)));
 
     // -par=0 means autodetect, but nScriptCheckThreads==0 means no concurrency
     nScriptCheckThreads = GetArg("-par", DEFAULT_SCRIPTCHECK_THREADS);
     if (nScriptCheckThreads <= 0)
-        nScriptCheckThreads += GetNumCores();
+        nScriptCheckThreads += boost::thread::physical_concurrency();
     if (nScriptCheckThreads <= 1)
         nScriptCheckThreads = 0;
-    else if (nScriptCheckThreads > MAX_SCRIPTCHECK_THREADS)
-        nScriptCheckThreads = MAX_SCRIPTCHECK_THREADS;
 
     fServer = GetBoolArg("-server", false);
 
@@ -632,8 +631,8 @@ bool AppInit2(boost::thread_group& threadGroup, CScheduler& scheduler)
     }
     nPruneTarget = (uint64_t) nSignedPruneTarget;
     if (nPruneTarget) {
-        if (nPruneTarget < MIN_DISK_SPACE_FOR_BLOCK_FILES) {
-            return InitError(strprintf(_("Prune configured below the minimum of %d MiB.  Please use a higher number."), MIN_DISK_SPACE_FOR_BLOCK_FILES / 1024 / 1024));
+        if (nPruneTarget < Settings::MinDiskSpaceForBlockFiles) {
+            return InitError(strprintf(_("Prune configured below the minimum of %d MiB.  Please use a higher number."), Settings::MinDiskSpaceForBlockFiles / 1024 / 1024));
         }
         logCritical(Log::Prune).nospace() << "Prune configured to target " << nPruneTarget / 1024 / 1024
                                           << "MiB on disk for block and undo files.";
@@ -644,9 +643,9 @@ bool AppInit2(boost::thread_group& threadGroup, CScheduler& scheduler)
     bool fDisableWallet = GetBoolArg("-disablewallet", false);
 #endif
 
-    nConnectTimeout = GetArg("-timeout", DEFAULT_CONNECT_TIMEOUT);
+    nConnectTimeout = GetArg("-timeout", Settings::DefaultConnectTimeout);
     if (nConnectTimeout <= 0)
-        nConnectTimeout = DEFAULT_CONNECT_TIMEOUT;
+        nConnectTimeout = Settings::DefaultConnectTimeout;
 
     // Fee-per-kilobyte amount considered the same as "free"
     // If you are mining, be careful setting this:
@@ -716,15 +715,15 @@ bool AppInit2(boost::thread_group& threadGroup, CScheduler& scheduler)
                                        mapArgs["-maxtxfee"], ::minRelayTxFee.ToString()));
         }
     }
-    nTxConfirmTarget = GetArg("-txconfirmtarget", DEFAULT_TX_CONFIRM_TARGET);
-    bSpendZeroConfChange = GetBoolArg("-spendzeroconfchange", DEFAULT_SPEND_ZEROCONF_CHANGE);
-    fSendFreeTransactions = GetBoolArg("-sendfreetransactions", DEFAULT_SEND_FREE_TRANSACTIONS);
+    nTxConfirmTarget = GetArg("-txconfirmtarget", Settings::defaultTxConfirmTarget);
+    bSpendZeroConfChange = GetBoolArg("-spendzeroconfchange", Settings::DefaultSpendZeroconfChange);
+    fSendFreeTransactions = GetBoolArg("-sendfreetransactions", Settings::DefaultSendFreeTransactions);
 
     std::string strWalletFile = GetArg("-wallet", "wallet.dat");
 #endif // ENABLE_WALLET
 
-    fIsBareMultisigStd = GetBoolArg("-permitbaremultisig", DEFAULT_PERMIT_BAREMULTISIG);
-    fAcceptDatacarrier = GetBoolArg("-datacarrier", DEFAULT_ACCEPT_DATACARRIER);
+    fIsBareMultisigStd = GetBoolArg("-permitbaremultisig", Settings::DefaultPermitBareMultisig);
+    fAcceptDatacarrier = GetBoolArg("-datacarrier", Settings::DefaultAcceptDataCarrier);
     nMaxDatacarrierBytes = GetArg("-datacarriersize", nMaxDatacarrierBytes);
 
     // Option to startup with mocktime set (used for regression testing):
@@ -740,7 +739,7 @@ bool AppInit2(boost::thread_group& threadGroup, CScheduler& scheduler)
         if (Params().NetworkIDString() ==  CBaseChainParams::MAIN) {
             if (Policy::blockSizeAcceptLimit() < 8000000)
                 return InitError("The block size accept limit is too low, the minimum is 8MB. The Hub is shutting down.");
-            if (GetArg("-blockmaxsize", DEFAULT_BLOCK_MAX_SIZE) <= 1000000)
+            if (GetArg("-blockmaxsize", Settings::DefaultBlockMAxSize) <= 1000000)
                 return InitError("The maxblocksize mining limit is too low, it should be over 1MB. The Hub is shutting down.");
         }
     }
@@ -843,11 +842,11 @@ bool AppInit2(boost::thread_group& threadGroup, CScheduler& scheduler)
     bool fReindex = GetBoolArg("-reindex", false);
 
     // cache size calculations
-    int64_t nTotalCache = (GetArg("-dbcache", nDefaultDbCache) << 20);
-    nTotalCache = std::max(nTotalCache, nMinDbCache << 20); // total cache cannot be less than nMinDbCache
-    nTotalCache = std::min(nTotalCache, nMaxDbCache << 20); // total cache cannot be greated than nMaxDbcache
+    int64_t nTotalCache = (GetArg("-dbcache", Settings::DefaultDbCacheSize) << 20);
+    nTotalCache = std::max(nTotalCache, Settings::MinDbCache << 20); // total cache cannot be less than nMinDbCache
+    nTotalCache = std::min(nTotalCache, Settings::MaxDbCache << 20); // total cache cannot be greated than nMaxDbcache
     int64_t nBlockTreeDBCache = nTotalCache / 8;
-    if (nBlockTreeDBCache > (1 << 21) && !GetBoolArg("-txindex", DEFAULT_TXINDEX))
+    if (nBlockTreeDBCache > (1 << 21) && !GetBoolArg("-txindex", Settings::DefaultTxIndex))
         nBlockTreeDBCache = (1 << 21); // block tree db cache shouldn't be larger than 2 MiB
     nTotalCache -= nBlockTreeDBCache;
     int64_t nCoinDBCache = std::min(nTotalCache / 2, (nTotalCache / 4) + (1 << 23)); // use 25%-50% of the remainder for disk cache
@@ -908,7 +907,7 @@ bool AppInit2(boost::thread_group& threadGroup, CScheduler& scheduler)
                 }
 
                 // Check for changed -txindex state
-                if (fTxIndex != GetBoolArg("-txindex", DEFAULT_TXINDEX)) {
+                if (fTxIndex != GetBoolArg("-txindex", Settings::DefaultTxIndex)) {
                     strLoadError = _("You need to rebuild the database using -reindex to change -txindex");
                     break;
                 }
@@ -921,9 +920,9 @@ bool AppInit2(boost::thread_group& threadGroup, CScheduler& scheduler)
                 }
 
                 uiInterface.InitMessage(_("Verifying blocks..."));
-                if (fHavePruned && GetArg("-checkblocks", DEFAULT_CHECKBLOCKS) > MIN_BLOCKS_TO_KEEP) {
+                if (fHavePruned && GetArg("-checkblocks", Settings::DefaultCheckBlocks) > MIN_BLOCKS_TO_KEEP) {
                     LogPrintf("Prune: pruned datadir may not have more than %d blocks; -checkblocks=%d may fail\n",
-                        MIN_BLOCKS_TO_KEEP, GetArg("-checkblocks", DEFAULT_CHECKBLOCKS));
+                        MIN_BLOCKS_TO_KEEP, GetArg("-checkblocks", Settings::DefaultCheckBlocks));
                 }
 
                 {
@@ -937,8 +936,8 @@ bool AppInit2(boost::thread_group& threadGroup, CScheduler& scheduler)
                     }
                 }
 
-                if (!VerifyDB().verifyDB(pcoinsdbview, GetArg("-checklevel", DEFAULT_CHECKLEVEL),
-                              GetArg("-checkblocks", DEFAULT_CHECKBLOCKS))) {
+                if (!VerifyDB().verifyDB(pcoinsdbview, GetArg("-checklevel", Settings::DefaultCheckLevel),
+                              GetArg("-checkblocks", Settings::DefaultCheckBlocks))) {
                     strLoadError = _("Corrupted block database detected");
                     break;
                 }
@@ -994,7 +993,7 @@ bool AppInit2(boost::thread_group& threadGroup, CScheduler& scheduler)
 
     // ********************************************************* Step 7: network initialization
 
-    CTxOrphanCache::instance()->setLimit((unsigned int)std::max((int64_t)0, GetArg("-maxorphantx", DEFAULT_MAX_ORPHAN_TRANSACTIONS)));
+    CTxOrphanCache::instance()->setLimit((unsigned int)std::max((int64_t)0, GetArg("-maxorphantx", Settings::DefaultMaxOrphanTransactions)));
 
     RegisterNodeSignals(GetNodeSignals());
 
@@ -1022,7 +1021,7 @@ bool AppInit2(boost::thread_group& threadGroup, CScheduler& scheduler)
         }
     }
 
-    bool proxyRandomize = GetBoolArg("-proxyrandomize", DEFAULT_PROXYRANDOMIZE);
+    bool proxyRandomize = GetBoolArg("-proxyrandomize", Settings::DefaultProxyRandomize);
     // -proxy sets a proxy for all outgoing network traffic
     // -noproxy (or -proxy=0) as well as the empty string can be used to not set a proxy, this is the default
     std::string proxyArg = GetArg("-proxy", "");
@@ -1058,7 +1057,7 @@ bool AppInit2(boost::thread_group& threadGroup, CScheduler& scheduler)
     // see Step 2: parameter interactions for more information about these
     fListen = GetBoolArg("-listen", DEFAULT_LISTEN);
     fDiscover = GetBoolArg("-discover", true);
-    fNameLookup = GetBoolArg("-dns", DEFAULT_NAME_LOOKUP);
+    fNameLookup = GetBoolArg("-dns", Settings::DefaultNameLookup);
 
     bool fBound = false;
     if (fListen) {
@@ -1108,7 +1107,7 @@ bool AppInit2(boost::thread_group& threadGroup, CScheduler& scheduler)
     }
 #endif
     if (mapArgs.count("-maxuploadtarget")) {
-        CNode::SetMaxOutboundTarget(GetArg("-maxuploadtarget", DEFAULT_MAX_UPLOAD_TARGET)*1024*1024);
+        CNode::SetMaxOutboundTarget(GetArg("-maxuploadtarget", Settings::DefaultMaxUploadTarget)*1024*1024);
     }
 
 
@@ -1238,7 +1237,7 @@ bool AppInit2(boost::thread_group& threadGroup, CScheduler& scheduler)
                 }
             }
         }
-        pwalletMain->SetBroadcastTransactions(GetBoolArg("-walletbroadcast", DEFAULT_WALLETBROADCAST));
+        pwalletMain->SetBroadcastTransactions(GetBoolArg("-walletbroadcast", Settings::DefaultWalletBroadcast));
     } // (!fDisableWallet)
 #else // ENABLE_WALLET
     LogPrintf("No wallet support compiled in!\n");
@@ -1288,7 +1287,7 @@ bool AppInit2(boost::thread_group& threadGroup, CScheduler& scheduler)
     logDebug(Log::Wallet) << "mapAddressBook.size() =" << (pwalletMain ? pwalletMain->mapAddressBook.size() : 0);
 #endif
 
-    if (GetBoolArg("-listenonion", DEFAULT_LISTEN_ONION))
+    if (GetBoolArg("-listenonion", Settings::DefaultListenOnion))
         StartTorControl(threadGroup, scheduler);
 
     StartNode(threadGroup, scheduler);
@@ -1301,7 +1300,7 @@ bool AppInit2(boost::thread_group& threadGroup, CScheduler& scheduler)
 
     // Generate coins in the background
     try {
-        Mining::GenerateBitcoins(GetBoolArg("-gen", DEFAULT_GENERATE), GetArg("-genproclimit", DEFAULT_GENERATE_THREADS),
+        Mining::GenerateBitcoins(GetBoolArg("-gen", Settings::DefaultGenerateCoins), GetArg("-genproclimit", Settings::DefaultGenerateThreads),
                                  chainparams, GetArg("-gencoinbase", ""));
     } catch (const std::exception &e) {
         logCritical(Log::Bitcoin) << "Mining could not be activated. Reason: %s" << e.what();

@@ -20,6 +20,8 @@
 
 #include "wallet/wallet.h"
 
+#include <SettingsDefaults.h>
+
 #include <Application.h>
 #include <BlocksDB.h>
 #include "base58.h"
@@ -51,23 +53,23 @@
 #include <boost/thread.hpp>
 
 /** Transaction fee set by the user */
-CFeeRate payTxFee(DEFAULT_TRANSACTION_FEE);
-CAmount maxTxFee = DEFAULT_TRANSACTION_MAXFEE;
-unsigned int nTxConfirmTarget = DEFAULT_TX_CONFIRM_TARGET;
-bool bSpendZeroConfChange = DEFAULT_SPEND_ZEROCONF_CHANGE;
-bool fSendFreeTransactions = DEFAULT_SEND_FREE_TRANSACTIONS;
+CFeeRate payTxFee(Settings::DefaultTransactionFee);
+CAmount maxTxFee = Settings::DefaultTransactionMaxFee;
+unsigned int nTxConfirmTarget = Settings::defaultTxConfirmTarget;
+bool bSpendZeroConfChange = Settings::DefaultSpendZeroconfChange;
+bool fSendFreeTransactions = Settings::DefaultSendFreeTransactions;
 
 /**
  * Fees smaller than this (in satoshi) are considered zero fee (for transaction creation)
  * Override with -mintxfee
  */
-CFeeRate CWallet::minTxFee = CFeeRate(DEFAULT_TRANSACTION_MINFEE);
+CFeeRate CWallet::minTxFee = CFeeRate(Settings::DefaultTransactionMinfee);
 /**
  * If fee estimation does not have enough data to provide estimates, use this fee instead.
  * Has no effect if not using fee estimation
  * Override with -fallbackfee
  */
-CFeeRate CWallet::fallbackFee = CFeeRate(DEFAULT_FALLBACK_FEE);
+CFeeRate CWallet::fallbackFee = CFeeRate(Settings::DefaultFallbackFee);
 
 const uint256 CMerkleTx::ABANDON_HASH(uint256S("0000000000000000000000000000000000000000000000000000000000000001"));
 
@@ -2665,7 +2667,7 @@ bool CWallet::NewKeyPool()
         if (IsLocked())
             return false;
 
-        int64_t nKeys = std::max(GetArg("-keypool", DEFAULT_KEYPOOL_SIZE), (int64_t)0);
+        int64_t nKeys = std::max(GetArg("-keypool", Settings::DefaultKeypoolSize), (int64_t)0);
         for (int i = 0; i < nKeys; i++)
         {
             int64_t nIndex = i+1;
@@ -2692,7 +2694,7 @@ bool CWallet::TopUpKeyPool(unsigned int kpSize)
         if (kpSize > 0)
             nTargetSize = kpSize;
         else
-            nTargetSize = std::max(GetArg("-keypool", DEFAULT_KEYPOOL_SIZE), (int64_t) 0);
+            nTargetSize = std::max(GetArg("-keypool", Settings::DefaultKeypoolSize), (int64_t) 0);
 
         while (setKeyPool.size() < (nTargetSize + 1))
         {
