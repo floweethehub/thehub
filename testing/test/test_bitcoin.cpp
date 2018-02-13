@@ -17,7 +17,7 @@
  * along with this program.  If not, see <http://www.gnu.org/licenses/>.
  */
 
-#define BOOST_TEST_MODULE Bitcoin Test Suite
+#define BOOST_TEST_MODULE Hub Test Suite
 
 #include "test_bitcoin.h"
 #include <chain.h>
@@ -34,7 +34,7 @@ CWallet* pwalletMain;
 #endif
 
 
-#include <boost/test/unit_test.hpp>
+#include <boost/test/included/unit_test.hpp>
 
 CClientUIInterface uiInterface; // Declared but not defined in UiInterface.h
 
