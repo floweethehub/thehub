@@ -19,7 +19,6 @@
 
 #include "policy/policy.h"
 #include "util.h"
-#include "clientversion.h"
 #include "chainparams.h"
 #include "utilstrencodings.h"
 #include "clientversion.h"
