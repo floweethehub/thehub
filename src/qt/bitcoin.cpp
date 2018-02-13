@@ -65,6 +65,8 @@
 #include <QTimer>
 #include <QTranslator>
 #include <QSslConfiguration>
+#include <AdminServer.h>
+#include <Application.h>
 
 #if defined(QT_STATICPLUGIN)
 #include <QtPlugin>
@@ -184,7 +186,7 @@ class BitcoinCore: public QObject
 {
     Q_OBJECT
 public:
-    explicit BitcoinCore();
+    BitcoinCore();
 
 public Q_SLOTS:
     void initialize();
@@ -198,6 +200,7 @@ Q_SIGNALS:
 private:
     boost::thread_group threadGroup;
     CScheduler scheduler;
+    std::unique_ptr<Admin::Server> apiServer;
 
     /// Pass fatal exception message to UI thread
     void handleRunawayException(const std::exception *e);
@@ -267,8 +270,7 @@ private:
 
 #include "bitcoin.moc"
 
-BitcoinCore::BitcoinCore():
-    QObject()
+BitcoinCore::BitcoinCore()
 {
 }
 
@@ -285,6 +287,8 @@ void BitcoinCore::initialize()
         qDebug() << __func__ << ": Running AppInit2 in thread";
         int rv = AppInit2(threadGroup, scheduler);
         Q_EMIT initializeResult(rv);
+
+        apiServer.reset(new Admin::Server(Application::instance()->ioService()));
     } catch (const std::exception& e) {
         handleRunawayException(&e);
     } catch (...) {

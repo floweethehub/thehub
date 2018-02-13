@@ -26,7 +26,6 @@
 #include "net.h"
 #include "util.h"
 
-#include "AdminServer.h"
 #include <validation/Engine.h>
 
 #include <boost/foreach.hpp>
@@ -56,7 +55,6 @@ void Application::quit(int rc)
     app->m_returnCode = rc;
     if (app->m_validationEngine.get())
         app->m_validationEngine->shutdown();
-    app->m_adminServer.reset();
     app->m_work.reset();
     app->m_ioservice->stop();
     app->m_closingDown = true;
@@ -119,18 +117,6 @@ Application::~Application()
 boost::asio::io_service& Application::ioService()
 {
     return *m_ioservice;
-}
-
-Admin::Server *Application::adminServer()
-{
-    if (m_adminServer.get() == nullptr) {
-        try {
-            m_adminServer.reset(new Admin::Server(*m_ioservice));
-        } catch (const std::exception &e) {
-            logCritical(Log::NWM) << "Can't start Admin::Server" << e;
-        }
-    }
-    return m_adminServer.get();
 }
 
 Validation::Engine *Application::validation()

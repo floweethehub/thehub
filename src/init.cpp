@@ -810,10 +810,6 @@ bool AppInit2(boost::thread_group& threadGroup, CScheduler& scheduler)
             return InitError(_("Unable to start HTTP server. See debug log for details."));
     }
 
-    if (GetBoolArg("-adminserver", false)) {
-        // just calling it will create it, which will start it.
-        Application::instance()->adminServer();
-    }
     Application::instance()->validation()->setMempool(&mempool);
 
     // ********************************************************* Step 5: verify wallet database integrity

@@ -23,9 +23,6 @@
 
 #include <memory>
 
-namespace Admin {
-    class Server;
-}
 namespace Validation {
     class Engine;
 }
@@ -61,12 +58,6 @@ public:
     static void quit(int rc = 0);
 
     boost::asio::io_service& ioService();
-
-    /**
-     * Creates an admin server which will immediately start to listen on the appropriate ports.
-     * Notice that this method may throw a runtime_error if setup fails.
-     */
-    Admin::Server* adminServer();
 
     Validation::Engine* validation();
 
@@ -109,8 +100,6 @@ private:
     std::shared_ptr<boost::asio::io_service> m_ioservice;
     std::unique_ptr<boost::asio::io_service::work> m_work;
     boost::thread_group m_threads;
-
-    std::unique_ptr<Admin::Server> m_adminServer;
 
     int m_returnCode;
     bool m_closingDown;
