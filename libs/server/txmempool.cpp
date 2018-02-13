@@ -20,7 +20,6 @@
 
 #include "txmempool.h"
 
-#include "clientversion.h"
 #include "consensus/consensus.h"
 #include "consensus/validation.h"
 #include "main.h"
@@ -828,8 +827,8 @@ CTxMemPool::WriteFeeEstimates(CAutoFile& fileout) const
 {
     try {
         LOCK(cs);
-        fileout << 109900; // version required to read: 0.10.99 or later
-        fileout << CLIENT_VERSION; // version that wrote the file
+        fileout << 1; // version required to read: 1 or later
+        fileout << 1; // version that wrote the file
         minerPolicyEstimator->Write(fileout);
     }
     catch (const std::exception&) {
@@ -845,7 +844,7 @@ CTxMemPool::ReadFeeEstimates(CAutoFile& filein)
     try {
         int nVersionRequired, nVersionThatWrote;
         filein >> nVersionRequired >> nVersionThatWrote;
-        if (nVersionRequired > CLIENT_VERSION)
+        if (nVersionRequired > 1)
             return error("CTxMemPool::ReadFeeEstimates(): up-version (%d) fee estimate file", nVersionRequired);
 
         LOCK(cs);
