@@ -115,6 +115,9 @@ foreach (JSON_FILE
 
     # generate 'sighash' array from 'data/sighash.json'
     get_filename_component(JSON_NAME ${JSON_FILE} NAME_WE)
+    if (EXISTS "${CMAKE_CURRENT_BINARY_DIR}/${JSON_FILE}.h")
+        continue()
+    endif ()
     file(WRITE ${CMAKE_CURRENT_BINARY_DIR}/${JSON_FILE}.h "namespace json_tests{ static unsigned const char ${JSON_NAME}[] = {")
     # generate a C++ compatible hex format of the input file.
     execute_process(COMMAND ${HEXDUMP} -v -e "8/1 \"0x%02x, \"" -e "\"\n\"" ${CMAKE_CURRENT_SOURCE_DIR}/${JSON_FILE}
