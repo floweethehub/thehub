@@ -30,7 +30,6 @@
 #include "sync.h"
 #include "primitives/FastTransaction.h"
 
-#undef foreach
 #include "boost/multi_index_container.hpp"
 #include "boost/multi_index/ordered_index.hpp"
 
