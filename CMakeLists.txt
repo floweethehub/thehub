@@ -39,11 +39,11 @@ include(GetGitRevisionDescription)
 get_git_head_revision(GIT_REFSPEC GIT_SHA1)
 get_git_branch(GIT_BRANCH)
 
-if(GIT_SHA1 AND GIT_BRANCH)
+if (GIT_SHA1 AND GIT_BRANCH)
     string(SUBSTRING ${GIT_SHA1} 0 7 GIT_SHA1)
     set(FLOWEE_GIT_SHA1_STRING ${GIT_SHA1})
     set(FLOWEE_GIT_BRANCH_STRING ${GIT_BRANCH})
-endif()
+endif ()
 
 
  ############
@@ -63,14 +63,14 @@ if (dev_setup)
     set(CMAKE_BUILD_TYPE Debug FORCE)
     set(CMAKE_CXX_FLAGS_DEBUG "${CMAKE_CXX_FLAGS_DEBUG} -DBTC_LOGCONTEXT -DUSE_UNSAFE_RANDOM -DENABLE_CRASH_CATCHER")
     message(STATUS "Setting built type to Debug, with unsafe random and other dev options.")
-elseif(NOT CMAKE_BUILD_TYPE AND NOT CMAKE_CONFIGURATION_TYPES)
+elseif (NOT CMAKE_BUILD_TYPE AND NOT CMAKE_CONFIGURATION_TYPES)
     message(STATUS "Setting build type to 'ReleaseWithDebugInfo' as none was specified.")
     set(CMAKE_BUILD_TYPE RELWITHDEBINFO CACHE STRING "Choose the type of build." FORCE)
     # Set the possible values of build type for cmake-gui
     set_property(CACHE CMAKE_BUILD_TYPE PROPERTY STRINGS "Debug" "Release" "RelWithDebInfo")
 elseif (NOT CMAKE_CONFIGURATION_TYPES)
     message(STATUS "Built type is ${CMAKE_BUILD_TYPE}")
-endif()
+endif ()
 
 # turn off debug logging for release builds
 set(CMAKE_CXX_FLAGS_RELEASE "${CMAKE_CXX_FLAGS_RELEASE} -DBTC_NO_DEBUG_OUTPUT")
@@ -78,10 +78,14 @@ set(CMAKE_CXX_FLAGS_RELEASE "${CMAKE_CXX_FLAGS_RELEASE} -DBTC_NO_DEBUG_OUTPUT")
 if (build_tests)
     # add dependency
     set (boost_test_lib "unit_test_framework")
-endif()
+endif ()
 
 option(enable_gui "Compile the GUI client (hub-qt)" ON)
 
+option(mark_release "If true, remove the pre-release warning from the app" OFF)
+if (mark_release)
+    set(CLIENT_VERSION_IS_RELEASE 1)
+endif ()
 
 ######################
 #### Include hierarchy
