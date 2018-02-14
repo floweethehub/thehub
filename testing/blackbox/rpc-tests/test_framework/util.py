@@ -121,7 +121,7 @@ def initialize_datadir(dirname, n):
     print "init %s" % datadir
     if not os.path.isdir(datadir):
         os.makedirs(datadir)
-    with open(os.path.join(datadir, "bitcoin.conf"), 'w') as f:
+    with open(os.path.join(datadir, "flowee.conf"), 'w') as f:
         f.write("regtest=1\n")
         f.write("rpcuser=rt\n")
         f.write("rpcpassword=rt\n")
@@ -137,7 +137,7 @@ def initialize_chain(test_dir):
     """
     Create (or copy from cache) a 200-block-long chain and
     4 wallets.
-    bitcoind and bitcoin-cli must be in search path.
+    bitcoind and hub-cli must be in search path.
     """
 
     if (not os.path.isdir(os.path.join("cache","node0"))
@@ -160,11 +160,11 @@ def initialize_chain(test_dir):
             bitcoind_processes[i] = subprocess.Popen(args)
             print "PID:", bitcoind_processes[i].pid
             if os.getenv("PYTHON_DEBUG", ""):
-                print "initialize_chain: bitcoind started, calling bitcoin-cli -rpcwait getblockcount"
-            subprocess.check_call([ os.getenv("BITCOINCLI", "bitcoin-cli"), "-datadir="+datadir,
+                print "initialize_chain: bitcoind started, calling hub-cli -rpcwait getblockcount"
+            subprocess.check_call([ os.getenv("BITCOINCLI", "hub-cli"), "-datadir="+datadir,
                                     "-rpcwait", "getblockcount"], stdout=devnull)
             if os.getenv("PYTHON_DEBUG", ""):
-                print "initialize_chain: bitcoin-cli -rpcwait getblockcount completed"
+                print "initialize_chain: hub-cli -rpcwait getblockcount completed"
         devnull.close()
 
         rpcs = []
@@ -204,7 +204,7 @@ def initialize_chain(test_dir):
         from_dir = os.path.join("cache", "node"+str(i))
         to_dir = os.path.join(test_dir,  "node"+str(i))
         shutil.copytree(from_dir, to_dir)
-        initialize_datadir(test_dir, i) # Overwrite port/rpcport in bitcoin.conf
+        initialize_datadir(test_dir, i) # Overwrite port/rpcport in flowee.conf
 
 def initialize_chain_clean(test_dir, num_nodes):
     """
@@ -258,14 +258,15 @@ def start_node(i, dirname, extra_args=None, rpchost=None, timewait=None, binary=
         bitcoind_processes[i] = subprocess.Popen(args)
         print "PID:", bitcoind_processes[i].pid
         if os.getenv("PYTHON_DEBUG", ""):
-            print "start_node: bitcoind started, calling bitcoin-cli -rpcwait getblockcount"
+            print "start_node: bitcoind started, calling hub-cli -rpcwait getblockcount"
             print args
     devnull = open(os.devnull, "w")
-    subprocess.check_call([ os.getenv("BITCOINCLI", "bitcoin-cli"), "-datadir="+datadir] +
+    print "CLI: ", os.getenv("BITCOINCLI", "hub-cli")
+    subprocess.check_call([ os.getenv("BITCOINCLI", "hub-cli"), "-datadir="+datadir] +
                           _rpchost_to_args(rpchost)  +
                           ["-rpcwait", "getblockcount"], stdout=devnull)
     if os.getenv("PYTHON_DEBUG", ""):
-        print "start_node: calling bitcoin-cli -rpcwait getblockcount returned"
+        print "start_node: calling hub-cli -rpcwait getblockcount returned"
     devnull.close()
     url = "http://rt:rt@%s:%d" % (rpchost or '127.0.0.1', rpc_port(i))
 

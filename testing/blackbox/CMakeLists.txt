@@ -39,4 +39,4 @@ configure_file (
 )
 
 file (COPY ${CMAKE_CURRENT_SOURCE_DIR}/pull-tester/rpc-tests.py
-    DESTINATION ${CMAKE_CURRENT_BINARY_DIR}/pull-tester/rpc-tests.py)
+    DESTINATION ${CMAKE_CURRENT_BINARY_DIR}/pull-tester)

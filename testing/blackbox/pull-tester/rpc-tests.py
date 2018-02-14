@@ -17,7 +17,7 @@ than:
       interface.
 
 For a description of arguments recognized by test scripts, see
-`qa/pull-tester/test_framework/test_framework.py:BitcoinTestFramework.main`.
+`testing/blackbox/pull-tester/test_framework/test_framework.py:BitcoinTestFramework.main`.
 
 """
 
@@ -66,7 +66,7 @@ sourceDir = SOURCEDIR
 if "BITCOIND" not in os.environ:
     os.environ["BITCOIND"] = buildDir + '/hub/hub' + EXEEXT
 if "BITCOINCLI" not in os.environ:
-    os.environ["BITCOINCLI"] = buildDir + '/buh-cli/hub-cli' + EXEEXT
+    os.environ["BITCOINCLI"] = buildDir + '/hub-cli/hub-cli' + EXEEXT
 
 #Disable Windows tests by default
 if EXEEXT == ".exe" and "-win" not in opts:
@@ -144,7 +144,7 @@ def runtests():
         print("Initializing coverage directory at %s\n" % coverage.dir)
 
     if(ENABLE_WALLET == 1 and ENABLE_UTILS == 1 and ENABLE_BITCOIND == 1):
-        rpcTestDir = sourceDir + '/qa/rpc-tests/'
+        rpcTestDir = sourceDir + '/testing/blackbox/rpc-tests/'
         run_extended = '-extended' in opts
         cov_flag = coverage.flag if coverage else ''
         flags = " --srcdir %s/src %s %s" % (sourceDir, cov_flag, passOn)
@@ -204,7 +204,7 @@ class RPCCoverage(object):
     After all tests complete, the commands run are combined and diff'd against
     the complete list to calculate uncovered RPC commands.
 
-    See also: qa/rpc-tests/test_framework/coverage.py
+    See also: testing/blackbox/rpc-tests/test_framework/coverage.py
 
     """
     def __init__(self):
@@ -232,7 +232,7 @@ class RPCCoverage(object):
         Return a set of currently untested RPC commands.
 
         """
-        # This is shared from `qa/rpc-tests/test-framework/coverage.py`
+        # This is shared from `testing/blackbox/rpc-tests/test-framework/coverage.py`
         REFERENCE_FILENAME = 'rpc_interface.txt'
         COVERAGE_FILE_PREFIX = 'coverage.'
 
