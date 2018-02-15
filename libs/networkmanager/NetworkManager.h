@@ -48,6 +48,7 @@ public:
     /**
      * Find a connection based on explicit data from the remote argument.
      * @param remote the datastructure with all the details of a remote used in the connection.
+     *      The announcePort and the ipAddress are required to be filled.
      * @param connect Indicate what to do when the connection doesn't exist yet.
      */
     NetworkConnection connection(const EndPoint &remote, ConnectionEnum connect = AutoCreate);
