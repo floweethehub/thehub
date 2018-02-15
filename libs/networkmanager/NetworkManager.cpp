@@ -17,6 +17,7 @@
  */
 #include "NetworkManager.h"
 #include "NetworkManager_p.h"
+#include "NetworkService.h"
 #include "networkManager/NetworkEnums.h"
 
 #include <streaming/MessageBuilder.h>
@@ -59,6 +60,10 @@ NetworkManager::~NetworkManager()
         it->second->shutdown(it->second);
     }
     d->connections.clear(); // invalidate NetworkConnection references
+    for (auto service : d->services) {
+        service->setManager(nullptr);
+    }
+    d->services.clear();
 }
 
 NetworkConnection NetworkManager::connection(const EndPoint &remote, ConnectionEnum connect)
@@ -114,6 +119,24 @@ void NetworkManager::bind(tcp::endpoint endpoint, const std::function<void(Netwo
 
     if (d->servers.size() == 1) // start cron
         d->cronHourly(boost::system::error_code());
+}
+
+void NetworkManager::addService(NetworkService *service)
+{
+    assert(service);
+    if (!service) return;
+    boost::recursive_mutex::scoped_lock lock(d->mutex);
+    d->services.push_back(service);
+    service->setManager(this);
+}
+
+void NetworkManager::removeService(NetworkService *service)
+{
+    assert(service);
+    if (!service) return;
+    boost::recursive_mutex::scoped_lock lock(d->mutex);
+    d->services.remove(service);
+    service->setManager(nullptr);
 }
 
 std::weak_ptr<NetworkManagerPrivate> NetworkManager::priv()
@@ -735,11 +758,28 @@ bool NetworkManagerConnection::processPacket(const std::shared_ptr<char> &buffer
         try {
             callback(message);
         } catch (const std::exception &ex) {
-            logWarning(Log::NWM) << "onIncomingMessage threw exception, ignoring:" << ex;
+            logWarning(Log::NWM) << "connection::onIncomingMessage threw exception, ignoring:" << ex;
         }
         if (!m_socket.is_open())
             break;
     }
+    std::list<NetworkService*> servicesCopy;
+    {
+        boost::recursive_mutex::scoped_lock lock(d->mutex);
+        servicesCopy = d->services;
+    }
+    for (auto service : servicesCopy) {
+        if (!m_socket.is_open())
+            break;
+        if (service->id() == serviceId) {
+            try {
+                service->onIncomingMessage(message, m_remote);
+            } catch (const std::exception &ex) {
+                logWarning(Log::NWM) << "service::onIncomingMessage threw exception, ignoring:" << ex;
+            }
+        }
+    }
+
     return m_socket.is_open(); // if the user called disconnect, then stop processing packages
 }
 

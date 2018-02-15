@@ -39,6 +39,7 @@
 #include <atomic>
 
 class NetworkConnection;
+class NetworkService;
 
 using boost::asio::ip::tcp;
 
@@ -202,6 +203,7 @@ public:
     std::vector<NetworkManagerServer *> servers;
 
     std::list<BannedNode> banned;
+    std::list<NetworkService*> services;
     boost::asio::deadline_timer m_cronHourly;
 };
 

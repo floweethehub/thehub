@@ -28,6 +28,7 @@
 #include "NetworkConnection.h"
 
 class NetworkManagerPrivate;
+class NetworkService;
 
 /**
  * The NetworkManager is the main entry-point of this library.
@@ -68,6 +69,9 @@ public:
      * Adds a callback that will be called when a new connection comes in.
      */
     void bind(boost::asio::ip::tcp::endpoint endpoint, const std::function<void(NetworkConnection&)> &callback);
+
+    void addService(NetworkService *service);
+    void removeService(NetworkService *service);
 
     std::weak_ptr<NetworkManagerPrivate> priv(); ///< \internal
 
