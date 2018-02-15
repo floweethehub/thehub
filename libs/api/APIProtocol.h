@@ -15,10 +15,10 @@
  * You should have received a copy of the GNU General Public License
  * along with this program.  If not, see <http://www.gnu.org/licenses/>.
  */
-#ifndef ADMINPROTOCOL_H
-#define ADMINPROTOCOL_H
+#ifndef APIPROTOCOL_H
+#define APIPROTOCOL_H
 
-namespace Admin {
+namespace Api {
 enum ServiceIds {
     ControlService,
     LoginService,
@@ -30,7 +30,7 @@ enum ServiceIds {
     WalletService
 };
 
-enum AdminTags {
+enum ApiTags {
     RequestId = 11
 };
 

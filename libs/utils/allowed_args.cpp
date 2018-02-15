@@ -437,12 +437,12 @@ static void addRpcServerOptions(AllowedArgs& allowedArgs)
         ;
 }
 
-static void addAdminServerOptions(AllowedArgs& allowedArgs)
+static void addApiServerOptions(AllowedArgs& allowedArgs)
 {
     allowedArgs
-        .addHeader("Admin server options: (Experimental!)")
-        .addArg("admincookiefile=<loc>", requiredStr, "Location of the adminserver auth cookie (default: data dir)")
-        .addArg("adminlisten=<addr>", requiredStr, strprintf("Bind to given address to listen for admin server connections. Use [host]:port notation for IPv6. This option can be specified multiple times (default 127.0.0.1:%s and [::1]:%s)", BaseParams(CBaseChainParams::MAIN).AdminServerPort(), BaseParams(CBaseChainParams::MAIN).AdminServerPort()));
+        .addHeader("Api server options: (Experimental!)")
+        .addArg("apicookiefile=<loc>", requiredStr, "Location of the apiserver auth cookie (default: data dir)")
+        .addArg("apilisten=<addr>", requiredStr, strprintf("Bind to given address to listen for api server connections. Use [host]:port notation for IPv6. This option can be specified multiple times (default 127.0.0.1:%s and [::1]:%s)", BaseParams(CBaseChainParams::MAIN).ApiServerPort(), BaseParams(CBaseChainParams::MAIN).ApiServerPort()));
         ;
 }
 
@@ -474,7 +474,7 @@ static void addAllNodeOptions(AllowedArgs& allowedArgs, HelpMessageMode mode)
     addNodeRelayOptions(allowedArgs);
     addBlockCreationOptions(allowedArgs);
     addRpcServerOptions(allowedArgs);
-    addAdminServerOptions(allowedArgs);
+    addApiServerOptions(allowedArgs);
     if (mode == HMM_BITCOIN_QT)
         addUiOptions(allowedArgs);
 }

@@ -65,7 +65,7 @@
 #include <QTimer>
 #include <QTranslator>
 #include <QSslConfiguration>
-#include <AdminServer.h>
+#include <APIServer.h>
 #include <Application.h>
 
 #if defined(QT_STATICPLUGIN)
@@ -200,7 +200,7 @@ Q_SIGNALS:
 private:
     boost::thread_group threadGroup;
     CScheduler scheduler;
-    std::unique_ptr<Admin::Server> apiServer;
+    std::unique_ptr<Api::Server> apiServer;
 
     /// Pass fatal exception message to UI thread
     void handleRunawayException(const std::exception *e);
@@ -288,7 +288,7 @@ void BitcoinCore::initialize()
         int rv = AppInit2(threadGroup, scheduler);
         Q_EMIT initializeResult(rv);
 
-        apiServer.reset(new Admin::Server(Application::instance()->ioService()));
+        apiServer.reset(new Api::Server(Application::instance()->ioService()));
     } catch (const std::exception& e) {
         handleRunawayException(&e);
     } catch (...) {

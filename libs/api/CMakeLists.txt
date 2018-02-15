@@ -17,8 +17,8 @@
 include_directories(${LIBAPI_INCLUDES})
 
 add_library(flowee_api STATIC
-    AdminRPCBinding.cpp
-    AdminServer.cpp
+    APIRPCBinding.cpp
+    APIServer.cpp
 )
 
 target_link_libraries(flowee_api flowee_server flowee_networkmanager)

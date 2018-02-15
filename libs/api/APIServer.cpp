@@ -15,9 +15,9 @@
  * You should have received a copy of the GNU General Public License
  * along with this program.  If not, see <http://www.gnu.org/licenses/>.
  */
-#include "AdminServer.h"
-#include "AdminRPCBinding.h"
-#include "AdminProtocol.h"
+#include "APIServer.h"
+#include "APIRPCBinding.h"
+#include "APIProtocol.h"
 
 #include "streaming/MessageBuilder.h"
 #include "streaming/MessageParser.h"
@@ -35,12 +35,12 @@
 // the amount of seconds after which we disconnect incoming connections that have not logged in yet.
 #define LOGIN_TIMEOUT 4
 
-Admin::Server::Server(boost::asio::io_service &service)
+Api::Server::Server(boost::asio::io_service &service)
     : m_networkManager(service),
       m_timerRunning(false),
       m_newConnectionTimeout(service)
 {
-    boost::filesystem::path path(GetArg("-admincookiefile", "admin_cookie"));
+    boost::filesystem::path path(GetArg("-apicookiefile", "api cookie"));
     if (!path.is_complete())
         path = GetDataDir() / path;
 
@@ -58,19 +58,19 @@ Admin::Server::Server(boost::asio::io_service &service)
         std::ofstream out;
         out.open(path.string().c_str());
         if (!out.is_open()) {
-            LogPrintf("Unable to open admin-cookie authentication file %s for writing\n", path.string());
-            throw std::runtime_error("Unable to open admin-cookie authentication file.");
+            logFatal(Log::ApiServer) << "Unable to open api-cookie authentication file" << path.string() << "for writing";
+            throw std::runtime_error("Unable to open api-cookie authentication file.");
         }
         out << m_cookie;
         out.close();
-        LogPrintf("Generated admin-authentication cookie %s\n", path.string());
+        logInfo(Log::ApiServer) << "Generated api-authentication cookie" << path.string();
     }
 
-    int defaultPort = BaseParams().AdminServerPort();
+    int defaultPort = BaseParams().ApiServerPort();
     std::list<boost::asio::ip::tcp::endpoint> endpoints;
 
-    if (mapArgs.count("-adminlisten")) {
-        for (auto strAddress : mapMultiArgs["-adminlisten"]) {
+    if (mapArgs.count("-apilisten")) {
+        for (auto strAddress : mapMultiArgs["-apilisten"]) {
             int port = defaultPort;
             std::string host;
             SplitHostPort(strAddress, port, host);
@@ -85,18 +85,18 @@ Admin::Server::Server(boost::asio::io_service &service)
 
     for (auto endpoint : endpoints) {
         try {
-            m_networkManager.bind(endpoint, std::bind(&Admin::Server::newConnection, this, std::placeholders::_1));
-            LogPrintf("Admin Server listening on %s\n", endpoint);
+            m_networkManager.bind(endpoint, std::bind(&Api::Server::newConnection, this, std::placeholders::_1));
+            LogPrintf("Api Server listening on %s\n", endpoint);
         } catch (const std::exception &e) {
-            LogPrintf("Admin Server failed to listen on %s. %s", endpoint, e.what());
+            LogPrintf("Api Server failed to listen on %s. %s", endpoint, e.what());
         }
     }
 }
 
-void Admin::Server::newConnection(NetworkConnection &connection)
+void Api::Server::newConnection(NetworkConnection &connection)
 {
-    connection.setOnIncomingMessage(std::bind(&Admin::Server::incomingLoginMessage, this, std::placeholders::_1));
-    connection.setOnDisconnected(std::bind(&Admin::Server::connectionRemoved, this, std::placeholders::_1));
+    connection.setOnIncomingMessage(std::bind(&Api::Server::incomingLoginMessage, this, std::placeholders::_1));
+    connection.setOnDisconnected(std::bind(&Api::Server::connectionRemoved, this, std::placeholders::_1));
     connection.accept();
     NewConnection con;
     con.connection = std::move(connection);
@@ -108,11 +108,11 @@ void Admin::Server::newConnection(NetworkConnection &connection)
     if (!m_timerRunning) {
         m_timerRunning = true;
         m_newConnectionTimeout.expires_from_now(boost::posix_time::seconds(LOGIN_TIMEOUT));
-        m_newConnectionTimeout.async_wait(std::bind(&Admin::Server::checkConnections, this, std::placeholders::_1));
+        m_newConnectionTimeout.async_wait(std::bind(&Api::Server::checkConnections, this, std::placeholders::_1));
     }
 }
 
-void Admin::Server::connectionRemoved(const EndPoint &endPoint)
+void Api::Server::connectionRemoved(const EndPoint &endPoint)
 {
     boost::mutex::scoped_lock lock(m_mutex);
     auto iter = m_newConnections.begin();
@@ -135,7 +135,7 @@ void Admin::Server::connectionRemoved(const EndPoint &endPoint)
     }
 }
 
-void Admin::Server::incomingLoginMessage(const Message &message)
+void Api::Server::incomingLoginMessage(const Message &message)
 {
     bool success = false;
     if (message.messageId() == Login::LoginMessage && message.serviceId() == LoginService) {
@@ -156,7 +156,7 @@ void Admin::Server::incomingLoginMessage(const Message &message)
         return;
     }
 
-    con.setOnDisconnected(std::bind(&Admin::Server::connectionRemoved, this, std::placeholders::_1));
+    con.setOnDisconnected(std::bind(&Api::Server::connectionRemoved, this, std::placeholders::_1));
     Connection *handler = new Connection(std::move(con));
     boost::mutex::scoped_lock lock(m_mutex);
     m_connections.push_back(handler);
@@ -171,7 +171,7 @@ void Admin::Server::incomingLoginMessage(const Message &message)
     }
 }
 
-void Admin::Server::checkConnections(boost::system::error_code error)
+void Api::Server::checkConnections(boost::system::error_code error)
 {
     if (error.value() == boost::asio::error::operation_aborted)
         return;
@@ -192,24 +192,24 @@ void Admin::Server::checkConnections(boost::system::error_code error)
     if (!m_newConnections.empty()) {
         m_timerRunning = true;
         m_newConnectionTimeout.expires_from_now(boost::posix_time::seconds(1));
-        m_newConnectionTimeout.async_wait(std::bind(&Admin::Server::checkConnections, this, std::placeholders::_1));
+        m_newConnectionTimeout.async_wait(std::bind(&Api::Server::checkConnections, this, std::placeholders::_1));
     } else {
         m_timerRunning = false;
     }
 }
 
 
-Admin::Server::Connection::Connection(NetworkConnection && connection)
+Api::Server::Connection::Connection(NetworkConnection && connection)
     : m_connection(std::move(connection))
 {
-    m_connection.setOnIncomingMessage(std::bind(&Admin::Server::Connection::incomingMessage, this, std::placeholders::_1));
+    m_connection.setOnIncomingMessage(std::bind(&Api::Server::Connection::incomingMessage, this, std::placeholders::_1));
 }
 
-void Admin::Server::Connection::incomingMessage(const Message &message)
+void Api::Server::Connection::incomingMessage(const Message &message)
 {
-    std::unique_ptr<AdminRPCBinding::Parser> parser;
+    std::unique_ptr<APIRPCBinding::Parser> parser;
     try {
-        parser.reset(AdminRPCBinding::createParser(message));
+        parser.reset(APIRPCBinding::createParser(message));
         assert(parser.get()); // createParser should never return a nullptr
     } catch (const std::exception &e) {
         sendFailedMessage(message, e.what());
@@ -218,7 +218,7 @@ void Admin::Server::Connection::incomingMessage(const Message &message)
 
     assert(parser.get());
 
-    auto *rpcParser = dynamic_cast<AdminRPCBinding::RpcParser*>(parser.get());
+    auto *rpcParser = dynamic_cast<APIRPCBinding::RpcParser*>(parser.get());
     if (rpcParser) {
         assert(!rpcParser->method().empty());
         try {
@@ -238,32 +238,32 @@ void Admin::Server::Connection::incomingMessage(const Message &message)
             Streaming::MessageBuilder builder(m_bufferPool);
             rpcParser->buildReply(builder, result);
             Message reply = builder.message(message.serviceId(), rpcParser->replyMessageId());
-            const int requestId = message.headerInt(Admin::RequestId);
+            const int requestId = message.headerInt(Api::RequestId);
             if (requestId != -1)
-                reply.setHeaderInt(Admin::RequestId, requestId);
+                reply.setHeaderInt(Api::RequestId, requestId);
             m_connection.send(reply);
         } catch (const std::exception &e) {
             std::string error = "Interal Error " + std::string(e.what());
-            LogPrintf("AdminServer internal error in parsing %s: %s", rpcParser->method(), e.what());
+            logCritical(Log::ApiServer) << "ApiServer internal error in parsing" << rpcParser->method() <<  e;
             (void) m_bufferPool.commit(); // make sure the partial message is discarded
             sendFailedMessage(message, error);
         }
         return;
     }
-    auto *directParser = dynamic_cast<AdminRPCBinding::DirectParser*>(parser.get());
+    auto *directParser = dynamic_cast<APIRPCBinding::DirectParser*>(parser.get());
     if (directParser) {
         m_bufferPool.reserve(directParser->calculateMessageSize());
         Streaming::MessageBuilder builder(m_bufferPool);
         directParser->buildReply(message, builder);
         Message reply = builder.message(message.serviceId(), directParser->replyMessageId());
-        const int requestId = message.headerInt(Admin::RequestId);
+        const int requestId = message.headerInt(Api::RequestId);
         if (requestId != -1)
-            reply.setHeaderInt(Admin::RequestId, requestId);
+            reply.setHeaderInt(Api::RequestId, requestId);
         m_connection.send(reply);
     }
 }
 
-void Admin::Server::Connection::sendFailedMessage(const Message &origin, const std::string &failReason)
+void Api::Server::Connection::sendFailedMessage(const Message &origin, const std::string &failReason)
 {
     m_bufferPool.reserve(failReason.size() + 20);
     Streaming::MessageBuilder builder(m_bufferPool);
@@ -271,8 +271,8 @@ void Admin::Server::Connection::sendFailedMessage(const Message &origin, const s
     builder.add(Control::FailedCommandServiceId, origin.serviceId());
     builder.add(Control::FailedCommandId, origin.messageId());
     Message answer = builder.message(ControlService, Control::CommandFailed);
-    const int requestId = origin.headerInt(Admin::RequestId);
+    const int requestId = origin.headerInt(Api::RequestId);
     if (requestId != -1)
-        answer.setHeaderInt(Admin::RequestId, requestId);
+        answer.setHeaderInt(Api::RequestId, requestId);
     m_connection.send(answer);
 }

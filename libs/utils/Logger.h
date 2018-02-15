@@ -93,7 +93,7 @@ enum Sections {
     ThinBlocks,
     ExpeditedBlocks,
 
-    AdminServer = 3000,
+    ApiServer = 3000,
     RPC,
     LibEvent,
     HTTP,

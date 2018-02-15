@@ -37,13 +37,13 @@ public:
 
     const std::string& DataDir() const { return strDataDir; }
     int RPCPort() const { return nRPCPort; }
-    int AdminServerPort() const { return nAdminServerPort; }
+    int ApiServerPort() const { return nApiServerPort; }
 
 protected:
     CBaseChainParams() {}
 
     int nRPCPort;
-    int nAdminServerPort;
+    int nApiServerPort;
     std::string strDataDir;
 };
 

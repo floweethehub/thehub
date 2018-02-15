@@ -16,8 +16,8 @@
  * along with this program.  If not, see <http://www.gnu.org/licenses/>.
  */
 
-#ifndef ADMINRPCBINDING_H
-#define ADMINRPCBINDING_H
+#ifndef APIRPCBINDING_H
+#define APIRPCBINDING_H
 
 #include <string>
 #include <functional>
@@ -28,14 +28,14 @@ namespace Streaming {
 class UniValue;
 class Message;
 
-namespace AdminRPCBinding
+namespace APIRPCBinding
 {
     /**
      * This class, and its subclasses RpcParser / DirectParser are the baseclasses for specific commands.
      *
-     * In the admin API we have specific incoming messages which map to a Parser implementation.
+     * In the API we have specific incoming messages which map to a Parser implementation.
      * When a new request comes in from the network, the specific parser that can handle this
-     * is instantiated and then based on the admin server finding either a RpcParser or a DirectParser
+     * is instantiated and then based on the api server finding either a RpcParser or a DirectParser
      * its virtual methods will be called.
      */
     class Parser {
@@ -52,7 +52,7 @@ namespace AdminRPCBinding
             return m_type;
         }
 
-        /// Returns the message-id we set in the answer message. Typically an enum from the AdminProtocol.h
+        /// Returns the message-id we set in the answer message. Typically an enum from the APIProtocol.h
         inline int replyMessageId() const {
             return m_replyMessageId;
         }

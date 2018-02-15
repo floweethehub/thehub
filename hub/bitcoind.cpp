@@ -28,7 +28,7 @@
 #include "httprpc.h"
 #include "rpcserver.h"
 #include "Application.h"
-#include "AdminServer.h"
+#include "APIServer.h"
 
 #include <boost/algorithm/string/predicate.hpp>
 #include <boost/filesystem.hpp>
@@ -93,7 +93,7 @@ bool AppInit(int argc, char* argv[])
         return false;
     }
 
-    std::unique_ptr<Admin::Server> apiServer;
+    std::unique_ptr<Api::Server> apiServer;
     try
     {
         std::string dd = GetArg("-datadir", "");
@@ -164,7 +164,7 @@ bool AppInit(int argc, char* argv[])
         InitParameterInteraction();
         fRet = AppInit2(threadGroup, scheduler);
 
-        apiServer.reset(new Admin::Server(Application::instance()->ioService()));
+        apiServer.reset(new Api::Server(Application::instance()->ioService()));
     }
     catch (const std::exception& e) {
         PrintExceptionContinue(&e, "AppInit()");
