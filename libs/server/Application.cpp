@@ -43,7 +43,7 @@ Application * Application::instance()
 int Application::exec()
 {
     Application *app = Application::instance();
-    app->m_threads.join_all();
+    app->joinAll();
     return app->m_returnCode;
 }
 
@@ -54,8 +54,7 @@ void Application::quit(int rc)
     app->m_returnCode = rc;
     if (app->m_validationEngine.get())
         app->m_validationEngine->shutdown();
-    app->m_work.reset();
-    app->m_ioservice->stop();
+    app->stopThreads();
     app->m_closingDown = true;
 }
 
@@ -64,7 +63,6 @@ Application::Application()
     m_closingDown(false),
     m_uahfState(UAHFDisabled)
 {
-    startThreads();
     init();
 }
 
@@ -87,35 +85,8 @@ void Application::init()
     }
 }
 
-void Application::startThreads()
-{
-    m_ioservice = std::make_shared<boost::asio::io_service>();
-    m_work.reset(new boost::asio::io_service::work(*m_ioservice));
-    for (int i = boost::thread::hardware_concurrency(); i > 0; --i) {
-        auto ioservice(m_ioservice);
-        m_threads.create_thread([ioservice] {
-            RenameThread("Appl-Threadpool");
-            while(true) {
-                try {
-                    ioservice->run();
-                    return;
-                } catch (const boost::thread_interrupted&) {
-                    return;
-                } catch (const std::exception& ex) {
-                    logCritical(Log::Bitcoin) << "Threadgroup: uncaught exception" << ex;
-                }
-            }
-        });
-    }
-}
-
 Application::~Application()
 {
-}
-
-boost::asio::io_service& Application::ioService()
-{
-    return *m_ioservice;
 }
 
 Validation::Engine *Application::validation()

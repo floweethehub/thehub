@@ -41,6 +41,7 @@ add_library(flowee_utils STATIC
     utilmoneystr.cpp
     utilstrencodings.cpp
     utiltime.cpp
+    WorkerThreads.cpp
 )
 
 add_dependencies(flowee_utils univalue)
