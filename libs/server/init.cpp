@@ -284,7 +284,7 @@ void HandleSIGTERM(int)
 void HandleSIGHUP(int)
 {
     Log::Manager::instance()->reopenLogFiles();
-    Log::Manager::instance()->parseConfig();
+    Log::Manager::instance()->parseConfig(GetDataDir(false) / "logs.conf", GetDataDir(true) / "debug.log");
 }
 
 bool static InitError(const std::string &str)
@@ -497,6 +497,7 @@ void InitLogging()
 {
     fLogIPs = GetBoolArg("-logips", DEFAULT_LOGIPS);
 
+    Log::Manager::instance()->parseConfig(GetDataDir(false) / "logs.conf", GetDataDir(true) / "debug.log");
     LogPrintf("\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n");
     LogPrintf("Bitcoin version %s (%s)\n", FormatFullVersion(), CLIENT_DATE);
 }
@@ -595,12 +596,6 @@ bool AppInit2(boost::thread_group& threadGroup, CScheduler& scheduler)
         InitWarning(strprintf(_("Reducing -maxconnections from %d to %d, because of system limitations."), nUserMaxConnections, nMaxConnections));
 
     // ********************************************************* Step 3: parameter-to-internal-flags
-
-    fDebug = !mapMultiArgs["-debug"].empty();
-    // Special-case: if -debug=0/-nodebug is set, turn off debugging messages
-    const std::vector<std::string>& categories = mapMultiArgs["-debug"];
-    if (find(categories.begin(), categories.end(), std::string("0")) != categories.end())
-        fDebug = false;
 
     // Checkmempool and checkblockindex default to true in regtest mode
     int ratio = std::min<int>(std::max<int>(GetArg("-checkmempool", chainparams.DefaultConsistencyChecks() ? 1 : 0), 0), 1000000);
@@ -776,7 +771,7 @@ bool AppInit2(boost::thread_group& threadGroup, CScheduler& scheduler)
 #ifndef WIN32
     CreatePidFile(GetPidFile(), getpid());
 #endif
-    if (GetBoolArg("-shrinkdebugfile", !fDebug))
+    if (GetBoolArg("-shrinkdebugfile", true))
         ShrinkDebugFile();
 
 #ifdef ENABLE_WALLET

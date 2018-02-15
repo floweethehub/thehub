@@ -280,7 +280,6 @@ QString TransactionDesc::toHTML(CWallet *wallet, CWalletTx &wtx, TransactionReco
     //
     // Debug view
     //
-    if (fDebug)
     {
         strHTML += "<hr><br>" + tr("Debug information") + "<br><br>";
         BOOST_FOREACH(const CTxIn& txin, wtx.vin)

@@ -146,9 +146,10 @@ void ConsoleLogChannel::pushLog(int64_t, std::string *timestamp, const std::stri
     out.flush();
 }
 
-FileLogChannel::FileLogChannel()
+FileLogChannel::FileLogChannel(const boost::filesystem::path &logFilename)
     : Channel(DateTime),
-      m_fileout(0)
+      m_fileout(0),
+      m_logFilename(logFilename)
 {
     reopenLogFiles();
 }
@@ -200,8 +201,7 @@ void FileLogChannel::reopenLogFiles()
     if (m_fileout)
         fclose(m_fileout);
 
-    boost::filesystem::path pathDebug = GetDataDir() / "debug.log";
-    m_fileout = fopen(pathDebug.string().c_str(), "a");
+    m_fileout = fopen(m_logFilename.string().c_str(), "a");
     if (m_fileout)
         setbuf(m_fileout, NULL); // unbuffered
 }
