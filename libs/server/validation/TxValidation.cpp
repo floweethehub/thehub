@@ -431,6 +431,7 @@ void TxValidationState::sync()
     LimitMempoolSize(*parent->mempool, GetArg("-maxmempool", Settings::DefaultMaxMempoolSize) * 1000000,
                      GetArg("-mempoolexpiry", Settings::DefaultMempoolExpiry) * 60 * 60);
 
-    SyncWithWallets(m_tx.createOldTransaction(), nullptr);
+    ValidationNotifier().SyncTransaction(m_tx.createOldTransaction(), nullptr);
+    ValidationNotifier().SyncTx(m_tx, FastBlock());
 }
 

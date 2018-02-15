@@ -250,7 +250,7 @@ void Shutdown()
 
 #if ENABLE_ZMQ
     if (pzmqNotificationInterface) {
-        UnregisterValidationInterface(pzmqNotificationInterface);
+        ValidationNotifier().removeListener(pzmqNotificationInterface);
         delete pzmqNotificationInterface;
         pzmqNotificationInterface = NULL;
     }
@@ -263,7 +263,7 @@ void Shutdown()
         LogPrintf("%s: Unable to remove pidfile: %s\n", __func__, e.what());
     }
 #endif
-    UnregisterAllValidationInterfaces();
+    ValidationNotifier().removeAll();
 #ifdef ENABLE_WALLET
     delete pwalletMain;
     pwalletMain = NULL;
@@ -1094,7 +1094,7 @@ bool AppInit2(boost::thread_group& threadGroup, CScheduler& scheduler)
     pzmqNotificationInterface = CZMQNotificationInterface::CreateWithArguments(mapArgs);
 
     if (pzmqNotificationInterface) {
-        RegisterValidationInterface(pzmqNotificationInterface);
+        ValidationNotifier().addListener(pzmqNotificationInterface);
     }
 #endif
     if (mapArgs.count("-maxuploadtarget")) {
@@ -1170,7 +1170,7 @@ bool AppInit2(boost::thread_group& threadGroup, CScheduler& scheduler)
             logFatal(Log::Wallet) << strErrors.str();
         logInfo(Log::Wallet).nospace() << "wallet load took: " << GetTimeMillis() - nStart << "ms";
 
-        RegisterValidationInterface(pwalletMain);
+        ValidationNotifier().addListener(pwalletMain);
 
         CBlockIndex *pindexRescan = chainActive.Tip();
         if (GetBoolArg("-rescan", false)) {

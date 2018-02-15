@@ -586,7 +586,7 @@ void Mining::GenerateBitcoins(bool fGenerate, int nThreads, const CChainParams& 
     if (coinbase.empty()) {
         // try to get it from the wallet
         boost::shared_ptr<CReserveScript> coinbaseScript;
-        GetMainSignals().ScriptForMining(coinbaseScript);
+        ValidationNotifier().GetScriptForMining(coinbaseScript);
 
         if (pwalletMain) {
             boost::shared_ptr<CReserveKey> rKey(new CReserveKey(pwalletMain));

@@ -1438,7 +1438,7 @@ bool FlushStateToDisk(CValidationState &state, FlushStateMode mode) {
     }
     if (fDoFullFlush || ((mode == FLUSH_STATE_ALWAYS || mode == FLUSH_STATE_PERIODIC) && nNow > nLastSetChain + (int64_t)DATABASE_WRITE_INTERVAL * 1000000)) {
         // Update best block in wallet (so we can detect restored wallets).
-        GetMainSignals().SetBestChain(chainActive.GetLocator());
+        ValidationNotifier().SetBestChain(chainActive.GetLocator());
         nLastSetChain = nNow;
     }
     } catch (const std::runtime_error& e) {
@@ -2031,7 +2031,7 @@ void static ProcessGetData(CNode* pfrom, const Consensus::Params& consensusParam
             }
 
             // Track requests for our stuff.
-            GetMainSignals().Inventory(inv.hash);
+            ValidationNotifier().Inventory(inv.hash);
 
             if (inv.type == MSG_BLOCK || inv.type == MSG_FILTERED_BLOCK
                     || inv.type == MSG_THINBLOCK || inv.type == MSG_XTHINBLOCK)
@@ -2398,7 +2398,7 @@ bool static ProcessMessage(CNode* pfrom, std::string strCommand, CDataStream& vR
             }
 
             // Track requests for our stuff
-            GetMainSignals().Inventory(inv.hash);
+            ValidationNotifier().Inventory(inv.hash);
 
             if (pfrom->nSendSize > (SendBufferSize() * 2)) {
                 Misbehaving(pfrom->GetId(), 50);
@@ -3442,7 +3442,7 @@ bool SendMessages(CNode* pto)
         // transactions become unconfirmed and spams other nodes.
         if (!fReindex && !IsInitialBlockDownload())
         {
-            GetMainSignals().Broadcast(nTimeBestReceived);
+            ValidationNotifier().ResendWalletTransactions(nTimeBestReceived);
         }
 
         //

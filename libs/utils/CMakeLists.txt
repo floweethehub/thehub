@@ -46,4 +46,4 @@ add_library(flowee_utils STATIC
 
 add_dependencies(flowee_utils univalue)
 
-target_link_libraries(flowee_utils flowee_crypto)
+target_link_libraries(flowee_utils flowee_interfaces flowee_crypto)

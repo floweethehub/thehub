@@ -36,6 +36,7 @@
 #include <consensus/validation.h>
 #include <consensus/merkle.h>
 #include <fstream>
+#include <streaming/BufferPool.h>
 
 // #define DEBUG_BLOCK_VALIDATION
 #ifdef DEBUG_BLOCK_VALIDATION
@@ -647,10 +648,14 @@ void ValidationEnginePrivate::processNewBlock(std::shared_ptr<BlockValidationSta
                 }
 
                 // Tell wallet about transactions that went from mempool to conflicted:
+                Streaming::BufferPool pool;
                 for(const CTransaction &tx : txConflicted) {
-                    SyncWithWallets(tx, nullptr);
+                    ValidationNotifier().SyncTransaction(tx, nullptr);
+                    ValidationNotifier().SyncTx(Tx::fromOldTransaction(tx, &pool), FastBlock());
                 }
-                SyncBlockWithWallets(&block); // ... and about transactions that got confirmed:
+                ValidationNotifier().SyncAllTransactionsInBlock(state->m_block); // ... and about transactions that got confirmed:
+                ValidationNotifier().SyncAllTransactionsInBlock(&block);
+
 #ifdef ENABLE_BENCHMARKS
                 end = GetTimeMicros();
                 m_walletTime.fetch_add(end - start);
@@ -751,8 +756,7 @@ void ValidationEnginePrivate::processNewBlock(std::shared_ptr<BlockValidationSta
     uiInterface.NotifyBlockTip(orphanBlocks.size() > 3, index);
     {
         LOCK(cs_main);
-        GetMainSignals().UpdatedTransaction(hashPrevBestCoinBase);
-        GetMainSignals().UpdatedBlockTip(index);
+        ValidationNotifier().UpdatedTransaction(hashPrevBestCoinBase);
     }
     hashPrevBestCoinBase = state->m_block.transactions().at(0).createHash();
 #ifdef ENABLE_BENCHMARKS
@@ -873,7 +877,8 @@ void ValidationEnginePrivate::prepareChain()
             }
             // Let wallets know transactions went from 1-confirmed to
             // 0-confirmed or conflicted:
-            SyncWithWallets(tx.createOldTransaction(), nullptr);
+            ValidationNotifier().SyncTransaction(tx.createOldTransaction(), nullptr);
+            ValidationNotifier().SyncTx(tx, FastBlock());
         }
     }
     mempool->AddTransactionsUpdated(1);

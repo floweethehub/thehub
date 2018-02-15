@@ -85,7 +85,7 @@ TestingSetup::TestingSetup(const std::string& chainName) : BasicTestingSetup(cha
     bool fFirstRun;
     pwalletMain = new CWallet("wallet.dat");
     pwalletMain->LoadWallet(fFirstRun);
-    RegisterValidationInterface(pwalletMain);
+    ValidationNotifier().addListener(pwalletMain);
 #endif
 
     RegisterNodeSignals(GetNodeSignals());
@@ -99,7 +99,7 @@ TestingSetup::~TestingSetup()
 
     UnregisterNodeSignals(GetNodeSignals());
 #ifdef ENABLE_WALLET
-    UnregisterValidationInterface(pwalletMain);
+    ValidationNotifier().removeListener(pwalletMain);
     delete pwalletMain;
     pwalletMain = NULL;
 #endif
