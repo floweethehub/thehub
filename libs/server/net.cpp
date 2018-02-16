@@ -77,7 +77,7 @@
 #endif
 
 namespace {
-    const int MAX_OUTBOUND_CONNECTIONS = 8;
+    const int MAX_OUTBOUND_CONNECTIONS = 28;
 
     struct ListenSocket {
         SOCKET socket;
