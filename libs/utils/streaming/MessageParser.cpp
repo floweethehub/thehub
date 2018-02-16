@@ -57,18 +57,6 @@ Streaming::MessageParser::MessageParser(const Streaming::ConstBuffer &buffer)
 {
 }
 
-Streaming::MessageParser::MessageParser(const char *buffer, int length)
-    : m_privData(buffer),
-    m_length(length),
-    m_position(0),
-    m_tag(0),
-    m_valueState(ValueParsed),
-    m_dataStart(-1),
-    m_dataLength(-1)
-{
-    assert(buffer);
-}
-
 Streaming::ParsedType Streaming::MessageParser::next()
 {
     if (m_length <= m_position)
@@ -248,6 +236,13 @@ std::vector<char> Streaming::MessageParser::bytesData() const
         return data;
     }
     return boost::get<std::vector<char> >(m_value);
+}
+
+Streaming::ConstBuffer Streaming::MessageParser::bytesDataBuffer() const
+{
+    if (!isByteArray())
+        return Streaming::ConstBuffer();
+    return Streaming::ConstBuffer(m_constBuffer.internal_buffer(), m_privData + m_dataStart, m_privData + m_dataStart + m_dataLength);
 }
 
 std::vector<unsigned char> Streaming::MessageParser::unsignedBytesData() const

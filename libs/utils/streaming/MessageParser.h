@@ -69,7 +69,6 @@ class MessageParser
 {
 public:
     MessageParser(const ConstBuffer &buffer);
-    MessageParser(const char *buffer, int length);
 
     ParsedType next();
     uint32_t peekNext(bool *success = 0) const;
@@ -103,6 +102,7 @@ public:
     boost::string_ref rstringData() const;
     bool boolData() const;
     std::vector<char> bytesData() const;
+    ConstBuffer bytesDataBuffer() const;
     /// Backwards compatible unsigned char vector.
     std::vector<unsigned char> unsignedBytesData() const;
     /// Return the amount of bytes a bytesData() would return
@@ -138,7 +138,7 @@ private:
     int m_dataStart;
     int m_dataLength;
 
-    ConstBuffer m_constBuffer; // we just have this here to make sure its refcounted
+    ConstBuffer m_constBuffer;
 };
 }
 

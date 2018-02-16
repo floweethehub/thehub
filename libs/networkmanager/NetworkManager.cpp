@@ -627,7 +627,7 @@ bool NetworkManagerConnection::processPacket(const std::shared_ptr<char> &buffer
     const int packetLength = (rawHeader & 0xFFFF);
     logDebug(Log::NWM) << "Receive packet length" << packetLength;
 
-    Streaming::MessageParser parser(const_cast<char*>(data + 2), packetLength - 2);
+    Streaming::MessageParser parser(Streaming::ConstBuffer(buffer, data + 2, data + packetLength - 2));
     Streaming::ParsedType type = parser.next();
     int headerSize = 0;
     int messageId = -1;
