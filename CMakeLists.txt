@@ -84,7 +84,11 @@ option(enable_gui "Compile the GUI client (hub-qt)" ON)
 
 option(mark_release "If true, remove the pre-release warning from the app" OFF)
 if (mark_release)
-    set(CLIENT_VERSION_IS_RELEASE 1)
+    if (dev_setup)
+        message ("ignoring 'mark-release since you turned on dev-setup, they are incompatible")
+    else ()
+        set(CLIENT_VERSION_IS_RELEASE 1)
+    endif ()
 endif ()
 
 ######################
