@@ -14,11 +14,10 @@
 # You should have received a copy of the GNU General Public License
 # along with this program.  If not, see <http://www.gnu.org/licenses/>.
 
-add_subdirectory(3rdparty)
-add_subdirectory(interfaces)
-add_subdirectory(networkmanager)
-add_subdirectory(utils)
-add_subdirectory(server)
-add_subdirectory(crypto)
-add_subdirectory(console)
-add_subdirectory(api)
+set (FLOWEE_INTERFACE_FILES
+    validationinterface.cpp
+)
+
+add_library(flowee_interfaces STATIC
+    ${FLOWEE_INTERFACE_FILES}
+)

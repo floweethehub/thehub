@@ -60,12 +60,12 @@ endif ()
 option(dev_setup "Enable developer build, not safe for real-life usage!" OFF)
 option(build_tests "Compile the unit tests" ${dev_setup})
 if (dev_setup)
-    set(CMAKE_BUILD_TYPE Debug FORCE)
+    set(CMAKE_BUILD_TYPE Debug)
     set(CMAKE_CXX_FLAGS_DEBUG "${CMAKE_CXX_FLAGS_DEBUG} -DBTC_LOGCONTEXT -DUSE_UNSAFE_RANDOM -DENABLE_CRASH_CATCHER")
     message(STATUS "Setting built type to Debug, with unsafe random and other dev options.")
 elseif (NOT CMAKE_BUILD_TYPE AND NOT CMAKE_CONFIGURATION_TYPES)
     message(STATUS "Setting build type to 'ReleaseWithDebugInfo' as none was specified.")
-    set(CMAKE_BUILD_TYPE RELWITHDEBINFO CACHE STRING "Choose the type of build." FORCE)
+    set(CMAKE_BUILD_TYPE RELWITHDEBINFO)
     # Set the possible values of build type for cmake-gui
     set_property(CACHE CMAKE_BUILD_TYPE PROPERTY STRINGS "Debug" "Release" "RelWithDebInfo")
 elseif (NOT CMAKE_CONFIGURATION_TYPES)
@@ -84,7 +84,11 @@ option(enable_gui "Compile the GUI client (hub-qt)" ON)
 
 option(mark_release "If true, remove the pre-release warning from the app" OFF)
 if (mark_release)
-    set(CLIENT_VERSION_IS_RELEASE 1)
+    if (dev_setup)
+        message ("ignoring 'mark-release since you turned on dev-setup, they are incompatible")
+    else ()
+        set(CLIENT_VERSION_IS_RELEASE 1)
+    endif ()
 endif ()
 
 ######################
@@ -108,8 +112,7 @@ set(LIBCRYPTO_INCLUDES
     ${CMAKE_SOURCE_DIR}/libs/crypto
     ${CMAKE_SOURCE_DIR}/libs
 )
-set(FLOWEE_GLOBAL_INCLUDES ${CMAKE_BINARY_DIR} ${Boost_INCLUDE_DIRS})
-set(LIBUTILS_INCLUDES ${LIBCRYPTO_INCLUDES} ${CMAKE_SOURCE_DIR}/libs/utils)
+set(LIBUTILS_INCLUDES ${LIBCRYPTO_INCLUDES} ${CMAKE_SOURCE_DIR}/libs/utils ${CMAKE_SOURCE_DIR}/libs/interfaces)
 set(LIBNETWORKMANAGER_INCLUDES ${LIBUTILS_INCLUDES} ${CMAKE_SOURCE_DIR}/libs/networkmanager)
 set(LIBSERVER_INCLUDES ${LIBNETWORKMANAGER_INCLUDES} ${CMAKE_SOURCE_DIR}/libs/server ${CMAKE_SOURCE_DIR}/libs/server/wallet)
 set(LIBAPI_INCLUDES ${LIBSERVER_INCLUDES} ${CMAKE_SOURCE_DIR}/libs/api)

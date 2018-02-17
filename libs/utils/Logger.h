@@ -23,9 +23,7 @@
 
 #include "tinyformat.h"
 
-extern bool fDebug;
-
-static const bool DEFAULT_LOGTIMESTAMPS = true;
+#include <boost/filesystem/path.hpp>
 
 namespace Log {
 
@@ -186,7 +184,7 @@ public:
      * # debug shows everything.
      * </endcode>
      */
-    void parseConfig();
+    void parseConfig(const boost::filesystem::path &configfile, const boost::filesystem::path &logfilename);
 
     static const std::string &sectionString(short section);
 
@@ -449,6 +447,7 @@ Log::Item operator<<(Log::Item item, const std::exception &ex);
 inline Log::SilentItem operator<<(Log::SilentItem item, const std::exception &ex) { return item; }
 
 #include <vector>
+
 template<class V>
 inline Log::Item operator<<(Log::Item item, const std::vector<V> &vector) {
     if (item.isEnabled()) {

@@ -18,7 +18,7 @@
 #include "NetworkManager.h"
 #include "NetworkManager_p.h"
 #include "NetworkService.h"
-#include "networkManager/NetworkEnums.h"
+#include "networkmanager/NetworkEnums.h"
 
 #include <streaming/MessageBuilder.h>
 #include <streaming/MessageParser.h>
@@ -602,7 +602,7 @@ void NetworkManagerConnection::receivedSomeBytes(const boost::system::error_code
 
         const unsigned int rawHeader = *(reinterpret_cast<const unsigned int*>(data.begin()));
         const int packetLength = (rawHeader & 0xFFFF);
-        logDebug(Log::DebugLevel) << "Processing incoming packet. Size" << packetLength;
+        logDebug(Log::NWM) << "Processing incoming packet. Size" << packetLength;
         if (packetLength > MAX_MESSAGE_SIZE) {
             logWarning(Log::NWM) << "receive; Data error from server- stream is corrupt";
             close();

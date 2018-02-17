@@ -35,8 +35,6 @@
 #include <boost/algorithm/string.hpp> // for to_lower() / split()
 #include <boost/filesystem/fstream.hpp>
 
-bool fDebug = false;
-
 class Log::ManagerPrivate {
 public:
     std::list<Channel*> channels;
@@ -95,8 +93,7 @@ Log::Manager::Manager()
     d->categoryMapping.emplace("zmq", Log::ZMQ);
     d->categoryMapping.emplace("reindex", 604);
 
-    if (AreBaseParamsConfigured()) // allow running outside of Bitcoin as an executable.
-        parseConfig();
+    parseConfig(boost::filesystem::path(), boost::filesystem::path());
 }
 
 Log::Manager::~Manager()
@@ -136,43 +133,40 @@ Log::Manager *Log::Manager::instance()
 
 void Log::Manager::log(Log::Item *item)
 {
-    bool logTimestamps = GetBoolArg("-logtimestamps", DEFAULT_LOGTIMESTAMPS);
     const int64_t timeMillis = GetTimeMillis();
     std::string newTime;
     std::string newDateTime;
     std::lock_guard<std::mutex> lock(d->lock);
     for (auto channel : d->channels) {
         std::string *timeStamp = nullptr;
-        if (logTimestamps) {
-            switch (channel->timeStampFormat()) {
-            case Channel::NoTime: break;
-            case Channel::DateTime:
-                if (newDateTime.empty()) {
-                    newDateTime = DateTimeStrFormat("%Y-%m-%d %H:%M:%S", timeMillis/1000);
-                    if (channel->showSubSecondPrecision() && newDateTime == d->lastDateTime) {
-                        std::ostringstream millis;
-                        millis << std::setw(3) << timeMillis % 1000;
-                        newDateTime = "               ." + millis.str();
-                    } else {
-                        d->lastDateTime = newDateTime;
-                    }
+        switch (channel->timeStampFormat()) {
+        case Channel::NoTime: break;
+        case Channel::DateTime:
+            if (newDateTime.empty()) {
+                newDateTime = DateTimeStrFormat("%Y-%m-%d %H:%M:%S", timeMillis/1000);
+                if (channel->showSubSecondPrecision() && newDateTime == d->lastDateTime) {
+                    std::ostringstream millis;
+                    millis << std::setw(3) << timeMillis % 1000;
+                    newDateTime = "               ." + millis.str();
+                } else {
+                    d->lastDateTime = newDateTime;
                 }
-                timeStamp = &newDateTime;
-                break;
-            case Channel::TimeOnly:
-                if (newTime.empty()) {
-                    newTime = DateTimeStrFormat("%H:%M:%S", timeMillis/1000);
-                    if (channel->showSubSecondPrecision() && newTime == d->lastTime) {
-                        std::ostringstream millis;
-                        millis << std::setw(3) << timeMillis % 1000;
-                        newTime = "    ." + millis.str();
-                    } else {
-                        d->lastTime = newTime;
-                    }
-                }
-                timeStamp = &newTime;
-                break;
             }
+            timeStamp = &newDateTime;
+            break;
+        case Channel::TimeOnly:
+            if (newTime.empty()) {
+                newTime = DateTimeStrFormat("%H:%M:%S", timeMillis/1000);
+                if (channel->showSubSecondPrecision() && newTime == d->lastTime) {
+                    std::ostringstream millis;
+                    millis << std::setw(3) << timeMillis % 1000;
+                    newTime = "    ." + millis.str();
+                } else {
+                    d->lastTime = newTime;
+                }
+            }
+            timeStamp = &newTime;
+            break;
         }
         try {
             channel->pushLog(timeMillis, timeStamp, item->d->stream.str(), item->d->filename, item->d->lineNum, item->d->methodName, item->d->section, item->d->verbosity);
@@ -204,7 +198,7 @@ void Log::Manager::loadDefaultTestSetup()
 #endif
 }
 
-void Log::Manager::parseConfig()
+void Log::Manager::parseConfig(const boost::filesystem::path &configfile, const boost::filesystem::path &logfilename)
 {
     std::lock_guard<std::mutex> lock(d->lock);
     d->enabledSections.clear();
@@ -213,14 +207,12 @@ void Log::Manager::parseConfig()
     Log::Channel *channel = nullptr;
 
     bool loadedConsoleLog = false;
-    // parse the config file on top of that.
-    auto path = GetDataDir(false) / "logs.conf";
-    if (boost::filesystem::exists(path)) {
+    if (boost::filesystem::exists(configfile)) {
         // default base level is Warning for all, unless changed in the file.
         for (short i = 0; i <= 20000; i+=1000)
             d->enabledSections[i] = Log::WarningLevel;
 
-        boost::filesystem::ifstream is(path);
+        boost::filesystem::ifstream is(configfile);
         std::string line;
         while (std::getline(is, line)) {
             boost::trim_left(line);
@@ -236,7 +228,7 @@ void Log::Manager::parseConfig()
                 if (type == cleaned) // we need some space between the channel and the type
                     continue;
                 if (cleaned == "file") {
-                    channel = new FileLogChannel();
+                    channel = new FileLogChannel(logfilename);
                 } else if (cleaned == "console") {
                     channel = new ConsoleLogChannel();
                     loadedConsoleLog = true;
@@ -291,35 +283,16 @@ void Log::Manager::parseConfig()
         }
     } else {
         // default.
-        d->channels.push_back(new FileLogChannel());
+        if (boost::filesystem::exists(logfilename))
+            d->channels.push_back(new FileLogChannel(logfilename));
+        else
+            d->channels.push_back(new ConsoleLogChannel());
         d->enabledSections[0] = Log::WarningLevel;
-
-        // while most of the code uses legacy logPrintf, set the log level to exclude those by default.
-        for (short i = 1000; i <= 7000; i+=1000)
-            d->enabledSections[i] = Log::CriticalLevel;
-        // These are newer sections.
-        for (short i = 8000; i <= 20000; i+=1000)
+#ifndef NDEBUG
+        d->enabledSections[0] = Log::DebugLevel;
+#endif
+        for (short i = 1000; i <= 20000; i+=1000)
             d->enabledSections[i] = Log::InfoLevel;
-    }
-
-    // Parse the old fashioned way of enabling/disabling log sections.
-    // Override settings from config file.
-    // notice that with command-line args we can only do 'debug', no other levels.
-    for (auto cat : mapMultiArgs["-debug"]) {
-        if (cat.empty() || cat == "1") { // turns all on.
-            for (short i = 0; i <= 20000; i+=1000)
-                d->enabledSections[i] = Log::DebugLevel;
-            break;
-        }
-        if (cat == "0") { // turns all off
-            for (short i = 0; i <= 20000; i+=1000)
-                d->enabledSections[i] = Log::CriticalLevel;
-            break;
-        }
-        auto iter = d->categoryMapping.find(cat);
-        if (iter == d->categoryMapping.end())
-            continue; // silently ignore
-        d->enabledSections[iter->second] = Log::DebugLevel;
     }
 
     if (!loadedConsoleLog && GetBoolArg("-printtoconsole", false))

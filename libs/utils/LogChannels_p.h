@@ -80,7 +80,7 @@ public:
 class FileLogChannel : public Log::Channel
 {
 public:
-    FileLogChannel();
+    FileLogChannel(const boost::filesystem::path &logFilename);
     ~FileLogChannel();
 
     virtual void pushLog(int64_t timeMillis, std::string *timestamp, const std::string &line, const char *filename,
@@ -89,6 +89,7 @@ public:
 
 private:
     FILE *m_fileout;
+    boost::filesystem::path m_logFilename;
 };
 
 #endif

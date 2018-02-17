@@ -18,6 +18,8 @@
 #ifndef APPLICATION_H
 #define APPLICATION_H
 
+
+#include <WorkerThreads.h>
 #include <boost/asio/io_service.hpp>
 #include <boost/thread.hpp>
 
@@ -37,7 +39,7 @@ class CTxMemPool;
  * The IoService is lazy-initialized on first call to IoService() and as such you
  * won't have any negative side-effects if the application does not use them (yet).
  */
-class Application
+class Application : public WorkerThreads
 {
 public:
     Application();
@@ -56,8 +58,6 @@ public:
     static int exec();
 
     static void quit(int rc = 0);
-
-    boost::asio::io_service& ioService();
 
     Validation::Engine* validation();
 
@@ -80,7 +80,7 @@ public:
      */
     template<typename F>
     static boost::thread* createThread(F threadfunc) {
-        return instance()->m_threads.create_thread(threadfunc);
+        return instance()->createNewThread(threadfunc);
     }
 
     static bool closingDown();
@@ -90,17 +90,11 @@ public:
     static int64_t uahfStartTime();
 
 protected:
-    /// only called from constructor. Useful in unit tests.
-    void startThreads();
     void init();
     int64_t m_uahfStartTme;
     std::unique_ptr<Validation::Engine> m_validationEngine;
 
 private:
-    std::shared_ptr<boost::asio::io_service> m_ioservice;
-    std::unique_ptr<boost::asio::io_service::work> m_work;
-    boost::thread_group m_threads;
-
     int m_returnCode;
     bool m_closingDown;
     UAHFState m_uahfState;

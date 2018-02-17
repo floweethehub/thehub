@@ -26,7 +26,7 @@
 class CBlockIndex;
 class CZMQAbstractNotifier;
 
-class CZMQNotificationInterface : public CValidationInterface
+class CZMQNotificationInterface : public ValidationInterface
 {
 public:
     virtual ~CZMQNotificationInterface();

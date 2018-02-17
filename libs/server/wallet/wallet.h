@@ -535,7 +535,7 @@ public:
  * A CWallet is an extension of a keystore, which also maintains a set of transactions and balances,
  * and provides the ability to create new transactions.
  */
-class CWallet : public CCryptoKeyStore, public CValidationInterface
+class CWallet : public CCryptoKeyStore, public ValidationInterface
 {
 private:
     /**
@@ -720,8 +720,8 @@ public:
 
     void MarkDirty();
     bool AddToWallet(const CWalletTx& wtxIn, bool fFromLoadWallet, CWalletDB* pwalletdb);
-    void SyncTransaction(const CTransaction& tx, const CBlock* pblock);
-    virtual void SyncAllTransactionsInBlock(const CBlock *pblock);
+    void SyncTransaction(const CTransaction& tx) override;
+    void SyncAllTransactionsInBlock(const CBlock *pblock) override;
     bool AddToWalletIfInvolvingMe(const CTransaction& tx, const CBlock* pblock, bool fUpdate);
     void ScanForWalletTransactions(CBlockIndex* pindexStart, bool fUpdate = false);
     void ReacceptWalletTransactions();

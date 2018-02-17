@@ -50,7 +50,7 @@ class CChainParams;
 class CInv;
 class CScriptCheck;
 class CTxMemPool;
-class CValidationInterface;
+class ValidationInterface;
 class CValidationState;
 
 struct CNodeStateStats;

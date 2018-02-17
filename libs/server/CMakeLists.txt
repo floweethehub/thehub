@@ -78,7 +78,6 @@ set (FLOWEE_SERVER_FILES
     txorphancache.cpp
     validation/BlockValidation.cpp
     validation/Engine.cpp
-    validationinterface.cpp
     validation/TxValidation.cpp
     validation/ValidationException.cpp
     validation/ValidationSettings.cpp

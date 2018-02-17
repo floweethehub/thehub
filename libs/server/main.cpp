@@ -1438,7 +1438,7 @@ bool FlushStateToDisk(CValidationState &state, FlushStateMode mode) {
     }
     if (fDoFullFlush || ((mode == FLUSH_STATE_ALWAYS || mode == FLUSH_STATE_PERIODIC) && nNow > nLastSetChain + (int64_t)DATABASE_WRITE_INTERVAL * 1000000)) {
         // Update best block in wallet (so we can detect restored wallets).
-        GetMainSignals().SetBestChain(chainActive.GetLocator());
+        ValidationNotifier().SetBestChain(chainActive.GetLocator());
         nLastSetChain = nNow;
     }
     } catch (const std::runtime_error& e) {
@@ -2031,7 +2031,7 @@ void static ProcessGetData(CNode* pfrom, const Consensus::Params& consensusParam
             }
 
             // Track requests for our stuff.
-            GetMainSignals().Inventory(inv.hash);
+            ValidationNotifier().Inventory(inv.hash);
 
             if (inv.type == MSG_BLOCK || inv.type == MSG_FILTERED_BLOCK
                     || inv.type == MSG_THINBLOCK || inv.type == MSG_XTHINBLOCK)
@@ -2398,7 +2398,7 @@ bool static ProcessMessage(CNode* pfrom, std::string strCommand, CDataStream& vR
             }
 
             // Track requests for our stuff
-            GetMainSignals().Inventory(inv.hash);
+            ValidationNotifier().Inventory(inv.hash);
 
             if (pfrom->nSendSize > (SendBufferSize() * 2)) {
                 Misbehaving(pfrom->GetId(), 50);
@@ -2421,10 +2421,10 @@ bool static ProcessMessage(CNode* pfrom, std::string strCommand, CDataStream& vR
             return error("message getdata size() = %u", vInv.size());
         }
 
-        if (fDebug || (vInv.size() != 1))
+        if (vInv.size() != 1)
             logDebug(Log::Net) << "received getdata (" << vInv.size() << "invsz) peer:" << pfrom->id;
 
-        if ((fDebug && vInv.size() > 0) || (vInv.size() == 1))
+        if ((vInv.size() > 0) || (vInv.size() == 1))
             logDebug(Log::Net) << "received getdata for:" << vInv[0].ToString() << "peer:" << pfrom->id;
 
         pfrom->vRecvGetData.insert(pfrom->vRecvGetData.end(), vInv.begin(), vInv.end());
@@ -3112,26 +3112,26 @@ bool static ProcessMessage(CNode* pfrom, std::string strCommand, CDataStream& vR
 
     else if (strCommand == NetMsgType::REJECT)
     {
-        if (fDebug) {
-            try {
-                std::string strMsg; unsigned char ccode; std::string strReason;
-                vRecv >> LIMITED_STRING(strMsg, CMessageHeader::COMMAND_SIZE) >> ccode >> LIMITED_STRING(strReason, MAX_REJECT_MESSAGE_LENGTH);
+#ifndef NDEBUG
+        try {
+            std::string strMsg; unsigned char ccode; std::string strReason;
+            vRecv >> LIMITED_STRING(strMsg, CMessageHeader::COMMAND_SIZE) >> ccode >> LIMITED_STRING(strReason, MAX_REJECT_MESSAGE_LENGTH);
 
-                std::ostringstream ss;
-                ss << strMsg << " code " << itostr(ccode) << ": " << strReason;
+            std::ostringstream ss;
+            ss << strMsg << " code " << itostr(ccode) << ": " << strReason;
 
-                if (strMsg == NetMsgType::BLOCK || strMsg == NetMsgType::TX)
-                {
-                    uint256 hash;
-                    vRecv >> hash;
-                    ss << ": hash " << hash.ToString();
-                }
-                LogPrint("net", "Reject %s\n", SanitizeString(ss.str()));
-            } catch (const std::ios_base::failure&) {
-                // Avoid feedback loops by preventing reject messages from triggering a new reject message.
-                LogPrint("net", "Unparseable reject message received\n");
+            if (strMsg == NetMsgType::BLOCK || strMsg == NetMsgType::TX)
+            {
+                uint256 hash;
+                vRecv >> hash;
+                ss << ": hash " << hash.ToString();
             }
+            LogPrint("net", "Reject %s\n", SanitizeString(ss.str()));
+        } catch (const std::ios_base::failure&) {
+            // Avoid feedback loops by preventing reject messages from triggering a new reject message.
+            LogPrint("net", "Unparseable reject message received\n");
         }
+#endif
     }
     else if (strCommand == NetMsgType::XPEDITEDREQUEST)
     {
@@ -3442,7 +3442,7 @@ bool SendMessages(CNode* pto)
         // transactions become unconfirmed and spams other nodes.
         if (!fReindex && !IsInitialBlockDownload())
         {
-            GetMainSignals().Broadcast(nTimeBestReceived);
+            ValidationNotifier().ResendWalletTransactions(nTimeBestReceived);
         }
 
         //

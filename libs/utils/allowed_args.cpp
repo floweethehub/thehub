@@ -342,10 +342,6 @@ static void addZmqOptions(AllowedArgs& allowedArgs)
 
 static void addDebuggingOptions(AllowedArgs& allowedArgs, HelpMessageMode mode)
 {
-    std::string debugCategories = "addrman, bench, coindb, db, lock, rand, rpc, selectcoins, mempool, mempoolrej, net, proxy, prune, http, libevent, tor, zmq, thin, NWM";
-    if (mode == HMM_BITCOIN_QT)
-        debugCategories += ", qt";
-
     allowedArgs
         .addHeader(_("Debugging/Testing options:"))
         .addArg("uacomment=<cmt>", requiredStr, _("Append comment to the user agent string"))
@@ -367,13 +363,10 @@ static void addDebuggingOptions(AllowedArgs& allowedArgs, HelpMessageMode mode)
         .addDebugArg("limitancestorsize=<n>", requiredInt, strprintf("Do not accept transactions whose size with all in-mempool ancestors exceeds <n> kilobytes (default: %u)", DefaultAncestorSizeLimit))
         .addDebugArg("limitdescendantcount=<n>", requiredInt, strprintf("Do not accept transactions if any ancestor would have <n> or more in-mempool descendants (default: %u)", DefaultDescendantLimit))
         .addDebugArg("limitdescendantsize=<n>", requiredInt, strprintf("Do not accept transactions if any ancestor would have more than <n> kilobytes of in-mempool descendants (default: %u).", DefaultDescendantSizeLimit))
-        .addArg("debug=<category>", optionalStr, strprintf(_("Output debugging information (default: %u, supplying <category> is optional)"), 0) + ". " +
-            _("If <category> is not supplied or if <category> = 1, output all debugging information.") + _("<category> can be:") + " " + debugCategories + ".")
         .addArg("gen", optionalBool,  strprintf(_("Generate coins (default: %u)"), DefaultGenerateCoins))
         .addArg("genproclimit=<n>", requiredInt, strprintf(_("Set the number of threads for coin generation if enabled (-1 = all cores, default: %d)"), DefaultGenerateThreads))
         .addArg("gencoinbase=<pubkey>", requiredStr, "When generating coins a coinbase has to be provided in the form of a public key")
         .addArg("logips", optionalBool, strprintf(_("Include IP addresses in debug output (default: %u)"), DEFAULT_LOGIPS))
-        .addArg("logtimestamps", optionalBool, strprintf(_("Prepend debug output with timestamp (default: %u)"), DEFAULT_LOGTIMESTAMPS))
         .addDebugArg("mocktime=<n>", requiredInt, "Replace actual time with <n> seconds since epoch (default: 0)")
         .addDebugArg("limitfreerelay=<n>", optionalInt, strprintf("Continuously rate-limit free transactions to <n>*1000 bytes per minute (default: %u)", DefaultLimitFreeRelay))
         .addDebugArg("relaypriority", optionalBool, strprintf("Require high priority for relaying free or low-fee transactions (default: %u)", DefaultRelayPriority))
