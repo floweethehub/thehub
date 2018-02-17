@@ -650,8 +650,8 @@ void ValidationEnginePrivate::processNewBlock(std::shared_ptr<BlockValidationSta
                 // Tell wallet about transactions that went from mempool to conflicted:
                 Streaming::BufferPool pool;
                 for(const CTransaction &tx : txConflicted) {
-                    ValidationNotifier().SyncTransaction(tx, nullptr);
-                    ValidationNotifier().SyncTx(Tx::fromOldTransaction(tx, &pool), FastBlock());
+                    ValidationNotifier().SyncTransaction(tx);
+                    ValidationNotifier().SyncTx(Tx::fromOldTransaction(tx, &pool));
                 }
                 ValidationNotifier().SyncAllTransactionsInBlock(state->m_block); // ... and about transactions that got confirmed:
                 ValidationNotifier().SyncAllTransactionsInBlock(&block);
@@ -877,8 +877,8 @@ void ValidationEnginePrivate::prepareChain()
             }
             // Let wallets know transactions went from 1-confirmed to
             // 0-confirmed or conflicted:
-            ValidationNotifier().SyncTransaction(tx.createOldTransaction(), nullptr);
-            ValidationNotifier().SyncTx(tx, FastBlock());
+            ValidationNotifier().SyncTransaction(tx.createOldTransaction());
+            ValidationNotifier().SyncTx(tx);
         }
     }
     mempool->AddTransactionsUpdated(1);

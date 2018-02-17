@@ -25,14 +25,14 @@ ValidationInterfaceBroadcaster &ValidationNotifier() {
     return s_instance;
 }
 
-void ValidationInterfaceBroadcaster::SyncTransaction(const CTransaction &tx, const CBlock *pblock)
+void ValidationInterfaceBroadcaster::SyncTransaction(const CTransaction &tx)
 {
-    for (auto i : m_listeners) i->SyncTransaction(tx, pblock);
+    for (auto i : m_listeners) i->SyncTransaction(tx);
 }
 
-void ValidationInterfaceBroadcaster::SyncTx(const Tx &tx, const FastBlock &block)
+void ValidationInterfaceBroadcaster::SyncTx(const Tx &tx)
 {
-    for (auto i : m_listeners) i->SyncTx(tx, block);
+    for (auto i : m_listeners) i->SyncTx(tx);
 }
 
 void ValidationInterfaceBroadcaster::SyncAllTransactionsInBlock(const CBlock *pblock)

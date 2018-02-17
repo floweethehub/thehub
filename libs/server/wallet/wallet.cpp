@@ -919,11 +919,11 @@ void CWallet::MarkConflicted(const uint256& hashBlock, const uint256& hashTx)
     }
 }
 
-void CWallet::SyncTransaction(const CTransaction& tx, const CBlock* pblock)
+void CWallet::SyncTransaction(const CTransaction& tx)
 {
     LOCK2(cs_main, cs_wallet);
 
-    if (!AddToWalletIfInvolvingMe(tx, pblock, true))
+    if (!AddToWalletIfInvolvingMe(tx, nullptr, true))
         return; // Not one of ours
 
     // If a transaction changes 'conflicted' state, that changes the balance

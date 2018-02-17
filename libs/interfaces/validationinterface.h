@@ -36,10 +36,10 @@ class FastBlock;
 class ValidationInterface {
 public:
     /** Notifies listeners of updated transaction data, and optionally the block it is found in. */
-    virtual void SyncTransaction(const CTransaction &tx, const CBlock *pblock) {}
+    virtual void SyncTransaction(const CTransaction &tx) {}
 
     /** Notifies listeners of updated transaction data, and optionally the block it is found in. */
-    virtual void SyncTx(const Tx &, const FastBlock &) {}
+    virtual void SyncTx(const Tx &) {}
 
     /** Notifies listeners of updated transaction data, on a new accepted block. */
     virtual void SyncAllTransactionsInBlock(const CBlock *pblock) {}
@@ -66,8 +66,8 @@ public:
 class ValidationInterfaceBroadcaster : public ValidationInterface
 {
 public:
-    void SyncTransaction(const CTransaction &tx, const CBlock *pblock) override;
-    void SyncTx(const Tx &, const FastBlock &) override;
+    void SyncTransaction(const CTransaction &tx) override;
+    void SyncTx(const Tx &) override;
     void SyncAllTransactionsInBlock(const CBlock *pblock) override;
     void SyncAllTransactionsInBlock(const FastBlock &block) override;
     void SetBestChain(const CBlockLocator &locator) override;
