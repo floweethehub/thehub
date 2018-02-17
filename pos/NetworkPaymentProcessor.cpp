@@ -10,11 +10,10 @@
 
 #include <streaming/MessageParser.h>
 
-NetworkPaymentProcessor::NetworkPaymentProcessor(NetworkConnection && connection, const QString &cookieFilename, QObject *parent)
+NetworkPaymentProcessor::NetworkPaymentProcessor(NetworkConnection && connection, QObject *parent)
     : QObject(parent),
     NetworkService(Api::AddressMonitorService),
-    m_connection(std::move(connection)),
-    m_cookieFilename(cookieFilename)
+    m_connection(std::move(connection))
 {
     m_connection.setOnConnected(std::bind(&NetworkPaymentProcessor::connectionEstablished, this, std::placeholders::_1));
     m_connection.connect();
@@ -35,9 +34,8 @@ void NetworkPaymentProcessor::onIncomingMessage(const Message &message, const En
 
             type = parser.next();
         }
-        logInfo(Log::POS) << "Subscribe response;" << (result == 1) << error;
         if (result != -1)
-            logInfo(Log::POS) << "Subscribe response;" << (result == 1) << error;
+            logInfo(Log::POS) << "Subscribe response;" << (result == 1) << &error[0];
     }
     else if (message.messageId() == Api::AddressMonitor::TransactionFound) {
         Streaming::ConstBuffer txid;
@@ -50,7 +48,11 @@ void NetworkPaymentProcessor::onIncomingMessage(const Message &message, const En
                 amount = parser.longData();
             type = parser.next();
         }
-        logCritical(Log::POS) << "Tx for us is" << QByteArray(txid.begin(), txid.size()).toHex().data() << " amount:" << amount;
+        // TODO question of consistency, should we revert the order of the txid here, or on the server-side?
+        QByteArray txIdCopy(txid.begin(), txid.size());
+        for (int i = txid.size() / 2; i >= 0; --i)
+            qSwap(*(txIdCopy.data() + i), *(txIdCopy.data() + txIdCopy.size() -1 - i));
+        logCritical(Log::POS) << "Tx for us is" << txIdCopy.toHex().data() << " amount:" << amount;
     }
 }
 
@@ -68,29 +70,10 @@ void NetworkPaymentProcessor::addListenAddress(const QString &address)
 void NetworkPaymentProcessor::connectionEstablished(const EndPoint&)
 {
     logInfo(Log::POS) << "Connection established";
-    QFile cookieFile(m_cookieFilename);
-    if (!cookieFile.open(QIODevice::ReadOnly)) {
-        logFatal(Log::POS).nospace() << "Could not read cookie file; '" << m_cookieFilename << "'";
-        QCoreApplication::instance()->exit(1);
-        return;
-    }
-    QString data = QString::fromLatin1(cookieFile.readAll());
-    if (data.isEmpty()) {
-        logFatal(Log::POS).nospace() << "Cookie file empty; '" << m_cookieFilename << "'";
-        QCoreApplication::instance()->exit(2);
-        return;
-    }
-    int index = std::min(std::max(data.size(), data.indexOf('\n')), 44);
-    logFatal() << "index" << index;
-
-    m_pool.reserve(60);
-    Streaming::MessageBuilder builder(m_pool);
-    builder.add(Api::Login::CookieData, data.left(index).toStdString());
-    m_connection.send(builder.message(Api::LoginService, Api::Login::LoginMessage));
-
     // Subscribe to the service.
     for (auto address : m_listenAddresses) {
         m_pool.reserve(100);
+        Streaming::MessageBuilder builder(m_pool);
         builder.add(Api::AddressMonitor::BitcoinAddress, address.toStdString());
         m_connection.send(builder.message(Api::AddressMonitorService, Api::AddressMonitor::Subscribe));
     }

@@ -76,9 +76,10 @@ int main(int x, char **y)
         logFatal(Log::POS) << "Missing required argument indicating the location of the api-cookie file.";
         return 1;
     }
+    manager.setAutoApiLogin(true, args.takeFirst().toStdString());
     auto connection = manager.connection(ep);
     assert (connection.isValid());
-    NetworkPaymentProcessor processor(std::move(connection), args.takeFirst());
+    NetworkPaymentProcessor processor(std::move(connection));
     for (auto add: args) {
         processor.addListenAddress(add);
     }

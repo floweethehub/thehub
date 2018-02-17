@@ -26,7 +26,7 @@ class NetworkPaymentProcessor : public QObject, public NetworkService
 {
     Q_OBJECT
 public:
-    NetworkPaymentProcessor(NetworkConnection &&connection, const QString &cookieFilename, QObject *parent = nullptr);
+    NetworkPaymentProcessor(NetworkConnection &&connection, QObject *parent = nullptr);
 
     void onIncomingMessage(const Message &message, const EndPoint &endpoint);
     void addListenAddress(const QString &address);
@@ -36,7 +36,6 @@ private:
 
     Streaming::BufferPool m_pool;
     NetworkConnection m_connection;
-    QString m_cookieFilename;
     QStringList m_listenAddresses;
 };
 
