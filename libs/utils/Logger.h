@@ -93,25 +93,33 @@ enum Sections {
     ThinBlocks,
     ExpeditedBlocks,
 
-    ApiServer = 3000,
-    RPC,
+    // "legacy" apis
+    RPC = 2100,
     LibEvent,
     HTTP,
     ZMQ,
 
-    DB = 4000,
+    // modern fancy apis
+    ApiServer = 2500,
+    MonitorService,
+
+    DB = 3000,
     Coindb,
+
+    Internals = 4000,
+    Mempool,
+    MempoolRej,
+    Random,
+
 
     Wallet = 5000,
     SelectCoins,
     FeeEstimation,
 
-    Internals = 6000,
-    Mempool,
-    MempoolRej,
-    Random,
+    QtGui = 6000,
 
-    QtGui = 7000
+    // Point-of-Sale
+    POS = 7000
 };
 
 /**
