@@ -105,8 +105,8 @@ public:
     ConstBuffer bytesDataBuffer() const;
     /// Backwards compatible unsigned char vector.
     std::vector<unsigned char> unsignedBytesData() const;
-    /// Return the amount of bytes a bytesData() would return
-    int bytesDataLength() const;
+    /// Return the amount of bytes the string or byte-array is in length
+    int dataLength() const;
     uint256 uint256Data() const;
 
     /// return the amount of bytes consumed up-including the latest parsed tag.

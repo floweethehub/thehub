@@ -35,6 +35,8 @@ class Server {
 public:
     Server(boost::asio::io_service &service);
 
+    void addService(NetworkService *service);
+
 private:
     void newConnection(NetworkConnection &connection);
     void connectionRemoved(const EndPoint &endPoint);

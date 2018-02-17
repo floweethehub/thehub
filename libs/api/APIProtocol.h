@@ -26,8 +26,10 @@ enum ServiceIds {
     MiningService,
     RawTransactionService,
     BlockChainService,
-    NetworkService,
-    WalletService
+    WalletService,
+
+    /// Connections can subscribe to bitcoin-address usage notifications
+    AddressMonitorService = 40,
 };
 
 enum ApiTags {
@@ -253,5 +255,44 @@ enum Tags {
 };
 }
 
+
+namespace AddressMonitor {
+enum MessageIds {
+    /// Client sents a message to the hub to subscribe to a BitcoinAddress
+    Subscribe,
+    /// reply with Result and maybe ErrorMessage
+    SubscribeReply,
+    /// Client sents a message to the hub to unsubscribe a BitcoinAddress
+    Unsubscribe,
+    /// same as SubscribeReply
+    UnsubscribeReply,
+    /**
+     * When the Hub finds a match, it sends this message to the client.
+     * We send BitcoinAddress, TransactionId, Amount and ConfirmationCount.
+     */
+    TransactionFound,
+    /**
+     * When a block is mined that ends up rejecting a transaction to us,
+     * the hub sends this message to the client.
+     * Same content as TransactionFound
+     */
+    TransactionRejected
+};
+
+enum Tags {
+    /// A string representing an address.
+    BitcoinAddress,
+    /// A bytearray for a full sha256 txid
+    TransactionId,
+    /// An unsigned 64 bit number for the amount of satshi you received
+    Amount,
+    /// At this time this is either zero or one.
+    ConfirmationCount,
+    /// boolean. Success equals 'true'
+    Result,
+    /// A string giving a human (well, developer) readable error message
+    ErrorMessage
+};
+}
 }
 #endif

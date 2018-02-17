@@ -34,6 +34,7 @@
 #include <boost/filesystem.hpp>
 #include <boost/thread.hpp>
 
+#include <AddressMonitorService.h>
 #include <cstdio>
 
 static bool fDaemon;
@@ -94,6 +95,7 @@ bool AppInit(int argc, char* argv[])
     }
 
     std::unique_ptr<Api::Server> apiServer;
+    std::unique_ptr<AddressMonitorService> addressMonitorService;
     try
     {
         std::string dd = GetArg("-datadir", "");
@@ -165,6 +167,8 @@ bool AppInit(int argc, char* argv[])
         fRet = AppInit2(threadGroup, scheduler);
 
         apiServer.reset(new Api::Server(Application::instance()->ioService()));
+        addressMonitorService.reset(new AddressMonitorService());
+        apiServer->addService(addressMonitorService.get());
     }
     catch (const std::exception& e) {
         PrintExceptionContinue(&e, "AppInit()");

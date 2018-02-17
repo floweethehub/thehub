@@ -255,9 +255,9 @@ std::vector<unsigned char> Streaming::MessageParser::unsignedBytesData() const
     return data;
 }
 
-int Streaming::MessageParser::bytesDataLength() const
+int Streaming::MessageParser::dataLength() const
 {
-    if (!isByteArray())
+    if (!isByteArray() && !isString())
         return 0;
     return m_dataLength;
 }

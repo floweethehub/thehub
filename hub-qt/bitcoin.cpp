@@ -67,6 +67,7 @@
 #include <QSslConfiguration>
 #include <APIServer.h>
 #include <Application.h>
+#include <AddressMonitorService.h>
 
 #if defined(QT_STATICPLUGIN)
 #include <QtPlugin>
@@ -201,6 +202,7 @@ private:
     boost::thread_group threadGroup;
     CScheduler scheduler;
     std::unique_ptr<Api::Server> apiServer;
+    std::unique_ptr<AddressMonitorService> addressMonitorService;
 
     /// Pass fatal exception message to UI thread
     void handleRunawayException(const std::exception *e);
@@ -289,6 +291,8 @@ void BitcoinCore::initialize()
         Q_EMIT initializeResult(rv);
 
         apiServer.reset(new Api::Server(Application::instance()->ioService()));
+        addressMonitorService.reset(new AddressMonitorService());
+        apiServer->addService(addressMonitorService.get());
     } catch (const std::exception& e) {
         handleRunawayException(&e);
     } catch (...) {

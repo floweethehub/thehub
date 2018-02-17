@@ -40,7 +40,7 @@ Api::Server::Server(boost::asio::io_service &service)
       m_timerRunning(false),
       m_newConnectionTimeout(service)
 {
-    boost::filesystem::path path(GetArg("-apicookiefile", "api cookie"));
+    boost::filesystem::path path(GetArg("-apicookiefile", "api-cookie"));
     if (!path.is_complete())
         path = GetDataDir() / path;
 
@@ -93,6 +93,11 @@ Api::Server::Server(boost::asio::io_service &service)
     }
 }
 
+void Api::Server::addService(NetworkService *service)
+{
+    m_networkManager.addService(service);
+}
+
 void Api::Server::newConnection(NetworkConnection &connection)
 {
     connection.setOnIncomingMessage(std::bind(&Api::Server::incomingLoginMessage, this, std::placeholders::_1));
@@ -138,23 +143,31 @@ void Api::Server::connectionRemoved(const EndPoint &endPoint)
 void Api::Server::incomingLoginMessage(const Message &message)
 {
     bool success = false;
+    std::string error;
     if (message.messageId() == Login::LoginMessage && message.serviceId() == LoginService) {
         Streaming::MessageParser parser(message.body());
         while (!success && parser.next() == Streaming::FoundTag) {
             if (parser.tag() == Login::CookieData) {
                 assert(!m_cookie.empty());
-                if (m_cookie == parser.stringData()) {
+                if (m_cookie == parser.stringData())
                     success = true;
-                }
+                else if (parser.dataLength() != 44)
+                    error = strprintf("Cookie wrong length; %d", parser.dataLength());
+                else
+                    error = parser.stringData() + "|"+ m_cookie;
             }
         }
     }
     NetworkConnection con(&m_networkManager, message.remote);
     assert(con.isValid());
     if (!success) {
+        if (error.empty())
+            error = "Malformed login, no cookie data found";
+        logCritical(Log::ApiServer) << "Remote failed login" << error;
         con.disconnect();
         return;
     }
+    logInfo(Log::ApiServer) << "Remote login accepted from" << con.endPoint().hostname;
 
     con.setOnDisconnected(std::bind(&Api::Server::connectionRemoved, this, std::placeholders::_1));
     Connection *handler = new Connection(std::move(con));
