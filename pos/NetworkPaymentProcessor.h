@@ -16,12 +16,33 @@
  * along with this program.  If not, see <http://www.gnu.org/licenses/>.
  */
 
-#include "NetworkService.h"
+#include <NetworkService.h>
+#include <NetworkConnection.h>
+#include <streaming/BufferPool.h>
 
-class NetworkPaymentProcessor : public NetworkService
+#include <QObject>
+
+class NetworkPaymentProcessor : public QObject, public NetworkService
 {
+    Q_OBJECT
 public:
-    NetworkPaymentProcessor();
+    NetworkPaymentProcessor(NetworkConnection &&connection, const QString &cookieFilename, QObject *parent = nullptr);
 
-    void onIncomingMessage(const Message &message);
+    void onIncomingMessage(const Message &message, const EndPoint &endpoint);
+    void addListenAddress(const QString &address);
+
+private:
+    void connectionEstablished(const EndPoint &endpoint);
+
+    Streaming::BufferPool m_pool;
+    NetworkConnection m_connection;
+    QString m_cookieFilename;
+    QStringList m_listenAddresses;
 };
+
+// TODO move this to a more appropriate place
+#include "Logger.h"
+inline Log::SilentItem operator<<(Log::SilentItem item, const QString&) { return item; }
+inline Log::Item operator<<(Log::Item item, const QString &s) {
+    return item << s.toLocal8Bit().data();
+}
