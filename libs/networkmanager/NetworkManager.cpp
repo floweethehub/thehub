@@ -19,6 +19,7 @@
 #include "NetworkManager_p.h"
 #include "NetworkService.h"
 #include "networkmanager/NetworkEnums.h"
+#include  <api/APIProtocol.h>
 
 #include <streaming/MessageBuilder.h>
 #include <streaming/MessageParser.h>
@@ -26,6 +27,8 @@
 #include <boost/make_shared.hpp>
 
 #include <util.h>
+
+#include <fstream>
 
 // #define DEBUG_CONNECTIONS
 
@@ -137,6 +140,14 @@ void NetworkManager::removeService(NetworkService *service)
     boost::recursive_mutex::scoped_lock lock(d->mutex);
     d->services.remove(service);
     service->setManager(nullptr);
+}
+
+void NetworkManager::setAutoApiLogin(bool on, const std::string &cookieFilename)
+{
+    if (on)
+        d->apiCookieFilename = cookieFilename;
+    else
+        d->apiCookieFilename.clear();
 }
 
 std::weak_ptr<NetworkManagerPrivate> NetworkManager::priv()
@@ -327,6 +338,26 @@ void NetworkManagerConnection::onConnectComplete(const boost::system::error_code
         return;
     }
     logInfo(Log::NWM) << "Successfully connected to" << m_remote.hostname << m_remote.announcePort;
+
+    if (!d->apiCookieFilename.empty()) { // do auto-login to the API server we expect on the other side.
+        try {
+            std::ifstream is(d->apiCookieFilename);
+            std::string content; // we read this every time to avoid the need for restarts
+            if (std::getline(is, content)) {
+                is.close();
+                if (content.size() < 1000) { // protect from memory abuse.
+                    m_sendHelperBuffer.reserve(20 + content.size());
+                    Streaming::MessageBuilder builder(m_sendHelperBuffer);
+                    builder.add(Api::Login::CookieData, content);
+                    queueMessage(builder.message(Api::LoginService, Api::Login::LoginMessage), NetworkConnection::HighPriority);
+                }
+            } else
+                logCritical(Log::NWM) << "cookie file empty or not a (text) file" << d->apiCookieFilename;
+        } catch (std::exception &e) {
+            logCritical(Log::NWM) << "Reading and sending login cookie went wrong;" << e;
+        }
+    }
+
     for (auto it = m_onConnectedCallbacks.begin(); it != m_onConnectedCallbacks.end(); ++it) {
         try {
             it->second(m_remote);
