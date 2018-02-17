@@ -51,7 +51,7 @@ void AddressMonitorService::findTransactions(Tx::Iterator && iter, FindReason fi
     auto type = iter.next();
     uint64_t amount = 0;
     bool oneEnd = false;
-    std::set<int> matchingRemotes;
+    std::map<int, uint64_t> matchingRemotes;
     while (true) {
         if (type == Tx::End) {
             if (oneEnd) // then the second end means end of block
@@ -59,16 +59,17 @@ void AddressMonitorService::findTransactions(Tx::Iterator && iter, FindReason fi
 
             if (!matchingRemotes.empty()) {
                 logDebug(Log::MonitorService) << " + Sending to peers!" << matchingRemotes.size();
-                Streaming::MessageBuilder builder(m_pool);
-                builder.add(Api::AddressMonitor::BitcoinAddress, iter.byteData());
-                builder.add(Api::AddressMonitor::TransactionId, iter.prevTx().createHash());
-                builder.add(Api::AddressMonitor::Amount, amount);
-                builder.add(Api::AddressMonitor::ConfirmationCount, findReason == Confirmed ? 1 : 0);
-                Message message = builder.message(Api::AddressMonitorService,
-                                      findReason == Conflicted
-                                      ? Api::AddressMonitor::TransactionRejected : Api::AddressMonitor::TransactionFound);
                 for (auto i = matchingRemotes.begin(); i != matchingRemotes.end(); ++i) {
-                    m_remotes[*i]->connection.send(message);
+                    m_pool.reserve(75);
+                    Streaming::MessageBuilder builder(m_pool);
+                    builder.add(Api::AddressMonitor::BitcoinAddress, iter.byteData());
+                    builder.add(Api::AddressMonitor::TransactionId, iter.prevTx().createHash());
+                    builder.add(Api::AddressMonitor::Amount, i->second);
+                    builder.add(Api::AddressMonitor::ConfirmationCount, findReason == Confirmed ? 1 : 0);
+                    Message message = builder.message(Api::AddressMonitorService,
+                                          findReason == Conflicted
+                                          ? Api::AddressMonitor::TransactionRejected : Api::AddressMonitor::TransactionFound);
+                    m_remotes[i->first]->connection.send(message);
                 }
                 matchingRemotes.clear();
             }
@@ -91,7 +92,7 @@ void AddressMonitorService::findTransactions(Tx::Iterator && iter, FindReason fi
                         keyID = CKeyID(uint160(vSolutions[0]));
                     for (size_t i = 0; i < m_remotes.size(); ++i) {
                         if (m_remotes[i]->keys.find(keyID) != m_remotes[i]->keys.end())
-                            matchingRemotes.insert(i);
+                            matchingRemotes[i] += amount;
                     }
                 }
             }
