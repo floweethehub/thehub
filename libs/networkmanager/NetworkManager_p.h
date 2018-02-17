@@ -37,6 +37,7 @@
 #include <list>
 #include <boost/date_time/posix_time/ptime.hpp>
 #include <atomic>
+#include <interfaces/boost_compat.h>
 
 class NetworkConnection;
 class NetworkService;
@@ -83,7 +84,7 @@ public:
         close(false);
     }
 
-    boost::asio::strand m_strand;
+    BoostCompatStrand m_strand;
 
     /// move a call to the thread that the strand represents
     void runOnStrand(const std::function<void()> &function);

@@ -702,7 +702,7 @@ void SetThreadPriority(int nPriority)
 }
 
 
-WaitUntilFinishedHelper::WaitUntilFinishedHelper(const std::function<void ()> &target, boost::asio::strand *strand)
+WaitUntilFinishedHelper::WaitUntilFinishedHelper(const std::function<void ()> &target, BoostCompatStrand *strand)
     : d(new Private())
 {
     d->ref = 1;

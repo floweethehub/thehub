@@ -29,8 +29,8 @@
 #include <coins.h>
 #include <versionbits.h>
 #include <txmempool.h>
-#include <boost/asio/strand.hpp>
 #include <boost/thread.hpp>
+#include <interfaces/boost_compat.h>
 
 // #define ENABLE_BENCHMARKS
 
@@ -209,7 +209,7 @@ public:
 
     bool disconnectTip(const FastBlock &tip, CBlockIndex *index, CCoinsViewCache *view, bool *userClean = nullptr, bool *error = nullptr);
 
-    boost::asio::strand strand;
+    BoostCompatStrand strand;
     std::atomic<bool> shuttingDown;
     bool issuedWarningForVersion;
     std::mutex lock;

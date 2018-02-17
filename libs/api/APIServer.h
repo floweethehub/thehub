@@ -26,6 +26,7 @@
 #include <string>
 #include <list>
 #include <boost/thread/mutex.hpp>
+#include <boost/asio/deadline_timer.hpp>
 
 class NetworkManager;
 

@@ -51,6 +51,7 @@
 #include <boost/algorithm/string/replace.hpp>
 #include <boost/filesystem.hpp>
 #include <boost/thread.hpp>
+#include <interfaces/boost_compat.h>
 
 /** Transaction fee set by the user */
 CFeeRate payTxFee(Settings::DefaultTransactionFee);
@@ -1232,7 +1233,6 @@ struct ScanContext {
     int sequence = 0;
 };
 
-#include <boost/asio/strand.hpp>
 class ChainScanner {
     inline int blocksInFlightLimit() {
         return ((int) boost::thread::hardware_concurrency());
@@ -1425,7 +1425,7 @@ private:
     }
 
     CWallet *m_wallet;
-    boost::asio::strand m_strand;
+    BoostCompatStrand m_strand;
     int m_lastBlockDone = -2;
     int m_txsAdded = 0;
     std::list<std::shared_ptr<ScanContext> > m_orphans;

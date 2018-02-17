@@ -44,7 +44,7 @@
 #include <boost/filesystem/path.hpp>
 #include <boost/signals2/signal.hpp>
 #include <boost/thread/exceptions.hpp>
-#include <boost/asio/strand.hpp>
+#include <interfaces/boost_compat.h>
 
 // For bitcoin-cli
 static const char DEFAULT_RPCCONNECT[] = "127.0.0.1";
@@ -234,7 +234,7 @@ template <typename Callable> void TraceThread(const char* name,  Callable func)
 class WaitUntilFinishedHelper
 {
 public:
-    WaitUntilFinishedHelper(const std::function<void()> &target, boost::asio::strand *strand);
+    WaitUntilFinishedHelper(const std::function<void()> &target, BoostCompatStrand *strand);
     WaitUntilFinishedHelper(const WaitUntilFinishedHelper &other);
     ~WaitUntilFinishedHelper();
 
@@ -245,7 +245,7 @@ private:
         mutable std::mutex mutex;
         std::function<void()> target;
         std::atomic<int> ref;
-        boost::asio::strand *strand;
+        BoostCompatStrand *strand;
     };
     Private *d;
 
