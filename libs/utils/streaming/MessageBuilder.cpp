@@ -127,6 +127,19 @@ void Streaming::MessageBuilder::add(uint32_t tag, const std::vector<char> &data)
     m_buffer->markUsed(data.size());
 }
 
+void Streaming::MessageBuilder::add(uint32_t tag, const Streaming::ConstBuffer &data)
+{
+    if (m_beforeHeader) {
+        m_buffer->markUsed(2); // reserve space for the size.
+        m_beforeHeader=false;
+    }
+    int tagSize = write(m_buffer->data(), tag, ByteArray);
+    tagSize += serialize(m_buffer->data() + tagSize, data.size());
+    m_buffer->markUsed(tagSize);
+    memcpy(m_buffer->data(), data.begin(), data.size());
+    m_buffer->markUsed(data.size());
+}
+
 void Streaming::MessageBuilder::add(uint32_t tag, bool value)
 {
     if (m_beforeHeader) {

@@ -50,6 +50,7 @@ public:
     }
 
     void add(uint32_t tag, const std::vector<char> &data);
+    void add(uint32_t tag, const ConstBuffer &data);
     void add(uint32_t tag, bool value);
     void add(uint32_t tag, int32_t value);
     void add(uint32_t tag, double value);
