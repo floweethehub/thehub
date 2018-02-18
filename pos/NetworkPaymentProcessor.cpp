@@ -41,7 +41,7 @@ void NetworkPaymentProcessor::onIncomingMessage(const Message &message, const En
         Streaming::ConstBuffer txid;
         uint64_t amount = 0;
         auto type = parser.next();
-        bool mined;
+        bool mined = false;
         while (type == Streaming::FoundTag) {
             if (parser.tag() == Api::AddressMonitor::TransactionId) {
                 txid = parser.bytesDataBuffer();
