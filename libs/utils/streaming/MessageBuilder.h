@@ -54,7 +54,10 @@ public:
     void add(uint32_t tag, bool value);
     void add(uint32_t tag, int32_t value);
     void add(uint32_t tag, double value);
-    void add(uint32_t tag, const uint256 &value);
+    template<unsigned int BITS>
+    void add(uint32_t tag, const base_blob<BITS> &value) {
+        add(tag, value.begin(), value.size());
+    }
     inline void add(uint32_t tag, float value) {
         add(tag, (double) value);
     }
@@ -75,6 +78,8 @@ public:
     Message message(int serviceId = -1, int messageId = -1);
 
 private:
+    void add(uint32_t tag, const unsigned char *data, unsigned int length);
+
     BufferPool *m_buffer;
     bool m_ownsPool;
     bool m_inHeader;

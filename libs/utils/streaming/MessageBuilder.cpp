@@ -183,17 +183,17 @@ void Streaming::MessageBuilder::add(uint32_t tag, double value)
     m_buffer->markUsed(8);
 }
 
-void Streaming::MessageBuilder::add(uint32_t tag, const uint256 &value)
+void Streaming::MessageBuilder::add(uint32_t tag, const unsigned char *data, unsigned int length)
 {
     if (m_beforeHeader) {
         m_buffer->markUsed(2); // reserve space for the size.
         m_beforeHeader=false;
     }
     int tagSize = write(m_buffer->data(), tag, ByteArray);
-    tagSize += serialize(m_buffer->data() + tagSize, value.size());
+    tagSize += serialize(m_buffer->data() + tagSize, length);
     m_buffer->markUsed(tagSize);
-    memcpy(m_buffer->data(), value.begin(), value.size());
-    m_buffer->markUsed(value.size());
+    memcpy(m_buffer->data(), data, length);
+    m_buffer->markUsed(length);
 }
 
 void Streaming::MessageBuilder::setMessageSize(int size)
