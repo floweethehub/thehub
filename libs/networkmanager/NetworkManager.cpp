@@ -339,7 +339,10 @@ void NetworkManagerConnection::onConnectComplete(const boost::system::error_code
     }
     logInfo(Log::NWM) << "Successfully connected to" << m_remote.hostname << m_remote.announcePort;
 
-    if (!d->apiCookieFilename.empty()) { // do auto-login to the API server we expect on the other side.
+    if (!d->apiCookieFilename.empty()
+                //  outgoing means announce and peerPort are the same.
+            && m_remote.announcePort == m_remote.peerPort) {
+        // do auto-login to the API server we expect on the other side.
         try {
             std::ifstream is(d->apiCookieFilename);
             std::string content; // we read this every time to avoid the need for restarts

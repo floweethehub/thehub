@@ -72,10 +72,8 @@ int main(int x, char **y)
         ep.ipAddress = boost::asio::ip::address_v4::loopback();
 
     auto args = parser.positionalArguments();
-    if (args.isEmpty()) {
-        logFatal(Log::POS) << "Missing required argument indicating the location of the api-cookie file.";
-        return 1;
-    }
+    if (args.isEmpty())
+        parser.showHelp(1);
     manager.setAutoApiLogin(true, args.takeFirst().toStdString());
     auto connection = manager.connection(ep);
     assert (connection.isValid());

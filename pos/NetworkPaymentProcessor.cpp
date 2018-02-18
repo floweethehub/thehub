@@ -41,18 +41,22 @@ void NetworkPaymentProcessor::onIncomingMessage(const Message &message, const En
         Streaming::ConstBuffer txid;
         uint64_t amount = 0;
         auto type = parser.next();
+        bool mined;
         while (type == Streaming::FoundTag) {
             if (parser.tag() == Api::AddressMonitor::TransactionId) {
                 txid = parser.bytesDataBuffer();
-            } else if (parser.tag() == Api::AddressMonitor::Amount)
+            } else if (parser.tag() == Api::AddressMonitor::Amount) {
                 amount = parser.longData();
+            } else if (parser.tag() == Api::AddressMonitor::Mined) {
+                mined = parser.boolData();
+            }
             type = parser.next();
         }
         // TODO question of consistency, should we revert the order of the txid here, or on the server-side?
         QByteArray txIdCopy(txid.begin(), txid.size());
         for (int i = txid.size() / 2; i >= 0; --i)
             qSwap(*(txIdCopy.data() + i), *(txIdCopy.data() + txIdCopy.size() -1 - i));
-        logCritical(Log::POS) << "Tx for us is" << txIdCopy.toHex().data() << " amount:" << amount;
+        logCritical(Log::POS) << "Tx for us is" << txIdCopy.toHex().data() << " amount:" << amount << "mined:" << mined;
     }
 }
 

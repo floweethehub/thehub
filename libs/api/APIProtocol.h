@@ -286,8 +286,8 @@ enum Tags {
     TransactionId,
     /// An unsigned 64 bit number for the amount of satshi you received
     Amount,
-    /// At this time this is either zero or one.
-    ConfirmationCount,
+    /// True if it was mined in a block
+    Mined,
     /// boolean. Success equals 'true'
     Result,
     /// A string giving a human (well, developer) readable error message

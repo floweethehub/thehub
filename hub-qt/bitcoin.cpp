@@ -292,6 +292,8 @@ void BitcoinCore::initialize()
 
         apiServer.reset(new Api::Server(Application::instance()->ioService()));
         addressMonitorService.reset(new AddressMonitorService());
+        extern CTxMemPool mempool;
+        addressMonitorService->setMempool(&mempool);
         apiServer->addService(addressMonitorService.get());
     } catch (const std::exception& e) {
         handleRunawayException(&e);

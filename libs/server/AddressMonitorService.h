@@ -28,6 +28,8 @@
 
 #include <set>
 
+class CTxMemPool;
+
 class AddressMonitorService : public ValidationInterface, public NetworkService
 {
 public:
@@ -40,6 +42,10 @@ public:
     // void SetBestChain(const CBlockLocator &locator) override;
 
     void onIncomingMessage(const Message &message, const EndPoint &ep) override;
+
+    inline void setMempool(CTxMemPool *mempool) {
+        m_mempool = mempool;
+    }
 
 private:
     struct Remote {
@@ -61,11 +67,15 @@ private:
 
     void updateBools();
 
+    void findTxInMempool(int connectionId, const CKeyID &keyId);
+
     std::vector<Remote*> m_remotes;
     Streaming::BufferPool m_pool;
 
     // true if any remote added a watch
     bool m_findP2PKH = false;
+
+    CTxMemPool *m_mempool = nullptr;
 };
 
 #endif

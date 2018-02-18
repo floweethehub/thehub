@@ -26,7 +26,8 @@
 #include <streaming/MessageBuilder.h>
 #include <streaming/MessageParser.h>
 
-#include "wallet_ismine.h"
+#include "Application.h"
+#include "txmempool.h"
 
 AddressMonitorService::AddressMonitorService()
     : NetworkService(Api::AddressMonitorService)
@@ -44,6 +45,14 @@ void AddressMonitorService::SyncTx(const Tx &tx)
     findTransactions(Tx::Iterator(tx), Mempool);
 }
 
+
+struct Match
+{
+    Match() : amount(0) {}
+    uint64_t amount;
+    std::vector<CKeyID> keys;
+};
+
 void AddressMonitorService::findTransactions(Tx::Iterator && iter, FindReason findReason)
 {
     if (m_remotes.empty())
@@ -51,7 +60,7 @@ void AddressMonitorService::findTransactions(Tx::Iterator && iter, FindReason fi
     auto type = iter.next();
     uint64_t amount = 0;
     bool oneEnd = false;
-    std::map<int, uint64_t> matchingRemotes;
+    std::map<int, Match> matchingRemotes;
     while (true) {
         if (type == Tx::End) {
             if (oneEnd) // then the second end means end of block
@@ -60,12 +69,14 @@ void AddressMonitorService::findTransactions(Tx::Iterator && iter, FindReason fi
             if (!matchingRemotes.empty()) {
                 logDebug(Log::MonitorService) << " + Sending to peers!" << matchingRemotes.size();
                 for (auto i = matchingRemotes.begin(); i != matchingRemotes.end(); ++i) {
-                    m_pool.reserve(75);
+                    Match &match = i->second;
+                    m_pool.reserve(match.keys.size() * 24 + 50);
                     Streaming::MessageBuilder builder(m_pool);
-                    builder.add(Api::AddressMonitor::BitcoinAddress, iter.byteData());
+                    for (auto key : match.keys)
+                        builder.add(Api::AddressMonitor::BitcoinAddress, key);
                     builder.add(Api::AddressMonitor::TransactionId, iter.prevTx().createHash());
-                    builder.add(Api::AddressMonitor::Amount, i->second);
-                    builder.add(Api::AddressMonitor::ConfirmationCount, findReason == Confirmed ? 1 : 0);
+                    builder.add(Api::AddressMonitor::Amount, i->second.amount);
+                    builder.add(Api::AddressMonitor::Mined, findReason == Confirmed ? true : false);
                     Message message = builder.message(Api::AddressMonitorService,
                                           findReason == Conflicted
                                           ? Api::AddressMonitor::TransactionRejected : Api::AddressMonitor::TransactionFound);
@@ -91,8 +102,11 @@ void AddressMonitorService::findTransactions(Tx::Iterator && iter, FindReason fi
                     else if (whichType == TX_PUBKEYHASH)
                         keyID = CKeyID(uint160(vSolutions[0]));
                     for (size_t i = 0; i < m_remotes.size(); ++i) {
-                        if (m_remotes[i]->keys.find(keyID) != m_remotes[i]->keys.end())
-                            matchingRemotes[i] += amount;
+                        if (m_remotes[i]->keys.find(keyID) != m_remotes[i]->keys.end()) {
+                            Match &m = matchingRemotes[i];
+                            m.amount += amount;
+                            m.keys.push_back(keyID);
+                        }
                     }
                 }
             }
@@ -100,7 +114,6 @@ void AddressMonitorService::findTransactions(Tx::Iterator && iter, FindReason fi
         type = iter.next();
     }
 }
-
 
 void AddressMonitorService::SyncAllTransactionsInBlock(const FastBlock &block)
 {
@@ -116,7 +129,7 @@ void AddressMonitorService::onIncomingMessage(const Message &message, const EndP
         }
     }
     for (auto remote : m_remotes) {
-        if (remote->connection.endPoint().peerPort == ep.peerPort && remote->connection.endPoint().hostname == ep.hostname) {
+        if (remote->connection.endPoint().announcePort == ep.announcePort && remote->connection.endPoint().hostname == ep.hostname) {
             handle(remote, message, ep);
             return;
         }
@@ -168,8 +181,11 @@ void AddressMonitorService::handle(Remote *remote, const Message &message, const
                 } else {
                     CKeyID id;
                     address.GetKeyID(id);
-                    if (message.messageId() == Api::AddressMonitor::Subscribe)
+                    if (message.messageId() == Api::AddressMonitor::Subscribe) {
                         remote->keys.insert(id);
+                        remote->connection.postOnStrand(std::bind(&AddressMonitorService::findTxInMempool,
+                                                                  this, remote->connection.connectionId(), id));
+                    }
                     else
                         remote->keys.erase(id);
                 }
@@ -201,5 +217,60 @@ void AddressMonitorService::updateBools()
     m_findP2PKH = false;
     for (auto remote : m_remotes) {
         m_findP2PKH = m_findP2PKH || !remote->keys.empty();
+    }
+}
+
+void AddressMonitorService::findTxInMempool(int connectionId, const CKeyID &keyId)
+{
+    if (m_mempool == nullptr)
+        return;
+    if (manager() == nullptr)
+        return;
+
+    auto connection = manager()->connection(manager()->endPoint(connectionId), NetworkManager::OnlyExisting);
+    if (!connection.isValid() || !connection.isConnected())
+        return;
+
+    LOCK(m_mempool->cs);
+    for (auto iter = m_mempool->mapTx.begin(); iter != m_mempool->mapTx.end(); ++iter) {
+        Tx::Iterator txIter(iter->tx);
+        auto type = txIter.next();
+        uint64_t curAmount = 0, matchedAmounts = 0;
+        bool match = false;
+        while (true) {
+            if (type == Tx::End) {
+                if (match) {
+                    logDebug(Log::MonitorService) << " + Sending to peers tx from mempool!";
+                    m_pool.reserve(75);
+                    Streaming::MessageBuilder builder(m_pool);
+                    builder.add(Api::AddressMonitor::BitcoinAddress, keyId);
+                    builder.add(Api::AddressMonitor::TransactionId, txIter.prevTx().createHash());
+                    builder.add(Api::AddressMonitor::Amount, matchedAmounts);
+                    builder.add(Api::AddressMonitor::Mined, false);
+                    Message message = builder.message(Api::AddressMonitorService, Api::AddressMonitor::TransactionFound);
+                    connection.send(message);
+                }
+                break;
+            }
+            if (type == Tx::OutputValue)
+                curAmount = txIter.longData();
+            else if (type == Tx::OutputScript) {
+                CScript scriptPubKey(txIter.byteData());
+                std::vector<std::vector<unsigned char> > vSolutions;
+                txnouttype whichType;
+                bool recognizedTx = Solver(scriptPubKey, whichType, vSolutions);
+                if (recognizedTx && whichType != TX_NULL_DATA) {
+                    if (whichType == TX_PUBKEY || whichType == TX_PUBKEYHASH) {
+                        if (whichType == TX_PUBKEY && keyId == CPubKey(vSolutions[0]).GetID()
+                                || whichType == TX_PUBKEYHASH &&  keyId == CKeyID(uint160(vSolutions[0]))) {
+
+                            match = true;
+                            matchedAmounts += curAmount;
+                        }
+                    }
+                }
+            }
+            type = txIter.next();
+        }
     }
 }
