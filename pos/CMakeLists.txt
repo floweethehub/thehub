@@ -14,7 +14,7 @@
 # You should have received a copy of the GNU General Public License
 # along with this program.  If not, see <http://www.gnu.org/licenses/>.
 
-project (pos)
+project (point-of-sale)
 
 set(CMAKE_INCLUDE_CURRENT_DIR ON)
 set(CMAKE_AUTOMOC ON)
@@ -23,7 +23,8 @@ set(CMAKE_AUTOUIC ON)
 # set the default log section (for logDebug() with no args) to the POS value
 add_definitions(-DLOG_DEFAULT_SECTION=7000)
 
-find_package(Qt5Core)
+find_package(Qt5Quick)
+find_package(Qt5Sql)
 
 include_directories(. ${LIBS_INCLUDES})
 
@@ -36,13 +37,38 @@ set (POS_LIBS
     ${BOOST_THREAD_LIBRARY}
 )
 
-set (POS_SOURCES
+set (CASHIER_SOURCES
+    cashier.cpp
+    Calculator.cpp
+    DBConfig.cpp
+    HubConfig.cpp
+    NetworkPaymentProcessor.cpp
+    Payment.cpp
+    PaymentDataProvider.cpp
+    qrc_qml.cpp
+)
+
+if (${QREncode_FOUND})
+    set (CASHIER_SOURCES_QR QRCreator.cpp)
+endif()
+
+if (${Qt5Sql_FOUND})
+    qt5_add_resources(qrc_qml.cpp qml.qrc)
+    set_property(SOURCE qrc_qml.cpp PROPERTY SKIP_AUTOGEN ON)
+
+    add_executable(cashier ${CASHIER_SOURCES} ${CASHIER_SOURCES_QR})
+
+    target_link_libraries(cashier ${POS_LIBS} Qt5::Quick Qt5::Sql ${QREncode_LIBRARIES})
+endif ()
+
+
+###########################################################
+
+add_executable(pos
     main.cpp
     NetworkPaymentProcessor.cpp
 )
-
-add_executable(pos ${POS_SOURCES})
-
 target_link_libraries(pos ${POS_LIBS} Qt5::Core)
 
+install(PROGRAMS ${CMAKE_CURRENT_BINARY_DIR}/cashier DESTINATION bin)
 install(PROGRAMS ${CMAKE_CURRENT_BINARY_DIR}/pos DESTINATION bin)

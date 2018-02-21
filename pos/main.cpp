@@ -30,7 +30,7 @@
 int main(int x, char **y)
 {
     QCoreApplication app(x, y);
-    app.setOrganizationName("Flowee");
+    app.setOrganizationName("flowee");
     app.setOrganizationDomain("flowee.org");
     app.setApplicationName("pos");
 

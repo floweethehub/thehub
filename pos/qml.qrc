@@ -1,0 +1,10 @@
+<RCC>
+    <qresource prefix="/">
+        <file>qml/mainwindow.qml</file>
+        <file>qml/numpad1/NumberButton.qml</file>
+        <file>qml/numpad1/Numpad.qml</file>
+        <file>qml/NavigationButton.qml</file>
+        <file>images/bitcoincash32.png</file>
+        <file>images/bitcoincash64.png</file>
+    </qresource>
+</RCC>
