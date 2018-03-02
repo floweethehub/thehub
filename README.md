@@ -17,7 +17,29 @@ compatibility issues. Flowee is adjusted for greatly increased speed and
 reliability as well as for scaling up to much larger blocks than the
 competition.
 
+# Installation
 
-More details;
+Flowee is still being developed and doesn't have pre-compiled versions available yet. 
 
-http://floweethehub.com
+To install on Ubuntu, install the dependencies
+
+`sudo apt install libevent-dev libboost-all-dev libminiupnpc-dev qt5-default protobuf-compiler`
+
+Then clone the repo and use CMake to create the makefile
+
+`cmake CMakeLists.txt`
+
+`make`
+
+`make install`
+
+# More details
+
+* http://www.flowee.org
+
+# Social
+
+* https://twitter.com/floweethehub
+* https://reddit.com/r/flowee
+* https://groups.google.com/d/forum/flowee
+* https://keybase.io/team/floweethehub
