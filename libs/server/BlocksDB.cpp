@@ -503,7 +503,7 @@ const uint256 *Blocks::Index::insert(const uint256 &hash, CBlockIndex *index)
     auto priv = Blocks::DB::instance()->priv();
     std::lock_guard<std::mutex> lock_(priv->blockIndexLock);
     auto iterator = priv->indexMap.insert(std::make_pair(hash, index)).first;
-    return &((*iterator).first);
+    return &iterator->first;
 }
 
 bool Blocks::Index::exists(const uint256 &hash)
