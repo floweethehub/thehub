@@ -54,3 +54,6 @@ add_dependencies(hub leveldb)
 add_dependencies(hub secp256k1)
 
 install(PROGRAMS ${CMAKE_CURRENT_BINARY_DIR}/hub DESTINATION bin)
+install(FILES ${CMAKE_SOURCE_DIR}/support/flowee.conf
+    CONFIGURATIONS Release RelWithDebInfo
+    DESTINATION etc/flowee)

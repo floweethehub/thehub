@@ -291,11 +291,11 @@ void PrintExceptionContinue(const std::exception* pex, const char* pszThread)
 boost::filesystem::path GetDefaultDataDir()
 {
     namespace fs = boost::filesystem;
-    // Windows: C:\Users\Username\AppData\Roaming\Flowee
-    // Mac: ~/Library/Application Support/Flowee
-    // Unix: $XDG_DATA_HOME/Flowee (typically $HOME/.local/share/Flowee)
+    // Windows: C:\Users\Username\AppData\Roaming\flowee
+    // Mac: ~/Library/Application Support/flowee
+    // Unix: $XDG_DATA_HOME/flowee (typically $HOME/.local/share/flowee)
 
-    std::string dirName = "Flowee";
+    std::string dirName = "flowee";
     // append "/BTC" to the above for the legacy bitcoin chain.
     if (boost::to_lower_copy(GetArg("-chain", "")) == "btc")
         dirName += "/BTC";
@@ -367,13 +367,16 @@ void ClearDatadirCache()
     pathCachedNetSpecific = boost::filesystem::path();
 }
 
-boost::filesystem::path GetConfigFile()
+boost::filesystem::path GetConfigFile(const std::string &filename)
 {
     namespace fs = boost::filesystem;
 
-    fs::path pathConfigFile(GetArg("-conf", Settings::hubConfFilename()));
-    if (pathConfigFile.is_complete())
-        return pathConfigFile;
+    fs::path pathConfigFile = filename;
+    if (filename.empty()) { // its the global config file.
+        pathConfigFile = GetArg("-conf", Settings::hubConfFilename());
+        if (pathConfigFile.is_complete())
+            return pathConfigFile;
+    }
 
 #if defined(WIN32) || defined(MAC_OSX)
     // Windows and Mac
@@ -384,21 +387,21 @@ boost::filesystem::path GetConfigFile()
     if (fs::exists(pathLegacyConfigFile))
         return pathLegacyConfigFile;
 
-    fs::path pathHome;
-    char* pszHome = getenv("HOME");
-    if (pszHome == NULL || strlen(pszHome) == 0)
-        pathHome = fs::path("/");
-    else
-        pathHome = fs::path(pszHome);
-
     fs::path pathConfigHome;
     char* pszConfigHome = getenv("XDG_CONFIG_HOME");
-    if (pszConfigHome == NULL || strlen(pszConfigHome) == 0)
+    if (pszConfigHome == nullptr || strlen(pszConfigHome) == 0) {
+        fs::path pathHome;
+        char* pszHome = getenv("HOME");
+        if (pszHome == nullptr || strlen(pszHome) == 0)
+            pathHome = fs::path("/");
+        else
+            pathHome = fs::path(pszHome);
         pathConfigHome = pathHome / ".config";
-    else
+    } else {
         pathConfigHome = fs::path(pszConfigHome);
+    }
 
-    return pathConfigHome / "Bitcoin" / pathConfigFile;
+    return pathConfigHome / "flowee" / pathConfigFile;
 #endif
 }
 
@@ -407,7 +410,7 @@ void ReadConfigFile(std::map<std::string, std::string>& mapSettingsRet,
 {
     boost::filesystem::ifstream streamConfig(GetConfigFile());
     if (!streamConfig.good())
-        return; // No bitcoin.conf file is OK
+        return; // No flowee.conf file is OK
 
     std::set<std::string> setOptions;
     setOptions.insert("*");
@@ -415,7 +418,7 @@ void ReadConfigFile(std::map<std::string, std::string>& mapSettingsRet,
 
     for (boost::program_options::detail::config_file_iterator it(streamConfig, setOptions), end; it != end; ++it)
     {
-        // Don't overwrite existing settings so command line settings override bitcoin.conf
+        // Don't overwrite existing settings so command line settings override flowee.conf
         std::string strKey = std::string("-") + it->string_key;
         std::string strValue = it->value[0];
         InterpretNegativeSetting(strKey, strValue);

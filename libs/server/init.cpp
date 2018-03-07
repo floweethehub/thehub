@@ -284,7 +284,7 @@ void HandleSIGTERM(int)
 void HandleSIGHUP(int)
 {
     Log::Manager::instance()->reopenLogFiles();
-    Log::Manager::instance()->parseConfig(GetDataDir(false) / "logs.conf", GetDataDir(true) / "debug.log");
+    Log::Manager::instance()->parseConfig(GetConfigFile("logs.conf"), GetDataDir(true) / "debug.log");
 }
 
 bool static InitError(const std::string &str)
@@ -497,7 +497,7 @@ void InitLogging()
 {
     fLogIPs = GetBoolArg("-logips", DEFAULT_LOGIPS);
 
-    Log::Manager::instance()->parseConfig(GetDataDir(false) / "logs.conf", GetDataDir(true) / "debug.log");
+    Log::Manager::instance()->parseConfig(GetConfigFile("logs.conf"), GetDataDir(true) / "debug.log");
     LogPrintf("\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n");
     LogPrintf("Bitcoin version %s (%s)\n", FormatFullVersion(), CLIENT_DATE);
 }
