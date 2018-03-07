@@ -26,7 +26,7 @@ Streaming::ConstBuffer::ConstBuffer()
 {
 }
 
-Streaming::ConstBuffer::ConstBuffer(std::shared_ptr<char> buffer, char const* start, char const* stop)
+Streaming::ConstBuffer::ConstBuffer(std::shared_ptr<char> buffer, char const *start, char const *stop)
     : m_buffer(buffer),
     m_start(start),
     m_stop(stop)

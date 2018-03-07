@@ -41,7 +41,7 @@ public:
 
     /// Construct from already allocated storage.
     /// Keep in mind that a shared_ptr can have a custom dtor if we want to send something special
-    explicit ConstBuffer(std::shared_ptr<char> m_buffer, char const* m_start, char const* m_stop);
+    explicit ConstBuffer(std::shared_ptr<char> buffer, char const *start, char const *stop);
 
     char const* begin() const;
     inline char const* cbegin() const {
