@@ -197,7 +197,6 @@ static void addChainSelectionOptions(AllowedArgs& allowedArgs)
 {
     allowedArgs
         .addHeader(_("Chain selection options:"))
-        .addArg("testnet-ft", optionalBool, _("Use the flexible-transactions testnet"))
         .addArg("testnet", optionalBool, _("Use the test chain"))
         .addDebugArg("regtest", optionalBool,
             "Enter regression test mode, which uses a special chain in which blocks can be solved instantly. "
