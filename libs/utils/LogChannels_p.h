@@ -57,6 +57,8 @@ public:
     bool showSubSecondPrecision() const;
     void setShowSubSecondPrecision(bool showSubSecondPrecision);
 
+    virtual void setPath(const std::string &path) {}
+
 protected:
     TimeStampFormat m_timeStampFormat;
     bool m_printSection;
@@ -86,6 +88,8 @@ public:
     virtual void pushLog(int64_t timeMillis, std::string *timestamp, const std::string &line, const char *filename,
                          int lineNumber, const char *methodName, short logSection, short logLevel);
     virtual void reopenLogFiles();
+
+    virtual void setPath(const std::string &path);
 
 private:
     FILE *m_fileout;

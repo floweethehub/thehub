@@ -151,7 +151,6 @@ FileLogChannel::FileLogChannel(const boost::filesystem::path &logFilename)
       m_fileout(0),
       m_logFilename(logFilename)
 {
-    reopenLogFiles();
 }
 
 FileLogChannel::~FileLogChannel()
@@ -204,4 +203,9 @@ void FileLogChannel::reopenLogFiles()
     m_fileout = fopen(m_logFilename.string().c_str(), "a");
     if (m_fileout)
         setbuf(m_fileout, NULL); // unbuffered
+}
+
+void FileLogChannel::setPath(const std::string &path)
+{
+    m_logFilename = path;
 }

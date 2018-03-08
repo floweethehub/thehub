@@ -172,6 +172,7 @@ public:
      * # just mentioning 'channel file' will enable it.
      * channel file
      *     # all options available for console are available for file too.
+     *     option path [path]
      *
      * # Log sections from Log::Sections and verbosity
      * # default value for all log sections that are not specifically added here is `info`

@@ -397,6 +397,8 @@ boost::filesystem::path GetConfigFile(const std::string &filename)
         else
             pathHome = fs::path(pszHome);
         pathConfigHome = pathHome / ".config";
+        if (!fs::exists(pathConfigHome)) // fallback 3, $HOME/$filename
+            return pathHome / pathConfigFile;
     } else {
         pathConfigHome = fs::path(pszConfigHome);
     }

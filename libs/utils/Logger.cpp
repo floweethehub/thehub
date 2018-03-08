@@ -261,12 +261,19 @@ void Log::Manager::parseConfig(const boost::filesystem::path &configfile, const 
 
                     channel->setTimeStampFormat(showDate ? Channel::DateTime : (showTime ? Channel::TimeOnly : Channel::NoTime));
                     channel->setShowSubSecondPrecision(subSecond);
+                } else if (channel && cleaned.find("path") == 0) {
+                    channel->setPath(cleaned.substr(5));
                 }
                 continue;
             }
             try {
-                size_t offset;
-                int section = std::stoi(line, &offset);
+                size_t offset = 4;
+                int section = 0;
+                if (line.find("all ") == 0) {
+                    section = -1;
+                } else {
+                    section = std::stoi(line, &offset);
+                }
                 std::string type = boost::trim_copy(line.substr(offset));
                 short level = Log::CriticalLevel; // quiet is default
                 if (type == "info")
@@ -276,9 +283,15 @@ void Log::Manager::parseConfig(const boost::filesystem::path &configfile, const 
                 else if (type == "silent")
                     level = FatalLevel;
                 // else if (type != "quiet")
-                d->enabledSections[section] = level;
-            } catch (const std::exception &) {
-                // unparsable line...
+                if (section == -1) { // ALL
+                    for (int i = 1000; i <= 20000; i += 1000)
+                        d->enabledSections[i] = level;
+                } else {
+                    d->enabledSections[section] = level;
+                }
+            } catch (const std::exception &e) {
+                logDebug() << e;
+                // unparsable line
             }
         }
     } else {
@@ -297,6 +310,11 @@ void Log::Manager::parseConfig(const boost::filesystem::path &configfile, const 
 
     if (!loadedConsoleLog && GetBoolArg("-printtoconsole", false))
         d->channels.push_back(new ConsoleLogChannel());
+
+    // in case they need it, lets open then now.
+    for (auto c : d->channels) {
+        c->reopenLogFiles();
+    }
 }
 
 const std::string &Log::Manager::sectionString(short section)
