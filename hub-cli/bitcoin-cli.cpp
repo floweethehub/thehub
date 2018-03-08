@@ -163,7 +163,7 @@ UniValue CallRPC(const std::string& strMethod, const UniValue& params)
 
 #ifndef WIN32
         if (!found) // The default place where cookies are stored in our packaging standard
-            found = GetAuthCookie("/etc/bitcoin/.cookie", &strRPCUserColonPass) ;
+            found = GetAuthCookie("/etc/flowee/.cookie", &strRPCUserColonPass) ;
 #endif
 
         if (!found) {
