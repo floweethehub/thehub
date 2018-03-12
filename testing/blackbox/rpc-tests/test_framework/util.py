@@ -137,7 +137,7 @@ def initialize_chain(test_dir):
     """
     Create (or copy from cache) a 200-block-long chain and
     4 wallets.
-    bitcoind and hub-cli must be in search path.
+    hub and hub-cli must be in search path.
     """
 
     if (not os.path.isdir(os.path.join("cache","node0"))
@@ -151,16 +151,16 @@ def initialize_chain(test_dir):
                 shutil.rmtree(os.path.join("cache","node"+str(i)))
 
         devnull = open(os.devnull, "w")
-        # Create cache directories, run bitcoinds:
+        # Create cache directories, run hubs:
         for i in range(4):
             datadir=initialize_datadir("cache", i)
-            args = [ os.getenv("BITCOIND", "bitcoind"), "-server", "-keypool=1", "-datadir="+datadir, "-discover=0" ]
+            args = [ os.getenv("BITCOIND", "hub"), "-server", "-keypool=1", "-datadir="+datadir, "-discover=0" ]
             if i > 0:
                 args.append("-connect=127.0.0.1:"+str(p2p_port(0)))
             bitcoind_processes[i] = subprocess.Popen(args)
             print "PID:", bitcoind_processes[i].pid
             if os.getenv("PYTHON_DEBUG", ""):
-                print "initialize_chain: bitcoind started, calling hub-cli -rpcwait getblockcount"
+                print "initialize_chain: hub started, calling hub-cli -rpcwait getblockcount"
             subprocess.check_call([ os.getenv("BITCOINCLI", "hub-cli"), "-datadir="+datadir,
                                     "-rpcwait", "getblockcount"], stdout=devnull)
             if os.getenv("PYTHON_DEBUG", ""):
@@ -195,7 +195,7 @@ def initialize_chain(test_dir):
         stop_nodes(rpcs)
         wait_bitcoinds()
         for i in range(4):
-            os.remove(log_filename("cache", i, "debug.log"))
+            os.remove(log_filename("cache", i, "hub.log"))
             os.remove(log_filename("cache", i, "db.log"))
             os.remove(log_filename("cache", i, "peers.dat"))
             os.remove(log_filename("cache", i, "fee_estimates.dat"))
@@ -237,11 +237,11 @@ def _rpchost_to_args(rpchost):
 
 def start_node(i, dirname, extra_args=None, rpchost=None, timewait=None, binary=None):
     """
-    Start a bitcoind and return RPC connection to it
+    Start a hub and return RPC connection to it
     """
     datadir = os.path.join(dirname, "node"+str(i))
     if binary is None:
-        binary = os.getenv("BITCOIND", "bitcoind")
+        binary = os.getenv("BITCOIND", "hub")
     args = [ binary, "-datadir="+datadir, "-server", "-keypool=1", "-discover=0", "-rest" ]
     if extra_args is not None: args.extend(extra_args)
     try:
@@ -258,7 +258,7 @@ def start_node(i, dirname, extra_args=None, rpchost=None, timewait=None, binary=
         bitcoind_processes[i] = subprocess.Popen(args)
         print "PID:", bitcoind_processes[i].pid
         if os.getenv("PYTHON_DEBUG", ""):
-            print "start_node: bitcoind started, calling hub-cli -rpcwait getblockcount"
+            print "start_node: hub started, calling hub-cli -rpcwait getblockcount"
             print args
     devnull = open(os.devnull, "w")
     print "CLI: ", os.getenv("BITCOINCLI", "hub-cli")
@@ -279,7 +279,7 @@ def start_node(i, dirname, extra_args=None, rpchost=None, timewait=None, binary=
 
 def start_nodes(num_nodes, dirname, extra_args=None, rpchost=None, binary=None):
     """
-    Start multiple bitcoinds, return RPC connections to them
+    Start multiple hubs, return RPC connections to them
     """
     if extra_args is None: extra_args = [ None for i in range(num_nodes) ]
     if binary is None: binary = [ None for i in range(num_nodes) ]
@@ -303,7 +303,7 @@ def set_node_times(nodes, t):
         node.setmocktime(t)
 
 def wait_bitcoinds():
-    # Wait for all bitcoinds to cleanly exit
+    # Wait for all hubs to cleanly exit
     for bitcoind in bitcoind_processes.values():
         bitcoind.wait()
     bitcoind_processes.clear()
