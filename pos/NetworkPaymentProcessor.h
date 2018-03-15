@@ -38,10 +38,3 @@ private:
     NetworkConnection m_connection;
     QStringList m_listenAddresses;
 };
-
-// TODO move this to a more appropriate place
-#include "Logger.h"
-inline Log::SilentItem operator<<(Log::SilentItem item, const QString&) { return item; }
-inline Log::Item operator<<(Log::Item item, const QString &s) {
-    return item << s.toLocal8Bit().data();
-}

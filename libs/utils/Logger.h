@@ -473,5 +473,11 @@ inline Log::Item operator<<(Log::Item item, const std::pair<T1,T2> &p) {
     return item;
 }
 
+#ifdef QSTRING_H
+inline Log::SilentItem operator<<(Log::SilentItem item, const QString&) { return item; }
+inline Log::Item operator<<(Log::Item item, const QString &s) {
+    return item << s.toLocal8Bit().data();
+}
+#endif
 
 #endif
