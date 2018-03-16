@@ -407,10 +407,9 @@ Streaming::ConstBuffer NetworkManagerConnection::createHeader(const Message &mes
 void NetworkManagerConnection::runMessageQueue()
 {
     assert(m_strand.running_in_this_thread());
-    if (m_sendingInProgress || m_isConnecting || m_isClosingDown || m_messageQueue.empty() || !isConnected())
+    if (m_sendingInProgress || m_isConnecting || m_isClosingDown || (m_messageQueue.empty() && m_priorityMessageQueue.empty()) || !isConnected())
         return;
 
-    assert(m_messageBytesSend <= m_messageQueue.front().rawData().size());
     m_sendingInProgress = true;
 
     /*
