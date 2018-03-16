@@ -77,7 +77,11 @@
 #endif
 
 namespace {
+#ifndef NDEBUG
+    const int MAX_OUTBOUND_CONNECTIONS = 4;
+#else
     const int MAX_OUTBOUND_CONNECTIONS = 28;
+#endif
 
     struct ListenSocket {
         SOCKET socket;
