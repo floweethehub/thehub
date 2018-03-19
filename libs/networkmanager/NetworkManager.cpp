@@ -389,10 +389,10 @@ void NetworkManagerConnection::onConnectComplete(const boost::system::error_code
 
 Streaming::ConstBuffer NetworkManagerConnection::createHeader(const Message &message)
 {
-    m_sendHelperBuffer.reserve(20);
-    Streaming::MessageBuilder builder(m_sendHelperBuffer, Streaming::HeaderOnly);
     assert(message.serviceId() >= 0);
     const auto map = message.headerData();
+    m_sendHelperBuffer.reserve(10 * map.size());
+    Streaming::MessageBuilder builder(m_sendHelperBuffer, Streaming::HeaderOnly);
     auto iter = map.begin();
     while (iter != map.end()) {
         builder.add(iter->first, iter->second);
@@ -660,7 +660,8 @@ bool NetworkManagerConnection::processPacket(const std::shared_ptr<char> &buffer
     const int packetLength = (rawHeader & 0xFFFF);
     logDebug(Log::NWM) << "Receive packet length" << packetLength;
 
-    Streaming::MessageParser parser(Streaming::ConstBuffer(buffer, data + 2, data + packetLength - 2));
+    const char *messageStart = data + 2;
+    Streaming::MessageParser parser(Streaming::ConstBuffer(buffer, messageStart, messageStart + packetLength));
     Streaming::ParsedType type = parser.next();
     int headerSize = 0;
     int messageId = -1;
@@ -669,6 +670,8 @@ bool NetworkManagerConnection::processPacket(const std::shared_ptr<char> &buffer
     int sequenceSize = -1;
     bool isPing = false;
     // TODO have a variable on the NetworkManger that indicates the maximum allowed combined message-size.
+
+    std::map<int, int> messageHeaderData;
     bool inHeader = true;
     while (inHeader && type == Streaming::FoundTag) {
         switch (parser.tag()) {
@@ -707,9 +710,18 @@ bool NetworkManagerConnection::processPacket(const std::shared_ptr<char> &buffer
         case Network::Ping:
             isPing = true;
             break;
+        default:
+            if (parser.isInt() && parser.tag() < 0xFFFFFF)
+                messageHeaderData.insert(std::make_pair((int) parser.tag(), parser.intData()));
+            break;
         }
 
         type = parser.next();
+    }
+    if (inHeader) {
+        logDebug(Log::NWM) << "  header malformed, disconnecting";
+        close();
+        return false;
     }
 
     if (serviceId == -1) { // an obligatory field
@@ -778,6 +790,9 @@ bool NetworkManagerConnection::processPacket(const std::shared_ptr<char> &buffer
     }
     message.setMessageId(messageId);
     message.setServiceId(serviceId);
+    for (auto iter = messageHeaderData.begin(); iter != messageHeaderData.end(); ++iter) {
+        message.setHeaderInt(iter->first, iter->second);
+    }
     message.remote = m_remote.connectionId;
 
     // first copy to avoid problems if a callback removes its callback or closes the connection.
