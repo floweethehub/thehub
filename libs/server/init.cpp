@@ -190,7 +190,7 @@ void Interrupt(boost::thread_group& threadGroup)
 
 void Shutdown()
 {
-    LogPrintf("%s: In progress...\n", __func__);
+    logCritical(Log::Bitcoin) << "Shutdown in progress...";
     static CCriticalSection cs_Shutdown;
     TRY_LOCK(cs_Shutdown, lockShutdown);
     if (!lockShutdown)
@@ -223,7 +223,7 @@ void Shutdown()
         if (!est_fileout.IsNull())
             mempool.WriteFeeEstimates(est_fileout);
         else
-            LogPrintf("%s: Failed to write fee estimates to %s\n", __func__, est_path.string());
+            logWarning(Log::FeeEstimation) << "Shutdown: Failed to write fee estimates to" << est_path.string();
         fFeeEstimatesInitialized = false;
     }
 
@@ -260,7 +260,7 @@ void Shutdown()
     try {
         boost::filesystem::remove(GetPidFile());
     } catch (const boost::filesystem::filesystem_error& e) {
-        LogPrintf("%s: Unable to remove pidfile: %s\n", __func__, e.what());
+        logCritical(Log::Bitcoin) << "Shutdown: Unable to remove pidfile:" <<  e;
     }
 #endif
     ValidationNotifier().removeAll();
@@ -270,7 +270,7 @@ void Shutdown()
 #endif
     globalVerifyHandle.reset();
     ECC_Stop();
-    LogPrintf("%s: done\n", __func__);
+    logCritical(Log::Bitcoin) << "Shutdown: done";
 }
 
 /**
@@ -498,8 +498,8 @@ void InitLogging()
     fLogIPs = GetBoolArg("-logips", DEFAULT_LOGIPS);
 
     Log::Manager::instance()->parseConfig(GetConfigFile("logs.conf"), GetDataDir(true) / "hub.log");
-    LogPrintf("\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n");
-    LogPrintf("Bitcoin version %s (%s)\n", FormatFullVersion(), CLIENT_DATE);
+    logCritical(Log::Bitcoin) << "\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n";
+    logCritical(Log::Bitcoin).nospace() << "Flowee the Hub version " << FormatFullVersion() << "(" << CLIENT_DATE << ")";
 }
 
 /** Initialize bitcoin.
@@ -843,10 +843,10 @@ bool AppInit2(boost::thread_group& threadGroup, CScheduler& scheduler)
     int64_t nCoinDBCache = std::min(nTotalCache / 2, (nTotalCache / 4) + (1 << 23)); // use 25%-50% of the remainder for disk cache
     nTotalCache -= nCoinDBCache;
     nCoinCacheUsage = nTotalCache; // the rest goes to in-memory cache
-    LogPrintf("Cache configuration:\n");
-    LogPrintf("* Using %.1fMiB for block index database\n", nBlockTreeDBCache * (1.0 / 1024 / 1024));
-    LogPrintf("* Using %.1fMiB for chain state database\n", nCoinDBCache * (1.0 / 1024 / 1024));
-    LogPrintf("* Using %.1fMiB for in-memory UTXO set\n", nCoinCacheUsage * (1.0 / 1024 / 1024));
+    logInfo(Log::Bitcoin) << "Cache configuration:";
+    logInfo(Log::Bitcoin) << "* Using" << nBlockTreeDBCache * (1.0 / 1000 / 1000) << " MB for block index database";
+    logInfo(Log::Bitcoin) << "* Using" << nCoinDBCache * (1.0 / 1000 / 1000 )<< "MB for chain state database";
+    logInfo(Log::Bitcoin) << "* Using" << nCoinCacheUsage * (1.0 / 1000 / 1000) << "MB for in-memory UTXO set";
 
     bool fLoaded = false;
     int64_t nStart;
@@ -1231,7 +1231,7 @@ bool AppInit2(boost::thread_group& threadGroup, CScheduler& scheduler)
         pwalletMain->SetBroadcastTransactions(GetBoolArg("-walletbroadcast", Settings::DefaultWalletBroadcast));
     } // (!fDisableWallet)
 #else // ENABLE_WALLET
-    LogPrintf("No wallet support compiled in!\n");
+    logDebug(Log::Wallet) << "No wallet support compiled in!";
 #endif // !ENABLE_WALLET
 
     // ********************************************************* Step 9: data directory maintenance

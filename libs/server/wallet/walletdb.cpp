@@ -684,10 +684,10 @@ DBErrors CWalletDB::LoadWallet(CWallet* pwallet)
     if (result != DB_LOAD_OK)
         return result;
 
-    LogPrintf("nFileVersion = %d\n", wss.nFileVersion);
+    logDebug(Log::Wallet) << "nFileVersion" << wss.nFileVersion;
 
-    LogPrintf("Keys: %u plaintext, %u encrypted, %u w/ metadata, %u total\n",
-           wss.nKeys, wss.nCKeys, wss.nKeyMeta, wss.nKeys + wss.nCKeys);
+    logDebug(Log::Wallet) << "Keys:" << wss.nKeys << "plaintext," <<  wss.nCKeys << "encrypted,"
+                          << wss.nKeyMeta << "w/ metadata," << wss.nKeys + wss.nCKeys << "total";
 
     // nTimeFirstKey is only reliable if all keys have metadata
     if ((wss.nKeys + wss.nCKeys) != wss.nKeyMeta)

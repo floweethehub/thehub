@@ -1302,27 +1302,24 @@ void PartitionCheck(bool (*initialDownloadCheck)(), CCriticalSection& cs, const 
     // How likely is it to find that many by chance?
     double p = boost::math::pdf(poisson, nBlocks);
 
-    LogPrint("partitioncheck", "%s: Found %d blocks in the last %d hours\n", __func__, nBlocks, SPAN_HOURS);
-    LogPrint("partitioncheck", "%s: likelihood: %g\n", __func__, p);
+    logInfo(Log::Bitcoin) << "PartitionCheck: Found" << nBlocks << "blocks in the last" << SPAN_HOURS << "hours";
+    logInfo(Log::Bitcoin) << "PartitionCheck: likelihood:" << p;
 
     // Aim for one false-positive about every fifty years of normal running:
     const int FIFTY_YEARS = 50*365*24*60*60;
     double alertThreshold = 1.0 / (FIFTY_YEARS / SPAN_SECONDS);
 
-    if (p <= alertThreshold && nBlocks < BLOCKS_EXPECTED)
-    {
+    if (p <= alertThreshold && nBlocks < BLOCKS_EXPECTED) {
         // Many fewer blocks than expected: alert!
         strWarning = strprintf(_("WARNING: check your network connection, %d blocks received in the last %d hours (%d expected)"),
                                nBlocks, SPAN_HOURS, BLOCKS_EXPECTED);
     }
-    else if (p <= alertThreshold && nBlocks > BLOCKS_EXPECTED)
-    {
+    else if (p <= alertThreshold && nBlocks > BLOCKS_EXPECTED) {
         // Many more blocks than expected: alert!
         strWarning = strprintf(_("WARNING: abnormally high number of blocks generated, %d blocks received in the last %d hours (%d expected)"),
                                nBlocks, SPAN_HOURS, BLOCKS_EXPECTED);
     }
-    if (!strWarning.empty())
-    {
+    if (!strWarning.empty()) {
         strMiscWarning = strWarning;
         AlertNotify(strWarning, true);
         lastAlertTime = now;
@@ -1744,11 +1741,11 @@ bool LoadBlockIndexDB()
     // Check whether we have ever pruned block & undo files
     Blocks::DB::instance()->ReadFlag("prunedblockfiles", fHavePruned);
     if (fHavePruned)
-        LogPrintf("LoadBlockIndexDB(): Block files have previously been pruned\n");
+        logCritical(Log::Bitcoin) << "LoadBlockIndexDB(): Block files have previously been pruned";
 
     // Check whether we have a transaction index
     Blocks::DB::instance()->ReadFlag("txindex", fTxIndex);
-    LogPrintf("%s: transaction index %s\n", __func__, fTxIndex ? "enabled" : "disabled");
+    logDebug(Log::Bitcoin) << "transaction index enabled:" << fTxIndex;
 
     // Load pointer to end of best chain
     auto tip = Blocks::Index::get(pcoinsTip->GetBestBlock());
@@ -2086,7 +2083,7 @@ bool static ProcessMessage(CNode* pfrom, std::string strCommand, CDataStream& vR
         if (pfrom->nVersion < MIN_PEER_PROTO_VERSION)
         {
             // disconnect from peers older than this proto version
-            LogPrintf("peer=%d using obsolete version %i; disconnecting\n", pfrom->id, pfrom->nVersion);
+            logWarning(Log::Net) << "peer:" << pfrom->id << "using obsolete version" << pfrom->nVersion << "disconnecting";
             pfrom->PushMessage(NetMsgType::REJECT, strCommand, REJECT_OBSOLETE,
                                strprintf("Version must be %d or greater", MIN_PEER_PROTO_VERSION));
             pfrom->fDisconnect = true;
@@ -2112,7 +2109,7 @@ bool static ProcessMessage(CNode* pfrom, std::string strCommand, CDataStream& vR
         // Disconnect if we connected to ourself
         if (nNonce == nLocalHostNonce && nNonce > 1)
         {
-            LogPrintf("connected to self at %s, disconnecting\n", pfrom->addr.ToString());
+            logCritical(Log::Net) << "connected to self at" << pfrom->addr << "disconnecting";
             pfrom->fDisconnect = true;
             return true;
         }
@@ -2144,11 +2141,11 @@ bool static ProcessMessage(CNode* pfrom, std::string strCommand, CDataStream& vR
                 CAddress addr = GetLocalAddress(&pfrom->addr);
                 if (addr.IsRoutable())
                 {
-                    LogPrintf("ProcessMessages: advertising address %s\n", addr.ToString());
+                    logInfo(Log::Net) << "ProcessMessages: advertising address" << addr;
                     pfrom->PushAddress(addr);
                 } else if (IsPeerAddrLocalGood(pfrom)) {
                     addr.SetIP(pfrom->addrLocal);
-                    LogPrintf("ProcessMessages: advertising address %s\n", addr.ToString());
+                    logInfo(Log::Net) << "ProcessMessages: advertising address" << addr;
                     pfrom->PushAddress(addr);
                 }
             }
@@ -2169,16 +2166,15 @@ bool static ProcessMessage(CNode* pfrom, std::string strCommand, CDataStream& vR
         }
 
         pfrom->fSuccessfullyConnected = true;
-        logCritical(Log::Net) << "receive version message:" << pfrom->addr << pfrom->cleanSubVer << "version:"
+        logInfo(Log::Net) << "receive version message:" << pfrom->addr << pfrom->cleanSubVer << "version:"
                           << pfrom->nVersion << "blocks:" << pfrom->nStartingHeight << "id:" << pfrom->id;
         if (pfrom->isCashNode)
-            logInfo(Log::Net) << "peer id:" << pfrom->GetId() << "uses CASH message-headers";
+            logDebug(Log::Net) << "peer id:" << pfrom->GetId() << "uses CASH message-headers";
 
         int64_t nTimeOffset = nTime - GetTime();
         pfrom->nTimeOffset = nTimeOffset;
         AddTimeData(pfrom->addr, nTimeOffset);
     }
-
 
     else if (pfrom->nVersion == 0)
     {

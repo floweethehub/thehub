@@ -1266,7 +1266,7 @@ void ThreadSocketHandler()
                             if (nErr != WSAEWOULDBLOCK && nErr != WSAEMSGSIZE && nErr != WSAEINTR && nErr != WSAEINPROGRESS)
                             {
                                 if (!pnode->fDisconnect)
-                                    LogPrintf("socket recv error %s\n", NetworkErrorString(nErr));
+                                    logDebug(Log::Net) << "socket recv error" <<  NetworkErrorString(nErr);
                                 pnode->CloseSocketDisconnect();
                             }
                         }
@@ -1299,17 +1299,17 @@ void ThreadSocketHandler()
                 }
                 else if (nTime - pnode->nLastSend > TIMEOUT_INTERVAL)
                 {
-                    LogPrintf("socket sending timeout: %is\n", nTime - pnode->nLastSend);
+                    logWarning(Log::Net) << "socket sending timeout:" << (nTime - pnode->nLastSend);
                     pnode->fDisconnect = true;
                 }
                 else if (nTime - pnode->nLastRecv > (pnode->nVersion > BIP0031_VERSION ? TIMEOUT_INTERVAL : 90*60))
                 {
-                    LogPrintf("socket receive timeout: %is\n", nTime - pnode->nLastRecv);
+                    logWarning(Log::Net) << "socket receive timeout:" << (nTime - pnode->nLastRecv);
                     pnode->fDisconnect = true;
                 }
                 else if (pnode->nPingNonceSent && pnode->nPingUsecStart + TIMEOUT_INTERVAL * 1000000 < GetTimeMicros())
                 {
-                    LogPrintf("ping timeout: %fs\n", 0.000001 * (GetTimeMicros() - pnode->nPingUsecStart));
+                    logWarning(Log::Net) << "ping timeout:" << (0.000001 * (GetTimeMicros() - pnode->nPingUsecStart));
                     pnode->fDisconnect = true;
                 }
             }
@@ -1321,7 +1321,6 @@ void ThreadSocketHandler()
         }
     }
 }
-
 
 
 
@@ -1363,16 +1362,16 @@ void ThreadMapPort()
             char externalIPAddress[40];
             r = UPNP_GetExternalIPAddress(urls.controlURL, data.first.servicetype, externalIPAddress);
             if(r != UPNPCOMMAND_SUCCESS)
-                LogPrintf("UPnP: GetExternalIPAddress() returned %d\n", r);
+                logInfo(Log::Net) << "UPnP: GetExternalIPAddress() returned" << r;
             else
             {
                 if(externalIPAddress[0])
                 {
-                    LogPrintf("UPnP: ExternalIPAddress = %s\n", externalIPAddress);
+                    logInfo(Log::Net) << ("UPnP: ExternalIPAddress = %s\n", externalIPAddress);
                     AddLocal(CNetAddr(externalIPAddress), LOCAL_UPNP);
                 }
                 else
-                    LogPrintf("UPnP: GetExternalIPAddress failed.\n");
+                    logInfo(Log::Net) << "UPnP: GetExternalIPAddress failed.";
             }
         }
 
@@ -1391,10 +1390,10 @@ void ThreadMapPort()
 #endif
 
                 if(r!=UPNPCOMMAND_SUCCESS)
-                    LogPrintf("AddPortMapping(%s, %s, %s) failed with code %d (%s)\n",
-                        port, port, lanaddr, r, strupnperror(r));
+                    logInfo(Log::Net).nospace() << "AddPortMapping(" << port << ", " <<  port << ", " << lanaddr
+                                                << ") failed with code " << r << "(" << strupnperror(r) << ")";
                 else
-                    LogPrintf("UPnP Port Mapping successful.\n");;
+                    logInfo(Log::Net) << "UPnP Port Mapping successful.";
 
                 MilliSleep(20*60*1000); // Refresh every 20 minutes
             }
@@ -1402,13 +1401,13 @@ void ThreadMapPort()
         catch (const boost::thread_interrupted&)
         {
             r = UPNP_DeletePortMapping(urls.controlURL, data.first.servicetype, port.c_str(), "TCP", 0);
-            LogPrintf("UPNP_DeletePortMapping() returned: %d\n", r);
+            logInfo(Log::Net) << "UPNP_DeletePortMapping() returned:" << r;
             freeUPNPDevlist(devlist); devlist = 0;
             FreeUPNPUrls(&urls);
             throw;
         }
     } else {
-        LogPrintf("No valid UPnP IGDs found\n");
+        logInfo(Log::Net) << "No valid UPnP IGDs found";
         freeUPNPDevlist(devlist); devlist = 0;
         if (r != 0)
             FreeUPNPUrls(&urls);
@@ -1646,7 +1645,7 @@ void ThreadOpenConnections()
         if (addrman.size() == 0 && (GetTime() - nStart > 60)) {
             static bool done = false;
             if (!done) {
-                LogPrintf("Adding fixed seed nodes as DNS doesn't seem to be available.\n");
+                logDebug(Log::Net) << "Adding fixed seed nodes as DNS doesn't seem to be available.";
                 addrman.Add(convertSeed6(Params().FixedSeeds()), CNetAddr("127.0.0.1"));
                 done = true;
             }
@@ -1892,22 +1891,19 @@ bool BindListenPort(const CService &addrBind, std::string& strError, bool fWhite
     socklen_t len = sizeof(sockaddr);
     if (!addrBind.GetSockAddr((struct sockaddr*)&sockaddr, &len))
     {
-        strError = strprintf("Error: Bind address family for %s not supported", addrBind.ToString());
-        LogPrintf("%s\n", strError);
+        logCritical(Log::Net) << "Error: Bind address family for" << addrBind << "not supported";
         return false;
     }
 
     SOCKET hListenSocket = socket(((struct sockaddr*)&sockaddr)->sa_family, SOCK_STREAM, IPPROTO_TCP);
     if (hListenSocket == INVALID_SOCKET)
     {
-        strError = strprintf("Error: Couldn't open socket for incoming connections (socket returned error %s)", NetworkErrorString(WSAGetLastError()));
-        LogPrintf("%s\n", strError);
+        logCritical(Log::Net) << "Error: Couldn't open socket for incoming connections. Socket returned error" << NetworkErrorString(WSAGetLastError());
         return false;
     }
     if (!IsSelectableSocket(hListenSocket))
     {
-        strError = "Error: Couldn't create a listenable socket for incoming connections";
-        LogPrintf("%s\n", strError);
+        logCritical(Log::Net) << "Error: Couldn't create a listenable socket for incoming connections";
         return false;
     }
 
@@ -1929,8 +1925,7 @@ bool BindListenPort(const CService &addrBind, std::string& strError, bool fWhite
 
     // Set to non-blocking, incoming connections will also inherit this
     if (!SetSocketNonBlocking(hListenSocket, true)) {
-        strError = strprintf("BindListenPort: Setting listening socket to non-blocking failed, error %s\n", NetworkErrorString(WSAGetLastError()));
-        LogPrintf("%s\n", strError);
+        logCritical(Log::Net) << "BindListenPort: Setting listening socket to non-blocking failed, error" << NetworkErrorString(WSAGetLastError());
         return false;
     }
 
@@ -1954,20 +1949,18 @@ bool BindListenPort(const CService &addrBind, std::string& strError, bool fWhite
     {
         int nErr = WSAGetLastError();
         if (nErr == WSAEADDRINUSE)
-            strError = strprintf(_("Unable to bind to %s on this computer. The Hub is probably already running."), addrBind.ToString());
+            logCritical(Log::Net) << "Unable to bind to" << addrBind << "on this computer. The Hub is probably already running.";
         else
-            strError = strprintf(_("Unable to bind to %s on this computer (bind returned error %s)"), addrBind.ToString(), NetworkErrorString(nErr));
-        LogPrintf("%s\n", strError);
+            logCritical(Log::Net) << "Unable to bind to" << addrBind << "on this computer (bind returned error" << NetworkErrorString(nErr) << ")";
         CloseSocket(hListenSocket);
         return false;
     }
-    LogPrintf("Bound to %s\n", addrBind.ToString());
+    logInfo(Log::Net) << "Bound to" << addrBind;
 
     // Listen for incoming connections
     if (listen(hListenSocket, SOMAXCONN) == SOCKET_ERROR)
     {
-        strError = strprintf(_("Error: Listening for incoming connections failed (listen returned error %s)"), NetworkErrorString(WSAGetLastError()));
-        LogPrintf("%s\n", strError);
+        logCritical(Log::Net) << "Error: Listening for incoming connections failed. Listen returned error" << NetworkErrorString(WSAGetLastError());
         CloseSocket(hListenSocket);
         return false;
     }
@@ -2017,13 +2010,14 @@ void static Discover(boost::thread_group& threadGroup)
                 CNetAddr addr(s4->sin_addr);
                 if (AddLocal(addr, LOCAL_IF))
                     LogPrintf("%s: IPv4 %s: %s\n", __func__, ifa->ifa_name, addr.ToString());
+                    logDebug(Log::Net) << "Discover: IPv4" << ifa->ifa_name << addr;
             }
             else if (ifa->ifa_addr->sa_family == AF_INET6)
             {
                 struct sockaddr_in6* s6 = (struct sockaddr_in6*)(ifa->ifa_addr);
                 CNetAddr addr(s6->sin6_addr);
                 if (AddLocal(addr, LOCAL_IF))
-                    LogPrintf("%s: IPv6 %s: %s\n", __func__, ifa->ifa_name, addr.ToString());
+                    logDebug(Log::Net) << "Discover: IPv6" << ifa->ifa_name << addr;
             }
         }
         freeifaddrs(myaddrs);
@@ -2035,14 +2029,13 @@ void StartNode(boost::thread_group& threadGroup, CScheduler& scheduler)
 {
     uiInterface.InitMessage(_("Loading addresses..."));
     // Load addresses for peers.dat
-    int64_t nStart = GetTimeMillis();
     {
         CAddrDB adb;
         if (adb.Read(addrman)) {
-            LogPrintf("Loaded %i addresses from peers.dat  %dms\n", addrman.size(), GetTimeMillis() - nStart);
+            logInfo(Log::Addrman) << "Loaded" << addrman.size() << "addresses from peers.dat";
         } else {
             addrman.Clear(); // Addrman can be in an inconsistent state after failure, reset it
-            LogPrintf("Invalid or missing peers.dat; recreating\n");
+            logWarning(Log::Addrman) << "Invalid or missing peers.dat; recreating";
         }
     }
 
@@ -2050,14 +2043,13 @@ void StartNode(boost::thread_group& threadGroup, CScheduler& scheduler)
     CBanDB bandb;
     banmap_t banmap;
     if (!bandb.Read(banmap))
-        LogPrintf("Could not read banlist.dat, starting with empty list.\n");
+        logWarning(Log::Addrman) << "Could not read banlist.dat, starting with empty list.";
 
     CNode::SetBanned(banmap); //thread save setter
     CNode::SetBannedSetDirty(false); //no need to write down just read or nonexistent data
     CNode::SweepBanned(); //sweap out unused entries
 
-    LogPrintf("Loaded %i addresses from peers.dat  %dms\n",
-           addrman.size(), GetTimeMillis() - nStart);
+    logInfo(Log::Addrman) << "Loaded" << addrman.size() << "addresses from peers.dat";
     fAddressesInitialized = true;
 
     if (semOutbound == NULL) {
@@ -2075,9 +2067,7 @@ void StartNode(boost::thread_group& threadGroup, CScheduler& scheduler)
     // Start threads
     //
 
-    if (!GetBoolArg("-dnsseed", true))
-        LogPrintf("DNS seeding disabled\n");
-    else
+    if (GetBoolArg("-dnsseed", true))
         threadGroup.create_thread(boost::bind(&TraceThread<void (*)()>, "dnsseed", &ThreadDNSAddressSeed));
 
     // Map ports with UPnP

@@ -734,7 +734,6 @@ void ValidationEnginePrivate::processNewBlock(std::shared_ptr<BlockValidationSta
         fatal(val.GetRejectReason().c_str());
 
     logCritical(Log::BlockValidation).nospace() << "new best=" << hash << " height=" << index->nHeight
-            << " log2_work=" << log(index->nChainWork.getdouble())/log(2.0)
             << " tx=" << blockchain->Tip()->nChainTx
             << " date=" << DateTimeStrFormat("%Y-%m-%d %H:%M:%S", index->GetBlockTime()).c_str()
             << Log::Fixed << Log::precision(1) << " cache=" << mempool->coins()->DynamicMemoryUsage() * (1.0 / (1<<20))
