@@ -167,7 +167,7 @@ void Api::Server::incomingLoginMessage(const Message &message)
         con.disconnect();
         return;
     }
-    logInfo(Log::ApiServer) << "Remote login accepted from" << con.endPoint().hostname;
+    logInfo(Log::ApiServer) << "Remote login accepted from" << con.endPoint().hostname << con.endPoint().ipAddress.to_string();
 
     con.setOnDisconnected(std::bind(&Api::Server::connectionRemoved, this, std::placeholders::_1));
     Connection *handler = new Connection(std::move(con));
@@ -225,6 +225,7 @@ void Api::Server::Connection::incomingMessage(const Message &message)
         parser.reset(APIRPCBinding::createParser(message));
         assert(parser.get()); // createParser should never return a nullptr
     } catch (const std::exception &e) {
+        logWarning(Log::ApiServer) << e;
         sendFailedMessage(message, e.what());
         return;
     }
@@ -239,11 +240,15 @@ void Api::Server::Connection::incomingMessage(const Message &message)
             rpcParser->createRequest(message, request);
             UniValue result;
             try {
+                logInfo(Log::ApiServer) << rpcParser->method() << message.serviceId() << '/' << message.messageId();
                 result = tableRPC.execute(rpcParser->method(), request);
             } catch (UniValue& objError) {
-                sendFailedMessage(message, find_value(objError, "message").get_str());
+                const std::string error = find_value(objError, "message").get_str();
+                logWarning(Log::ApiServer) << error;
+                sendFailedMessage(message, error);
                 return;
             } catch(const std::exception &e) {
+                logWarning(Log::ApiServer) << e;
                 sendFailedMessage(message, std::string(e.what()));
                 return;
             }
