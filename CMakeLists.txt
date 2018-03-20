@@ -200,7 +200,7 @@ endif ()
 
 find_package(Miniupnpc)
 if (${MINIUPNP_FOUND})
-    set (USE_UPNP)
+    set (USE_UPNP 1)
 else ()
     set (MINIUPNP_LIBRARY "")
 endif ()
