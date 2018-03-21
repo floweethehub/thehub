@@ -267,6 +267,9 @@ private:
     } *d;
 };
 
+#ifndef LOG_DEFAULT_SECTION
+#define LOG_DEFAULT_SECTION 0
+#endif
 
 /// This class should likely never be used manually, it purely exists to create Item and SilentItem instances.
 class MessageLogger {
@@ -274,19 +277,19 @@ public:
     MessageLogger();
     explicit MessageLogger(const char *filename, int lineNumber, const char *methodName);
 
-    inline Item debug(short section = 0) {
+    inline Item debug(short section = LOG_DEFAULT_SECTION) {
         return Log::Item(m_file, m_line, m_method, section, Log::DebugLevel);
     }
-    inline Item warning(short section = 0) {
+    inline Item warning(short section = LOG_DEFAULT_SECTION) {
         return Log::Item(m_file, m_line, m_method, section, Log::WarningLevel);
     }
-    inline Item info(short section = 0) {
+    inline Item info(short section = LOG_DEFAULT_SECTION) {
         return Log::Item(m_file, m_line, m_method, section, Log::InfoLevel);
     }
-    inline Item critical(short section = 0) {
+    inline Item critical(short section = LOG_DEFAULT_SECTION) {
         return Log::Item(m_file, m_line, m_method, section, Log::CriticalLevel);
     }
-    inline Item fatal(short section = 0) {
+    inline Item fatal(short section = LOG_DEFAULT_SECTION) {
         return Log::Item(m_file, m_line, m_method, section, Log::FatalLevel);
     }
 

@@ -20,6 +20,9 @@ set(CMAKE_INCLUDE_CURRENT_DIR ON)
 set(CMAKE_AUTOMOC ON)
 set(CMAKE_AUTOUIC ON)
 
+# set the default log section (for logDebug() with no args) to the POS value
+add_definitions(-DLOG_DEFAULT_SECTION=7000)
+
 find_package(Qt5Core)
 
 include_directories(. ${LIBS_INCLUDES})
