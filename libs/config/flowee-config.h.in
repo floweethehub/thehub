@@ -111,8 +111,7 @@
 #cmakedefine USE_DBUS 1
 
 /* Define if QR support should be compiled in */
-// #define USE_QRCODE 1
-// TODO detect presence
+#cmakedefine USE_QRCODE 1
 
 /* UPnP support not compiled if undefined, otherwise value (0 or 1) determines default state */
 #cmakedefine USE_UPNP 1

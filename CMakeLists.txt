@@ -205,6 +205,13 @@ else ()
     set (MINIUPNP_LIBRARY "")
 endif ()
 
+find_package(QREncode)
+if (${QREncode_FOUND})
+    set (USE_QRCODE 1)
+else ()
+    set (QREncode_LIBRARIES "")
+endif()
+
 find_package(Qt5Core)
 if (NOT ${Qt5Core_FOUND})
     message("Missing qt5 (core) library, not building pos, hub-qt")
