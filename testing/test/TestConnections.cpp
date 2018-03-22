@@ -62,7 +62,7 @@ BOOST_AUTO_TEST_CASE(BigMessage)
      * one should arrive at the other end.
      */
     boost::this_thread::sleep_for(boost::chrono::seconds(1));
-    BOOST_CHECK(messageSize == BigSize);
+    BOOST_CHECK_EQUAL(messageSize, BigSize);
 }
 
 BOOST_AUTO_TEST_SUITE_END()
