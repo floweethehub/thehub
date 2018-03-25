@@ -70,6 +70,11 @@ void ValidationInterfaceBroadcaster::GetScriptForMining(boost::shared_ptr<CReser
     for (auto i : m_listeners) i->GetScriptForMining(s);
 }
 
+void ValidationInterfaceBroadcaster::DoubleSpendFound(const Tx &first, const Tx &duplicate)
+{
+    for (auto i : m_listeners) i->DoubleSpendFound(first, duplicate);
+}
+
 void ValidationInterfaceBroadcaster::addListener(ValidationInterface *impl)
 {
     m_listeners.push_back(impl);

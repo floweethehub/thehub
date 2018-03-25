@@ -120,6 +120,12 @@ void AddressMonitorService::SyncAllTransactionsInBlock(const FastBlock &block)
     findTransactions(Tx::Iterator(block), Confirmed);
 }
 
+void AddressMonitorService::DoubleSpendFound(const Tx &first, const Tx &duplicate)
+{
+    logCritical(Log::MonitorService) << "Double spend found" << first.createHash() << duplicate.createHash();
+
+}
+
 void AddressMonitorService::onIncomingMessage(const Message &message, const EndPoint &ep)
 {
     for (auto remote : m_remotes) {

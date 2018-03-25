@@ -40,6 +40,7 @@ public:
     void SyncTx(const Tx &tx) override;
     void SyncAllTransactionsInBlock(const FastBlock &block) override;
     // void SetBestChain(const CBlockLocator &locator) override;
+    void DoubleSpendFound(const Tx &first, const Tx &duplicate) override;
 
     void onIncomingMessage(const Message &message, const EndPoint &ep) override;
 

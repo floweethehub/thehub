@@ -282,13 +282,14 @@ class CInPoint
 {
 public:
     const CTransaction* ptx;
+    Tx tx;
     uint32_t n;
 
     CInPoint() { SetNull(); }
-    CInPoint(const CTransaction* ptxIn, uint32_t nIn) { ptx = ptxIn; n = nIn; }
+    CInPoint(const CTransaction* ptxIn, const Tx &txIn, uint32_t nIn) { ptx = ptxIn; tx = txIn; n = nIn; }
     void SetNull() { ptx = NULL; n = (uint32_t) -1; }
     bool IsNull() const { return (ptx == NULL && n == (uint32_t) -1); }
-    size_t DynamicMemoryUsage() const { return 0; }
+    // size_t DynamicMemoryUsage() const { return 0; }
 };
 
 /**

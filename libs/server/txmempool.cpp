@@ -33,6 +33,7 @@
 #include "version.h"
 
 #include <validation/ValidationException.h>
+#include <validationinterface.h>
 
 CTxMemPoolEntry::CTxMemPoolEntry(const Tx &tx)
     : tx(tx),
@@ -425,7 +426,7 @@ void CTxMemPool::addUnchecked(const uint256& hash, const CTxMemPoolEntry &entry,
     const CTransaction& tx = newit->GetTx();
     std::set<uint256> setParentTransactions;
     for (unsigned int i = 0; i < tx.vin.size(); i++) {
-        mapNextTx[tx.vin[i].prevout] = CInPoint(&tx, i);
+        mapNextTx[tx.vin[i].prevout] = CInPoint(&tx, entry.tx, i);
         setParentTransactions.insert(tx.vin[i].prevout.hash);
     }
     // Don't bother worrying about child transactions of this one.
@@ -458,8 +459,11 @@ bool CTxMemPool::insertTx(const CTxMemPoolEntry &entry)
         return false;
 
     for (const CTxIn &txin : entry.oldTx.vin) {
-        if (mapNextTx.count(txin.prevout)) // double spend, we throw for that one.
+        auto oldTx = mapNextTx.find(txin.prevout);
+        if (oldTx != mapNextTx.end()) { // double spend detected!
+            ValidationNotifier().DoubleSpendFound(oldTx->second.tx, entry.tx);
             throw Validation::Exception("txn-mempool-conflict", Validation::RejectConflict);
+        }
 
         auto iter = mapTx.find(txin.prevout.hash);
         if (iter != mapTx.end()) {

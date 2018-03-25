@@ -98,8 +98,8 @@ TestingSetup::~TestingSetup()
     Blocks::Index::unload();
 
     UnregisterNodeSignals(GetNodeSignals());
+    ValidationNotifier().removeAll();
 #ifdef ENABLE_WALLET
-    ValidationNotifier().removeListener(pwalletMain);
     delete pwalletMain;
     pwalletMain = NULL;
 #endif

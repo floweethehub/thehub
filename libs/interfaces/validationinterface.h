@@ -61,6 +61,11 @@ public:
 
     /** Notifies listeners that a key for mining is required (coinbase) */
     virtual void GetScriptForMining(boost::shared_ptr<CReserveScript>) {}
+
+    /** Notifies listeners that we received a double-spend.
+     * First is the tx that is in our mempool, duplicate is the one we received and reject
+     */
+    virtual void DoubleSpendFound(const Tx &first, const Tx &duplicate) {}
 };
 
 class ValidationInterfaceBroadcaster : public ValidationInterface
@@ -75,6 +80,7 @@ public:
     void Inventory(const uint256 &hash) override;
     void ResendWalletTransactions(int64_t nBestBlockTime) override;
     void GetScriptForMining(boost::shared_ptr<CReserveScript>) override;
+    void DoubleSpendFound(const Tx &first, const Tx &duplicate) override;
 
     void addListener(ValidationInterface *impl);
     void removeListener(ValidationInterface *impl);
