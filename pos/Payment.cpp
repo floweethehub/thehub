@@ -25,7 +25,6 @@ Payment::Payment(int requestId, QObject *parent)
     : QObject(parent),
       m_requestId(requestId)
 {
-    m_exchangeRate = 85000;
 }
 
 int Payment::requestId() const

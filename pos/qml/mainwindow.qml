@@ -206,7 +206,7 @@ ApplicationWindow {
                     text:  "1 BCH is " + Qt.locale().currencySymbol() + " "
                            + Number(Payments.current.exchangeRate / 100).toLocaleString(Qt.locale(), 'f', 2)
                     font.pointSize: 8
-                    color: "#eeeeee"
+                    color: "#444444"
                 }
             }
 

@@ -31,6 +31,7 @@
 #include <QSqlDatabase>
 
 class NetworkPaymentProcessor;
+class ExchangeRateResolver;
 
 class PaymentDataProvider : public QObject
 {
@@ -80,10 +81,12 @@ signals:
 
 public slots:
     void connectToDB();
+    void exchangeRateUpdated();
 
 private:
     void createTables(const QString &type);
     QString checkCurrency(const QString &hint);
+    void updateExchangeRateInDb();
 
     void onConnected();
     void onDisconnected();
@@ -106,6 +109,7 @@ private:
     Payment *m_payment = nullptr;
 
     NetworkPaymentProcessor *m_listener;
+    ExchangeRateResolver *m_exchangeRate = nullptr;
 };
 
 #endif

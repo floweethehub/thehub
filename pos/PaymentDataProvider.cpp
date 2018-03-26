@@ -18,10 +18,12 @@
 #include "Payment.h"
 #include "PaymentDataProvider.h"
 #include "NetworkPaymentProcessor.h"
+#include "ExchangeRateResolver.h"
 
 #include <streaming/MessageBuilder.h>
 #include <streaming/MessageParser.h>
 #include <api/APIProtocol.h>
+#include <utilstrencodings.h>
 
 #include <QSqlQuery>
 #include <QSqlError>
@@ -33,7 +35,8 @@
 PaymentDataProvider::PaymentDataProvider(QObject *parent)
     : QObject(parent),
     m_manager(m_threads.ioService()),
-    m_listener(nullptr)
+    m_listener(nullptr),
+    m_exchangeRate(new ExchangeRateResolver(this))
 {
     bool ok;
     EndPoint ep = HubConfig::readEndPoint(&m_manager, &ok);
@@ -42,10 +45,13 @@ PaymentDataProvider::PaymentDataProvider(QObject *parent)
 
     if (m_connection.isValid()) {
         m_listener = new NetworkPaymentProcessor(m_manager.connection(ep, NetworkManager::OnlyExisting));
+        m_manager.addService(m_listener);
         m_connection.setOnConnected(std::bind(&PaymentDataProvider::onConnected, this));
         m_connection.setOnDisconnected(std::bind(&PaymentDataProvider::onDisconnected, this));
         m_connection.setOnIncomingMessage(std::bind(&PaymentDataProvider::onIncomingMessage, this, std::placeholders::_1));
     }
+
+    connect (m_exchangeRate, SIGNAL(priceChanged()), this, SLOT(exchangeRateUpdated()), Qt::QueuedConnection);
 }
 
 #if 0
@@ -142,7 +148,7 @@ void PaymentDataProvider::startNewPayment(int amountNative, const QString &comme
     m_payment->setMerchantComment(comment);
     m_payment->setNativeCurrency(currency);
 
-    // TODO start request for exchange-rate
+    m_exchangeRate->setExchangeRate(m_payment);
 
     emit paymentChanged();
     emit paymentStepChanged();
@@ -226,6 +232,21 @@ QString PaymentDataProvider::checkCurrency(const QString &hint)
     return "EUR";
 }
 
+void PaymentDataProvider::updateExchangeRateInDb()
+{
+    Q_ASSERT(m_payment);
+    QSqlQuery query(m_db);
+    logDebug() << "update payments exchange rate" << m_payment->requestId() << "to" << m_payment->exchangeRate();
+    query.prepare("update PaymentRequests set exchangeRate=:rate where requestId=:id");
+    query.bindValue(":rate", m_payment->exchangeRate());
+    query.bindValue(":id", m_payment->requestId());
+    if (!query.exec()) {
+        logFatal() << "Failed to store exchange rate in DB" << query.lastError().text();
+        QGuiApplication::exit(1);
+        return;
+    }
+}
+
 void PaymentDataProvider::onConnected()
 {
     logDebug() << "connection succeeded";
@@ -271,11 +292,31 @@ void PaymentDataProvider::onIncomingMessage(const Message &message)
             return;
         }
         m_payment->setPubAddress(pub);
-        m_paymentStep = ShowPayment;
+        if (m_payment->exchangeRate() > 0) {
+            updateExchangeRateInDb();
+            m_paymentStep = ShowPayment; //  we already have the exchange rate. Continue.
+            emit paymentStepChanged();
+        }
 
         m_listener->addListenAddress(pub);
+    }
 
-        emit paymentStepChanged();
+    else {
+        Streaming::MessageParser parser(message.rawData());
+        while (parser.next() == Streaming::FoundTag) {
+            if (parser.isBool())
+                logDebug() << parser.tag() << parser.boolData();
+            else if (parser.isLong())
+                logDebug() << parser.tag() << parser.longData();
+            else if (parser.isInt())
+                logDebug() << parser.tag() << parser.isInt();
+            else if (parser.isDouble())
+                logDebug() << parser.tag() << parser.doubleData();
+            else if (parser.isString())
+                logDebug() << parser.tag() << parser.stringData();
+            else if (parser.isByteArray())
+                logDebug() << parser.tag() << HexStr(parser.bytesData());
+        }
     }
 }
 
@@ -287,5 +328,14 @@ void PaymentDataProvider::connectToDB()
         createTables(type);
     } else {
         logFatal() << "Failed opening the database-connection" << m_db.lastError().text();
+    }
+}
+
+void PaymentDataProvider::exchangeRateUpdated()
+{
+    if (m_paymentStep == BusyCreatingPayment && m_payment && !m_payment->pubAddress().isEmpty()) {
+        m_paymentStep = ShowPayment; //  we already have the public address. Continue.
+        updateExchangeRateInDb();
+        emit paymentStepChanged();
     }
 }

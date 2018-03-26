@@ -41,6 +41,7 @@ set (CASHIER_SOURCES
     cashier.cpp
     Calculator.cpp
     DBConfig.cpp
+    ExchangeRateResolver.cpp
     HubConfig.cpp
     NetworkPaymentProcessor.cpp
     Payment.cpp
