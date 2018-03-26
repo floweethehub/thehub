@@ -6,5 +6,7 @@
         <file>qml/NavigationButton.qml</file>
         <file>images/bitcoincash32.png</file>
         <file>images/bitcoincash64.png</file>
+        <file>qml/ShowQR.qml</file>
+        <file>qml/InputPaymentScreen.qml</file>
     </qresource>
 </RCC>

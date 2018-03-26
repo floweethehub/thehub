@@ -56,12 +56,15 @@ void NetworkPaymentProcessor::onIncomingMessage(const Message &message, const En
     }
     else if (message.messageId() == Api::AddressMonitor::TransactionFound) {
         Streaming::ConstBuffer txid;
+        QString address;
         uint64_t amount = 0;
         auto type = parser.next();
         bool mined = false;
         while (type == Streaming::FoundTag) {
             if (parser.tag() == Api::AddressMonitor::TransactionId) {
                 txid = parser.bytesDataBuffer();
+            } else if (parser.tag() == Api::AddressMonitor::BitcoinAddress) {
+                address = QString::fromStdString(parser.stringData());
             } else if (parser.tag() == Api::AddressMonitor::Amount) {
                 amount = parser.longData();
             } else if (parser.tag() == Api::AddressMonitor::Mined) {
@@ -74,6 +77,8 @@ void NetworkPaymentProcessor::onIncomingMessage(const Message &message, const En
         for (int i = txid.size() / 2; i >= 0; --i)
             qSwap(*(txIdCopy.data() + i), *(txIdCopy.data() + txIdCopy.size() -1 - i));
         logInfo(Log::POS) << "Tx for us is" << txIdCopy.toHex().data() << " amount:" << amount << "mined:" << mined;
+
+        emit txFound(address, txIdCopy, amount, mined);
     }
 }
 

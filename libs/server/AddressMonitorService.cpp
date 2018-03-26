@@ -73,7 +73,7 @@ void AddressMonitorService::findTransactions(Tx::Iterator && iter, FindReason fi
                     m_pool.reserve(match.keys.size() * 24 + 50);
                     Streaming::MessageBuilder builder(m_pool);
                     for (auto key : match.keys)
-                        builder.add(Api::AddressMonitor::BitcoinAddress, key);
+                        builder.add(Api::AddressMonitor::BitcoinAddress, CBitcoinAddress(key).ToString());
                     builder.add(Api::AddressMonitor::TransactionId, iter.prevTx().createHash());
                     builder.add(Api::AddressMonitor::Amount, i->second.amount);
                     builder.add(Api::AddressMonitor::Mined, findReason == Confirmed ? true : false);
@@ -249,7 +249,7 @@ void AddressMonitorService::findTxInMempool(int connectionId, const CKeyID &keyI
                     logDebug(Log::MonitorService) << " + Sending to peers tx from mempool!";
                     m_pool.reserve(75);
                     Streaming::MessageBuilder builder(m_pool);
-                    builder.add(Api::AddressMonitor::BitcoinAddress, keyId);
+                    builder.add(Api::AddressMonitor::BitcoinAddress, CBitcoinAddress(keyId).ToString());
                     builder.add(Api::AddressMonitor::TransactionId, txIter.prevTx().createHash());
                     builder.add(Api::AddressMonitor::Amount, matchedAmounts);
                     builder.add(Api::AddressMonitor::Mined, false);

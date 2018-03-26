@@ -36,6 +36,7 @@ class Payment : public QObject
     Q_PROPERTY(QString merchantComment READ merchantComment WRITE setMerchantComment NOTIFY merchantCommentChanged)
     Q_PROPERTY(QString pubAddress READ pubAddress NOTIFY pubAddressChanged)
     Q_PROPERTY(int exchangeRate READ exchangeRate NOTIFY exchangeRateChanged)
+    Q_PROPERTY(qint64 amountPaid READ amountPaid NOTIFY amountPaidChanged)
 public:
     explicit Payment(QObject *parent = nullptr);
 

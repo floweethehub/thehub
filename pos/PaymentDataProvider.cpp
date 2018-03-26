@@ -49,60 +49,12 @@ PaymentDataProvider::PaymentDataProvider(QObject *parent)
         m_connection.setOnConnected(std::bind(&PaymentDataProvider::onConnected, this));
         m_connection.setOnDisconnected(std::bind(&PaymentDataProvider::onDisconnected, this));
         m_connection.setOnIncomingMessage(std::bind(&PaymentDataProvider::onIncomingMessage, this, std::placeholders::_1));
+
+        connect (m_listener, SIGNAL(txFound(QString,QByteArray,qint64,bool)), this, SLOT(txFound(QString,QByteArray,qint64)));
     }
 
     connect (m_exchangeRate, SIGNAL(priceChanged()), this, SLOT(exchangeRateUpdated()), Qt::QueuedConnection);
 }
-
-#if 0
-void PaymentDataProvider::runTests()
-{
-    QSqlQuery query(m_db);
-    query.prepare("insert into PaymentRequests (amountNative, currency, merchantComment) VALUES (:amount, :currency, :comment)");
-    query.bindValue(":amount", 12356);
-    query.bindValue(":currency", "EUR");
-    query.bindValue(":comment", "something");
-    if (!query.exec()) {
-        qDebug() << "Failed to insert" << query.lastError();
-    }
-    const int requestId = query.lastInsertId().toInt();
-    qDebug() << "requestId:" << requestId;
-
-    query.prepare("update PaymentRequests set exchangeRate=:rate where requestId=:id");
-    query.bindValue(":rate", "8374834");
-    query.bindValue(":id", requestId);
-    if (!query.exec()) {
-        qDebug() << "Failed to insert" << query.lastError();
-    }
-
-    query.exec("select * from PaymentRequests");
-    query.next();
-    for (int i = 0; i < 7; ++i)
-        qDebug() << query.value(i).toString(); // output all
-
-    query.prepare("insert into Address (requestId, bchAddress, bchPrivKey) VALUES (:id, :pub, :priv)");
-    query.bindValue(":id", requestId);
-    const QString pubAddress = QString("120938askjasj-%1").arg(qrand());
-    qDebug() << "pubAddress:" << pubAddress;
-    query.bindValue(":pub", pubAddress);
-    QByteArray bytes;
-    bytes.append("sldkfjlskdsdflsdjffj");
-    query.bindValue(":priv", bytes);
-    if (!query.exec()) {
-        qDebug() << "Failed to insert" << query.lastError();
-    } else qDebug() << "rowId:" << query.lastInsertId();
-
-
-    query.prepare("select requestId from Address where bchAddress=:pub");
-    query.bindValue(":pub", pubAddress);
-    if (!query.exec()) {
-        qDebug() << "Failed to select" << query.lastError();
-    } else {
-        query.next();
-        qDebug() << query.value(0).toString();
-    }
-}
-#endif
 
 void PaymentDataProvider::startNewPayment(int amountNative, const QString &comment, const QString &currency)
 {
@@ -160,6 +112,29 @@ void PaymentDataProvider::back()
     emit paymentStepChanged();
 }
 
+void PaymentDataProvider::close()
+{
+    if (m_payment) {
+        if (!m_payment->closeTime().isValid()) { // abandoned tx, close it now.
+            QSqlQuery query(m_db);
+            query.prepare("update PaymentRequests set closeTime=CURRENT_TIMESTAMP where requestId=:id");
+            query.bindValue(":id", m_payment->requestId());
+            if (!query.exec()) {
+                logFatal() << "Failed to store closeTime DB" << query.lastError().text();
+                QGuiApplication::exit(1);
+                return;
+            }
+        }
+        m_payment->deleteLater();
+        m_payment = nullptr;
+    }
+
+    m_paymentStep = NoPayment;
+
+    emit paymentChanged();
+    emit paymentStepChanged();
+}
+
 DBConfig *PaymentDataProvider::dbConfig()
 {
     return &m_dbConfig;
@@ -173,6 +148,27 @@ HubConfig *PaymentDataProvider::hubConfig()
 void PaymentDataProvider::createTables(const QString &type)
 {
     QSqlQuery query(m_db);
+#if 0
+    // show all that is in the main table
+    query.exec("select * from PaymentRequests");
+    while (query.next()) {
+        for (int i = 0; i < 7; ++i)
+            logDebug() << query.value(i).toString();
+    }
+    logDebug() << "----";
+    query.exec("select * from Transactions");
+    while (query.next()) {
+        for (int i = 0; i < 3; ++i)
+            logDebug() << query.value(i).toString();
+    }
+    logDebug() << "----";
+    query.exec("select * from Address");
+    while (query.next()) {
+        for (int i = 0; i < 3; ++i)
+            logDebug() << query.value(i).toString();
+    }
+#endif
+
     if (!query.exec("select count(*) from PaymentRequests")) {
         QString autoIncrement;
         if (type == "QMYSQL")
@@ -201,7 +197,6 @@ void PaymentDataProvider::createTables(const QString &type)
                    "txid VARBINARY(32) NOT NULL,"
                    "amount long NOT NULL"
                    ")")) {
-
             logFatal() << "Failed to create index" << query.lastError().text();
             m_errors << query.lastError().text();
         }
@@ -338,4 +333,50 @@ void PaymentDataProvider::exchangeRateUpdated()
         updateExchangeRateInDb();
         emit paymentStepChanged();
     }
+}
+
+void PaymentDataProvider::txFound(const QString &bitcoinAddress, const QByteArray &txId, qint64 amount)
+{
+    if (m_payment == nullptr)
+        return;
+
+    QSqlQuery query(m_db);
+    query.prepare("select requestId from Address where bchAddress=:pub");
+    query.bindValue(":pub", bitcoinAddress);
+    if (!query.exec()) {
+        logFatal() << "Failed to select" << query.lastError().text();
+        QGuiApplication::exit(1);
+        return;
+    }
+    query.next();
+    const int requestId = query.value(0).toInt();
+    logDebug() << "got payment for request" << requestId << "amount:" << amount;
+    m_payment->addTransaction(txId, amount);
+
+    query.prepare("insert into Transactions (requestId, txid, amount) VALUES (:id, :txid, :amount)");
+    query.bindValue(":id", requestId);
+    query.bindValue(":txid", txId);
+    query.bindValue(":amount", amount);
+    if (!query.exec()) {
+        logFatal() << "Failed to insert txid" << query.lastError().text();
+        QGuiApplication::exit(1);
+        return;
+    }
+
+    if (m_payment->amountPaid() >= m_payment->amountBch()) {
+        m_paymentStep = CompletedPayment;
+        QSqlQuery query(m_db);
+        query.prepare("update PaymentRequests set closeTime=CURRENT_TIMESTAMP where requestId=:id");
+        query.bindValue(":id", m_payment->requestId());
+        if (!query.exec()) {
+            logFatal() << "Failed to store closeTime DB" << query.lastError().text();
+            QGuiApplication::exit(1);
+            return;
+        }
+    }
+    else {
+        m_paymentStep = PartiallyCompletedPayment;;
+    }
+
+    emit paymentStepChanged();
 }

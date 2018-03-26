@@ -59,6 +59,7 @@ public:
 
     Q_INVOKABLE void startNewPayment(int amountNative, const QString &comment, const QString &currency = QString());
     Q_INVOKABLE void back(); // go back to text-input
+    Q_INVOKABLE void close(); // finish up payment and start new one.
 
     DBConfig *dbConfig();
     HubConfig *hubConfig();
@@ -82,6 +83,9 @@ signals:
 public slots:
     void connectToDB();
     void exchangeRateUpdated();
+
+private slots:
+    void txFound(const QString &bitcoinAddress, const QByteArray &txId, qint64 amount);
 
 private:
     void createTables(const QString &type);
