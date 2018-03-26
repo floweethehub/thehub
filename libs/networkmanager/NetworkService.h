@@ -33,9 +33,10 @@ public:
     virtual void onIncomingMessage(const Message &message, const EndPoint &ep) = 0;
 
     NetworkManager *manager() const;
-    void setManager(NetworkManager *manager);
 
 protected:
+    friend class NetworkManager;
+    void setManager(NetworkManager *manager);
     NetworkService(int id);
 
     const int m_id;

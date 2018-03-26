@@ -39,9 +39,9 @@ static const int MAX_MESSAGE_SIZE = 9000;
 namespace {
 
 int reconnectTimeoutForStep(short step) {
-    if (step < 6)
-        return step*step*step;
-    return 300; // 5 min
+    if (step < 5)
+        return step*step*step / 2;
+    return 44;
 }
 
 }
