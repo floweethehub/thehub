@@ -220,6 +220,8 @@ Api::Server::Connection::Connection(NetworkConnection && connection)
 
 void Api::Server::Connection::incomingMessage(const Message &message)
 {
+    if (message.serviceId() >= 40) // not a service we handle
+        return;
     std::unique_ptr<APIRPCBinding::Parser> parser;
     try {
         parser.reset(APIRPCBinding::createParser(message));
@@ -283,7 +285,7 @@ void Api::Server::Connection::incomingMessage(const Message &message)
 
 void Api::Server::Connection::sendFailedMessage(const Message &origin, const std::string &failReason)
 {
-    m_bufferPool.reserve(failReason.size() + 20);
+    m_bufferPool.reserve(failReason.size() + 40);
     Streaming::MessageBuilder builder(m_bufferPool);
     builder.add(Control::FailedReason, failReason);
     builder.add(Control::FailedCommandServiceId, origin.serviceId());
