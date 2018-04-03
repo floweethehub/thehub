@@ -1247,7 +1247,7 @@ public:
     }
 
     void setStartIndex(CBlockIndex *i) {
-        m_lastBlockDone = i->nHeight - 1;
+        m_lastBlockDone = i ? i->nHeight - 1 : 0;
     }
 
     void addBlock(CBlockIndex *index) {
