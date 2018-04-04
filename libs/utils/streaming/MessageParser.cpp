@@ -31,7 +31,7 @@ namespace {
         assert(result == 0);
         assert(position >= 0);
         int pos = position;
-        while (pos - position < 8 && pos < dataSize) {
+        while (pos - position < 10 && pos < dataSize) {
             unsigned char byte = data[pos++];
             result = (result << 7) | (byte & 0x7F);
             if (byte & 0x80)

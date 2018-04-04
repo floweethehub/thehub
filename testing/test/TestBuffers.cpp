@@ -18,6 +18,7 @@
 #include <streaming/BufferPool.h>
 #include <streaming/MessageBuilder.h>
 #include <streaming/MessageParser.h>
+#include <limits.h>
 
 #include <boost/test/auto_unit_test.hpp>
 
@@ -306,6 +307,109 @@ BOOST_AUTO_TEST_CASE(CMFTypes)
     BOOST_CHECK_EQUAL(parser.tag(), (unsigned int) 40);
     BOOST_CHECK_EQUAL(parser.boolData(), false);
     BOOST_CHECK_EQUAL(parser.next(), EndOfDocument);
+}
+
+BOOST_AUTO_TEST_CASE(Parsers)
+{
+    MessageBuilder builder(NoHeader);
+    builder.add(1, 1);
+    builder.add(2, -1);
+    builder.add(3, 0);
+    builder.add(4, (uint64_t) LONG_LONG_MAX);
+    builder.add(5, (int) INT_MIN);
+    builder.add(6, (uint64_t) ULONG_LONG_MAX);
+
+    ConstBuffer buf = builder.buffer();
+    BOOST_CHECK_EQUAL(buf.size(), 33);
+
+    BOOST_CHECK_EQUAL(static_cast<unsigned char>(buf[0]), 8);
+    BOOST_CHECK_EQUAL(static_cast<unsigned char>(buf[1]), 1);
+
+    MessageParser parser(buf);
+    auto type = parser.next();
+    BOOST_CHECK_EQUAL(type, FoundTag);
+    BOOST_CHECK_EQUAL(parser.tag(), 1);
+    BOOST_CHECK_EQUAL(parser.isInt(), true);
+    BOOST_CHECK_EQUAL(parser.isLong(), true);
+    BOOST_CHECK_EQUAL(parser.intData(), 1);
+    BOOST_CHECK_EQUAL(parser.longData(), 1);
+
+    BOOST_CHECK_EQUAL(static_cast<unsigned char>(buf[2]), 17);
+    BOOST_CHECK_EQUAL(static_cast<unsigned char>(buf[3]), 1);
+
+    type = parser.next();
+    BOOST_CHECK_EQUAL(type, FoundTag);
+    BOOST_CHECK_EQUAL(parser.tag(), 2);
+    BOOST_CHECK_EQUAL(parser.isInt(), true);
+    BOOST_CHECK_EQUAL(parser.isLong(), true);
+    BOOST_CHECK_EQUAL(parser.intData(), -1);
+    BOOST_CHECK_EQUAL(parser.longData(), -1);
+
+    BOOST_CHECK_EQUAL(static_cast<unsigned char>(buf[4]), 24);
+    BOOST_CHECK_EQUAL(static_cast<unsigned char>(buf[5]), 0);
+
+    type = parser.next();
+    BOOST_CHECK_EQUAL(type, FoundTag);
+    BOOST_CHECK_EQUAL(parser.tag(), 3);
+    BOOST_CHECK_EQUAL(parser.isInt(), true);
+    BOOST_CHECK_EQUAL(parser.isLong(), true);
+    BOOST_CHECK_EQUAL(parser.intData(), 0);
+    BOOST_CHECK_EQUAL(parser.longData(), 0);
+
+    BOOST_CHECK_EQUAL(static_cast<unsigned char>(buf[6]), 32);
+    BOOST_CHECK_EQUAL(static_cast<unsigned char>(buf[7]), 0xfe);
+    BOOST_CHECK_EQUAL(static_cast<unsigned char>(buf[8]), 0xfe);
+    BOOST_CHECK_EQUAL(static_cast<unsigned char>(buf[9]), 0xfe);
+    BOOST_CHECK_EQUAL(static_cast<unsigned char>(buf[10]), 0xfe);
+    BOOST_CHECK_EQUAL(static_cast<unsigned char>(buf[11]), 0xfe);
+    BOOST_CHECK_EQUAL(static_cast<unsigned char>(buf[12]), 0xfe);
+    BOOST_CHECK_EQUAL(static_cast<unsigned char>(buf[13]), 0xfe);
+    BOOST_CHECK_EQUAL(static_cast<unsigned char>(buf[14]), 0xfe);
+    BOOST_CHECK_EQUAL(static_cast<unsigned char>(buf[15]), 0x7f);
+
+    type = parser.next();
+    BOOST_CHECK_EQUAL(type, FoundTag);
+    BOOST_CHECK_EQUAL(parser.tag(), 4);
+    BOOST_CHECK_EQUAL(parser.isInt(), false);
+    BOOST_CHECK_EQUAL(parser.isLong(), true);
+    BOOST_CHECK_EQUAL(parser.longData(), LONG_LONG_MAX);
+
+    BOOST_CHECK_EQUAL(static_cast<unsigned char>(buf[16]), 41);
+    BOOST_CHECK_EQUAL(static_cast<unsigned char>(buf[17]), 0x86);
+    BOOST_CHECK_EQUAL(static_cast<unsigned char>(buf[18]), 0xfe);
+    BOOST_CHECK_EQUAL(static_cast<unsigned char>(buf[19]), 0xfe);
+    BOOST_CHECK_EQUAL(static_cast<unsigned char>(buf[20]), 0xff);
+    BOOST_CHECK_EQUAL(static_cast<unsigned char>(buf[21]), 0x0);
+
+    type = parser.next();
+    BOOST_CHECK_EQUAL(type, FoundTag);
+    BOOST_CHECK_EQUAL(parser.tag(), 5);
+    BOOST_CHECK_EQUAL(parser.isInt(), true);
+    BOOST_CHECK_EQUAL(parser.isLong(), true);
+    BOOST_CHECK_EQUAL(parser.intData(), INT_MIN);
+
+
+    BOOST_CHECK_EQUAL(static_cast<unsigned char>(buf[22]), 48);
+    BOOST_CHECK_EQUAL(static_cast<unsigned char>(buf[23]), 0x80);
+    BOOST_CHECK_EQUAL(static_cast<unsigned char>(buf[24]), 0xfe);
+    BOOST_CHECK_EQUAL(static_cast<unsigned char>(buf[25]), 0xfe);
+    BOOST_CHECK_EQUAL(static_cast<unsigned char>(buf[26]), 0xfe);
+    BOOST_CHECK_EQUAL(static_cast<unsigned char>(buf[27]), 0xfe);
+    BOOST_CHECK_EQUAL(static_cast<unsigned char>(buf[28]), 0xfe);
+    BOOST_CHECK_EQUAL(static_cast<unsigned char>(buf[29]), 0xfe);
+    BOOST_CHECK_EQUAL(static_cast<unsigned char>(buf[30]), 0xfe);
+    BOOST_CHECK_EQUAL(static_cast<unsigned char>(buf[31]), 0xfe);
+    BOOST_CHECK_EQUAL(static_cast<unsigned char>(buf[32]), 0x7f);
+
+    type = parser.next();
+    BOOST_CHECK_EQUAL(type, FoundTag);
+    BOOST_CHECK_EQUAL(parser.tag(), 6);
+    BOOST_CHECK_EQUAL(parser.isInt(), false);
+    BOOST_CHECK_EQUAL(parser.isLong(), true);
+    BOOST_CHECK_EQUAL(parser.longData(), ULONG_LONG_MAX);
+
+    type = parser.next();
+    BOOST_CHECK_EQUAL(type, EndOfDocument);
 }
 
 BOOST_AUTO_TEST_SUITE_END()
