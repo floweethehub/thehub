@@ -18,6 +18,7 @@
 #include "LogChannels_p.h"
 #include "util.h"
 
+#include <boost/filesystem.hpp>
 #include <iostream>
 
 namespace {
@@ -199,6 +200,9 @@ void FileLogChannel::reopenLogFiles()
 {
     if (m_fileout)
         fclose(m_fileout);
+    if (m_logFilename.empty())
+        return;
+    boost::filesystem::create_directories(m_logFilename.parent_path());
 
     m_fileout = fopen(m_logFilename.string().c_str(), "a");
     if (m_fileout)
