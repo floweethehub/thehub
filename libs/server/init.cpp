@@ -835,7 +835,7 @@ bool AppInit2(boost::thread_group& threadGroup, CScheduler& scheduler)
     // cache size calculations
     int64_t nTotalCache = (GetArg("-dbcache", Settings::DefaultDbCacheSize) << 20);
     nTotalCache = std::max(nTotalCache, Settings::MinDbCache << 20); // total cache cannot be less than nMinDbCache
-    nTotalCache = std::min(nTotalCache, Settings::MaxDbCache << 20); // total cache cannot be greated than nMaxDbcache
+    nTotalCache = std::min(nTotalCache, Settings::MaxDbCache << 20); // total cache cannot be greater than nMaxDbcache
     int64_t nBlockTreeDBCache = nTotalCache / 8;
     if (nBlockTreeDBCache > (1 << 21) && !GetBoolArg("-txindex", Settings::DefaultTxIndex))
         nBlockTreeDBCache = (1 << 21); // block tree db cache shouldn't be larger than 2 MiB
