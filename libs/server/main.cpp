@@ -2168,9 +2168,6 @@ bool static ProcessMessage(CNode* pfrom, std::string strCommand, CDataStream& vR
         pfrom->fSuccessfullyConnected = true;
         logInfo(Log::Net) << "receive version message:" << pfrom->addr << pfrom->cleanSubVer << "version:"
                           << pfrom->nVersion << "blocks:" << pfrom->nStartingHeight << "id:" << pfrom->id;
-        if (pfrom->isCashNode)
-            logDebug(Log::Net) << "peer id:" << pfrom->GetId() << "uses CASH message-headers";
-
         int64_t nTimeOffset = nTime - GetTime();
         pfrom->nTimeOffset = nTimeOffset;
         AddTimeData(pfrom->addr, nTimeOffset);
@@ -3213,38 +3210,26 @@ bool ProcessMessages(CNode* pfrom)
         // Scan for message start
         if (pfrom->nVersion == 0) { // uninitialized.
             if (!pfrom->fInbound // we already set isCashNode bool to right value.
-                    && memcmp(msg.hdr.pchMessageStart, pfrom->magic(), MESSAGE_START_SIZE) != 0) {
+                    && memcmp(msg.hdr.pchMessageStart, Params().magic(), MESSAGE_START_SIZE) != 0) {
                 addrman.increaseUselessness(pfrom->addr);
                 fOk = false;
                 break;
             }
 
-            if (memcmp(msg.hdr.pchMessageStart, chainparams.MessageStart(), MESSAGE_START_SIZE) != 0) {
-                if (memcmp(msg.hdr.pchMessageStart, chainparams.CashMessageStart(), MESSAGE_START_SIZE) != 0) {
-                    logWarning(Log::Net) << "ProcessMessage: handshake invalid messageStart"
-                                         << SanitizeString(msg.hdr.GetCommand()) << "peer:" << pfrom->id;
-                    addrman.increaseUselessness(pfrom->addr);
-                    fOk = false;
-                    break;
-                }
-                pfrom->isCashNode = true;
+            if (memcmp(msg.hdr.pchMessageStart, chainparams.magic(), MESSAGE_START_SIZE) != 0) {
+                logWarning(Log::Net) << "ProcessMessage: handshake invalid messageStart"
+                                     << SanitizeString(msg.hdr.GetCommand()) << "peer:" << pfrom->id;
+                addrman.increaseUselessness(pfrom->addr);
+                fOk = false;
+                break;
             }
-
-            if (GetBoolArg("-flexiblehandshake", true) == false) {
-                // ignore clients that are not using our our net magic headers.
-                if (pfrom->isCashNode != (Application::uahfChainState() != Application::UAHFDisabled)) {
-                    addrman.increaseUselessness(pfrom->addr);
-                    fOk = false;
-                    break;
-                }
-            }
-            assert (memcmp(msg.hdr.pchMessageStart, pfrom->magic(), MESSAGE_START_SIZE) == 0);
+            assert (memcmp(msg.hdr.pchMessageStart, Params().magic(), MESSAGE_START_SIZE) == 0);
             addrman.increaseUselessness(pfrom->addr, -1);
         }
 
         // Read header
         CMessageHeader& hdr = msg.hdr;
-        if (!hdr.IsValid(pfrom->magic())) {
+        if (!hdr.IsValid(Params().magic())) {
             logWarning(Log::Net) << "PROCESSMESSAGE: ERRORS IN HEADER" << SanitizeString(msg.hdr.GetCommand()) << "peer:" << pfrom->id;
             LOCK(cs_main);
             Misbehaving(pfrom->id, 5);

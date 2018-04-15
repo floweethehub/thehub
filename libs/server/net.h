@@ -429,9 +429,6 @@ public:
     // Whether a ping is requested.
     bool fPingQueued;
 
-    /// if True, this node communicates using the 'Bitcoin Cash' magic headers.
-    bool isCashNode;
-
     CNode(SOCKET hSocketIn, const CAddress &addrIn, const std::string &addrNameIn = "", bool fInboundIn = false);
     ~CNode();
 
@@ -556,8 +553,6 @@ public:
     void EndMessage() UNLOCK_FUNCTION(cs_vSend);
 
     void PushVersion();
-
-    const CMessageHeader::MessageStartChars &magic() const;
 
     void PushMessage(const char* pszCommand)
     {

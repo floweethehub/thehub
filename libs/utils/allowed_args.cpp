@@ -242,7 +242,6 @@ static void addGeneralOptions(AllowedArgs& allowedArgs, HelpMessageMode mode)
                 "(default: 0 = disable pruning blocks, >%u = target size in MiB to use for block files)"), MinDiskSpaceForBlockFiles / 1024 / 1024))
         .addArg("reindex", optionalBool, _("Rebuild block chain index from current blk000??.dat files on startup"))
         .addArg("txindex", optionalBool, strprintf(_("Maintain a full transaction index, used by the getrawtransaction rpc call (default: %u)"), DefaultTxIndex))
-        .addArg("chain", requiredStr, "Which chain to select, either BTC or BCH (=default)")
         .addArg("blockdatadir=<dir>", requiredStr, "List a fallback directory to find blocks/blk* files")
         ;
 }
@@ -292,8 +291,6 @@ static void addConnectionOptions(AllowedArgs& allowedArgs)
         .addArg("whitelistrelay", optionalBool, strprintf(_("Accept relayed transactions received from whitelisted peers even when not relaying transactions (default: %d)"), DefaultWhitelistRelay))
         .addArg("whitelistforcerelay", optionalBool, strprintf(_("Force relay of transactions from whitelisted peers even they violate local relay policy (default: %d)"), DefaultWhitelistForceRelay))
         .addArg("maxuploadtarget=<n>", requiredInt, strprintf(_("Tries to keep outbound traffic under the given target (in MiB per 24h), 0 = no limit (default: %d)"), DefaultMaxUploadTarget))
-        .addArg("initiatecashconnections", optionalBool, "When using the BitcoinCash network, initiate connections only Cash nodes understand. (default: true)")
-        .addArg("flexiblehandshake", optionalBool, "Allow connections from the legacy network when using the BitcoinCash network, or vice-versa. (default: true)")
         ;
 }
 

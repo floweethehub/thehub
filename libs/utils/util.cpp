@@ -297,8 +297,6 @@ boost::filesystem::path GetDefaultDataDir()
 
     std::string dirName = "flowee";
     // append "/BTC" to the above for the legacy bitcoin chain.
-    if (boost::to_lower_copy(GetArg("-chain", "")) == "btc")
-        dirName += "/BTC";
 
 #ifdef WIN32
     // Windows

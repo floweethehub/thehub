@@ -69,19 +69,13 @@ Application::Application()
 void Application::init()
 {
     m_closingDown = false;
-
-    if (boost::to_lower_copy(GetArg("-chain", "")) == "btc") {
-        m_uahfState = UAHFDisabled;
-        m_uahfStartTme = 0;
+    m_uahfState = UAHFWaiting;
+    const std::string chain = Params().NetworkIDString();
+    if (chain == CBaseChainParams::REGTEST) {
+        m_uahfStartTme = 1296688602;
+        m_uahfState = UAHFActive;
     } else {
-        m_uahfState = UAHFWaiting;
-        const std::string chain = Params().NetworkIDString();
-        if (chain == CBaseChainParams::REGTEST) {
-            m_uahfStartTme = 1296688602;
-            m_uahfState = UAHFActive;
-        } else {
-            m_uahfStartTme = 1501590000;
-        }
+        m_uahfStartTme = 1501590000;
     }
 }
 

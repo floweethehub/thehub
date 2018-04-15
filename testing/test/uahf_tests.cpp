@@ -27,16 +27,6 @@
 
 BOOST_FIXTURE_TEST_SUITE(UAHF, TestingSetup)
 
-BOOST_AUTO_TEST_CASE(Test_Enabling)
-{
-    BOOST_CHECK_EQUAL(Application::uahfChainState(), Application::UAHFActive);
-    BOOST_CHECK_EQUAL(Application::uahfStartTime(), 1296688602);
-
-    mapArgs["-chain"] = "btc";
-    MockApplication::doInit();
-    BOOST_CHECK_EQUAL(Application::uahfChainState(), Application::UAHFDisabled);
-}
-
 BOOST_AUTO_TEST_CASE(Test_isCommitment) {
     std::vector<unsigned char> data{};
 

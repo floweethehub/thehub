@@ -46,7 +46,6 @@ BasicTestingSetup::BasicTestingSetup(const std::string& chainName)
     SetupEnvironment();
     SetupNetworking();
     mapArgs["-checkblockindex"] = "1";
-    mapArgs["-chain"] = "bch";
     SelectParams(chainName);
     noui_connect();
     MockApplication::doStartThreads();
