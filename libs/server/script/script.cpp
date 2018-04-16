@@ -2,6 +2,7 @@
  * This file is part of the Flowee project
  * Copyright (C) 2009-2010 Satoshi Nakamoto
  * Copyright (C) 2009-2015 The Bitcoin Core developers
+ * Copyright (C) 2018 Jason B. Cox <contact@jasonbcox.com>
  *
  * This program is free software: you can redistribute it and/or modify
  * it under the terms of the GNU General Public License as published by
@@ -85,9 +86,9 @@ const char* GetOpName(opcodetype opcode)
 
     // splice ops
     case OP_CAT                    : return "OP_CAT";
-    case OP_SUBSTR                 : return "OP_SUBSTR";
-    case OP_LEFT                   : return "OP_LEFT";
-    case OP_RIGHT                  : return "OP_RIGHT";
+    case OP_SPLIT                  : return "OP_SPLIT";
+    case OP_NUM2BIN                : return "OP_NUM2BIN";
+    case OP_BIN2NUM                  : return "OP_BIN2NUM";
     case OP_SIZE                   : return "OP_SIZE";
 
     // bit logic
@@ -264,4 +265,112 @@ bool CScript::IsPushOnly(const_iterator pc) const
 bool CScript::IsPushOnly() const
 {
     return this->IsPushOnly(begin());
+}
+
+std::vector<uint8_t>
+
+MinimalizeBigEndianArray(const std::vector<uint8_t> &data)
+{
+    std::vector<uint8_t> answer;
+    // Can't encode more than this, go ahead and grab as much room as we could
+    // possibly need
+    answer.reserve(data.size());
+
+    if (data.empty()) // Ensure we have a byte to work with.
+        return answer;
+
+    // Store the MSB
+    uint8_t neg = data[0] & 0x80;
+    bool havePushed = false;
+    for (size_t i = 0; i < data.size(); ++i) {
+        uint8_t x = data[i];
+        if (i == 0) // Remove any MSB that might exist
+            x &= 0x7f;
+
+        if (!havePushed && x == 0) // If we haven't pushed anything, and the current value is zero, keep ignoring bytes.
+            continue;
+
+        // Record that we have begun pushing, and store the current value.
+        havePushed = true;
+        answer.push_back(x);
+    }
+    if (answer.size() == 0) // Give us at least one byte
+        return answer;
+
+    // Only add back the sign if a value has been pushed.  This implies the
+    // result is non-zero.
+    if (havePushed) {
+        // If the MSB is currently occupied, we need one extra byte.
+        if ((answer[0] & 0x80) != 0) {
+            answer.insert(answer.begin(), 0);
+        }
+        answer[0] |= neg;
+    }
+    return answer;
+}
+
+bool CScriptNum::isSmallestFormat(const std::vector<uint8_t> &vch, const size_t nMaxNumSize)
+{
+    if (vch.size() > nMaxNumSize)
+        return false;
+    if (vch.size() > 0) {
+        // If the most-significant-byte - excluding the sign bit - is zero
+        // then we're not minimal. Note how this test also rejects the
+        // negative-zero encoding, 0x80.
+        if ((vch.back() & 0x7f) == 0) {
+            // One exception: if there's more than one byte and the most
+            // significant bit of the second-most-significant-byte is set it
+            // would conflict with the sign bit. An example of this case is
+            // +-255, which encode to 0xff00 and 0xff80 respectively.
+            // (big-endian).
+            if (vch.size() <= 1 || (vch[vch.size() - 2] & 0x80) == 0) {
+                return false;
+            }
+        }
+    }
+    return true;
+}
+
+bool CScriptNum::createSmallestFormat(std::vector<uint8_t> &data)
+{
+    if (data.empty())
+        return false;
+
+    // If the last byte is not 0x00 or 0x80, we are minimally encoded.
+    uint8_t last = data.back();
+    if (last & 0x7f)
+        return false;
+
+    // If the script is one byte long, then we have a zero, which encodes as an
+    // empty array.
+    if (data.size() == 1) {
+        data = {};
+        return true;
+    }
+
+    // If the next byte has it sign bit set, then we are minimaly encoded.
+    if (data[data.size() - 2] & 0x80)
+        return false;
+
+    // We are not minimally encoded, we need to figure out how much to trim.
+    for (size_t i = data.size() - 1; i > 0; i--) {
+        // We found a non zero byte, time to encode.
+        if (data[i - 1] != 0) {
+            if (data[i - 1] & 0x80) {
+                // We found a byte with it sign bit set so we need one more
+                // byte.
+                data[i++] = last;
+            } else {
+                // the sign bit is clear, we can use it.
+                data[i - 1] |= last;
+            }
+
+            data.resize(i);
+            return true;
+        }
+    }
+
+    // If we the whole thing is zeros, then we have a zero.
+    data = {};
+    return true;
 }

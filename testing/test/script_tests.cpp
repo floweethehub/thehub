@@ -2,6 +2,7 @@
  * This file is part of the Flowee project
  * Copyright (C) 2011-2015 The Bitcoin Core developers
  * Copyright (C) 2016 Tom Zander <tomz@freedommail.ch>
+ * Copyright (C) 2018 Jason B. Cox <contact@jasonbcox.com>
  *
  * This program is free software: you can redistribute it and/or modify
  * it under the terms of the GNU General Public License as published by
@@ -28,10 +29,6 @@
 #include "script/sign.h"
 #include "test/test_bitcoin.h"
 #include <policy/policy.h>
-
-#if defined(HAVE_CONSENSUS_LIB)
-#include "script/bitcoinconsensus.h"
-#endif
 
 #include <boost/foreach.hpp>
 #include <boost/test/unit_test.hpp>
@@ -101,11 +98,6 @@ void DoTest(const CScript& scriptPubKey, const CScript& scriptSig, int flags, bo
     CMutableTransaction tx2 = tx;
     BOOST_CHECK_MESSAGE(VerifyScript(scriptSig, scriptPubKey, flags, MutableTransactionSignatureChecker(&tx, 0, nValue), &err) == expect, message);
     BOOST_CHECK_MESSAGE(expect == (err == SCRIPT_ERR_OK), std::string(ScriptErrorString(err)) + ": " + message);
-#if defined(HAVE_CONSENSUS_LIB)
-    CDataStream stream(SER_NETWORK, PROTOCOL_VERSION);
-    stream << tx2;
-    BOOST_CHECK_MESSAGE(bitcoinconsensus_verify_script(begin_ptr(scriptPubKey), scriptPubKey.size(), (const unsigned char*)&stream[0], stream.size(), 0, flags, NULL) == expect,message);
-#endif
 }
 
 void static NegateSignatureS(std::vector<unsigned char>& vchSig) {
@@ -1057,5 +1049,43 @@ BOOST_AUTO_TEST_CASE(script_GetScriptAsm)
     BOOST_CHECK_EQUAL(derSig + "[SINGLE|FORKID] " + pubKey, ScriptToAsmStr(CScript() << ToByteVector(ParseHex(derSig + "43")) << vchPubKey, true));
     BOOST_CHECK_EQUAL(derSig + "[SINGLE|ANYONECANPAY|FORKID] " + pubKey, ScriptToAsmStr(CScript() << ToByteVector(ParseHex(derSig + "c3")) << vchPubKey, true));
 }
+
+BOOST_AUTO_TEST_CASE(minimize_big_endian_test) {
+    // Empty array case
+    BOOST_CHECK(MinimalizeBigEndianArray(std::vector<uint8_t>()) == std::vector<uint8_t>());
+
+    // Zero arrays of various lengths
+    std::vector<uint8_t> zeroArray({0x00});
+    std::vector<uint8_t> negZeroArray({0x80});
+    for (int i = 0; i < 16; i++) {
+        if (i > 0) {
+            zeroArray.push_back(0x00);
+            negZeroArray.push_back(0x00);
+        }
+
+        BOOST_CHECK(MinimalizeBigEndianArray(zeroArray) == std::vector<uint8_t>());
+
+        // -0 should always evaluate to 0x00
+        BOOST_CHECK(MinimalizeBigEndianArray(negZeroArray) == std::vector<uint8_t>());
+    }
+
+    // Shouldn't minimalize this array to a negative number
+    std::vector<uint8_t> notNegArray({{0x00, 0x80}});
+    std::vector<uint8_t> notNegArrayPadded({{0x00, 0x80}});
+    for (int i = 0; i < 16; i++) {
+        notNegArray.push_back(i);
+        notNegArrayPadded.insert(notNegArrayPadded.begin(), 0x00);
+        BOOST_CHECK(MinimalizeBigEndianArray(notNegArray) == notNegArray);
+        BOOST_CHECK(MinimalizeBigEndianArray(notNegArrayPadded) == std::vector<uint8_t>({{0x00, 0x80}}));
+    }
+
+    // Shouldn't minimalize these arrays at all
+    std::vector<uint8_t> noMinArray;
+    for (int i = 1; i < 0x80; i++) {
+        noMinArray.push_back(i);
+        BOOST_CHECK(MinimalizeBigEndianArray(noMinArray) == noMinArray);
+    }
+}
+
 
 BOOST_AUTO_TEST_SUITE_END()
