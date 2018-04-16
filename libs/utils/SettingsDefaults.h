@@ -41,7 +41,7 @@ static const int64_t MinDbCache = 4;
 static const int32_t DefaultBlockAcceptSize = 32000000;
 
 static const bool DefaultAcceptDataCarrier = true;
-static const unsigned int MaxOpReturnRelay = 83; //! bytes (+1 for OP_RETURN, +2 for the pushdata opcodes)
+static const unsigned int MaxOpReturnRelay = 223; //! bytes (+1 for OP_RETURN, +2 for the pushdata opcodes)
 static const bool DefaultRelayPriority = true;
 
 /** Default for setting that we download and accept blocks only (no transactions, no mempool) */
