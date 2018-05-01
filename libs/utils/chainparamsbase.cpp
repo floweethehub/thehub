@@ -26,7 +26,6 @@
 
 const std::string CBaseChainParams::MAIN = "main";
 const std::string CBaseChainParams::TESTNET = "test";
-const std::string CBaseChainParams::FLEXTRANSTESTNET = "fttest";
 const std::string CBaseChainParams::REGTEST = "regtest";
 
 /**
@@ -58,21 +57,6 @@ public:
 };
 static CBaseTestNetParams testNetParams;
 
-/**
- * Testnet (flextrans)
- */
-class CBaseFTTestNetParams : public CBaseChainParams
-{
-public:
-    CBaseFTTestNetParams()
-    {
-        nRPCPort = 18334;
-        nApiServerPort = 11236;
-        strDataDir = "testnet-ft";
-    }
-};
-static CBaseFTTestNetParams ftTestNetParams;
-
 /*
  * Regression test
  */
@@ -102,8 +86,6 @@ CBaseChainParams& BaseParams(const std::string& chain)
         return mainParams;
     else if (chain == CBaseChainParams::TESTNET)
         return testNetParams;
-    else if (chain == CBaseChainParams::FLEXTRANSTESTNET)
-        return ftTestNetParams;
     else if (chain == CBaseChainParams::REGTEST)
         return regTestParams;
     else
@@ -119,16 +101,13 @@ std::string ChainNameFromCommandLine()
 {
     bool fRegTest = GetBoolArg("-regtest", false);
     bool fTestNet = GetBoolArg("-testnet", false);
-    bool fFTTestNet = GetBoolArg("-testnet-ft", false);
 
-    if ((fTestNet?1:0) + (fRegTest?1:0) + (fFTTestNet?1:0) > 1)
-        throw std::runtime_error("Invalid combination of -regtest and/or -testnet and/or -testnet-ft.");
+    if ((fTestNet?1:0) + (fRegTest?1:0))
+        throw std::runtime_error("Invalid combination of -regtest and/or -testnet.");
     if (fRegTest)
         return CBaseChainParams::REGTEST;
     if (fTestNet)
         return CBaseChainParams::TESTNET;
-    if (fFTTestNet)
-        return CBaseChainParams::FLEXTRANSTESTNET;
     return CBaseChainParams::MAIN;
 }
 
