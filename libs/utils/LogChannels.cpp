@@ -1,6 +1,6 @@
 /*
  * This file is part of the Flowee project
- * Copyright (C) 2017 Tom Zander <tomz@freedommail.ch>
+ * Copyright (C) 2017-2018 Tom Zander <tomz@freedommail.ch>
  *
  * This program is free software: you can redistribute it and/or modify
  * it under the terms of the GNU General Public License as published by
@@ -118,9 +118,14 @@ ConsoleLogChannel::ConsoleLogChannel()
 {
 }
 
+void ConsoleLogChannel::setPrefix(const std::string &prefix)
+{
+    m_prefix = prefix;
+}
+
 void ConsoleLogChannel::pushLog(int64_t, std::string *timestamp, const std::string &line, const char *filename, int lineNumber, const char *methodName, short logSection, short logLevel)
 {
-    std::ostream &out = logLevel >= Log::WarningLevel ? std::clog : std::cout;
+    std::ostream &out = (logLevel == Log::WarningLevel || logLevel == Log::FatalLevel) ? std::clog : std::cout;
     if (timestamp)
         out << *timestamp << ' ';
     if (m_printSection && logSection) {
@@ -132,6 +137,8 @@ void ConsoleLogChannel::pushLog(int64_t, std::string *timestamp, const std::stri
             out << logSection;
         out << "] ";
     }
+    if (!m_prefix.empty())
+        out << m_prefix << ' ';
     if (m_printFilename && filename)
         out << filename << (m_printLineNumber ? ':' : ' ');
     if (m_printLineNumber && lineNumber)

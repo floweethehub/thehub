@@ -1,6 +1,6 @@
 /*
  * This file is part of the Flowee project
- * Copyright (C) 2017 Tom Zander <tomz@freedommail.ch>
+ * Copyright (C) 2017-2018 Tom Zander <tomz@freedommail.ch>
  *
  * This program is free software: you can redistribute it and/or modify
  * it under the terms of the GNU General Public License as published by
@@ -75,8 +75,16 @@ class ConsoleLogChannel : public Log::Channel
 public:
     ConsoleLogChannel();
 
+    void setPrefix(const std::string &prefix);
+    const std::string &prefix() const {
+        return m_prefix;
+    }
+
     virtual void pushLog(int64_t timeMillis, std::string *timestamp, const std::string &line, const char *filename,
                          int lineNumber, const char *methodName, short logSection, short logLevel);
+
+private:
+    std::string m_prefix;
 };
 
 class FileLogChannel : public Log::Channel

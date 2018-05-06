@@ -1,6 +1,6 @@
 /*
  * This file is part of the Flowee project
- * Copyright (C) 2017 Tom Zander <tomz@freedommail.ch>
+ * Copyright (C) 2017-2018 Tom Zander <tomz@freedommail.ch>
  *
  * This program is free software: you can redistribute it and/or modify
  * it under the terms of the GNU General Public License as published by
@@ -150,7 +150,11 @@ public:
     void reopenLogFiles();
 
     /// Load a simple setup that prints all logging to stdout and nothing to file.
-    void loadDefaultTestSetup();
+    void loadDefaultTestSetup(const std::string &testName = std::string());
+
+    /// call this to print a nice "exit test" line
+    /// will only do something if loadDefaultTestSetup has been called with a testname
+    void exitTest();
 
     /**
      * @brief parseConfig reads the config file logs.conf from the datadir.

@@ -1,6 +1,6 @@
 /*
  * This file is part of the Flowee project
- * Copyright (C) 2017 Tom Zander <tomz@freedommail.ch>
+ * Copyright (C) 2017-2018 Tom Zander <tomz@freedommail.ch>
  *
  * This program is free software: you can redistribute it and/or modify
  * it under the terms of the GNU General Public License as published by
@@ -182,19 +182,52 @@ void Log::Manager::reopenLogFiles()
     }
 }
 
-void Log::Manager::loadDefaultTestSetup()
+void Log::Manager::loadDefaultTestSetup(const std::string &testName)
 {
     clearChannels();
 #ifndef NDEBUG
     auto channel = new ConsoleLogChannel();
+    if (!testName.empty()) {
+        const int64_t timeMillis = GetTimeMillis();
+        std::ostringstream timeStream;
+        timeStream << DateTimeStrFormat("%H:%M:%S", timeMillis/1000);
+        d->lastDateTime = timeStream.str();
+        timeStream << '.' << std::setw(3) << std::setfill('0') << timeMillis % 1000;
+        std::string time = timeStream.str();
+        channel->pushLog(0, &time, "*** Entering unit test '" + testName + '`', nullptr, 0, nullptr, 0, InfoLevel);
+    }
+
     channel->setPrintMethodName(true);
     channel->setTimeStampFormat(Channel::TimeOnly);
     channel->setPrintSection(true);
+    channel->setPrefix(testName);
     d->channels.push_back(channel);
 
     d->enabledSections.clear();
     for (short i = 0; i <= 20000; i+=1000)
         d->enabledSections[i] = Log::DebugLevel;
+#endif
+}
+
+void Log::Manager::exitTest()
+{
+#ifndef NDEBUG
+    if (d->channels.size() != 1)
+        return;
+    ConsoleLogChannel *lc = dynamic_cast<ConsoleLogChannel*>(d->channels.front());
+    if (!lc)
+        return;
+    if (lc->prefix().empty())
+        return;
+
+    d->lastDateTime.clear();
+    const int64_t timeMillis = GetTimeMillis();
+    std::ostringstream timeStream;
+    timeStream << DateTimeStrFormat("%H:%M:%S", timeMillis/1000) << '.' << std::setw(3) << std::setfill('0') << timeMillis % 1000;
+    std::string time = timeStream.str();
+    std::string testname = lc->prefix();
+    lc->setPrefix("");
+    lc->pushLog(0, &time, "*** Leaving unit test  '" + testname + '`', nullptr, 0, nullptr, 0, InfoLevel);
 #endif
 }
 
