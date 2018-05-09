@@ -311,7 +311,12 @@ void UODBPrivate::flushNodesToDisk()
     }
 
     for (auto df : dataFilesCopy) {
-        df->flushSomeNodesToDisk();
+        try {
+            df->flushSomeNodesToDisk();
+        } catch(const std::exception &e) {
+            logFatal(Log::UTXO) << "Internal error; Failed to flush some nodes to disk.";
+            // This method is likely called in a worker thread, throwing has no benefit.
+        }
     }
     std::lock_guard<std::mutex> mutex(lock);
     changesSinceJumptableWritten += unflushedLeaves;
@@ -604,7 +609,7 @@ void DataFile::flushSomeNodesToDisk()
     // first gather the stuff we want to save, we need the mutex as this is stored in various std::lists
     {
         boost::shared_lock< boost::shared_mutex > lock(m_lock);
-        leafs = m_leafs; // TODO a copy-on-write container may be very valuable here.
+        leafs = m_leafs;
 
         // Collect buckets (and their content) we are going to store to disk.
         for (auto bucket : m_buckets) {
@@ -626,10 +631,12 @@ void DataFile::flushSomeNodesToDisk()
         while (begin != end) {
             updatedBucket.unspentOutputs.push_back(*begin);
             if (begin->leafPos & MEMBIT) {
-                auto leaf = leafs.at(begin->leafPos & MEMMASK);
-                const auto offset = saveLeaf(leaf);
-                leafOffsets.insert(std::make_pair(begin->leafPos, offset));
-                updatedBucket.unspentOutputs.back().leafPos = offset;
+                auto leaf = leafs.find(begin->leafPos & MEMMASK);
+                if (leaf != leafs.end()) {
+                    const auto offset = saveLeaf(leaf->second);
+                    leafOffsets.insert(std::make_pair(begin->leafPos, offset));
+                    updatedBucket.unspentOutputs.back().leafPos = offset;
+                }
             }
             ++begin;
         }
