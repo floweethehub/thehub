@@ -101,7 +101,6 @@ private:
     NetworkConnection m_connection;
 
     QSqlDatabase m_db;
-    QStringList m_errors;
 
     DBConfig m_dbConfig;
     HubConfig m_hubConnectionConfig;

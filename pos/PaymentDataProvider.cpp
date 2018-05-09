@@ -187,7 +187,6 @@ void PaymentDataProvider::createTables(const QString &type)
         q = q.arg(autoIncrement);
         if (!query.exec(q)) {
             logFatal() << "Failed to create table" << query.lastError().text();
-            m_errors << query.lastError().text();
             return;
         }
     }
@@ -198,11 +197,9 @@ void PaymentDataProvider::createTables(const QString &type)
                    "amount long NOT NULL"
                    ")")) {
             logFatal() << "Failed to create index" << query.lastError().text();
-            m_errors << query.lastError().text();
         }
         if (!query.exec("create index tx_rq_id on Transactions (requestId)")) {
-            logFatal() << "Failed to create table" << query.lastError().text();
-            m_errors << query.lastError().text();
+            logFatal() << "Failed to create index" << query.lastError().text();
         }
     }
     if (!query.exec("select count(*) from Address")) {
@@ -212,11 +209,9 @@ void PaymentDataProvider::createTables(const QString &type)
                    "bchPrivKey varchar2(60) NOT NULL"
                    ")")) {
             logFatal() << "Failed to create index" << query.lastError().text();
-            m_errors << query.lastError().text();
         }
         if (!query.exec("create index ad_rq_id on Address (requestId)")) {
-            logFatal() << "Failed to create table" << query.lastError().text();
-            m_errors << query.lastError().text();
+            logFatal() << "Failed to create index" << query.lastError().text();
         }
     }
 }
