@@ -40,8 +40,13 @@ struct OutputRef {
     uint32_t leafPos;
 };
 
+enum ForceBool {
+    ForceSave,
+    NormalSave
+};
 struct Bucket {
     std::list<OutputRef> unspentOutputs;
+    int saveAttempt = 0;
 
     void fillFromDisk(const Streaming::ConstBuffer &buffer, const uint32_t bucketOffsetInFile);
     uint32_t saveToDisk(Streaming::BufferPool &pool);
@@ -126,7 +131,7 @@ public:
     bool remove(const uint256 &txid, int index);
 
     // writing to disk
-    void flushSomeNodesToDisk();
+    void flushSomeNodesToDisk(ForceBool force);
     void flushAll();
     uint32_t saveLeaf(const UnspentOutput &uo);
     bool jumptableNeedsSave = false;

@@ -312,7 +312,7 @@ void UODBPrivate::flushNodesToDisk()
 
     for (auto df : dataFilesCopy) {
         try {
-            df->flushSomeNodesToDisk();
+            df->flushSomeNodesToDisk(NormalSave);
         } catch(const std::exception &e) {
             logFatal(Log::UTXO) << "Internal error; Failed to flush some nodes to disk.";
             // This method is likely called in a worker thread, throwing has no benefit.
@@ -470,6 +470,7 @@ void DataFile::insert(const uint256 &txid, int outIndex, int offsetInBlock, int 
     }
 
     bucket->unspentOutputs.push_back({txid.GetCheapHash(), leafPos + MEMBIT});
+    bucket->saveAttempt = 0;
 }
 
 UnspentOutput DataFile::find(const uint256 &txid, int index) const
@@ -579,6 +580,7 @@ bool DataFile::remove(const uint256 &txid, int index)
             boost::upgrade_to_unique_lock< boost::shared_mutex > uniqueLock(lock);
             // found it. Now update the bucket to no longer refer to it.
             bucket->unspentOutputs.erase(iter);
+            bucket->saveAttempt = 0;
             if (bucketId & MEMBIT) { // highest bit is set. Bucket is in memory.
                 if (bucket->unspentOutputs.empty()) { // remove if empty
                     m_buckets.erase(m_buckets.find(bucketId & MEMMASK));
@@ -600,7 +602,7 @@ bool DataFile::remove(const uint256 &txid, int index)
     return false;
 }
 
-void DataFile::flushSomeNodesToDisk()
+void DataFile::flushSomeNodesToDisk(ForceBool force)
 {
     DEBUGUTXO << "Flush nodes starting";
     DEBUGUTXO << " += Leafs in mem:" << m_leafs.size() << "buckets in mem:" << m_buckets.size();
@@ -640,17 +642,12 @@ void DataFile::flushSomeNodesToDisk()
             }
             ++begin;
         }
-        /*
-         * TODO
-         * I realized that a bucket may get much more full than you might think when one TX has lots of outputs.
-         * What would be useful (in order to avoid writing the bucket to disk a lot) is to have a 'change-count'
-         * int in the bucket, if a bucket over the size of 10 items is changed, then doing a flush will just increase
-         * the change-count instead of saving. Then when its changed again, that is reset to zero.
-         * Only when we hit a count of a certain number do we actually save it.  Or when we store the jumptable, then we have
-         * to save this bucket too.
-         */
-        auto offset = updatedBucket.saveToDisk(m_writeBuffer);
-        bucketOffsets.insert(std::make_pair(shortHash, offset));
+
+        if (!(force != ForceSave && updatedBucket.unspentOutputs.size() > 10
+              && updatedBucket.saveAttempt++ < 20)) {
+            auto offset = updatedBucket.saveToDisk(m_writeBuffer);
+            bucketOffsets.insert(std::make_pair(shortHash, offset));
+        }
 
         end = nextBucket(unsavedOutputs, begin);
     }
@@ -699,9 +696,10 @@ void DataFile::flushSomeNodesToDisk()
             ++bucketSize;
         }
 
-        assert(bucketOffsets.find(shortHash) != bucketOffsets.end());
+        const auto savedOffset = bucketOffsets.find(shortHash); // only present if we decided to save it
         // Now check if we can remove the bucket from memory
-        if (bucket->unspentOutputs.size() == bucketSize) { // nothing added/removed since we saved it.
+        if (savedOffset != bucketOffsets.end()
+                && bucket->unspentOutputs.size() == bucketSize) { // nothing added/removed since we saved it.
             bool allSaved = true;
             for (auto i : bucket->unspentOutputs) {
                 if ((i.leafPos & MEMBIT) > 0) {
@@ -716,7 +714,6 @@ void DataFile::flushSomeNodesToDisk()
             }
         }
 
-        // begin = end;
         end = nextBucket(unsavedOutputs, begin);
     }
     while (end != unsavedOutputs.end());
@@ -734,7 +731,7 @@ void DataFile::flushAll()
     DEBUGUTXO;
     // wait for saving in other thread to finish.
     while (!m_buckets.empty()) { // save all, the UnspentOutputDatabase has a lock that makes this a stop-the-world event
-        flushSomeNodesToDisk();
+        flushSomeNodesToDisk(ForceSave);
     }
     m_bucketIndex = 0;
     m_buckets.clear();
