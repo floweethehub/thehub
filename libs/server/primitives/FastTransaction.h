@@ -84,6 +84,14 @@ public:
      */
     CTransaction createOldTransaction() const;
 
+    /**
+     * @brief offsetInBlock returns the amount of bytes into the block this transaction is positioned.
+     * @param block the block it is supposed to be part of.
+     * @return a simple subtraction of pointers, if the argument block doesn't contain the
+     *      tx, the result is unspecified (but typically bad)
+     */
+    int64_t offsetInBlock(const FastBlock &block) const;
+
     static Tx fromOldTransaction(const CTransaction &transaction, Streaming::BufferPool *pool = 0);
 
     /**

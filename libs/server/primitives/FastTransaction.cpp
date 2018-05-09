@@ -57,6 +57,13 @@ CTransaction Tx::createOldTransaction() const
     return std::move(answer);
 }
 
+int64_t Tx::offsetInBlock(const FastBlock &block) const
+{
+    assert(m_data.isValid());
+    assert(block.data().isValid());
+    return m_data.begin() - block.data().begin();
+}
+
 Tx Tx::fromOldTransaction(const CTransaction &transaction, Streaming::BufferPool *pool)
 {
     CSizeComputer sc(0, 0);
@@ -213,6 +220,11 @@ Tx::Component Tx::Iterator::next(int filter)
              return static_cast<Tx::Component>(tag);
     } while (d->tag() != Tx::End);
     return Tx::End;
+}
+
+Tx::Component Tx::Iterator::tag() const
+{
+    return d->tag();
 }
 
 Tx Tx::Iterator::prevTx() const
