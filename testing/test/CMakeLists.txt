@@ -39,6 +39,7 @@ set (TEST_LIBS
 )
 
 set (TEST_SOURCES
+    ../flowee_tests.cpp
     address_manager_tests.cpp
     addrman_tests.cpp
     alert_tests.cpp

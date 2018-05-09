@@ -17,8 +17,6 @@
  * along with this program.  If not, see <http://www.gnu.org/licenses/>.
  */
 
-#define BOOST_TEST_MODULE Hub Test Suite
-
 #include "test_bitcoin.h"
 #include <chain.h>
 #include <chainparams.h>
@@ -50,7 +48,6 @@ BasicTestingSetup::BasicTestingSetup(const std::string& chainName)
     noui_connect();
     MockApplication::doStartThreads();
     MockApplication::doInit();
-    Log::Manager::instance()->loadDefaultTestSetup();
 }
 
 BasicTestingSetup::~BasicTestingSetup()
