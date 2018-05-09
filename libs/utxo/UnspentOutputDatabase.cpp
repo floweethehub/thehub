@@ -237,7 +237,7 @@ bool UnspentOutputDatabase::remove(const uint256 &txid, int index, int dbHint)
     return done;
 }
 
-void UnspentOutputDatabase::blockFinised(int blockheight, const uint256 &blockId)
+void UnspentOutputDatabase::blockFinished(int blockheight, const uint256 &blockId)
 {
     std::lock_guard<std::mutex> lock(d->lock);
     auto df = d->dataFiles.back();

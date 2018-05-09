@@ -113,7 +113,7 @@ public:
      * need to restart from this point, we can start from the next block and the UTXO is
      * consistent with the full block passed in via the args.
      */
-    void blockFinised(int blockheight, const uint256 &blockId);
+    void blockFinished(int blockheight, const uint256 &blockId);
 
     int blockheight() const;
     uint256 blockId() const;

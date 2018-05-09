@@ -290,7 +290,7 @@ void Importer::parseBlock(const CBlockIndex *index, FastBlock block)
     m_deletes.fetchAndAddRelaxed(time.elapsed());
     time.start();
 
-    m_utxo.blockFinised(index->nHeight, block.createHash());
+    m_utxo.blockFinished(index->nHeight, block.createHash());
     m_flush.fetchAndAddRelaxed(time.elapsed());
 
     m_txCount.fetchAndAddRelaxed(block.transactions().size());
