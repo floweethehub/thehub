@@ -55,7 +55,6 @@ struct Bucket {
 namespace UODB {
     enum MessageTags {
         Separator = 0,
-        NodeType,
 
         // tags to store the leaf
         TXID,
@@ -74,10 +73,6 @@ namespace UODB {
         LastBlockHeight,
         JumpTableHash,
         PositionInFile
-    };
-    enum NodeTypes {
-        BucketType,
-        LeafType
     };
 }
 

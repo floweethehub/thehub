@@ -101,7 +101,6 @@ UnspentOutput::UnspentOutput(Streaming::BufferPool &pool, const uint256 &txid, i
 {
     pool.reserve(80);
     Streaming::MessageBuilder builder(pool);
-    builder.add(UODB::NodeType, UODB::LeafType);
     builder.add(UODB::TXID, txid);
     if (outIndex != 0)
         builder.add(UODB::OutIndex, outIndex);
@@ -119,9 +118,7 @@ UnspentOutput::UnspentOutput(const Streaming::ConstBuffer &buffer)
 {
     Streaming::MessageParser parser(m_data);
     while (parser.next() == Streaming::FoundTag) {
-        if (parser.tag() == UODB::NodeType && parser.intData() != UODB::LeafType)
-            throw std::runtime_error("Invalid buffer, not of Leaftype");
-        else if (parser.tag() == UODB::BlockHeight)
+        if (parser.tag() == UODB::BlockHeight)
             m_blockHeight = parser.intData();
         else if (parser.tag() == UODB::OffsetInBlock)
             m_offsetInBlock = parser.intData();
@@ -340,7 +337,6 @@ boost::filesystem::path UODBPrivate::filepathForIndex(int fileIndex)
 void Bucket::fillFromDisk(const Streaming::ConstBuffer &buffer, const uint32_t bucketOffsetInFile)
 {
     unspentOutputs.clear();
-    bool okTypeFound = false;
     Streaming::MessageParser parser(buffer);
     uint64_t cheaphash = 0;
     while (parser.next() == Streaming::FoundTag) {
@@ -356,14 +352,7 @@ void Bucket::fillFromDisk(const Streaming::ConstBuffer &buffer, const uint32_t b
             unspentOutputs.push_back( {cheaphash, (uint32_t) parser.longData()} );
         }
         else if (parser.tag() == UODB::Separator) {
-            if (!okTypeFound)
-                throw std::runtime_error("Database corruption, not bucket type");
             return;
-        }
-        else if (parser.tag() == UODB::NodeType) {
-            if (parser.intData() != UODB::BucketType)
-                throw std::runtime_error("Database corruption, buckettype expected, not found");
-            okTypeFound = true;
         }
     }
     throw std::runtime_error("Failed to parse bucket");
@@ -374,7 +363,6 @@ uint32_t Bucket::saveToDisk(Streaming::BufferPool &pool)
     const uint32_t offset = pool.offset();
 
     Streaming::MessageBuilder builder(pool);
-    builder.add(UODB::NodeType, UODB::BucketType);
     uint64_t prevCH = 0;
     for (auto item : unspentOutputs) {
         if (prevCH != item.cheapHash) {

@@ -42,7 +42,7 @@ public:
     UnspentOutput(const Streaming::ConstBuffer &buffer);
 
     inline bool isValid() const {
-        return m_data.size() >= 40;
+        return m_data.size() >= 33;
     }
 
     uint256 prevTxId() const;
