@@ -14,12 +14,22 @@
 # You should have received a copy of the GNU General Public License
 # along with this program.  If not, see <http://www.gnu.org/licenses/>.
 
-add_subdirectory(3rdparty)
-add_subdirectory(interfaces)
-add_subdirectory(networkmanager)
-add_subdirectory(utils)
-add_subdirectory(server)
-add_subdirectory(crypto)
-add_subdirectory(console)
-add_subdirectory(api)
-add_subdirectory(utxo)
+project (test_utxo)
+
+include_directories(${LIBS_INCLUDES} ${CMAKE_CURRENT_BINARY_DIR})
+
+add_executable(test_utxo
+    ../flowee_tests.cpp
+    test_utxo.cpp
+)
+
+target_link_libraries(test_utxo
+    flowee_server
+    flowee_utils
+    flowee_utxo
+
+    ${Boost_LIBRARIES}
+    ${OPENSSL_LIBRARIES}
+)
+
+add_test(NAME HUB_test_utxo COMMAND test_utxo)

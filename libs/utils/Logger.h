@@ -81,6 +81,7 @@ enum Sections {
     Bench,
     Prune,
     Mining,
+    UTXO = 1100,
 
     Networking = 2000,
     Net,

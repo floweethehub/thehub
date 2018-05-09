@@ -14,12 +14,11 @@
 # You should have received a copy of the GNU General Public License
 # along with this program.  If not, see <http://www.gnu.org/licenses/>.
 
-add_subdirectory(3rdparty)
-add_subdirectory(interfaces)
-add_subdirectory(networkmanager)
-add_subdirectory(utils)
-add_subdirectory(server)
-add_subdirectory(crypto)
-add_subdirectory(console)
-add_subdirectory(api)
-add_subdirectory(utxo)
+include_directories(${LIBUTILS_INCLUDES})
+
+add_library(flowee_utxo STATIC
+    UnspentOutputDatabase.cpp
+)
+add_definitions(-DLOG_DEFAULT_SECTION=19000)
+
+target_link_libraries(flowee_utxo flowee_utils)

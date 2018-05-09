@@ -17,4 +17,5 @@
 enable_testing()
 
 add_subdirectory(test)
+add_subdirectory(utxo)
 add_subdirectory(blackbox)
