@@ -1,6 +1,6 @@
 /*
  * This file is part of the Flowee project
- * Copyright (C) 2016 Tom Zander <tomz@freedommail.ch>
+ * Copyright (C) 2016,2018 Tom Zander <tomz@freedommail.ch>
  *
  * This program is free software: you can redistribute it and/or modify
  * it under the terms of the GNU General Public License as published by
@@ -46,6 +46,7 @@ class BufferPool
 public:
     BufferPool(int m_defaultSize = 256 * 1024);
     BufferPool(BufferPool&& other);
+    BufferPool(std::shared_ptr<char> &data, int length, bool staticBuf);
     BufferPool& operator=(BufferPool&& other);
 
     /// Ensures that there are at least that \a bytes available for writing
@@ -84,9 +85,9 @@ public:
      * Commit the used part into a ConstBuffer and preparing the pool for a new buffer.
      * This is equivalent to;
      @code
-        markUsed(usedBytes);
+        markUsed(usedBytes); // move 'end()'
         ConstBuffer buf = createBufferSlice(begin(), end());
-        forget(buf.size());
+        forget(buf.size());  // move 'begin()'
         return buf;
      @endcode
      */
@@ -123,7 +124,7 @@ public:
         return m_writePointer;
     }
 
-    /// indexting operator - assumes begin() + idx < end()
+    /// indexing operator - assumes begin() + idx < end()
     char operator[](size_t idx) const;
 
     /**
@@ -160,13 +161,15 @@ public:
         markUsed((int) size);
     }
 
+    int offset() const;
+
     /// return the shared pointer to the buffer, useful to upgrade the refcount.
     std::shared_ptr<char> internal_buffer() const;
 private:
     void change_capacity(int bytes);
     // unimplemented
-    BufferPool(BufferPool const&);
-    BufferPool& operator=(BufferPool const&);
+    BufferPool(BufferPool const&) = delete;
+    BufferPool& operator=(BufferPool const&) = delete;
 
     std::shared_ptr<char> m_buffer;
     char *m_readPointer;

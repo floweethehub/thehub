@@ -1,6 +1,6 @@
 /*
  * This file is part of the Flowee project
- * Copyright (C) 2016 Tom Zander <tomz@freedommail.ch>
+ * Copyright (C) 2016,2018 Tom Zander <tomz@freedommail.ch>
  *
  * This program is free software: you can redistribute it and/or modify
  * it under the terms of the GNU General Public License as published by
@@ -33,6 +33,15 @@ Streaming::BufferPool::BufferPool(BufferPool&& other)
     m_writePointer(std::move(other.m_writePointer)),
     m_defaultSize(std::move(other.m_defaultSize)),
     m_size(std::move(other.m_size))
+{
+}
+
+Streaming::BufferPool::BufferPool(std::shared_ptr<char> &data, int length, bool staticBuf)
+    : m_buffer(data),
+    m_readPointer(&(*data)),
+    m_writePointer(m_readPointer),
+    m_defaultSize(staticBuf ? -1 : length),
+    m_size(length)
 {
 }
 
@@ -98,6 +107,13 @@ void Streaming::BufferPool::writeInt32(unsigned int data)
     markUsed(4);
 }
 
+int Streaming::BufferPool::offset() const
+{
+    if (m_buffer.get() == nullptr)
+        return 0;
+    return (int) (m_writePointer - m_buffer.get());
+}
+
 Streaming::ConstBuffer Streaming::BufferPool::createBufferSlice(char const* start, char const* stop) const
 {
     assert(stop >= start);
@@ -110,6 +126,8 @@ Streaming::ConstBuffer Streaming::BufferPool::createBufferSlice(char const* star
 
 void Streaming::BufferPool::change_capacity(int bytes)
 {
+    if (m_defaultSize == -1)
+        throw std::runtime_error("Out of buffer memory");
     int unprocessed = m_writePointer - m_readPointer;
     assert(unprocessed >= 0);
     if (unprocessed + bytes <= m_defaultSize) // unprocessed > buffer_size
