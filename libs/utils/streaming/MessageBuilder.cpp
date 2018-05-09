@@ -1,6 +1,6 @@
 /*
  * This file is part of the Flowee project
- * Copyright (C) 2016 Tom Zander <tomz@freedommail.ch>
+ * Copyright (C) 2016,2018 Tom Zander <tomz@freedommail.ch>
  *
  * This program is free software: you can redistribute it and/or modify
  * it under the terms of the GNU General Public License as published by
@@ -116,15 +116,20 @@ void Streaming::MessageBuilder::add(uint32_t tag, const std::string &value)
 
 void Streaming::MessageBuilder::add(uint32_t tag, const std::vector<char> &data)
 {
+    addByteArray(tag, data.data(), data.size());
+}
+
+void Streaming::MessageBuilder::addByteArray(uint32_t tag, const void *data, int bytes)
+{
     if (m_beforeHeader) {
         m_buffer->markUsed(2); // reserve space for the size.
         m_beforeHeader=false;
     }
     int tagSize = write(m_buffer->data(), tag, ByteArray);
-    tagSize += serialize(m_buffer->data() + tagSize, data.size());
+    tagSize += serialize(m_buffer->data() + tagSize, bytes);
     m_buffer->markUsed(tagSize);
-    memcpy(m_buffer->data(), data.data(), data.size());
-    m_buffer->markUsed(data.size());
+    memcpy(m_buffer->data(), data, bytes);
+    m_buffer->markUsed(bytes);
 }
 
 void Streaming::MessageBuilder::add(uint32_t tag, const Streaming::ConstBuffer &data)
@@ -238,4 +243,17 @@ Message Streaming::MessageBuilder::message(int serviceId, int messageId)
     }
     m_beforeHeader = (m_messageType != NoHeader);
     return Message(m_buffer->commit(), serviceId, messageId);
+}
+
+int Streaming::serialisedUIntSize(uint64_t unsignedInteger)
+{
+    char dummy[11];
+    return serialize(dummy, unsignedInteger);
+}
+
+int Streaming::serialisedIntSize(int32_t signedInteger)
+{
+    char dummy[11];
+    uint64_t data = signedInteger < 0 ? ((int64_t) signedInteger * -1) : signedInteger;
+    return serialize(dummy, data);
 }

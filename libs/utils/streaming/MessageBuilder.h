@@ -1,6 +1,6 @@
 /*
  * This file is part of the Flowee project
- * Copyright (C) 2016 Tom Zander <tomz@freedommail.ch>
+ * Copyright (C) 2016,2018 Tom Zander <tomz@freedommail.ch>
  *
  * This program is free software: you can redistribute it and/or modify
  * it under the terms of the GNU General Public License as published by
@@ -34,6 +34,8 @@ enum MessageType {
     NoHeader
 };
 
+int serialisedUIntSize(std::uint64_t unsignedInteger);
+int serialisedIntSize(std::int32_t signedInteger);
 
 class MessageBuilder
 {
@@ -51,6 +53,7 @@ public:
 
     void add(uint32_t tag, const std::vector<char> &data);
     void add(uint32_t tag, const ConstBuffer &data);
+    void addByteArray(uint32_t tag, const void *data, int bytes);
     void add(uint32_t tag, bool value);
     void add(uint32_t tag, int32_t value);
     void add(uint32_t tag, double value);
