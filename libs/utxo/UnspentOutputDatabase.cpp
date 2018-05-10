@@ -241,7 +241,7 @@ void UnspentOutputDatabase::blockFinished(int blockheight, const uint256 &blockI
     df->m_lastBlockHash = blockId;
     df->m_lastBlockheight = blockheight;
 
-    if (d->changesSinceJumptableWritten > 2000000) { // every 2 million inserts/deletes, flush jumptables
+    if (d->changesSinceJumptableWritten > 10000000) { // every 10 million inserts/deletes, auto-flush jumptables
         d->changesSinceJumptableWritten = 0;
         for (auto df : d->dataFiles) {
             df->flushAll();
@@ -710,7 +710,7 @@ void DataFile::flushSomeNodesToDisk(ForceBool force)
     DEBUGUTXO << " +- Leafs in mem:" << m_leafs.size() << "Buckets in mem:" << m_buckets.size();
 
     jumptableNeedsSave = true;
-    if (!fileFull && m_writeBuffer.offset() > 1200000000) // 1.2GB
+    if (!fileFull && m_writeBuffer.offset() > 1100000000) // 1.1GB
         fileFull = true;
 }
 
@@ -760,7 +760,7 @@ DataFile *DataFile::createDatafile(const boost::filesystem::path &filename, int 
         boost::filesystem::create_directories(filename.parent_path());
         boost::filesystem::ofstream file(dbFile);
         file.close();
-        boost::filesystem::resize_file(dbFile, 2000000000); // 2GB
+        boost::filesystem::resize_file(dbFile, 2147483600); // ~2GB
     }
 
     DataFile *df = new DataFile(filename);
