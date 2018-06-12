@@ -210,7 +210,7 @@ void NetworkManagerPrivate::cronHourly(const boost::system::error_code &error)
             ++bannedNode;
     }
     for (auto connection : connections) {
-        connection.second->m_punishment = std::max(0, connection.second->m_punishment - 100);
+        connection.second->m_punishment = std::max<short>(0, connection.second->m_punishment - 100);
         // logDebug(Log::NWM) << "peer ban scrore;" << connection.second->m_punishment;
     }
     m_cronHourly.expires_from_now(boost::posix_time::hours(1));
@@ -349,7 +349,7 @@ void NetworkManagerConnection::onConnectComplete(const boost::system::error_code
             if (std::getline(is, content)) {
                 is.close();
                 if (content.size() < 1000) { // protect from memory abuse.
-                    m_sendHelperBuffer.reserve(20 + content.size());
+                    m_sendHelperBuffer.reserve(20 + static_cast<int>(content.size()));
                     Streaming::MessageBuilder builder(m_sendHelperBuffer);
                     builder.add(Api::Login::CookieData, content);
                     queueMessage(builder.message(Api::LoginService, Api::Login::LoginMessage), NetworkConnection::HighPriority);
@@ -371,7 +371,8 @@ void NetworkManagerConnection::onConnectComplete(const boost::system::error_code
 
     // setup a callback for receiving.
     m_receiveStream.reserve(MAX_MESSAGE_SIZE);
-    m_socket.async_receive(boost::asio::buffer(m_receiveStream.data(), m_receiveStream.capacity()),
+    assert(m_receiveStream.capacity() > 0);
+    m_socket.async_receive(boost::asio::buffer(m_receiveStream.data(), static_cast<size_t>(m_receiveStream.capacity())),
         m_strand.wrap(std::bind(&NetworkManagerConnection::receivedSomeBytes, this, std::placeholders::_1, std::placeholders::_2)));
 
     if (m_remote.peerPort == m_remote.announcePort) {
@@ -391,11 +392,12 @@ Streaming::ConstBuffer NetworkManagerConnection::createHeader(const Message &mes
 {
     assert(message.serviceId() >= 0);
     const auto map = message.headerData();
-    m_sendHelperBuffer.reserve(10 * map.size());
+    m_sendHelperBuffer.reserve(10 * static_cast<int>(map.size()));
     Streaming::MessageBuilder builder(m_sendHelperBuffer, Streaming::HeaderOnly);
     auto iter = map.begin();
     while (iter != map.end()) {
-        builder.add(iter->first, iter->second);
+        assert(iter->first >= 0);
+        builder.add(static_cast<uint32_t>(iter->first), iter->second);
         ++iter;
     }
     builder.add(Network::HeaderEnd, true);
@@ -545,8 +547,9 @@ void NetworkManagerConnection::sentSomeBytes(const boost::system::error_code& er
         const Message &message = m_sentPriorityMessages.empty() ? m_messageQueue.front() : m_sentPriorityMessages.front();
         const int bodySize = message.rawData().size();
         if (bodySize > CHUNK_SIZE) {
-            const unsigned int chunks = std::ceil(bodySize / (float) CHUNK_SIZE);
-            if (m_sendQHeaders.size() < chunks)
+            const std::int64_t chunks = std::lrint(std::ceil(bodySize / static_cast<float>(CHUNK_SIZE)));
+            assert(chunks > 0);
+            if (m_sendQHeaders.size() < static_cast<size_t>(chunks))
                 break;
             std::list<Streaming::ConstBuffer>::iterator iter = m_sendQHeaders.begin();
             for (unsigned int i = 0; i < chunks; ++i) {
@@ -595,7 +598,7 @@ void NetworkManagerConnection::receivedSomeBytes(const boost::system::error_code
     if (m_isClosingDown)
         return;
     assert(m_strand.running_in_this_thread());
-    logDebug(Log::NWM) << ((void*) this) << "receivedSomeBytes" << bytes_transferred;
+    logDebug(Log::NWM) << (static_cast<void*>(this)) << "receivedSomeBytes" << bytes_transferred;
     if (error) {
         logDebug(Log::NWM) << "receivedSomeBytes errored:" << error.message();
         // first copy to avoid problems if a callback removes its callback or closes the connection.
@@ -616,10 +619,10 @@ void NetworkManagerConnection::receivedSomeBytes(const boost::system::error_code
         m_firstPacket = true;
         return;
     }
-    m_receiveStream.markUsed(bytes_transferred); // move write pointer
+    m_receiveStream.markUsed(static_cast<int>(bytes_transferred)); // move write pointer
 
     while (true) { // get all packets out
-        const size_t blockSize = m_receiveStream.size();
+        const size_t blockSize = static_cast<size_t>(m_receiveStream.size());
         if (blockSize < 4) // need more data
             break;
         Streaming::ConstBuffer data = m_receiveStream.createBufferSlice(m_receiveStream.begin(), m_receiveStream.end());
@@ -649,7 +652,7 @@ void NetworkManagerConnection::receivedSomeBytes(const boost::system::error_code
     }
 
     m_receiveStream.reserve(MAX_MESSAGE_SIZE);
-    m_socket.async_receive(boost::asio::buffer(m_receiveStream.data(), m_receiveStream.capacity()),
+    m_socket.async_receive(boost::asio::buffer(m_receiveStream.data(), static_cast<size_t>(m_receiveStream.capacity())),
             m_strand.wrap(std::bind(&NetworkManagerConnection::receivedSomeBytes, this, std::placeholders::_1, std::placeholders::_2)));
 }
 
@@ -712,7 +715,7 @@ bool NetworkManagerConnection::processPacket(const std::shared_ptr<char> &buffer
             break;
         default:
             if (parser.isInt() && parser.tag() < 0xFFFFFF)
-                messageHeaderData.insert(std::make_pair((int) parser.tag(), parser.intData()));
+                messageHeaderData.insert(std::make_pair(static_cast<int>(parser.tag()), parser.intData()));
             break;
         }
 
@@ -998,7 +1001,7 @@ void NetworkManagerConnection::accept()
     m_acceptedConnection = true;
 
     // setup a callback for receiving.
-    m_socket.async_receive(boost::asio::buffer(m_receiveStream.data(), m_receiveStream.capacity()),
+    m_socket.async_receive(boost::asio::buffer(m_receiveStream.data(), static_cast<size_t>(m_receiveStream.capacity())),
         m_strand.wrap(std::bind(&NetworkManagerConnection::receivedSomeBytes, this, std::placeholders::_1, std::placeholders::_2)));
 }
 
