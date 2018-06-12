@@ -193,7 +193,7 @@ class EstimateFeeTest(BitcoinTestFramework):
         # (17k is room enough for 110 or so transactions)
         self.nodes.append(start_node(1, self.options.tmpdir,
                                      ["-blockprioritysize=1500", "-blockmaxsize=17000",
-                                      "-maxorphantx=1000", "-relaypriority=0", "-debug=estimatefee"]))
+                                      "-maxorphantx=1000", "-relaypriority=0"]))
         connect_nodes(self.nodes[1], 0)
 
         # Node2 is a stingy miner, that
