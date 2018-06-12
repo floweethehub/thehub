@@ -38,7 +38,7 @@ struct DataFile {
     DataFile() : filesize(0) {}
     boost::iostreams::mapped_file file;
     std::weak_ptr<char> buffer;
-    int filesize;
+    size_t filesize;
 };
 
 enum BlockType {

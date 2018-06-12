@@ -74,25 +74,25 @@ bool LoadExternalBlockFile(const CDiskBlockPos &pos)
     CBlockFileInfo info;
 
     auto validation = Application::instance()->validation();
-    const int blockHeaderMessage = reinterpret_cast<const int&>(Params().MessageStart());
+    const int blockHeaderMessage = *reinterpret_cast<const int*>(Params().MessageStart());
     const char *buf = dataFile.begin();
     while (buf < dataFile.end()) {
-        buf = (const char*) memchr(buf, blockHeaderMessage, (dataFile.end() - buf) / sizeof(int));
+        buf = reinterpret_cast<const char*>(memchr(buf, blockHeaderMessage, (dataFile.end() - buf) / sizeof(int)));
         if (buf == nullptr) {
             // no valid block header found; don't complain
             break;
         }
         buf += 4;
-        uint32_t blockSize = le32toh(*((uint32_t*)(buf)));
+        uint32_t blockSize = le32toh(*(reinterpret_cast<const std::uint32_t*>(buf)));
         if (blockSize < 80)
             continue;
         buf += 4;
 
         validation->waitForSpace();
-        validation->addBlock(CDiskBlockPos(pos.nFile, buf - dataFile.begin()));
+        validation->addBlock(CDiskBlockPos(pos.nFile, static_cast<std::uint32_t>(buf - dataFile.begin())));
         ++info.nBlocks;
         buf += blockSize;
-        info.nSize = buf - dataFile.begin();
+        info.nSize = static_cast<std::uint32_t>(buf - dataFile.begin());
     }
     if (info.nBlocks > 0) {
         logCritical(Log::DB) << "Loaded" << info.nBlocks << "blocks from external file" << pos.nFile << "in" << (GetTimeMillis() - nStart) << "ms";
@@ -154,7 +154,7 @@ void Blocks::DB::createTestInstance(size_t nCacheSize)
 void Blocks::DB::shutdown()
 {
     delete s_instance;
-    s_instance = 0;
+    s_instance = nullptr;
 }
 
 void Blocks::DB::startBlockImporter()
@@ -260,8 +260,8 @@ bool Blocks::DB::CacheAllBlockInfos()
             break;
         }
     }
-    d->datafiles.resize(maxFile);
-    d->revertDatafiles.resize(maxFile);
+    d->datafiles.resize(static_cast<size_t>(maxFile));
+    d->revertDatafiles.resize(static_cast<size_t>(maxFile));
 
     std::lock_guard<std::mutex> lock_(d->blockIndexLock);
     for (auto iter = d->indexMap.begin(); iter != d->indexMap.end(); ++iter) {
@@ -300,7 +300,7 @@ void Blocks::DB::setReindexing(Blocks::ReindexingState state)
 static FILE* OpenDiskFile(const CDiskBlockPos &pos, const char *prefix, bool fReadOnly)
 {
     if (pos.IsNull())
-        return NULL;
+        return nullptr;
     boost::filesystem::path path = Blocks::getFilepathForIndex(pos.nFile, prefix, true);
     boost::filesystem::create_directories(path.parent_path());
     FILE* file = fopen(path.string().c_str(), "rb+");
@@ -308,13 +308,13 @@ static FILE* OpenDiskFile(const CDiskBlockPos &pos, const char *prefix, bool fRe
         file = fopen(path.string().c_str(), "wb+");
     if (!file) {
         LogPrintf("Unable to open file %s\n", path.string());
-        return NULL;
+        return nullptr;
     }
     if (pos.nPos) {
         if (fseek(file, pos.nPos, SEEK_SET)) {
             LogPrintf("Unable to seek to position %u of %s\n", pos.nPos, path.string());
             fclose(file);
-            return NULL;
+            return nullptr;
         }
     }
     return file;
@@ -345,7 +345,7 @@ boost::filesystem::path Blocks::getFilepathForIndex(int fileIndex, const char *p
 
 FastBlock Blocks::DB::loadBlock(CDiskBlockPos pos)
 {
-    return FastBlock(d->loadBlock(pos, ForwardBlock, 0));
+    return FastBlock(d->loadBlock(pos, ForwardBlock, nullptr));
 }
 
 FastUndoBlock Blocks::DB::loadUndoBlock(CDiskBlockPos pos, const uint256 &origBlockHash)
@@ -365,7 +365,7 @@ Streaming::ConstBuffer Blocks::DB::loadBlockFile(int fileIndex)
 FastBlock Blocks::DB::writeBlock(const FastBlock &block, CDiskBlockPos &pos)
 {
     assert(block.isFullBlock());
-    return FastBlock(d->writeBlock(block.data(), pos, ForwardBlock, 0));
+    return FastBlock(d->writeBlock(block.data(), pos, ForwardBlock, nullptr));
 }
 
 FastUndoBlock Blocks::DB::writeUndoBlock(const FastUndoBlock &block, const uint256 &blockHash, int fileIndex, uint32_t *posInFile)
@@ -528,7 +528,7 @@ int Blocks::Index::size()
 {
     auto priv = Blocks::DB::instance()->priv();
     std::lock_guard<std::mutex> lock_(priv->blockIndexLock);
-    return priv->indexMap.size();
+    return static_cast<int>(priv->indexMap.size());
 }
 
 bool Blocks::Index::reconsiderBlock(CBlockIndex *pindex) {
@@ -541,16 +541,16 @@ bool Blocks::Index::reconsiderBlock(CBlockIndex *pindex) {
     auto it = priv->indexMap.begin();
     while (it != priv->indexMap.end()) {
         if (!it->second->IsValid() && it->second->GetAncestor(nHeight) == pindex) {
-            it->second->nStatus &= ~BLOCK_FAILED_MASK;
+            it->second->nStatus &= static_cast<uint32_t>(~BLOCK_FAILED_MASK);
             MarkIndexUnsaved(it->second);
         }
         it++;
     }
 
     // Remove the invalidity flag from all ancestors too.
-    while (pindex != NULL) {
+    while (pindex != nullptr) {
         if (pindex->nStatus & BLOCK_FAILED_MASK) {
-            pindex->nStatus &= ~BLOCK_FAILED_MASK;
+            pindex->nStatus &= static_cast<uint32_t>(~BLOCK_FAILED_MASK);
             MarkIndexUnsaved(pindex);
         }
         pindex = pindex->pprev;
@@ -627,7 +627,7 @@ Streaming::ConstBuffer Blocks::DBPrivate::loadBlock(CDiskBlockPos pos, BlockType
         throw std::runtime_error("Failed to memmap block");
     if (pos.nPos >= fileSize)
         throw std::runtime_error("position outside of file");
-    uint32_t blockSize = le32toh(*((uint32_t*)(buf.get() + pos.nPos - 4)));
+    uint32_t blockSize = le32toh(*(reinterpret_cast<const std::uint32_t*>(buf.get() + pos.nPos - 4)));
     if (pos.nPos + blockSize + (blockHash ? 32 : 0) > fileSize)
         throw std::runtime_error("block sized bigger than file");
     if (blockHash) {
@@ -647,42 +647,46 @@ Streaming::ConstBuffer Blocks::DBPrivate::loadBlock(CDiskBlockPos pos, BlockType
 Streaming::ConstBuffer Blocks::DBPrivate::writeBlock(const Streaming::ConstBuffer &block, CDiskBlockPos &pos, BlockType type, const uint256 *blockHash)
 {
     const int blockSize = block.size();
-    assert(blockSize < (int) MAX_BLOCKFILE_SIZE - 8);
+    assert(blockSize < static_cast<int>(MAX_BLOCKFILE_SIZE - 8));
+    assert(blockSize >= 0);
     LOCK(cs_LastBlockFile);
 
     bool newFile = false;
     const bool useBlk = type == ForwardBlock;
-    if ((int) vinfoBlockFile.size() <= nLastBlockFile) { // first file.
+    assert(nLastBlockFile >= 0);
+    if (static_cast<int>(vinfoBlockFile.size()) <= nLastBlockFile) { // first file.
         newFile = true;
-        vinfoBlockFile.resize(nLastBlockFile + 1);
-    } else if (useBlk && vinfoBlockFile[nLastBlockFile].nSize + blockSize + 8 > MAX_BLOCKFILE_SIZE) {
+        vinfoBlockFile.resize(static_cast<size_t>(nLastBlockFile) + 1);
+    } else if (useBlk && vinfoBlockFile[static_cast<size_t>(nLastBlockFile)].nSize
+               + static_cast<std::uint32_t>(blockSize) + 8 > MAX_BLOCKFILE_SIZE) {
         // previous file full.
         newFile = true;
-        vinfoBlockFile.resize(++nLastBlockFile + 1);
+        vinfoBlockFile.resize(static_cast<size_t>(++nLastBlockFile) + 1);
     } else if (!useBlk && nLastBlockFile < pos.nFile) { // Want new revert file to be created
         // We can get our nLastBlockFile out of sync in a resync where the revert files are written
         // without there having been blk files written first.
         newFile = true;
         nLastBlockFile = std::max(nLastBlockFile + 1, pos.nFile);
-        vinfoBlockFile.resize(nLastBlockFile + 1);
+        vinfoBlockFile.resize(static_cast<size_t>(nLastBlockFile) + 1);
     }
     if (useBlk) // revert files get to tell us which file they want to be in
         pos.nFile = nLastBlockFile;
     assert(pos.nFile <= nLastBlockFile);
-    assert((int) vinfoBlockFile.size() > pos.nFile);
-    CBlockFileInfo &info = vinfoBlockFile[pos.nFile];
+    assert(static_cast<int>(vinfoBlockFile.size()) > pos.nFile);
+    assert(pos.nFile >= 0);
+    CBlockFileInfo &info = vinfoBlockFile[static_cast<size_t>(pos.nFile)];
     if (newFile || (!useBlk && info.nUndoSize == 0)) { // create new file on disk
         const auto path = getFilepathForIndex(pos.nFile, useBlk ? "blk" : "rev");
         logDebug(Log::DB) << "Starting new file" << path.string();
         std::lock_guard<std::recursive_mutex> lock_(lock);
-        size_t newFileSize = std::max(blockSize + 8, (int) (useBlk ? BLOCKFILE_CHUNK_SIZE : UNDOFILE_CHUNK_SIZE));
+        int newFileSize = std::max(blockSize + 8, static_cast<int>(useBlk ? BLOCKFILE_CHUNK_SIZE : UNDOFILE_CHUNK_SIZE));
 #ifdef WIN32
         // due to the fact that on Windows we can't re-map, we skip the growing steps.
         newFileSize = MAX_BLOCKFILE_SIZE;
 #endif
         boost::filesystem::ofstream file(path);
         file.close();
-        boost::filesystem::resize_file(path, newFileSize);
+        boost::filesystem::resize_file(path, static_cast<size_t>(newFileSize));
     }
     size_t fileSize;
     bool writable;
@@ -697,7 +701,7 @@ Streaming::ConstBuffer Blocks::DBPrivate::writeBlock(const Streaming::ConstBuffe
     }
     uint32_t *posInFile = useBlk ? &info.nSize : &info.nUndoSize;
 #ifndef WIN32
-    while (*posInFile + blockSize + 8 + (useBlk ? 0 : 32) >= fileSize) {
+    while (*posInFile + static_cast<size_t>(blockSize) + 8 + (useBlk ? 0 : 32) >= fileSize) {
         const auto path = getFilepathForIndex(pos.nFile, useBlk ? "blk" : "rev");
         logDebug(Log::DB) << "File" << path.string() << "needs to be resized";
         const size_t newFileSize = fileSize + (useBlk ? BLOCKFILE_CHUNK_SIZE : UNDOFILE_CHUNK_SIZE);
@@ -724,7 +728,7 @@ Streaming::ConstBuffer Blocks::DBPrivate::writeBlock(const Streaming::ConstBuffe
     uint32_t networkSize = htole32(blockSize);
     memcpy(data, &networkSize, 4);
     data += 4;
-    memcpy(data, block.begin(), blockSize);
+    memcpy(data, block.begin(), static_cast<size_t>(blockSize));
     if (type == ForwardBlock) {
         info.AddBlock();
     } else {
@@ -733,12 +737,12 @@ Streaming::ConstBuffer Blocks::DBPrivate::writeBlock(const Streaming::ConstBuffe
         // calculate & write checksum
         CHashWriter hasher(SER_GETHASH, PROTOCOL_VERSION);
         hasher << *blockHash;
-        hasher.write(block.begin(), block.size());
+        hasher.write(block.begin(), static_cast<size_t>(block.size()));
         uint256 hash = hasher.GetHash();
         memcpy(data + blockSize, hash.begin(), 256 / 8);
         *posInFile += 32;
     }
-    *posInFile += blockSize + 8;
+    *posInFile += static_cast<size_t>(blockSize) + 8;
     setDirtyFileInfo.insert(pos.nFile);
     return Streaming::ConstBuffer(buf, data, data + blockSize);
 }
@@ -758,11 +762,11 @@ void Blocks::DBPrivate::foundBlockFile(int index, const CBlockFileInfo &info)
     LOCK(cs_LastBlockFile);
     if (nLastBlockFile < index)
         nLastBlockFile = index;
-    if ((int) vinfoBlockFile.size() <= nLastBlockFile)
-        vinfoBlockFile.resize(nLastBlockFile + 1);
+    if (static_cast<int>(vinfoBlockFile.size()) <= nLastBlockFile)
+        vinfoBlockFile.resize(static_cast<size_t>(nLastBlockFile) + 1);
     // copy all but the undosize since that may have been assigned already.
-    vinfoBlockFile[index].nBlocks = info.nBlocks;
-    vinfoBlockFile[index].nSize = info.nSize;
+    vinfoBlockFile[static_cast<size_t>(index)].nBlocks = info.nBlocks;
+    vinfoBlockFile[static_cast<size_t>(index)].nSize = info.nSize;
     logCritical(Log::DB) << "Registring block file info" << index << info.nBlocks << "blocks with a total of" << info.nSize << "bytes";
 }
 
@@ -773,12 +777,12 @@ std::shared_ptr<char> Blocks::DBPrivate::mapFile(int fileIndex, Blocks::BlockTyp
     const char *prefix = useBlk ? "blk" : "rev";
 
     std::lock_guard<std::recursive_mutex> lock_(lock);
-    if ((int) list.size() <= fileIndex)
-        list.resize(fileIndex + 10);
-    DataFile *df = list.at(fileIndex);
+    if (static_cast<int>(list.size()) <= fileIndex)
+        list.resize(static_cast<size_t>(fileIndex) + 10);
+    DataFile *df = list.at(static_cast<size_t>(fileIndex));
     if (df == nullptr) {
         df = new DataFile();
-        list[fileIndex] = df;
+        list[static_cast<size_t>(fileIndex)] = df;
     }
     std::shared_ptr<char> buf = df->buffer.lock();
     if (buf.get() == nullptr) {
@@ -794,16 +798,16 @@ std::shared_ptr<char> Blocks::DBPrivate::mapFile(int fileIndex, Blocks::BlockTyp
         }
         if (df->file.is_open()) {
             auto weakThis = std::weak_ptr<DBPrivate>(shared_from_this());
-            auto cleanupLambda = [useBlk,fileIndex,df,weakThis] (char *buf) {
+            auto cleanupLambda = [useBlk,fileIndex,df,weakThis] (char *) {
                 std::shared_ptr<DBPrivate> d = weakThis.lock();
                 if (d) {   // mutex scope...
                     std::lock_guard<std::recursive_mutex> lockG(d->lock);
                     std::vector<DataFile*> &list = useBlk ? d->datafiles : d->revertDatafiles;
-                    assert(fileIndex >= 0 && fileIndex < (int) list.size());
-                    if (df == list.at(fileIndex)) {
+                    assert(fileIndex >= 0 && fileIndex < static_cast<int>(list.size()));
+                    if (df == list.at(static_cast<size_t>(fileIndex))) {
                         // invalidate entry -- note that it's possible
                         // df != list[fileIndex] if we resized the file
-                        list[fileIndex] = nullptr;
+                        list[static_cast<size_t>(fileIndex)] = nullptr;
                     }
                 }
                 // no need to hold lock on delete -- auto-closes mmap'd file.
@@ -814,7 +818,7 @@ std::shared_ptr<char> Blocks::DBPrivate::mapFile(int fileIndex, Blocks::BlockTyp
             df->filesize = df->file.size();
         } else {
             logCritical(Log::DB) << "Blocks::DB: failed to memmap data-file" << path.string();
-            list[fileIndex] = nullptr;
+            list[static_cast<size_t>(fileIndex)] = nullptr;
             delete df;
             if (size_out) *size_out = 0;
             return std::shared_ptr<char>();
@@ -838,7 +842,7 @@ void Blocks::DBPrivate::fileHasGrown(int fileIndex)
     // This doesn't leak memory because if ptr existed, there are
     // extant shard_ptr buffers.  When they get deleted, ptr will also.
     // (see cleanupLambda in mapFile() above)
-    datafiles[fileIndex] = nullptr;
+    datafiles[static_cast<size_t>(fileIndex)] = nullptr;
 }
 
 // we expect the mutex `lock` to be locked before calling this method
@@ -849,5 +853,5 @@ void Blocks::DBPrivate::revertFileHasGrown(int fileIndex)
     // This doesn't leak memory because if ptr existed, there are
     // extant shard_ptr buffers.  When they get deleted, ptr will also.
     // (see cleanupLambda in mapFile() above)
-    revertDatafiles[fileIndex] = nullptr;
+    revertDatafiles[static_cast<size_t>(fileIndex)] = nullptr;
 }
