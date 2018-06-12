@@ -158,7 +158,7 @@ public:
     /// Stream interface for compatibility with the legacy serialization
     inline void write(const char *buf, size_t size) {
         memcpy(data(), buf, size);
-        markUsed((int) size);
+        markUsed(static_cast<int>(size));
     }
 
     int offset() const;

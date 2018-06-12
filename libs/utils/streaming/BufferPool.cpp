@@ -58,7 +58,9 @@ Streaming::BufferPool& Streaming::BufferPool::operator=(BufferPool&& rhs)
 int Streaming::BufferPool::capacity() const
 {
     assert(m_writePointer <= m_buffer.get() + m_size);
-    return std::distance<char const*>(m_writePointer, m_buffer.get() + m_size);
+    auto distance = std::distance<char const*>(m_writePointer, m_buffer.get() + m_size);
+    assert(distance < 0xeFFFFFFF);
+    return static_cast<int>(distance);
 }
 
 void Streaming::BufferPool::forget(int rc)
@@ -83,7 +85,7 @@ Streaming::ConstBuffer Streaming::BufferPool::commit(int usedBytes)
 
 int Streaming::BufferPool::size() const
 {
-    return end() - begin();
+    return static_cast<int>(end() - begin());
 }
 
 void Streaming::BufferPool::clear()
@@ -97,13 +99,13 @@ void Streaming::BufferPool::clear()
 void Streaming::BufferPool::writeInt32(unsigned int data)
 {
     unsigned int d = data;
-    m_writePointer[0] = d & 0xFF;
+    m_writePointer[0] = static_cast<char>(d & 0xFF);
     d = d >> 8;
-    m_writePointer[1] = d & 0xFF;
+    m_writePointer[1] = static_cast<char>(d & 0xFF);
     d = d >> 8;
-    m_writePointer[2] = d & 0xFF;
+    m_writePointer[2] = static_cast<char>(d & 0xFF);
     d = d >> 8;
-    m_writePointer[3] = d & 0xFF;
+    m_writePointer[3] = static_cast<char>(d & 0xFF);
     markUsed(4);
 }
 
@@ -111,7 +113,7 @@ int Streaming::BufferPool::offset() const
 {
     if (m_buffer.get() == nullptr)
         return 0;
-    return (int) (m_writePointer - m_buffer.get());
+    return static_cast<int>(m_writePointer - m_buffer.get());
 }
 
 Streaming::ConstBuffer Streaming::BufferPool::createBufferSlice(char const* start, char const* stop) const
@@ -128,21 +130,20 @@ void Streaming::BufferPool::change_capacity(int bytes)
 {
     if (m_defaultSize == -1)
         throw std::runtime_error("Out of buffer memory");
-    int unprocessed = m_writePointer - m_readPointer;
+    std::int64_t unprocessed = m_writePointer - m_readPointer;
     assert(unprocessed >= 0);
-    if (unprocessed + bytes <= m_defaultSize) // unprocessed > buffer_size
-    {
+    if (unprocessed + bytes <= m_defaultSize) { // unprocessed > buffer_size
         m_size = m_defaultSize;
     }
-    else
-    {
+    else {
         // Over reserve by phi ~= 1.62 = (1 + sqrt(5))/2
         // There are some discussions about whether 1.5, 2 or phi is correct. Try this.
-        m_size = std::max<size_t>(bytes + unprocessed, static_cast<size_t>(std::ceil(m_size * boost::math::double_constants::phi)));
+        m_size = static_cast<int>(std::max<int64_t>(bytes + unprocessed,
+              std::lrint(std::ceil(m_size * boost::math::double_constants::phi))));
     }
     m_buffer = std::shared_ptr<char>(new char[m_size], std::default_delete<char[]>());
 
-    std::memcpy(m_buffer.get(), m_readPointer, unprocessed); // Read pointer still points to the old buffer
+    std::memcpy(m_buffer.get(), m_readPointer, static_cast<size_t>(unprocessed)); // Read pointer still points to the old buffer
     m_readPointer = m_buffer.get();
     m_writePointer = m_readPointer + unprocessed;
 }
