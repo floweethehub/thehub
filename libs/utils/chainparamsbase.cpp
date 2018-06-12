@@ -72,7 +72,7 @@ public:
 };
 static CBaseRegTestParams regTestParams;
 
-static CBaseChainParams* pCurrentBaseParams = 0;
+static CBaseChainParams* pCurrentBaseParams = nullptr;
 
 const CBaseChainParams& BaseParams()
 {
@@ -102,7 +102,7 @@ std::string ChainNameFromCommandLine()
     bool fRegTest = GetBoolArg("-regtest", false);
     bool fTestNet = GetBoolArg("-testnet", false);
 
-    if ((fTestNet?1:0) + (fRegTest?1:0))
+    if ((fTestNet?1:0) + (fRegTest?1:0) > 1)
         throw std::runtime_error("Invalid combination of -regtest and/or -testnet.");
     if (fRegTest)
         return CBaseChainParams::REGTEST;
@@ -113,5 +113,5 @@ std::string ChainNameFromCommandLine()
 
 bool AreBaseParamsConfigured()
 {
-    return pCurrentBaseParams != NULL;
+    return pCurrentBaseParams != nullptr;
 }

@@ -173,7 +173,7 @@ public:
         consensus.uahfForkBlockHeight = 478559;
         consensus.uahfForkBlockId = uint256S("0x000000000000000000651ef99cb9fcbe0dadde1d424bd9f15ff20136191a5eec");
 
-        checkpointData = (CCheckpointData) {
+        checkpointData = CCheckpointData {
             boost::assign::map_list_of
             ( 11111, uint256S("0x0000000069e244f73d78e8fd29ba2fd2ed618bd6fa2ee92559f542fdb26e7c1d"))
             ( 33333, uint256S("0x000000002dd5588a74784eaa7ab0507a18ad16a236e7b1ce69f00d7ddfb5d0a6"))
@@ -280,7 +280,7 @@ public:
         consensus.uahfForkBlockHeight = 1155876;
         consensus.uahfForkBlockId = uint256S("0x00000000000e38fef93ed9582a7df43815d5c2ba9fd37ef70c9a0ea4a285b8f5");
 
-        checkpointData = (CCheckpointData) {
+        checkpointData = CCheckpointData {
             boost::assign::map_list_of
             ( 546, uint256S("000000002a936ca763904c3c35fce2f3556c559c0214345d31b1bcebf76acb70"))
             (227352, uint256S("0x000000008afc18b89bf27a2412cc158a3364d07252dc8f93581404d3d217026e"))
@@ -355,7 +355,7 @@ public:
         consensus.uahfForkBlockHeight = 0;
         consensus.uahfForkBlockId = consensus.hashGenesisBlock;
 
-        checkpointData = (CCheckpointData){
+        checkpointData = CCheckpointData {
             boost::assign::map_list_of
             ( 0, uint256S("0f9188f13cb7b2c71f2a335e3a4fc328bf5beb436012afca590b1a11466e2206")),
             0,
@@ -405,7 +405,7 @@ private:
 };
 }
 
-Static::Chains s_chains;
+static Static::Chains s_chains;
 
 const CChainParams &Params() {
     return s_chains.current();
