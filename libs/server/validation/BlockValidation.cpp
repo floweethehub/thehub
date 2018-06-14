@@ -101,8 +101,8 @@ ValidationEnginePrivate::ValidationEnginePrivate(Validation::EngineType type)
     issuedWarningForVersion(false),
     headersInFlight(0),
     blocksInFlight(0),
-    blockchain(0),
-    mempool(0),
+    blockchain(nullptr),
+    mempool(nullptr),
     recentTxRejects(120000, 0.000001),
     engineType(type),
     lastFullBlockScheduled(-1)
@@ -277,7 +277,7 @@ void ValidationEnginePrivate::blockHeaderValidated(std::shared_ptr<BlockValidati
         startOrphanWithParent(adoptees, state);
     DEBUGBV << "  Found" << adoptees.size() << "adoptees";
     if (adoptees.size())
-        headersInFlight.fetch_add(adoptees.size());
+        headersInFlight.fetch_add(static_cast<int>(adoptees.size()));
 #ifdef DEBUG_BLOCK_VALIDATION
     for (auto state : adoptees) {
         assert(state->m_checkingHeader);
@@ -300,7 +300,7 @@ void ValidationEnginePrivate::blockHeaderValidated(std::shared_ptr<BlockValidati
 
         if (item->m_block.isFullBlock()) {
             assert(!item->m_block.transactions().empty()); // assume we already had findTransactions called before here.
-            item->m_blockIndex->nTx = item->m_block.transactions().size();
+            item->m_blockIndex->nTx = static_cast<std::uint32_t>(item->m_block.transactions().size());
             try { // Write block to history file
                 if (item->m_onResultFlags & Validation::SaveGoodToDisk) {
                     item->m_block = Blocks::DB::instance()->writeBlock(item->m_block, item->m_blockPos);
@@ -538,7 +538,7 @@ void ValidationEnginePrivate::processNewBlock(std::shared_ptr<BlockValidationSta
     assert(strand.running_in_this_thread());
     if (shuttingDown)
         return;
-    if (state->m_blockIndex == 0) // already handled.
+    if (state->m_blockIndex == nullptr) // already handled.
         return;
 
     struct RAII {
@@ -679,7 +679,7 @@ void ValidationEnginePrivate::processNewBlock(std::shared_ptr<BlockValidationSta
     }
 
     chainTipChildren = state->m_chainChildren;
-    state->m_blockIndex = 0;
+    state->m_blockIndex = nullptr;
     MarkIndexUnsaved(index);
     if (!addToChain)
         return;
@@ -701,7 +701,7 @@ void ValidationEnginePrivate::processNewBlock(std::shared_ptr<BlockValidationSta
                 logInfo(Log::BlockValidation).nospace() << "unknown new rules are about to activate (versionbit " << bit << ")";
             }
         }
-        for (int i = 0; i < 100 && pindex != NULL; i++) {
+        for (int i = 0; i < 100 && pindex != nullptr; i++) {
             int32_t nExpectedVersion = WarningBitsConditionChecker::computeBlockVersion(pindex->pprev);
             if (pindex->nVersion > VERSIONBITS_LAST_OLD_BLOCK_VERSION && (pindex->nVersion & ~nExpectedVersion) != 0)
                 ++nUpgraded;
