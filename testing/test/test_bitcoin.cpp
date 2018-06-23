@@ -26,6 +26,7 @@
 #include <net.h>
 #include <random.h>
 #include <UiInterface.h>
+#include <interfaces/validationinterface.h>
 #ifdef ENABLE_WALLET
 # include <wallet/wallet.h>
 CWallet* pwalletMain;
