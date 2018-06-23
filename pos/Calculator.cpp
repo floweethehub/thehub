@@ -47,9 +47,10 @@ void Calculator::addCharacter(const QString &character)
             m_amountOfUnit += x.unicode() - '0';
         }
         emit currentValueChanged();
-    } else if (x == "." || x == "," || x == m_currencySeparator) {
+    } else if (x.unicode() == '.' || x.unicode() == ','
+            || (!m_currencySeparator.isEmpty() && m_currencySeparator.at(0) == x)) {
         m_afterDecimal = true;
-    } else if (x == Qt::Key_Backspace) {
+    } else if (x.unicode() == Qt::Key_Backspace) {
         backspace();
     }
 }
