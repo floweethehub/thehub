@@ -27,6 +27,7 @@
 #include <functional>
 
 #include <boost/filesystem.hpp>
+#include <boost/filesystem/fstream.hpp>
 
 #define MEMBIT 0x80000000
 #define MEMMASK 0x7FFFFFFF
