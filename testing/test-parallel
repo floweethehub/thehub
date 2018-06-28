@@ -442,6 +442,8 @@ for test_binary in binaries:
             line = line.decode()
             if (line == ""):
                 break
+            if (line.find("*") == -1):
+                continue
             proc_output += line
         proc_output = proc_output.split('\n')
         test_list = [x.replace('*', '')
