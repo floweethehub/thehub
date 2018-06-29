@@ -6,7 +6,7 @@ stages:
 - deploy
 
 variables:
-  HUB_IMG: registry.gitlab.com/floweethehub/hub/hub-service:${CI_COMMIT_REF_NAME}
+  HUB_IMG: registry.gitlab.com/floweethehub/thehub:${CI_COMMIT_REF_NAME}
 
 #####  Debian stable
 
