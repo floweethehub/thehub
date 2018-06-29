@@ -1,0 +1,91 @@
+image: $IMG_DEBIAN_STABLE
+
+stages:
+- build
+- test
+- deploy
+
+variables:
+  HUB_IMG: registry.gitlab.com/floweethehub/hub/hub-service:${CI_COMMIT_REF_NAME}
+
+#####  Debian stable
+
+build-debian-stable:
+  stage: build
+  script:
+    - mkdir build
+    - cd build
+    - cmake -Dbuild_tests=true -Denable_wallet=true -DCMAKE_BUILD_TYPE=ReleaseWithDebugInfo -DCMAKE_INSTALL_PREFIX=.. ..
+    - echo nproc=`nproc`
+    - make univalue
+    - make -j0`nproc` install
+  artifacts:
+    paths:
+    - bin
+    - build/testing/test/test_hub
+    - build/testing/utxo/test_utxo
+    expire_in: 1 hrs
+
+.test_hub.deb:
+  stage: test
+  script: testing/test-parallel build/testing/test/test_hub
+  dependencies:
+  - build-debian-stable
+
+test_utxo.deb:
+  stage: test
+  script: testing/test-parallel build/testing/utxo/test_utxo
+  dependencies:
+  - build-debian-stable
+
+#####  Static build (Linux)
+
+build-static:
+  image: $IMG_STATIC
+  stage: build
+  script: build_static
+  artifacts:
+    paths:
+    - bin
+    - etc/flowee
+
+# how to create a .deb file TODO
+# https://about.gitlab.com/2016/10/12/automated-debian-package-build-with-gitlab-ci/
+
+createZip.deb:
+  stage: deploy
+  script: for i in bin/*; do strip $i; done
+  artifacts:
+    name: flowee-the-hub-${CI_COMMIT_SHA}
+    paths:
+    - bin
+    - etc
+  dependencies:
+  - build-static
+  only: [master]
+
+createHubDocker:
+  stage: deploy
+  script:
+    - docker login -u gitlab-ci-token -p $CI_JOB_TOKEN registry.gitlab.com
+    - mv bin support/docker/hub
+    - docker build --tag=$HUB_IMG support/docker/hub
+    - docker image push $HUB_IMG
+  image: docker:latest
+  services:
+  - docker:dind
+  dependencies:
+  - build-static
+
+
+##### Build as standard as it gets.
+
+build-debian-nowallet:
+  stage: build
+  script:
+    - mkdir build
+    - cd build
+    - cmake -Denable_gui=false ..
+    - make univalue
+    - make -j0`nproc` all
+
