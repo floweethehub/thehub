@@ -50,6 +50,7 @@ build-static:
     paths:
     - bin
     - etc/flowee
+    expire_in: 1 hrs
 
 # how to create a .deb file TODO
 # https://about.gitlab.com/2016/10/12/automated-debian-package-build-with-gitlab-ci/
