@@ -26,6 +26,8 @@ build-debian-stable:
     - build/testing/utxo/test_utxo
     expire_in: 1 hrs
 
+# this fails on gitlab but the same setup passes on my laptop.
+# Best idea I have is that its a memory thing. Disable for now.
 .test_hub.deb:
   stage: test
   script: testing/test-parallel build/testing/test/test_hub
@@ -52,7 +54,7 @@ build-static:
 # how to create a .deb file TODO
 # https://about.gitlab.com/2016/10/12/automated-debian-package-build-with-gitlab-ci/
 
-createZip.deb:
+flowee-the-hub-linux.zip:
   stage: deploy
   script: for i in bin/*; do strip $i; done
   artifacts:
@@ -69,8 +71,8 @@ createHubDocker:
   script:
     - docker login -u gitlab-ci-token -p $CI_JOB_TOKEN registry.gitlab.com
     - mv bin support/docker/hub
-    - docker build --tag=$HUB_IMG support/docker/hub
-    - docker image push $HUB_IMG
+    - docker build --tag=$HUB_IMG:${CI_COMMIT_REF_NAME} support/docker/hub
+    - docker image push $HUB_IMG:${CI_COMMIT_REF_NAME}
   image: docker:latest
   services:
   - docker:dind
