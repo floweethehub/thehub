@@ -71,8 +71,8 @@ createHubDocker:
   script:
     - docker login -u gitlab-ci-token -p $CI_JOB_TOKEN registry.gitlab.com
     - mv bin support/docker/hub
-    - docker build --tag=$HUB_IMG:${CI_COMMIT_REF_NAME} support/docker/hub
-    - docker image push $HUB_IMG:${CI_COMMIT_REF_NAME}
+    - docker build --tag=$HUB_IMG support/docker/hub
+    - docker image push $HUB_IMG
   image: docker:latest
   services:
   - docker:dind
