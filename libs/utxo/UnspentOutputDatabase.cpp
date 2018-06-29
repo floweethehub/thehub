@@ -758,6 +758,7 @@ DataFile *DataFile::createDatafile(const boost::filesystem::path &filename, int 
             }
         }
         // now create the file.
+        assert(!filename.parent_path().string().empty());
         boost::filesystem::create_directories(filename.parent_path());
         boost::filesystem::ofstream file(dbFile);
         file.close();
