@@ -22,8 +22,7 @@ do service-duplication, fail-over and other cloud-stack setups.
     --name hubtest \
     --mount source=cookies,target=/etc/flowee/cookies \
     --mount source=blockdata,target=/data \
-    hub:master
-
+    flowee/hub:master
 ```
 
 What this does is the following;
