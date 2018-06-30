@@ -1,13 +1,15 @@
 Flowee the Hub repository
 =========================
 
-# Building a Hub that connects you to Bitcoin
+[![pipeline status](https://gitlab.com/FloweeTheHub/thehub/badges/master/pipeline.svg)](https://gitlab.com/FloweeTheHub/thehub/commits/master)
 
-As the first and most valuable crypto currency in existence Bitcoin is
+# Building a Hub that connects you to Bitcoin Cash
+
+Bitcoin Cash is
 still a mysterious black box to most companies that would potentially want
-to use it or build applications on top of.
+to use it, or build applications on top of.
 
-Flowee is being built to help you connect to the Bitcoin network and handle all
+Flowee is being built to help you connect to the Bitcoin Cash network and handle all
 the validation, parsing and low level database access for all your Bitcoin
 needs. Including many needs you didn't even know you had!
 
@@ -19,13 +21,15 @@ competition.
 
 # Installation
 
-Flowee is still being developed and doesn't have pre-compiled versions available yet. 
+Flowee is still being developed and is usage in production will cause you pain.
 
-To install on Ubuntu, install the dependencies
+The fastest way to try Flowee is by installing docker. See more details [here](support/docker/hub).
+
+To compile and install Flowee on Ubuntu, install the dependencies
 
 `sudo apt install libevent-dev libboost-all-dev libminiupnpc-dev qt5-default protobuf-compiler`
 
-Then clone the repo and use CMake to create the makefile
+Then clone the repo and use cmake to create the makefile
 
 `cmake CMakeLists.txt`
 
