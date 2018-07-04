@@ -1166,6 +1166,7 @@ BlockValidationState::BlockValidationState(const std::weak_ptr<ValidationEngineP
       m_txChunkLeftToFinish(-1),
       m_validationStatus(BlockValidityUnknown),
       m_blockFees(0),
+      m_sigOpsCounted(0),
       m_parent(parent)
 {
 }
@@ -1323,6 +1324,7 @@ void BlockValidationState::checks1NoContext()
             }
 
             // Check transactions
+            // TODO chunk this over all CPUs
             for (const CTransaction &tx : block.vtx) {
                 Validation::checkTransaction(tx);
             }
@@ -1403,16 +1405,15 @@ void BlockValidationState::checks2HaveParentHeaders()
 
         // Sigops.
         // Notice that we continue counting in validateTransaction and do one last check in processNewBlock()
+        // TODO chunk this over all CPUs
+        uint32_t sigOpsCounted = 0;
+        for (const CTransaction &tx : block.vtx)
+            sigOpsCounted += Validation::countSigOps(tx);
+        const uint32_t maxSigOps = Policy::blockSigOpAcceptLimit(m_block.size());
+        if (sigOpsCounted > maxSigOps)
+            throw Exception("bad-blk-sigops");
         assert(m_sigOpsCounted == 0);
-        const uint64_t maxSigOps = Policy::blockSigOpAcceptLimit(m_block.size());
-        for (const CTransaction &tx : block.vtx) {
-            const uint32_t sigops = GetLegacySigOpCount(tx);
-            if (sigops > MAX_BLOCK_SIGOPS_PER_MB)
-                throw Exception("bad-tx-sigops");
-            m_sigOpsCounted += sigops;
-            if (m_sigOpsCounted > maxSigOps)
-                throw Exception("bad-blk-sigops");
-        }
+        m_sigOpsCounted = sigOpsCounted;
     } catch (const Exception &e) {
         blockFailed(e.punishment(), e.what(), e.rejectCode(), e.corruptionPossible());
         finishUp();
@@ -1515,12 +1516,15 @@ void BlockValidationState::checkSignaturesChunk()
     bool blockValid = (m_validationStatus.load() & BlockInvalid) == 0;
     int txIndex = itemsPerChunk * chunkToStart;
     const int txMax = std::min(txIndex + itemsPerChunk, totalTxCount);
+    uint32_t chunkSigops = 0;
     CAmount chunkFees = 0;
     try {
         for (;blockValid && txIndex < txMax; ++txIndex) {
             if (txIndex > 0) { // skip coinbase
                 CAmount fees = 0;
-                validateTransaction(txIndex, fees);
+                uint32_t sigops = 0;
+                validateTransaction(txIndex, fees, sigops);
+                chunkSigops += sigops;
                 chunkFees += fees;
             }
         }
@@ -1535,6 +1539,7 @@ void BlockValidationState::checkSignaturesChunk()
         blockValid = false;
     }
     m_blockFees.fetch_add(chunkFees);
+    m_sigOpsCounted.fetch_add(chunkSigops);
 
 #ifdef ENABLE_BENCHMARKS
     int64_t end = GetTimeMicros();
@@ -1579,7 +1584,7 @@ void BlockValidationState::storeUndoBlock(CBlockIndex *index)
     }
 }
 
-void BlockValidationState::validateTransaction(int txIndex, int64_t &fees)
+void BlockValidationState::validateTransaction(int txIndex, int64_t &fees, uint32_t &txSigops)
 {
     assert(txIndex != 0); // we don't expect to be called for the coinbase.
 
@@ -1603,11 +1608,9 @@ void BlockValidationState::validateTransaction(int txIndex, int64_t &fees)
     if (!SequenceLocks(tx, nLockTimeFlags, &prevheights, *m_blockIndex))
         throw Exception("bad-txns-nonfinal");
 
-    uint32_t txSigops = 0;
     bool spendsCoinBase;
     // TODO check for xthin style block and if the transaction was already checked or not. If so, then skip the next
     ValidationPrivate::validateTransactionInputs(tx, *coins, spendHeight, flags, fees, txSigops, spendsCoinBase);
-    m_sigOpsCounted += txSigops;
 }
 
 //---------------------------------------------------------

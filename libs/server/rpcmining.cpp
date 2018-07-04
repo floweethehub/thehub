@@ -585,7 +585,7 @@ UniValue getblocktemplate(const UniValue& params, bool fHelp)
     result.push_back(Pair("mutable", aMutable));
     result.push_back(Pair("noncerange", "00000000ffffffff"));
     int64_t sizeLimit = 32E6; // lets have a nice big default, the goal is to remove this from the API
-    result.push_back(Pair("sigoplimit", Policy::blockSigOpAcceptLimit(sizeLimit)));
+    result.push_back(Pair("sigoplimit", static_cast<int64_t>(Policy::blockSigOpAcceptLimit(sizeLimit))));
     result.push_back(Pair("sizelimit", sizeLimit));
     result.push_back(Pair("curtime", pblock->GetBlockTime()));
     result.push_back(Pair("bits", strprintf("%08x", pblock->nBits)));

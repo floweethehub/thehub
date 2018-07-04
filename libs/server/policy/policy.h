@@ -75,7 +75,7 @@ bool AreInputsStandard(const CTransaction& tx, const CCoinsViewCache& mapInputs)
 
 namespace Policy {
     std::int32_t blockSizeAcceptLimit();
-    std::int64_t blockSigOpAcceptLimit(int32_t nBlockSize);
+    uint32_t blockSigOpAcceptLimit(int32_t nBlockSize);
     bool areInputsStandard(const CTransaction& tx, const std::vector<CCoins> &inputs);
 }
 

@@ -18,6 +18,7 @@
 
 #include "Engine.h"
 #include <SettingsDefaults.h>
+#include <primitives/transaction.h>
 #include "ValidationException.h"
 #include "TxValidation_p.h"
 #include <Application.h>
@@ -43,7 +44,6 @@ void ValidationPrivate::validateTransactionInputs(CTransaction &tx, const std::v
 
     int64_t valueIn = 0;
     assert(tx.vin.size() == coins.size());
-    txSigops = 0;
     for (size_t i = 0; i < tx.vin.size(); ++i) {
         const CTxOut &prevout = coins.at(i).vout[tx.vin[i].prevout.n];
         if (flags.strictPayToScriptHash && prevout.scriptPubKey.IsPayToScriptHash()) {
@@ -279,6 +279,7 @@ void TxValidationState::checkTransaction()
             if (fRequireStandard && !Policy::areInputsStandard(tx, coins))
                 throw Exception("bad-txns-nonstandard-inputs", Validation::RejectNonstandard, 0);
 
+            entry.sigOpCount = Validation::countSigOps(tx);
             ValidationPrivate::validateTransactionInputs(tx, coins, entry.entryHeight + 1, flags, entry.nFee, entry.sigOpCount, entry.spendsCoinbase);
             coins.clear();
 
@@ -435,3 +436,15 @@ void TxValidationState::sync()
     ValidationNotifier().SyncTx(m_tx);
 }
 
+
+uint32_t Validation::countSigOps(const CTransaction &tx)
+{
+    uint32_t txSigops = 0;
+    for (auto out : tx.vout)
+        txSigops += out.scriptPubKey.GetSigOpCount(false);
+    for (auto in : tx.vin)
+        txSigops += in.scriptSig.GetSigOpCount(false);
+    if (txSigops > MAX_BLOCK_SIGOPS_PER_MB)
+        throw Exception("bad-tx-sigops");
+    return txSigops;
+}

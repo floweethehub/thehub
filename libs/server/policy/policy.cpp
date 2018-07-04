@@ -228,8 +228,10 @@ int32_t Policy::blockSizeAcceptLimit()
     return limit;
 }
 
-int64_t Policy::blockSigOpAcceptLimit(int32_t nBlockSize)
+uint32_t Policy::blockSigOpAcceptLimit(int32_t nBlockSize)
 {
-    uint64_t nBlockSizeMb = 1 + ((nBlockSize - 1) / 1000000);
+    if (nBlockSize < 2)
+        return MAX_BLOCK_SIGOPS_PER_MB;
+    uint32_t nBlockSizeMb = 1 + ((static_cast<uint32_t>(nBlockSize) - 1) / 1000000);
     return nBlockSizeMb * MAX_BLOCK_SIGOPS_PER_MB;
 }

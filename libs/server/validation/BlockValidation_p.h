@@ -117,7 +117,7 @@ public:
     void updateUtxoAndStartValidation();
 
     /// throws FailedException for any errors
-    void validateTransaction(int txIndex, int64_t &fees);
+    void validateTransaction(int txIndex, int64_t &fees, uint32_t &txSigops);
 
     void storeUndoBlock(CBlockIndex *index);
 
@@ -146,8 +146,6 @@ public:
     bool m_checkTransactionValidity = true;
     ValidationFlags flags;
 
-    std::uint32_t m_sigOpsCounted = 0;
-
     const std::int32_t m_originatingNodeId;
     std::string error;
     Validation::RejectCodes errorCode = Validation::NotRejected;
@@ -159,6 +157,7 @@ public:
 
     std::vector<std::vector<CCoins> > m_coins; // one per transaction, with a vector for its inputs
     mutable std::atomic<std::int64_t> m_blockFees;
+    mutable std::atomic<std::uint32_t> m_sigOpsCounted;
     CBlockUndo m_undoBlock;
 
     std::weak_ptr<ValidationEnginePrivate> m_parent;
