@@ -76,9 +76,12 @@ createHubDocker:
     - docker image push $HUB_IMG
   image: docker:latest
   services:
-  - docker:dind
+    - docker:dind
   dependencies:
-  - build-static
+    - build-static
+  only:
+    - branches@gitlab-org/FloweeTheHub
+  allow_failure: true
 
 ##### Build as standard as it gets.
 
