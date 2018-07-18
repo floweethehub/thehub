@@ -90,12 +90,14 @@ TxTokenizer::TxTokenizer(const Streaming::ConstBuffer &buffer)
     : m_data(buffer),
     m_txStart(m_data.begin()),
     m_currentTokenStart(m_txStart),
-    m_currentTokenEnd(m_txStart)
+    m_currentTokenEnd(m_txStart),
+    m_tag(Tx::End)
 {
 }
 
 TxTokenizer::TxTokenizer(const FastBlock &block)
     : m_data(block.data()),
+    m_txStart(nullptr),
     m_tag(Tx::End)
 {
     assert(block.isFullBlock());
