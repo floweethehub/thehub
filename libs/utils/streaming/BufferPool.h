@@ -167,7 +167,6 @@ public:
     std::shared_ptr<char> internal_buffer() const;
 private:
     void change_capacity(int bytes);
-    // unimplemented
     BufferPool(BufferPool const&) = delete;
     BufferPool& operator=(BufferPool const&) = delete;
 
