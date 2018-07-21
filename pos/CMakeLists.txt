@@ -53,7 +53,7 @@ if (${QREncode_FOUND})
     set (CASHIER_SOURCES_QR QRCreator.cpp)
 endif()
 
-if (${Qt5Sql_FOUND})
+if (${Qt5Sql_FOUND} AND ${Qt5Quick_FOUND})
     qt5_add_resources(qrc_qml.cpp qml.qrc)
     set_property(SOURCE qrc_qml.cpp PROPERTY SKIP_AUTOGEN ON)
 
