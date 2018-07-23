@@ -31,6 +31,8 @@
 #include "util.h"
 #include "wallet/db.h"
 #include "wallet/wallet.h"
+#include <utxo/UnspentOutputDatabase.h>
+#include <UnspentOutputData.h>
 
 QString TransactionDesc::FormatTxStatus(const CWalletTx& wtx)
 {
@@ -299,24 +301,23 @@ QString TransactionDesc::toHTML(CWallet *wallet, CWalletTx &wtx, TransactionReco
         {
             COutPoint prevout = txin.prevout;
 
-            CCoins prev;
-            if(pcoinsTip->GetCoins(prevout.hash, prev))
-            {
-                if (prevout.n < prev.vout.size())
+            auto prev = g_utxo->find(prevout.hash, prevout.n);
+            if (prev.isValid()) {
+                UnspentOutputData data(prev);
+                CTxOut vout = {data.outputValue(), data.outputScript()};
+                strHTML += "<li>";
+
+                CTxDestination address;
+                if (ExtractDestination(data.outputScript(), address))
                 {
-                    strHTML += "<li>";
-                    const CTxOut &vout = prev.vout[prevout.n];
-                    CTxDestination address;
-                    if (ExtractDestination(vout.scriptPubKey, address))
-                    {
-                        if (wallet->mapAddressBook.count(address) && !wallet->mapAddressBook[address].name.empty())
-                            strHTML += GUIUtil::HtmlEscape(wallet->mapAddressBook[address].name) + " ";
-                        strHTML += QString::fromStdString(CBitcoinAddress(address).ToString());
-                    }
-                    strHTML = strHTML + " " + tr("Amount") + "=" + BitcoinUnits::formatHtmlWithUnit(unit, vout.nValue);
-                    strHTML = strHTML + " IsMine=" + (wallet->IsMine(vout) & ISMINE_SPENDABLE ? tr("true") : tr("false")) + "</li>";
-                    strHTML = strHTML + " IsWatchOnly=" + (wallet->IsMine(vout) & ISMINE_WATCH_ONLY ? tr("true") : tr("false")) + "</li>";
+                    if (wallet->mapAddressBook.count(address) && !wallet->mapAddressBook[address].name.empty())
+                        strHTML += GUIUtil::HtmlEscape(wallet->mapAddressBook[address].name) + " ";
+                    strHTML += QString::fromStdString(CBitcoinAddress(address).ToString());
                 }
+                strHTML = strHTML + " " + tr("Amount") + "=" + BitcoinUnits::formatHtmlWithUnit(unit, data.outputValue());
+                strHTML = strHTML + " IsMine=" + (wallet->IsMine(vout) & ISMINE_SPENDABLE ? tr("true") : tr("false")) + "</li>";
+                strHTML = strHTML + " IsWatchOnly=" + (wallet->IsMine(vout) & ISMINE_WATCH_ONLY ? tr("true") : tr("false")) + "</li>";
+
             }
         }
 

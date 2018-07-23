@@ -17,7 +17,6 @@
  */
 
 #include "chainparams.h"
-#include "coins.h"
 #include "consensus/consensus.h"
 #include "consensus/merkle.h"
 #include "consensus/validation.h"
@@ -30,6 +29,7 @@
 #include "util.h"
 #include "utilstrencodings.h"
 #include <primitives/FastBlock.h>
+#include <utxo/UnspentOutputDatabase.h>
 #include "BlocksDB_p.h" // to access the blockMap directly and use erase
 
 #include "test/test_bitcoin.h"
@@ -74,6 +74,7 @@ BOOST_AUTO_TEST_CASE(CreateNewBlock_validity)
     BOOST_CHECK(pblocktemplate = miner.CreateNewBlock(bv));
     BOOST_CHECK_EQUAL(bv.blockchain()->Height(), 0);
     BOOST_CHECK_EQUAL(pblocktemplate->block.vtx.size(), 1);
+    delete pblocktemplate;
 
     // We can't make transactions until we have inputs
     // Therefore, load 100 blocks :)
@@ -206,6 +207,7 @@ BOOST_AUTO_TEST_CASE(CreateNewBlock_validity)
     bv.mp.addUnchecked(hash, entry.Fee(1000000).Time(GetTime()).SpendsCoinbase(false).FromTx(tx));
     BOOST_CHECK(pblocktemplate = miner.CreateNewBlock(bv));
     BOOST_CHECK_EQUAL(pblocktemplate->block.vtx.size(), 1); // Just coinbase
+    delete pblocktemplate;
     bv.mp.clear();
 
     // double spend txn pair in mempool, don't mine
@@ -236,7 +238,7 @@ BOOST_AUTO_TEST_CASE(CreateNewBlock_validity)
         next->RaiseValidity(BLOCK_VALID_TRANSACTIONS);
         next->BuildSkip();
         bv.blockchain()->SetTip(next);
-        pcoinsTip->SetBestBlock(next->GetBlockHash());
+        g_utxo->blockFinished(next->nHeight, next->GetBlockHash());
         Blocks::DB::instance()->appendHeader(next);
     }
     BOOST_CHECK(pblocktemplate = miner.CreateNewBlock(bv));
@@ -252,7 +254,7 @@ BOOST_AUTO_TEST_CASE(CreateNewBlock_validity)
         next->RaiseValidity(BLOCK_VALID_TRANSACTIONS);
         next->BuildSkip();
         bv.blockchain()->SetTip(next);
-        pcoinsTip->SetBestBlock(next->GetBlockHash());
+        g_utxo->blockFinished(next->nHeight, next->GetBlockHash());
         Blocks::DB::instance()->appendHeader(next);
     }
     BOOST_CHECK(pblocktemplate = miner.CreateNewBlock(bv));
@@ -263,7 +265,7 @@ BOOST_AUTO_TEST_CASE(CreateNewBlock_validity)
         del->nStatus |= BLOCK_FAILED_VALID;
         Blocks::DB::instance()->appendHeader(del);
         bv.blockchain()->SetTip(del->pprev);
-        pcoinsTip->SetBestBlock(del->pprev->GetBlockHash());
+        g_utxo->blockFinished(del->pprev->nHeight, del->pprev->GetBlockHash());
         Blocks::DB::instance()->priv()->indexMap.erase(del->GetBlockHash());
         delete del;
     }

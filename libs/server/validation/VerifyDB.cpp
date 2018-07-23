@@ -18,14 +18,24 @@
 
 #include "VerifyDB.h"
 #include <primitives/FastBlock.h>
+#include <utxo/UnspentOutputDatabase.h>
 #include <Application.h>
-#include <coins.h>
 #include <UiInterface.h>
 #include <main.h>
 #include <util.h>
 #include <chain.h>
 #include <init.h>
 #include <txmempool.h>
+#include <server/BlocksDB.h>
+
+
+class UnspentOutputDatabaseRam
+{
+public:
+
+
+};
+
 
 VerifyDB::VerifyDB()
     : validator(Validation::SkipAutoBlockProcessing)
@@ -38,7 +48,7 @@ VerifyDB::~VerifyDB()
     uiInterface.ShowProgress("", 100);
 }
 
-bool VerifyDB::verifyDB(CCoinsView *coinsview, int nCheckLevel, int nCheckDepth)
+bool VerifyDB::verifyDB(int nCheckLevel, int nCheckDepth)
 {
     auto global = Application::instance()->validation();
     const CChain *globalChain = global->blockchain();
@@ -48,9 +58,9 @@ bool VerifyDB::verifyDB(CCoinsView *coinsview, int nCheckLevel, int nCheckDepth)
 
     CChain blockchain(*globalChain);
     validator.setBlockchain(&blockchain);
-    CCoinsViewCache coins(coinsview);
+    std::unique_ptr<UnspentOutputDatabase> utxo(UnspentOutputDatabase::createMemOnlyDB(GetDataDir() / "unspent"));
     CTxMemPool pool;
-    pool.setCoinsView(&coins);
+    pool.setUtxo(utxo.get());
     validator.setMempool(&pool);
 
     if (nCheckDepth <= 0)
@@ -86,7 +96,7 @@ bool VerifyDB::verifyDB(CCoinsView *coinsview, int nCheckLevel, int nCheckDepth)
             auto fastBlock = Blocks::DB::instance()->loadBlock(pindex->GetBlockPos());
             try {
                 fastBlock.findTransactions();
-                if (!validator.disconnectTip(fastBlock, pindex, coins, &fClean))
+                if (!validator.disconnectTip(fastBlock, pindex, &fClean))
                     return error("VerifyDB(): *** irrecoverable inconsistency in block data at %d, hash=%s", pindex->nHeight, pindex->GetBlockHash().ToString());
             } catch (const std::runtime_error &e) {
                 logDebug() << e;

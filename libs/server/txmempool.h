@@ -25,7 +25,6 @@
 #include <set>
 
 #include "amount.h"
-#include "coins.h"
 #include "primitives/transaction.h"
 #include "sync.h"
 #include "primitives/FastTransaction.h"
@@ -35,6 +34,7 @@
 
 class CAutoFile;
 class CBlockIndex;
+class UnspentOutputDatabase;
 
 inline double AllowFreeThreshold()
 {
@@ -372,7 +372,6 @@ public:
 class CTxMemPool
 {
 private:
-    uint32_t nCheckFrequency; //! Value n means that n times in 2^32 we check.
     unsigned int nTransactionsUpdated;
     CBlockPolicyEstimator* minerPolicyEstimator;
 
@@ -428,9 +427,11 @@ public:
     const setEntries & GetMemPoolChildren(txiter entry) const;
 
     /// set the backing-UTXO
-    void setCoinsView(CCoinsViewCache *coins);
+    void setUtxo(UnspentOutputDatabase *utxo);
     /// returns the backing UTXO
-    CCoinsViewCache *coins() const;
+    inline UnspentOutputDatabase *utxo() const {
+        return m_utxo;
+    }
 
 private:
     typedef std::map<txiter, setEntries, CompareIteratorByHash> cacheMap;
@@ -458,15 +459,6 @@ public:
     CTxMemPool(const CFeeRate& _minReasonableRelayFee = CFeeRate());
     ~CTxMemPool();
 
-    /**
-     * If sanity-checking is turned on, check makes sure the pool is
-     * consistent (does not contain two transactions that spend the same inputs,
-     * all inputs are in the mapNextTx array). If sanity-checking is turned off,
-     * check does nothing.
-     */
-    void check() const;
-    void setSanityCheck(double dFrequency = 1.0) { nCheckFrequency = dFrequency * 4294967295.0; }
-
     // addUnchecked must updated state for all ancestors of a given transaction,
     // to track size/count of descendant transactions.  First version of
     // addUnchecked can be used to have it call CalculateMemPoolAncestors(), and
@@ -486,16 +478,12 @@ public:
      * @param nBlockHeight blockHeight
      * @param conflicts out-variable to be filled with conflicting transactions.
      * @param fCurrentEstimate true if the block is 'current'. False if it is a historical block.
-     * @param utxoDBCursor the changes contained in the UTXO DB are represented in this cursor, we commit them atomically in this method.
-     * @param utxoBench a bench-marking option, if present we measure the amount of milliseconds it took to commit to the UTXO
      */
     void removeForBlock(const std::vector<CTransaction>& vtx, unsigned int nBlockHeight,
-                        std::list<CTransaction>& conflicts, bool fCurrentEstimate = true,
-                        CCoinsViewCache *utxoDBCursor = nullptr, std::uint32_t *utxoBench = nullptr);
+                        std::list<CTransaction>& conflicts, bool fCurrentEstimate = true);
     void clear();
     void _clear(); //lock free
     void queryHashes(std::vector<uint256>& vtxid);
-    void pruneSpent(const uint256& hash, CCoins &coins);
     unsigned int GetTransactionsUpdated() const;
     void AddTransactionsUpdated(unsigned int n);
     /**
@@ -574,6 +562,7 @@ public:
     }
 
     bool lookup(uint256 hash, CTransaction& result) const;
+    bool lookup(uint256 hash, Tx& result) const;
 
     /** Estimate fee rate needed to get into the next nBlocks
      *  If no answer can be given at nBlocks, return an estimate
@@ -642,22 +631,7 @@ private:
      */
     void removeUnchecked(txiter entry);
 
-    CCoinsViewCache *m_coins;
-};
-
-/** 
- * CCoinsView that brings transactions from a memorypool into view.
- * It does not check for spendings by memory pool transactions.
- */
-class CCoinsViewMemPool : public CCoinsViewBacked
-{
-protected:
-    CTxMemPool *mempool;
-
-public:
-    CCoinsViewMemPool(CTxMemPool *mempool);
-    bool GetCoins(const uint256 &txid, CCoins &coins) const;
-    bool HaveCoins(const uint256 &txid) const;
+    UnspentOutputDatabase *m_utxo;
 };
 
 // We want to sort transactions by coin age priority

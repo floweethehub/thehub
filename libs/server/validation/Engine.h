@@ -26,7 +26,6 @@ struct CDiskBlockPos;
 class ValidationEnginePrivate;
 class CChain;
 class FastBlock;
-class CCoinsViewCache;
 class CTxMemPool;
 class CTransaction;
 class Tx;
@@ -130,9 +129,6 @@ public:
      */
     CChain* blockchain() const;
 
-    // void setCoinsView(CCoinsViewCache *coins);
-    // CCoinsView *coins() const;
-
     void setMempool(CTxMemPool *mempool);
     CTxMemPool *mempool() const;
 
@@ -151,7 +147,7 @@ public:
      *
      * Note that in any case, coins may be modified.
      */
-    bool disconnectTip(const FastBlock &tip, CBlockIndex *index, CCoinsViewCache &view, bool *clean = nullptr);
+    bool disconnectTip(const FastBlock &tip, CBlockIndex *index, bool *clean = nullptr);
 
     /**
      * Request the validation engine to stop validating.

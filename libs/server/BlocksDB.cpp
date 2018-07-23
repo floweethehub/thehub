@@ -345,12 +345,12 @@ boost::filesystem::path Blocks::getFilepathForIndex(int fileIndex, const char *p
 
 FastBlock Blocks::DB::loadBlock(CDiskBlockPos pos)
 {
-    return FastBlock(d->loadBlock(pos, ForwardBlock, nullptr));
+    return FastBlock(d->loadBlock(pos, ForwardBlock));
 }
 
-FastUndoBlock Blocks::DB::loadUndoBlock(CDiskBlockPos pos, const uint256 &origBlockHash)
+FastUndoBlock Blocks::DB::loadUndoBlock(CDiskBlockPos pos)
 {
-    return FastUndoBlock(d->loadBlock(pos, RevertBlock, &origBlockHash));
+    return FastUndoBlock(d->loadBlock(pos, RevertBlock));
 }
 
 Streaming::ConstBuffer Blocks::DB::loadBlockFile(int fileIndex)
@@ -365,17 +365,17 @@ Streaming::ConstBuffer Blocks::DB::loadBlockFile(int fileIndex)
 FastBlock Blocks::DB::writeBlock(const FastBlock &block, CDiskBlockPos &pos)
 {
     assert(block.isFullBlock());
-    return FastBlock(d->writeBlock(block.data(), pos, ForwardBlock, nullptr));
+    std::deque<Streaming::ConstBuffer> tmp { block.data() };
+    return FastBlock(d->writeBlock(tmp, pos, ForwardBlock));
 }
 
-FastUndoBlock Blocks::DB::writeUndoBlock(const FastUndoBlock &block, const uint256 &blockHash, int fileIndex, uint32_t *posInFile)
+void Blocks::DB::writeUndoBlock(const UndoBlockBuilder &undoBlock, int fileIndex, uint32_t *posInFile)
 {
-    assert(block.size() > 0);
+    assert(undoBlock.finish().size() > 0);
     CDiskBlockPos pos(fileIndex, 0);
-    FastUndoBlock answer(d->writeBlock(block.data(), pos, RevertBlock, &blockHash));
+    d->writeBlock(undoBlock.finish(), pos, RevertBlock);
     if (posInFile)
         *posInFile = pos.nPos;
-    return answer;
 }
 
 bool Blocks::DB::appendHeader(CBlockIndex *block)
@@ -617,7 +617,7 @@ Blocks::DBPrivate::~DBPrivate()
     fileHistory.clear();
 }
 
-Streaming::ConstBuffer Blocks::DBPrivate::loadBlock(CDiskBlockPos pos, BlockType type, const uint256 *blockHash)
+Streaming::ConstBuffer Blocks::DBPrivate::loadBlock(CDiskBlockPos pos, BlockType type)
 {
     if (pos.nPos < 4)
         throw std::runtime_error("Blocks::loadBlock got Database corruption");
@@ -628,25 +628,15 @@ Streaming::ConstBuffer Blocks::DBPrivate::loadBlock(CDiskBlockPos pos, BlockType
     if (pos.nPos >= fileSize)
         throw std::runtime_error("position outside of file");
     uint32_t blockSize = le32toh(*(reinterpret_cast<const std::uint32_t*>(buf.get() + pos.nPos - 4)));
-    if (pos.nPos + blockSize + (blockHash ? 32 : 0) > fileSize)
+    if (pos.nPos + blockSize > fileSize)
         throw std::runtime_error("block sized bigger than file");
-    if (blockHash) {
-        assert(type == RevertBlock);
-        // Verify checksum
-        CHashWriter hasher(SER_GETHASH, PROTOCOL_VERSION);
-        hasher << *blockHash;
-        hasher.write(buf.get() + pos.nPos, blockSize);
-        uint256 hashChecksum(buf.get() + pos.nPos + blockSize);
-
-        if (hashChecksum != hasher.GetHash())
-            throw std::runtime_error("BlocksDB::loadUndoBlock, checkum mismatch");
-    }
     return Streaming::ConstBuffer(buf, buf.get() + pos.nPos, buf.get() + pos.nPos + blockSize);
 }
 
-Streaming::ConstBuffer Blocks::DBPrivate::writeBlock(const Streaming::ConstBuffer &block, CDiskBlockPos &pos, BlockType type, const uint256 *blockHash)
+Streaming::ConstBuffer Blocks::DBPrivate::writeBlock(const std::deque<Streaming::ConstBuffer> &blocks, CDiskBlockPos &pos, BlockType type)
 {
-    const int blockSize = block.size();
+    int blockSize = 0;
+    for (auto b : blocks) blockSize += b.size();
     assert(blockSize < static_cast<int>(MAX_BLOCKFILE_SIZE - 8));
     assert(blockSize >= 0);
     LOCK(cs_LastBlockFile);
@@ -728,23 +718,16 @@ Streaming::ConstBuffer Blocks::DBPrivate::writeBlock(const Streaming::ConstBuffe
     uint32_t networkSize = htole32(blockSize);
     memcpy(data, &networkSize, 4);
     data += 4;
-    memcpy(data, block.begin(), static_cast<size_t>(blockSize));
-    if (type == ForwardBlock) {
-        info.AddBlock();
-    } else {
-        assert(type == RevertBlock);
-        assert(blockHash);
-        // calculate & write checksum
-        CHashWriter hasher(SER_GETHASH, PROTOCOL_VERSION);
-        hasher << *blockHash;
-        hasher.write(block.begin(), static_cast<size_t>(block.size()));
-        uint256 hash = hasher.GetHash();
-        memcpy(data + blockSize, hash.begin(), 256 / 8);
-        *posInFile += 32;
+    char *rawBlockData = data;
+    for (auto block : blocks) {
+        memcpy(data, block.begin(), static_cast<size_t>(block.size()));
+        data += block.size();
     }
+    if (type == ForwardBlock)
+        info.AddBlock();
     *posInFile += static_cast<size_t>(blockSize) + 8;
     setDirtyFileInfo.insert(pos.nFile);
-    return Streaming::ConstBuffer(buf, data, data + blockSize);
+    return Streaming::ConstBuffer(buf, rawBlockData, rawBlockData + blockSize);
 }
 
 void Blocks::DBPrivate::unloadIndexMap()

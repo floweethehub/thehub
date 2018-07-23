@@ -59,7 +59,7 @@ int readCompactSizeSize(const char *in)
 class TxTokenizer {
 public:
     TxTokenizer(const Streaming::ConstBuffer &buffer);
-    TxTokenizer(const FastBlock &block);
+    TxTokenizer(const FastBlock &block, int offsetInBlock);
 
     Tx::Component next();
     inline Tx::Component tag() const {

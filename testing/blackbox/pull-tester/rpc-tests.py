@@ -92,7 +92,6 @@ testScripts = [
     'multi_rpc.py',
     'zapwallettxes.py',
     'proxy_test.py',
-    'merkle_blocks.py',
     'fundrawtransaction.py',
     'signrawtransactions.py',
     'walletbackup.py',

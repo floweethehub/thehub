@@ -78,6 +78,71 @@ Tx Tx::fromOldTransaction(const CTransaction &transaction, Streaming::BufferPool
     return Tx(pl.commit());
 }
 
+// static
+std::list<Tx::Input> Tx::findInputs(Tx::Iterator &iter)
+{
+    std::list<Input> inputs;
+
+    Input curInput;
+    auto content = iter.next();
+    while (content != Tx::End) {
+        if (content == Tx::PrevTxHash) { // only read inputs for non-coinbase txs
+            if (iter.byteData().size() != 32)
+                throw std::runtime_error("Failed to understand PrevTxHash");
+            curInput.txid = iter.uint256Data();
+            content = iter.next(Tx::PrevTxIndex);
+            if (content != Tx::PrevTxIndex)
+                throw std::runtime_error("Failed to find PrevTxIndex");
+            curInput.index = iter.intData();
+            inputs.push_back(curInput);
+        }
+        else if (content == Tx::OutputValue) {
+            break;
+        }
+        content = iter.next();
+    }
+    return inputs;
+}
+
+// static
+Tx::Output Tx::nextOutput(Tx::Iterator &iter)
+{
+    Output answer;
+    auto content = iter.tag();
+    while (content != Tx::End) {
+        if (content == Tx::OutputValue) {
+            answer.outputValue = iter.longData();
+            content = iter.next();
+            if (content != Tx::OutputScript)
+                throw std::runtime_error("Malformed transaction");
+            answer.outputScript = iter.byteData();
+            break;
+        }
+        content = iter.next(Tx::OutputValue);
+    }
+    return answer;
+}
+
+Tx::Output Tx::output(int index) const
+{
+    assert(index >= 0);
+    Output answer;
+    Iterator iter(*this);
+    auto content = iter.next(Tx::OutputValue);
+    while (content != Tx::End) {
+        if (index-- == 0) {
+            answer.outputValue = iter.longData();
+            content = iter.next();
+            if (content != Tx::OutputScript)
+                throw std::runtime_error("Malformed transaction");
+            answer.outputScript = iter.byteData();
+            break;
+        }
+        content = iter.next(Tx::OutputValue);
+    }
+    return answer;
+}
+
 
 ////////////////////////////////////////////////////////////
 
@@ -95,14 +160,19 @@ TxTokenizer::TxTokenizer(const Streaming::ConstBuffer &buffer)
 {
 }
 
-TxTokenizer::TxTokenizer(const FastBlock &block)
+TxTokenizer::TxTokenizer(const FastBlock &block, int offsetInBlock)
     : m_data(block.data()),
     m_txStart(nullptr),
     m_tag(Tx::End)
 {
     assert(block.isFullBlock());
-    const char *pos = m_data.begin() + 80;
-    pos += readCompactSizeSize(pos); // num tx field
+    const char *pos;
+    if (offsetInBlock == 0) {
+        pos = m_data.begin() + 80;
+        pos += readCompactSizeSize(pos); // num tx field
+    } else {
+        pos = m_data.begin() + offsetInBlock;
+    }
     m_currentTokenStart = pos;
     m_currentTokenEnd = pos;
 }
@@ -199,8 +269,8 @@ Tx::Iterator::Iterator(const Tx &tx)
 {
 }
 
-Tx::Iterator::Iterator(const FastBlock &block)
-    : d(new TxTokenizer(block))
+Tx::Iterator::Iterator(const FastBlock &block, int offsetInBlock)
+    : d(new TxTokenizer(block, offsetInBlock))
 {
 }
 
@@ -270,4 +340,9 @@ uint256 Tx::Iterator::uint256Data() const
     assert (d->m_currentTokenEnd - d->m_currentTokenStart >= 32);
     uint256 answer(d->m_currentTokenStart);
     return std::move(answer);
+}
+
+bool operator==(const Tx::Input &a, const Tx::Input &b)
+{
+    return a.index == b.index && a.dataFile == b.dataFile && a.txid == b.txid;
 }

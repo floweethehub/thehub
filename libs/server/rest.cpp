@@ -21,6 +21,8 @@
 #include "chainparams.h"
 #include "primitives/block.h"
 #include "primitives/transaction.h"
+#include "primitives/FastBlock.h"
+#include "primitives/FastTransaction.h"
 #include "main.h"
 #include "httpserver.h"
 #include "rpcserver.h"
@@ -30,6 +32,9 @@
 #include "txmempool.h"
 #include "utilstrencodings.h"
 #include "version.h"
+#include "UnspentOutputData.h"
+#include <txmempool.h>
+#include <utxo/UnspentOutputDatabase.h>
 
 #include <boost/algorithm/string.hpp>
 #include <boost/dynamic_bitset.hpp>
@@ -373,7 +378,7 @@ static bool rest_tx(HTTPRequest* req, const std::string& strURIPart)
 
     CTransaction tx;
     uint256 hashBlock = uint256();
-    if (!GetTransaction(hash, tx, Params().GetConsensus(), hashBlock, true))
+    if (!GetTransaction(hash, tx, hashBlock))
         return RESTERR(req, HTTP_NOT_FOUND, hashStr + " not found");
 
     CDataStream ssTx(SER_NETWORK, PROTOCOL_VERSION);
@@ -512,35 +517,43 @@ static bool rest_getutxos(HTTPRequest* req, const std::string& strURIPart)
     std::string bitmapStringRepresentation;
     boost::dynamic_bitset<unsigned char> hits(vOutPoints.size());
     {
-        LOCK2(cs_main, mempool.cs);
+        LOCK(mempool.cs);
+        Blocks::DB *blockDb = Blocks::DB::instance();
 
-        CCoinsView viewDummy;
-        CCoinsViewCache view(&viewDummy);
-
-        CCoinsViewMemPool viewMempool(&mempool);
-
-        if (fCheckMemPool)
-            view.SetBackend(viewMempool); // switch cache backend to db+mempool in case user likes to query mempool
-
-        for (size_t i = 0; i < vOutPoints.size(); i++) {
-            CCoins coins;
-            uint256 hash = vOutPoints[i].hash;
-            if (view.GetCoins(hash, coins)) {
-                mempool.pruneSpent(hash, coins);
-                if (coins.IsAvailable(vOutPoints[i].n)) {
-                    hits[i] = true;
-                    // Safe to index into vout here because IsAvailable checked if it's off the end of the array, or if
-                    // n is valid but points to an already spent output (IsNull).
+        int i = 0;
+        for (auto op : vOutPoints) {
+            bool found = false;
+            if (fCheckMemPool) {
+                CTransaction tx;
+                if (mempool.lookup(op.hash, tx) && tx.vout.size() > op.n) { // found it!
+                    found = true;
                     CCoin coin;
-                    coin.nTxVer = coins.nVersion;
-                    coin.nHeight = coins.nHeight;
-                    coin.out = coins.vout.at(vOutPoints[i].n);
+                    coin.nTxVer = tx.nVersion;
+                    coin.nHeight = MEMPOOL_HEIGHT;
+                    coin.out = tx.vout.at(op.n);
                     assert(!coin.out.IsNull());
                     outs.push_back(coin);
                 }
             }
 
-            bitmapStringRepresentation.append(hits[i] ? "1" : "0"); // form a binary string representation (human-readable for json output)
+            if (!found) { // Try UTXO
+                auto utxo = g_utxo->find(op.hash, op.n);
+                if (utxo.isValid()) { // Found it!
+                    UnspentOutputData result(utxo);
+                    assert(utxo.isValid()); // if it didn't the UTXO would point to a non-existing output...
+                    if (utxo.isValid()) {
+                        CCoin coin;
+                        coin.nHeight = result.blockHeight();
+                        coin.nTxVer = result.prevTxVersion();
+                        coin.out.nValue = result.outputValue();
+                        coin.out.scriptPubKey = result.outputScript();
+                        assert(!coin.out.IsNull());
+                        outs.push_back(coin);
+                    }
+                }
+            }
+            hits[i++] = found;
+            bitmapStringRepresentation.append(found ? "1" : "0"); // form a binary string representation (human-readable for json output)
         }
     }
     boost::to_block_range(hits, std::back_inserter(bitmap));

@@ -25,6 +25,8 @@
 #include <net.h>
 #include <Logger.h>
 #include <txorphancache.h>
+#include <utxo/UnspentOutputDatabase.h>
+#include <server/BlocksDB.h>
 
 // #define DEBUG_BLOCK_VALIDATION
 #ifdef DEBUG_BLOCK_VALIDATION
@@ -206,17 +208,20 @@ void Validation::Engine::invalidateBlock(CBlockIndex *index)
     helper.run();
 }
 
-bool Validation::Engine::disconnectTip(const FastBlock &tip, CBlockIndex *index, CCoinsViewCache &view, bool *userClean)
+bool Validation::Engine::disconnectTip(const FastBlock &tip, CBlockIndex *index, bool *userClean)
 {
     assert(index);
-    assert(tip.createHash() == view.GetBestBlock());
+    assert(tip.isFullBlock());
+    assert(d->mempool);
+    assert(d->mempool->utxo());
+    assert(tip.createHash() == d->mempool->utxo()->blockId());
 
     if (!d.get() || d->shuttingDown)
         return true;
 
     bool clean = true;
     bool error = false; // essentially our return-value, since our helper doesn't remember that.
-    WaitUntilFinishedHelper helper(std::bind(&ValidationEnginePrivate::disconnectTip, d, tip, index, &view, &clean, &error), &d->strand);
+    WaitUntilFinishedHelper helper(std::bind(&ValidationEnginePrivate::disconnectTip, d, tip, index, &clean, &error), &d->strand);
     helper.run();
     if (userClean) {
         *userClean = clean;

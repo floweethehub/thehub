@@ -55,7 +55,6 @@ set (TEST_SOURCES
     bloom_tests.cpp
     bswap_tests.cpp
     Checkpoints_tests.cpp
-    coins_tests.cpp
     compress_tests.cpp
     crypto_tests.cpp
     dbwrapper_tests.cpp

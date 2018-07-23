@@ -25,10 +25,9 @@
 #include <boost/filesystem/path.hpp>
 #include <boost/thread/shared_mutex.hpp>
 
-#include <map>
+#include <unordered_map>
 #include <list>
 #include <mutex>
-#include <fstream>
 #include <uint256.h>
 
 struct OutputRef {
@@ -46,10 +45,10 @@ enum ForceBool {
 };
 struct Bucket {
     std::list<OutputRef> unspentOutputs;
-    int saveAttempt = 0;
+    short saveAttempt = 0;
 
-    void fillFromDisk(const Streaming::ConstBuffer &buffer, const uint32_t bucketOffsetInFile);
-    uint32_t saveToDisk(Streaming::BufferPool &pool);
+    void fillFromDisk(const Streaming::ConstBuffer &buffer, const int32_t bucketOffsetInFile);
+    int32_t saveToDisk(Streaming::BufferPool &pool);
 };
 
 namespace UODB {
@@ -121,26 +120,25 @@ class DataFile {
 public:
     DataFile(const boost::filesystem::path &filename);
 
-    void insert(const uint256 &txid, int outIndex, int offsetInBlock, int blockHeight);
+    void insert(const UODBPrivate *priv, const uint256 &txid, int outIndex, int blockHeight, int offsetInBlock);
     UnspentOutput find(const uint256 &txid, int index) const;
-    bool remove(const uint256 &txid, int index);
+    SpentOutput remove(const UODBPrivate *priv, const uint256 &txid, int index);
 
-    // writing to disk
+    // writing to disk.
     void flushSomeNodesToDisk(ForceBool force);
     void flushAll();
-    uint32_t saveLeaf(const UnspentOutput &uo);
-    bool jumptableNeedsSave = false;
-    bool fileFull = false;
+    int32_t saveLeaf(const UnspentOutput &uo);
+    bool m_jumptableNeedsSave = false;
+    bool m_fileFull = false;
 
     // in-memory representation
     Streaming::BufferPool m_memBuffers;
     uint32_t m_jumptables[0x100000];
-    std::map<int, Bucket> m_buckets;
+    std::unordered_map<int, Bucket> m_buckets;
     int m_bucketIndex = 1;
     // unsaved leafs.
-    std::map<int, UnspentOutput> m_leafs;
+    std::unordered_map<int, UnspentOutput> m_leafs;
     int m_leafIndex = 1;
-    bool m_flushScheduled = false;
 
     // on-disk file.
     const boost::filesystem::path m_path;
@@ -149,14 +147,18 @@ public:
     boost::iostreams::mapped_file m_file;
 
     /// wipes and creates a new datafile
-    static DataFile *createDatafile(const boost::filesystem::path &filename, int firstBlockindex);
+    static DataFile *createDatafile(const boost::filesystem::path &filename, int firstBlockindex, const uint256 &firstHash);
 
-    // mutable std::recursive_mutex m_lock;
-    mutable boost::shared_mutex m_lock;
+    mutable std::recursive_mutex m_lock;
 
     int m_initialBlockHeight = 0;
     int m_lastBlockheight = 0;
     uint256 m_lastBlockHash;
+
+    // Amount of inserts/deletes since last flush
+    int m_changeCount = 0;
+    int m_changesSinceJumptableWritten = 0;
+    bool m_flushScheduled = false;
 };
 
 class UODBPrivate
@@ -165,14 +167,15 @@ public:
     UODBPrivate(boost::asio::io_service &service,  const boost::filesystem::path &basedir);
     ~UODBPrivate();
 
+    // find existing DataFiles
+    void init();
+
     void flushNodesToDisk();
     boost::filesystem::path filepathForIndex(int fileIndex);
 
     boost::asio::io_service& ioService;
 
-    bool flushScheduled = false;
-    int unflushedLeaves = 0;
-    int changesSinceJumptableWritten = 0;
+    bool memOnly = false; //< if true, we never flush to disk.
 
     const boost::filesystem::path basedir;
 

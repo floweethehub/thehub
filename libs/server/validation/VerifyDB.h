@@ -20,14 +20,12 @@
 
 #include "Engine.h"
 
-class CCoinsView;
-
 class VerifyDB
 {
 public:
     VerifyDB();
     ~VerifyDB();
-    bool verifyDB(CCoinsView *coinsview, int nCheckLevel, int nCheckDepth);
+    bool verifyDB(int nCheckLevel, int nCheckDepth);
 
     Validation::Engine validator;
 };

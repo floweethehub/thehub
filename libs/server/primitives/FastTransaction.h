@@ -23,6 +23,7 @@
 #include <streaming/ConstBuffer.h>
 
 #include <uint256.h>
+#include <script/script.h>
 
 class CTransaction;
 class FastBlock;
@@ -120,7 +121,7 @@ public:
         /// This iterator skips the block-header and reads the first transaction. After a Tx::End
         /// it continues to the next transaction. At the end of the block Tx::Ends will continue
         /// repeatedly.
-        Iterator(const FastBlock &block);
+        Iterator(const FastBlock &block, int offsetInBlock = 0);
         Iterator(const Iterator &other) = delete;
         Iterator(const Iterator && other);
         ~Iterator();
@@ -164,8 +165,41 @@ public:
         TxTokenizer *d;
     };
 
+    struct Input {
+        uint256 txid;
+        int index = -1;
+        int dataFile = -1; // unused here, but useful for the UnspentOutputDatabase
+    };
+    struct Output {
+        CScript outputScript;
+        int64_t outputValue = -1;
+    };
+
+    /**
+     * Takes an iterator and finds + returns all the inputs.
+     * The iterator will halt at the first value of an output (Tx::OutputValue) or Tx::End
+     */
+    static std::list<Input> findInputs(Tx::Iterator &iter);
+
+    static Output nextOutput(Tx::Iterator &iter);
+
+    Output output(int index) const;
+
 private:
     Streaming::ConstBuffer m_data;
 };
+
+bool operator==(const Tx::Input &a, const Tx::Input &b);
+inline bool operator!=(const Tx::Input &a, const Tx::Input &b) { return !operator==(a, b); }
+namespace boost {
+template <>
+struct hash<Tx::Input> {
+    std::size_t operator()(const Tx::Input& k) const {
+        uint64_t x = k.index << 32 + k.dataFile;
+        return k.txid.GetCheapHash() ^ x;
+    }
+};
+}
+
 
 #endif

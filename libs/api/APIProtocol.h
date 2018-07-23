@@ -169,10 +169,7 @@ enum MessageIds {
 //   getmempoolinfo
 //   getrawmempool ( verbose )
 //   gettxout "txid" n ( includemempool )
-//   gettxoutproof ["txid",...] ( blockhash )
-//   gettxoutsetinfo
 //   verifychain ( checklevel numblocks )
-//   verifytxoutproof "proof"
 };
 
 enum Tags {

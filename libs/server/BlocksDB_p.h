@@ -51,8 +51,8 @@ public:
     DBPrivate();
     ~DBPrivate();
 
-    Streaming::ConstBuffer loadBlock(CDiskBlockPos pos, BlockType type, const uint256 *blockHash);
-    Streaming::ConstBuffer writeBlock(const Streaming::ConstBuffer &block, CDiskBlockPos &pos, BlockType type, const uint256 *blockHash);
+    Streaming::ConstBuffer loadBlock(CDiskBlockPos pos, BlockType type);
+    Streaming::ConstBuffer writeBlock(const std::deque<Streaming::ConstBuffer> &block, CDiskBlockPos &pos, BlockType type);
     void unloadIndexMap();
     void foundBlockFile(int index, const CBlockFileInfo &info);
 

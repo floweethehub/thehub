@@ -26,6 +26,10 @@
 #include "tinyformat.h"
 #include "util.h"
 #include "utilstrencodings.h"
+#include <primitives/FastTransaction.h>
+
+#include <utxo/UnspentOutputDatabase.h>
+#include <UnspentOutputData.h>
 
 #include <cmath>
 #include <boost/foreach.hpp>
@@ -136,66 +140,22 @@ bool IsStandardTx(const CTransaction& tx, std::string& reason)
     return true;
 }
 
-bool AreInputsStandard(const CTransaction& tx, const CCoinsViewCache& mapInputs)
+bool Policy::isInputStandard(const CScript &outputScript, const CScript &inputScript)
 {
-    if (tx.IsCoinBase())
-        return true; // Coinbases don't use vin normally
-
-    for (unsigned int i = 0; i < tx.vin.size(); i++)
-    {
-        const CTxOut& prev = mapInputs.GetOutputFor(tx.vin[i]);
-
-        std::vector<std::vector<unsigned char> > vSolutions;
-        txnouttype whichType;
-        // get the scriptPubKey corresponding to this input:
-        const CScript& prevScript = prev.scriptPubKey;
-        if (!Solver(prevScript, whichType, vSolutions))
+    std::vector<std::vector<unsigned char> > vSolutions;
+    txnouttype whichType;
+    if (!Solver(outputScript, whichType, vSolutions))
+        return false;
+    if (whichType == TX_SCRIPTHASH) {
+        std::vector<std::vector<unsigned char> > stack;
+        // convert the scriptSig into a stack, so we can inspect the redeemScript
+        if (!EvalScript(stack, inputScript, SCRIPT_VERIFY_NONE, BaseSignatureChecker(), nullptr))
             return false;
-
-        if (whichType == TX_SCRIPTHASH)
-        {
-            std::vector<std::vector<unsigned char> > stack;
-            // convert the scriptSig into a stack, so we can inspect the redeemScript
-            if (!EvalScript(stack, tx.vin[i].scriptSig, SCRIPT_VERIFY_NONE, BaseSignatureChecker(), 0))
-                return false;
-            if (stack.empty())
-                return false;
-            CScript subscript(stack.back().begin(), stack.back().end());
-            if (subscript.GetSigOpCount(true) > MAX_P2SH_SIGOPS) {
-                return false;
-            }
-        }
-    }
-
-    return true;
-}
-
-bool Policy::areInputsStandard(const CTransaction& tx, const std::vector<CCoins> &inputs)
-{
-    assert(!tx.IsCoinBase());
-    int i = 0;
-    for (const CTxIn &input : tx.vin) {
-        const CCoins &coin = inputs.at(i++);
-        const CTxOut& prev = coin.vout.at(input.prevout.n);
-
-        std::vector<std::vector<unsigned char> > vSolutions;
-        txnouttype whichType;
-        // get the scriptPubKey corresponding to this input:
-        const CScript& prevScript = prev.scriptPubKey;
-        if (!Solver(prevScript, whichType, vSolutions))
+        if (stack.empty())
             return false;
-
-        if (whichType == TX_SCRIPTHASH) {
-            std::vector<std::vector<unsigned char> > stack;
-            // convert the scriptSig into a stack, so we can inspect the redeemScript
-            if (!EvalScript(stack, input.scriptSig, SCRIPT_VERIFY_NONE, BaseSignatureChecker(), 0))
-                return false;
-            if (stack.empty())
-                return false;
-            CScript subscript(stack.back().begin(), stack.back().end());
-            if (subscript.GetSigOpCount(true) > MAX_P2SH_SIGOPS) {
-                return false;
-            }
+        CScript subscript(stack.back().begin(), stack.back().end());
+        if (subscript.GetSigOpCount(true) > MAX_P2SH_SIGOPS) {
+            return false;
         }
     }
 
@@ -234,4 +194,28 @@ uint32_t Policy::blockSigOpAcceptLimit(int32_t nBlockSize)
         return MAX_BLOCK_SIGOPS_PER_MB;
     uint32_t nBlockSizeMb = 1 + ((static_cast<uint32_t>(nBlockSize) - 1) / 1000000);
     return nBlockSizeMb * MAX_BLOCK_SIGOPS_PER_MB;
+}
+
+bool Policy::areInputsStandard(const Tx &tx, const UnspentOutputDatabase *utxo)
+{
+    Tx::Iterator iter(tx);
+    auto type = iter.next(Tx::PrevTxHash);
+    while (type != Tx::End) {
+        uint256 prevTxHash = iter.uint256Data();
+        type = iter.next();
+        if (type != Tx::PrevTxIndex)
+            return false;
+        UnspentOutputData data(utxo->find(prevTxHash, iter.intData()));
+        if (!data.isValid())
+            return false;
+        type = iter.next();
+        if (type != Tx::TxInScript)
+            return false;
+
+        const bool isStandardInput = isInputStandard(data.outputScript(), iter.byteData());
+        if (!isStandardInput)
+            return false;
+        type = iter.next(Tx::PrevTxHash);
+    }
+    return true;
 }

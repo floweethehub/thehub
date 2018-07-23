@@ -27,7 +27,6 @@ set (FLOWEE_SERVER_FILES
     chain.cpp
     chainparams.cpp
     checkpoints.cpp
-    coins.cpp
     compressor.cpp
     consensus/merkle.cpp
     core_read.cpp
@@ -73,9 +72,9 @@ set (FLOWEE_SERVER_FILES
     thinblock.cpp
     timedata.cpp
     torcontrol.cpp
-    txdb.cpp
     txmempool.cpp
     txorphancache.cpp
+    UnspentOutputData.cpp
     validation/BlockValidation.cpp
     validation/Engine.cpp
     validation/TxValidation.cpp
@@ -115,4 +114,4 @@ add_dependencies(flowee_server univalue)
 add_dependencies(flowee_server secp256k1)
 add_dependencies(flowee_server leveldb)
 
-target_link_libraries(flowee_server flowee_utils)
+target_link_libraries(flowee_server flowee_utils flowee_utxo)

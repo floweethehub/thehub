@@ -23,7 +23,6 @@
 #include "consensus/consensus.h"
 #include "consensus/validation.h"
 #include "main.h"
-#include "coins.h"
 #include "policy/fees.h"
 #include "streams.h"
 #include "timedata.h"
@@ -31,7 +30,9 @@
 #include "utilmoneystr.h"
 #include "utiltime.h"
 #include "version.h"
+#include <core_memusage.h>
 
+#include <utxo/UnspentOutputDatabase.h>
 #include <validation/ValidationException.h>
 #include <validationinterface.h>
 
@@ -355,14 +356,10 @@ void CTxMemPoolEntry::UpdateState(int64_t modifySize, CAmount modifyFee, int64_t
 }
 
 CTxMemPool::CTxMemPool(const CFeeRate& _minReasonableRelayFee) :
-    nTransactionsUpdated(0)
+    nTransactionsUpdated(0),
+    m_utxo()
 {
     _clear(); //lock free clear
-
-    // Sanity checks off by default for performance, because otherwise
-    // accepting transactions becomes O(N^2) where N is the number
-    // of transactions in the pool
-    nCheckFrequency = 0;
 
     minerPolicyEstimator = new CBlockPolicyEstimator(_minReasonableRelayFee);
     minReasonableRelayFee = _minReasonableRelayFee;
@@ -371,19 +368,6 @@ CTxMemPool::CTxMemPool(const CFeeRate& _minReasonableRelayFee) :
 CTxMemPool::~CTxMemPool()
 {
     delete minerPolicyEstimator;
-}
-
-void CTxMemPool::pruneSpent(const uint256 &hashTx, CCoins &coins)
-{
-    LOCK(cs);
-
-    std::map<COutPoint, CInPoint>::iterator it = mapNextTx.lower_bound(COutPoint(hashTx, 0));
-
-    // iterate over all COutPoints in mapNextTx whose hash equals the provided hashTx
-    while (it != mapNextTx.end() && it->first.hash == hashTx) {
-        coins.Spend(it->first.n); // and remove those outputs from coins
-        it++;
-    }
 }
 
 unsigned int CTxMemPool::GetTransactionsUpdated() const
@@ -452,7 +436,7 @@ void CTxMemPool::addUnchecked(const uint256& hash, const CTxMemPoolEntry &entry,
 
 bool CTxMemPool::insertTx(const CTxMemPoolEntry &entry)
 {
-    assert(m_coins);
+    assert(m_utxo);
     LOCK(cs);
 
     if (exists(entry.tx.createHash()))
@@ -472,10 +456,9 @@ bool CTxMemPool::insertTx(const CTxMemPoolEntry &entry)
                 continue; // found it in mempool.
         }
 
-        const CCoins* coins = m_coins->AccessCoins(txin.prevout.hash);
-        if (!coins || !coins->IsAvailable(txin.prevout.n)) {
+        const UnspentOutput uo = m_utxo->find(txin.prevout.hash, txin.prevout.n);
+        if (!uo.isValid())
             return false;
-        }
     }
 
     addUnchecked(entry.tx.createHash(), entry, true);
@@ -582,8 +565,9 @@ void CTxMemPool::removeForReorg(unsigned int nMemPoolHeight, int flags)
                 indexed_transaction_set::const_iterator it2 = mapTx.find(txin.prevout.hash);
                 if (it2 != mapTx.end())
                     continue;
-                const CCoins *coins = m_coins->AccessCoins(txin.prevout.hash);
-                if (!coins || (coins->IsCoinBase() && ((signed long)nMemPoolHeight) - coins->nHeight < COINBASE_MATURITY)) {
+
+                const UnspentOutput uo = m_utxo->find(txin.prevout.hash, txin.prevout.n);
+                if (!uo.isValid() || (uo.isCoinbase() && ((signed long)nMemPoolHeight) - uo.blockHeight() < COINBASE_MATURITY)) {
                     transactionsToRemove.push_back(tx);
                     break;
                 }
@@ -620,21 +604,18 @@ void CTxMemPool::removeConflicts(const CTransaction &tx, std::list<CTransaction>
 /**
  * Called when a block is connected. Removes from mempool and updates the miner fee estimator.
  */
-void CTxMemPool::removeForBlock(const std::vector<CTransaction>& vtx, unsigned int nBlockHeight,
-                                std::list<CTransaction>& conflicts, bool fCurrentEstimate, CCoinsViewCache *utxoDBCursor, uint32_t *utxoBench)
+void CTxMemPool::removeForBlock(const std::vector<CTransaction> &vtx, unsigned int nBlockHeight, std::list<CTransaction> &conflicts, bool fCurrentEstimate)
 {
     LOCK(cs);
     std::vector<CTxMemPoolEntry> entries;
-    BOOST_FOREACH(const CTransaction& tx, vtx)
-    {
+    for (const CTransaction& tx : vtx) {
         uint256 hash = tx.GetHash();
 
         indexed_transaction_set::iterator i = mapTx.find(hash);
         if (i != mapTx.end())
             entries.push_back(*i);
     }
-    BOOST_FOREACH(const CTransaction& tx, vtx)
-    {
+    for (const CTransaction& tx : vtx) {
         std::list<CTransaction> dummy;
         remove(tx, dummy, false);
         removeConflicts(tx, conflicts);
@@ -644,17 +625,6 @@ void CTxMemPool::removeForBlock(const std::vector<CTransaction>& vtx, unsigned i
     minerPolicyEstimator->processBlock(nBlockHeight, entries, fCurrentEstimate);
     lastRollingFeeUpdate = GetTime();
     blockSinceLastRollingFeeBump = true;
-
-    if (utxoDBCursor) {
-        int64_t start = GetTimeMicros();
-        bool flushSuccess = utxoDBCursor->Flush();
-        if (!flushSuccess)
-            throw std::runtime_error("Failed to flush UTXO");
-        if (utxoBench) {
-            int64_t end = GetTimeMicros();
-            *utxoBench = end - start;
-        }
-    }
 }
 
 void CTxMemPool::_clear()
@@ -676,116 +646,6 @@ void CTxMemPool::clear()
     _clear();
 }
 
-void CTxMemPool::check() const
-{
-#ifndef NDEBUG
-    if (nCheckFrequency == 0)
-        return;
-
-    if (insecure_rand() >= nCheckFrequency)
-        return;
-
-    LOCK(cs);
-    logInfo(Log::TxValidation) << "Checking mempool with" << mapTx.size() << "transactions and" << mapNextTx.size() << "inputs";
-
-    uint64_t checkTotal = 0;
-    uint64_t innerUsage = 0;
-
-    CCoinsViewCache mempoolDuplicate(const_cast<CCoinsViewCache*>(m_coins));
-
-    std::list<const CTxMemPoolEntry*> waitingOnDependants;
-    for (indexed_transaction_set::const_iterator it = mapTx.begin(); it != mapTx.end(); it++) {
-        unsigned int i = 0;
-        checkTotal += it->GetTxSize();
-        innerUsage += it->DynamicMemoryUsage();
-        const CTransaction& tx = it->GetTx();
-        txlinksMap::const_iterator linksiter = mapLinks.find(it);
-        assert(linksiter != mapLinks.end());
-        const TxLinks &links = linksiter->second;
-        innerUsage += memusage::DynamicUsage(links.parents) + memusage::DynamicUsage(links.children);
-        bool fDependsWait = false;
-        setEntries setParentCheck;
-        BOOST_FOREACH(const CTxIn &txin, tx.vin) {
-            // Check that every mempool transaction's inputs refer to available coins, or other mempool tx's.
-            indexed_transaction_set::const_iterator it2 = mapTx.find(txin.prevout.hash);
-            if (it2 != mapTx.end()) {
-                const CTransaction& tx2 = it2->GetTx();
-                assert(tx2.vout.size() > txin.prevout.n && !tx2.vout[txin.prevout.n].IsNull());
-                fDependsWait = true;
-                setParentCheck.insert(it2);
-            } else {
-                const CCoins* coins = m_coins->AccessCoins(txin.prevout.hash);
-                assert(coins && coins->IsAvailable(txin.prevout.n));
-            }
-            // Check whether its inputs are marked in mapNextTx.
-            std::map<COutPoint, CInPoint>::const_iterator it3 = mapNextTx.find(txin.prevout);
-            assert(it3 != mapNextTx.end());
-            assert(it3->second.ptx == &tx);
-            assert(it3->second.n == i);
-            i++;
-        }
-        assert(setParentCheck == GetMemPoolParents(it));
-        // Check children against mapNextTx
-        CTxMemPool::setEntries setChildrenCheck;
-        std::map<COutPoint, CInPoint>::const_iterator iter = mapNextTx.lower_bound(COutPoint(it->GetTx().GetHash(), 0));
-        int64_t childSizes = 0;
-        CAmount childModFee = 0;
-        for (; iter != mapNextTx.end() && iter->first.hash == it->GetTx().GetHash(); ++iter) {
-            txiter childit = mapTx.find(iter->second.ptx->GetHash());
-            assert(childit != mapTx.end()); // mapNextTx points to in-mempool transactions
-            if (setChildrenCheck.insert(childit).second) {
-                childSizes += childit->GetTxSize();
-                childModFee += childit->GetModifiedFee();
-            }
-        }
-        assert(setChildrenCheck == GetMemPoolChildren(it));
-        // Also check to make sure size is greater than sum with immediate children.
-        // just a sanity check, not definitive that this calc is correct...
-        if (!it->IsDirty()) {
-            assert(it->GetSizeWithDescendants() >= childSizes + it->GetTxSize());
-        } else {
-            assert(it->GetSizeWithDescendants() == it->GetTxSize());
-            assert(it->GetModFeesWithDescendants() == it->GetModifiedFee());
-        }
-
-        if (fDependsWait)
-            waitingOnDependants.push_back(&(*it));
-        else {
-            CValidationState state;
-            assert(CheckInputs(tx, state, mempoolDuplicate, false, 0, false, NULL));
-            UpdateCoins(tx, state, mempoolDuplicate, 1000000);
-        }
-    }
-    unsigned int stepsSinceLastRemove = 0;
-    while (!waitingOnDependants.empty()) {
-        const CTxMemPoolEntry* entry = waitingOnDependants.front();
-        waitingOnDependants.pop_front();
-        CValidationState state;
-        if (!mempoolDuplicate.HaveInputs(entry->GetTx())) {
-            waitingOnDependants.push_back(entry);
-            stepsSinceLastRemove++;
-            assert(stepsSinceLastRemove < waitingOnDependants.size());
-        } else {
-            // assert(CheckInputs(entry->GetTx(), state, mempoolDuplicate, false, 0, false, NULL));
-            UpdateCoins(entry->GetTx(), state, mempoolDuplicate, 1000000);
-            stepsSinceLastRemove = 0;
-        }
-    }
-    for (std::map<COutPoint, CInPoint>::const_iterator it = mapNextTx.begin(); it != mapNextTx.end(); it++) {
-        uint256 hash = it->second.ptx->GetHash();
-        indexed_transaction_set::const_iterator it2 = mapTx.find(hash);
-        const CTransaction& tx = it2->GetTx();
-        assert(it2 != mapTx.end());
-        assert(&tx == it->second.ptx);
-        assert(tx.vin.size() > it->second.n);
-        assert(it->first == it->second.ptx->vin[it->second.n].prevout);
-    }
-
-    assert(totalTxSize == checkTotal);
-    assert(innerUsage == cachedInnerUsage);
-#endif
-}
-
 void CTxMemPool::queryHashes(std::vector<uint256>& vtxid)
 {
     vtxid.clear();
@@ -796,7 +656,7 @@ void CTxMemPool::queryHashes(std::vector<uint256>& vtxid)
         vtxid.push_back(mi->GetTx().GetHash());
 }
 
-bool CTxMemPool::lookup(uint256 hash, CTransaction& result) const
+bool CTxMemPool::lookup(uint256 hash, CTransaction &result) const
 {
     LOCK(cs);
     indexed_transaction_set::const_iterator i = mapTx.find(hash);
@@ -804,6 +664,16 @@ bool CTxMemPool::lookup(uint256 hash, CTransaction& result) const
     result = i->GetTx();
     return true;
 }
+
+bool CTxMemPool::lookup(uint256 hash, Tx& result) const
+{
+    LOCK(cs);
+    indexed_transaction_set::const_iterator i = mapTx.find(hash);
+    if (i == mapTx.end()) return false;
+    result = i->tx;
+    return true;
+}
+
 
 CFeeRate CTxMemPool::estimateFee(int nBlocks) const
 {
@@ -909,24 +779,6 @@ bool CTxMemPool::HasNoInputsOf(const CTransaction &tx) const
     return true;
 }
 
-CCoinsViewMemPool::CCoinsViewMemPool(CTxMemPool *mempool) : CCoinsViewBacked(mempool->coins()), mempool(mempool) { }
-
-bool CCoinsViewMemPool::GetCoins(const uint256 &txid, CCoins &coins) const {
-    // If an entry in the mempool exists, always return that one, as it's guaranteed to never
-    // conflict with the underlying cache, and it cannot have pruned entries (as it contains full)
-    // transactions. First checking the underlying cache risks returning a pruned entry instead.
-    CTransaction tx;
-    if (mempool->lookup(txid, tx)) {
-        coins = CCoins(tx, MEMPOOL_HEIGHT);
-        return true;
-    }
-    return (base->GetCoins(txid, coins) && !coins.IsPruned());
-}
-
-bool CCoinsViewMemPool::HaveCoins(const uint256 &txid) const {
-    return mempool->exists(txid) || base->HaveCoins(txid);
-}
-
 size_t CTxMemPool::DynamicMemoryUsage() const {
     LOCK(cs);
     // Estimate the overhead of mapTx to be 12 pointers + an allocation, as no exact formula for boost::multi_index_contained is implemented.
@@ -1003,16 +855,12 @@ const CTxMemPool::setEntries & CTxMemPool::GetMemPoolChildren(txiter entry) cons
     return it->second.children;
 }
 
-void CTxMemPool::setCoinsView(CCoinsViewCache *coins)
+void CTxMemPool::setUtxo(UnspentOutputDatabase *utxo)
 {
-    assert(coins);
-    m_coins = coins;
+    assert(utxo);
+    m_utxo = utxo;
 }
 
-CCoinsViewCache *CTxMemPool::coins() const
-{
-    return m_coins;
-}
 
 CFeeRate CTxMemPool::GetMinFee(size_t sizelimit) const {
     LOCK(cs);

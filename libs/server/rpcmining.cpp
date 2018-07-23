@@ -534,7 +534,7 @@ UniValue getblocktemplate(const UniValue& params, bool fHelp)
 
     UniValue transactions(UniValue::VARR);
     std::map<uint256, int64_t> setTxIndex;
-    int i = 0;
+    size_t i = 0;
     BOOST_FOREACH (const CTransaction& tx, pblock->vtx) {
         uint256 txHash = tx.GetHash();
         setTxIndex[txHash] = i++;
@@ -556,9 +556,10 @@ UniValue getblocktemplate(const UniValue& params, bool fHelp)
         }
         entry.push_back(Pair("depends", deps));
 
-        int index_in_template = i - 1;
+        assert(i > 0);
+        size_t index_in_template = i - 1;
         entry.push_back(Pair("fee", pblocktemplate->vTxFees[index_in_template]));
-        entry.push_back(Pair("sigops", pblocktemplate->vTxSigOps[index_in_template]));
+        entry.push_back(Pair("sigops", static_cast<int64_t>(pblocktemplate->vTxSigOps[index_in_template])));
 
         transactions.push_back(entry);
     }

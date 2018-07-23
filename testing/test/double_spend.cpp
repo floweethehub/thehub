@@ -21,6 +21,7 @@
 #include <script/sign.h>
 #include <keystore.h>
 #include <validationinterface.h>
+#include <utilstrencodings.h>
 
 #include <boost/test/auto_unit_test.hpp>
 

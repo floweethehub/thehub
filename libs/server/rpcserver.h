@@ -260,7 +260,6 @@ extern UniValue decodescript(const UniValue& params, bool fHelp);
 extern UniValue fundrawtransaction(const UniValue& params, bool fHelp);
 extern UniValue signrawtransaction(const UniValue& params, bool fHelp);
 extern UniValue sendrawtransaction(const UniValue& params, bool fHelp);
-extern UniValue gettxoutproof(const UniValue& params, bool fHelp);
 extern UniValue verifytxoutproof(const UniValue& params, bool fHelp);
 
 extern UniValue getblockcount(const UniValue& params, bool fHelp); // in rpcblockchain.cpp
@@ -272,7 +271,6 @@ extern UniValue getrawmempool(const UniValue& params, bool fHelp);
 extern UniValue getblockhash(const UniValue& params, bool fHelp);
 extern UniValue getblockheader(const UniValue& params, bool fHelp);
 extern UniValue getblock(const UniValue& params, bool fHelp);
-extern UniValue gettxoutsetinfo(const UniValue& params, bool fHelp);
 extern UniValue gettxout(const UniValue& params, bool fHelp);
 extern UniValue verifychain(const UniValue& params, bool fHelp);
 extern UniValue getchaintips(const UniValue& params, bool fHelp);

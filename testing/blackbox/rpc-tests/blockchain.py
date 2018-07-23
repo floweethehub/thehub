@@ -27,7 +27,6 @@ class BlockchainTest(BitcoinTestFramework):
     """
     Test blockchain-related RPC calls:
 
-        - gettxoutsetinfo
         - verifychain
 
     """
@@ -43,21 +42,8 @@ class BlockchainTest(BitcoinTestFramework):
         self.sync_all()
 
     def run_test(self):
-        self._test_gettxoutsetinfo()
         self._test_getblockheader()
         self.nodes[0].verifychain(4, 0)
-
-    def _test_gettxoutsetinfo(self):
-        node = self.nodes[0]
-        res = node.gettxoutsetinfo()
-
-        assert_equal(res[u'total_amount'], Decimal('8725.00000000'))
-        assert_equal(res[u'transactions'], 200)
-        assert_equal(res[u'height'], 200)
-        assert_equal(res[u'txouts'], 200)
-        assert_equal(res[u'bytes_serialized'], 13924),
-        assert_equal(len(res[u'bestblock']), 64)
-        assert_equal(len(res[u'hash_serialized']), 64)
 
     def _test_getblockheader(self):
         node = self.nodes[0]

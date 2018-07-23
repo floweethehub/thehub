@@ -19,6 +19,7 @@
 #include "Engine.h"
 #include <SettingsDefaults.h>
 #include <primitives/transaction.h>
+#include <UnspentOutputData.h>
 #include "ValidationException.h"
 #include "TxValidation_p.h"
 #include <Application.h>
@@ -28,6 +29,8 @@
 #include <validationinterface.h>
 #include <chainparams.h>
 #include <consensus/consensus.h>
+#include <utxo/UnspentOutputDatabase.h>
+#include <util.h>
 
 // #define DEBUG_TRANSACTION_VALIDATION
 #ifdef DEBUG_TRANSACTION_VALIDATION
@@ -38,21 +41,20 @@
 
 using Validation::Exception;
 
-void ValidationPrivate::validateTransactionInputs(CTransaction &tx, const std::vector<CCoins> &coins, int blockHeight, ValidationFlags flags, int64_t &fees, uint32_t &txSigops, bool &spendsCoinbase)
+void ValidationPrivate::validateTransactionInputs(CTransaction &tx, const std::vector<UnspentOutput> &unspents, int blockHeight, ValidationFlags flags, int64_t &fees, uint32_t &txSigops, bool &spendsCoinbase)
 {
-    assert(coins.size() == tx.vin.size());
+    assert(unspents.size() == tx.vin.size());
 
     int64_t valueIn = 0;
-    assert(tx.vin.size() == coins.size());
     for (size_t i = 0; i < tx.vin.size(); ++i) {
-        const CTxOut &prevout = coins.at(i).vout[tx.vin[i].prevout.n];
-        if (flags.strictPayToScriptHash && prevout.scriptPubKey.IsPayToScriptHash()) {
+        const ValidationPrivate::UnspentOutput &prevout = unspents.at(i);
+        if (flags.strictPayToScriptHash && prevout.outputScript.IsPayToScriptHash()) {
             // Add in sigops done by pay-to-script-hash inputs;
             // this is to prevent a "rogue miner" from creating
             // an incredibly-expensive-to-validate block.
-            txSigops += prevout.scriptPubKey.GetSigOpCount(tx.vin[i].scriptSig);
+            txSigops += prevout.outputScript.GetSigOpCount(tx.vin[i].scriptSig);
         }
-        valueIn += prevout.nValue;
+        valueIn += prevout.amount;
     }
     if (txSigops > MAX_BLOCK_SIGOPS_PER_MB)
         throw Exception("bad-tx-sigops");
@@ -83,18 +85,18 @@ void ValidationPrivate::validateTransactionInputs(CTransaction &tx, const std::v
     spendsCoinbase = false;
     const uint32_t scriptValidationFlags = flags.scriptValidationFlags();
     for (unsigned int i = 0; i < tx.vin.size(); i++) {
-        const CCoins &coin = coins.at(i);
-        if (coin.IsCoinBase()) { // If prev is coinbase, check that it's matured
+        const ValidationPrivate::UnspentOutput &prevout = unspents.at(i);
+        if (prevout.isCoinbase) { // If prev is coinbase, check that it's matured
             spendsCoinbase = true;
-            if (blockHeight - coin.nHeight < COINBASE_MATURITY)
+            if (blockHeight - prevout.blockheight < COINBASE_MATURITY)
                 throw Exception("bad-txns-premature-spend-of-coinbase");
         }
 
-        if (!MoneyRange(coin.vout[tx.vin.at(i).prevout.n].nValue))
+        if (!MoneyRange(prevout.amount))
             throw Exception("bad-txns-inputvalues-outofrange");
 
         // Verify signature
-        CScriptCheck check(coin, tx, i, scriptValidationFlags, false);
+        CScriptCheck check(prevout.outputScript, prevout.amount, tx, i, scriptValidationFlags, false);
         if (!check()) {
             if (scriptValidationFlags & STANDARD_NOT_MANDATORY_VERIFY_FLAGS) {
                 // Check whether the failure was caused by a
@@ -103,7 +105,7 @@ void ValidationPrivate::validateTransactionInputs(CTransaction &tx, const std::v
                 // arguments; if so, don't trigger DoS protection to
                 // avoid splitting the network between upgraded and
                 // non-upgraded nodes.
-                CScriptCheck check2(coin, tx, i, scriptValidationFlags & ~STANDARD_NOT_MANDATORY_VERIFY_FLAGS, false);
+                CScriptCheck check2(prevout.outputScript, prevout.amount, tx, i, scriptValidationFlags & ~STANDARD_NOT_MANDATORY_VERIFY_FLAGS, false);
                 if (check2())
                     throw Exception(strprintf("non-mandatory-script-verify-flag (%s)", ScriptErrorString(check.GetScriptError())), Validation::RejectNonstandard);
             }
@@ -177,7 +179,7 @@ TxValidationState::~TxValidationState()
 {
     try {
         m_promise.set_value(std::string());
-    } catch (std::exception &e) {}
+    } catch (std::exception &) {}
 }
 
 void TxValidationState::checkTransaction()
@@ -228,81 +230,117 @@ void TxValidationState::checkTransaction()
             throw Exception("non-final", Validation::RejectNonstandard, 0);
 
         CTxMemPoolEntry entry(m_tx);
-        entry.entryHeight = tip->nHeight;
+        entry.entryHeight = static_cast<std::uint32_t>(tip->nHeight);
+        entry.inChainInputValue = 0;
 
         {
-            CCoinsView dummy;
-            CCoinsViewCache view(&dummy);
+            /*
+             * Now we iterate over the inputs of the tx and connect them to outputs they spend.
+             * We reject when something is fishy.
+             *
+             * Outputs they spend can come from the mempool or the UTXO. We have a codepath to address each separately.
+             * This optimizes for speed, so we don't try to push both usecases though the same codepath. This may mean
+             * its a tad harder to follow.  I am only sorry for not being sorry.
+             */
 
-            std::vector<CCoins> coins;
+            std::vector<Tx> mempoolTransactions;
+            mempoolTransactions.resize(tx.vin.size());
             {
                 LOCK(parent->mempool->cs);
-                CCoinsViewMemPool viewMemPool(parent->mempool);
-                view.SetBackend(viewMemPool);
-
-                // do we already have it?
-                if (view.HaveCoins(txid))
+                // do we already have the input tx?
+                if (parent->mempool->exists(txid))
                     throw Exception("txn-already-known", Validation::RejectAlreadyKnown, 0);
 
-                // do all inputs exist?
-                // Note that this does not check for the presence of actual outputs (see the next check for that),
-                // and only helps with filling in inputsMissing (to determine missing vs spent).
-                for (const CTxIn txin : tx.vin) {
-                    if (!view.HaveCoins(txin.prevout.hash)) {
+                // find the ones in the mempool
+                for (size_t i = 0; i < tx.vin.size(); ++i) {
+                    Tx tx;
+                    if (parent->mempool->lookup(txid, tx))
+                        mempoolTransactions[i] = tx;
+                }
+            }
+
+            std::vector<ValidationPrivate::UnspentOutput> unspents; // list of outputs
+            unspents.resize(tx.vin.size());
+            double txPriority = 0;
+            for (size_t i = 0; i < tx.vin.size(); ++i) {
+                ValidationPrivate::UnspentOutput &prevOut = unspents[i];
+                if (mempoolTransactions.at(i).isValid()) { // we found it in the mempool above, in the mempool->lock!
+                    // check if the referenced output exists
+                    // we do that here, outside of the mempool lock, so we don't have to do that later.
+                    Tx::Iterator iter(mempoolTransactions.at(i));
+                    uint32_t outputs = 0;
+                    const uint32_t prevoutIndex = tx.vin.at(i).prevout.n;
+                    while (iter.next(Tx::OutputValue) != Tx::End) { // find all output-value tags.
+                        if (outputs++ == prevoutIndex)
+                            break;
+                    }
+                    if (outputs - 1 < prevoutIndex) {
                         inputsMissing = true;
                         throw Exception("missing-inputs", 0);
                     }
+                    prevOut.amount = static_cast<CAmount>(iter.longData());
+                    auto type = iter.next();
+                    assert(type == Tx::OutputScript); // if it made it into the mempool, its supposed to be well formed.
+                    prevOut.outputScript = iter.byteData();
+                    if (fRequireStandard) {
+                        // Check for non-standard pay-to-script-hash in inputs
+                        if (!Policy::isInputStandard(prevOut.outputScript, tx.vin.at(i).scriptSig))
+                            throw Exception("bad-txns-nonstandard-inputs", Validation::RejectNonstandard, 0);
+                    }
                 }
-
-                // are the actual inputs available?
-                if (!view.HaveInputs(tx))
-                    throw Exception("bad-txns-inputs-spent", Validation::RejectDuplicate, 0);
-
-                // Bring the best block into scope
-                view.GetBestBlock();
-
-                // we have all inputs cached now, so switch back to dummy, so we don't need to keep lock on mempool
-                view.SetBackend(dummy);
-
-                // Only accept BIP68 sequence locked transactions that can be mined in the next
-                // block; we don't want our mempool filled up with transactions that can't
-                // be mined yet.
-                // Must keep pool.cs for this unless we change CheckSequenceLocks to take a
-                // CoinsViewCache instead of create its own
-                if (!CheckSequenceLocks(*parent->mempool, tx, STANDARD_LOCKTIME_VERIFY_FLAGS, &entry.lockPoints, false, tip))
-                    throw Exception("non-BIP68-final", Validation::RejectNonstandard, 0);
-
-                coins = view.coinsForTransaction(m_tx);
+                else {
+                    // prevOut not in mempool, check UTXO
+                    assert(tx.vin[i].prevout.n < 0xEFFFFFFF); // utxo db would not like that. 'n' should not get even moderately big, though.
+                    UnspentOutputData data(g_utxo->find(tx.vin[i].prevout.hash, static_cast<int>(tx.vin[i].prevout.n)));
+                    if (!data.isValid()) {
+                        inputsMissing = true;
+                        throw Exception("missing-inputs", 0);
+                    }
+                    prevOut.amount = data.outputValue();
+                    prevOut.outputScript = data.outputScript();
+                    prevOut.isCoinbase = data.isCoinbase();
+                    prevOut.blockheight = data.blockHeight();
+                    if (fRequireStandard) {
+                        // Check for non-standard pay-to-script-hash in inputs
+                        if (!Policy::isInputStandard(prevOut.outputScript, tx.vin.at(i).scriptSig))
+                            throw Exception("bad-txns-nonstandard-inputs", Validation::RejectNonstandard, 0);
+                    }
+                    txPriority += prevOut.amount * (entry.entryHeight - data.blockHeight());
+                }
+                entry.inChainInputValue += prevOut.amount;
             }
 
-            // Check for non-standard pay-to-script-hash in inputs
-            if (fRequireStandard && !Policy::areInputsStandard(tx, coins))
-                throw Exception("bad-txns-nonstandard-inputs", Validation::RejectNonstandard, 0);
+
+            // Only accept BIP68 sequence locked transactions that can be mined in the next
+            // block; we don't want our mempool filled up with transactions that can't
+            // be mined yet.
+            if (!CheckSequenceLocks(*parent->mempool, tx, STANDARD_LOCKTIME_VERIFY_FLAGS, &entry.lockPoints, false, tip))
+                throw Exception("non-BIP68-final", Validation::RejectNonstandard, 0);
 
             entry.sigOpCount = Validation::countSigOps(tx);
-            ValidationPrivate::validateTransactionInputs(tx, coins, entry.entryHeight + 1, flags, entry.nFee, entry.sigOpCount, entry.spendsCoinbase);
-            coins.clear();
+            ValidationPrivate::validateTransactionInputs(tx, unspents, static_cast<int>(entry.entryHeight) + 1, flags, entry.nFee, entry.sigOpCount, entry.spendsCoinbase);
 
             // nModifiedFees includes any fee deltas from PrioritiseTransaction
             CAmount nModifiedFees = entry.nFee;
             double nPriorityDummy = 0;
             parent->mempool->ApplyDeltas(txid, nPriorityDummy, nModifiedFees);
-
-            entry.entryPriority = view.GetPriority(tx, entry.entryHeight, entry.inChainInputValue);
+            entry.entryPriority = entry.oldTx.ComputePriority(txPriority, entry.tx.size());
             entry.hadNoDependencies = parent->mempool->HasNoInputsOf(tx);
 
-            const unsigned int nSize = entry.GetTxSize();
+            const size_t nSize = entry.GetTxSize();
 
             // Notice nBytesPerSigOp is a global!
             if ((entry.sigOpCount > MAX_STANDARD_TX_SIGOPS) || (nBytesPerSigOp && entry.sigOpCount > nSize / nBytesPerSigOp))
                 throw Exception("bad-txns-too-many-sigops", Validation::RejectNonstandard);
 
-            CAmount mempoolRejectFee = parent->mempool->GetMinFee(GetArg("-maxmempool", Settings::DefaultMaxMempoolSize) * 1000000).GetFee(nSize);
+            const auto size = GetArg("-maxmempool", Settings::DefaultMaxMempoolSize) * 1000000;
+            assert(size >= 0);
+            CAmount mempoolRejectFee = parent->mempool->GetMinFee(static_cast<size_t>(size)).GetFee(nSize);
             if (mempoolRejectFee > 0 && nModifiedFees < mempoolRejectFee) {
                 // return state.DoS(0, false, REJECT_INSUFFICIENTFEE, "mempool min fee not met", false, strprintf("%d < %d", nFees, mempoolRejectFee));
                 throw Exception("mempool min fee not met", Validation::RejectInsufficientFee, 0);
             } else if (GetBoolArg("-relaypriority", Settings::DefaultRelayPriority) && nModifiedFees < ::minRelayTxFee.GetFee(nSize)
-                       && !AllowFree(entry.GetPriority(tip->nHeight + 1))) {
+                       && !AllowFree(entry.GetPriority(static_cast<uint32_t>(tip->nHeight + 1)))) {
                 // Require that free transactions have sufficient priority to be mined in the next block.
                 raii.result = std::string("insufficient priority");
                 return;
@@ -320,7 +358,7 @@ void TxValidationState::checkTransaction()
                 LOCK(csFreeLimiter);
 
                 // Use an exponentially decaying ~10-minute window:
-                dFreeCount *= pow(1.0 - 1.0/600.0, (double)(nNow - nLastTime));
+                dFreeCount *= pow(1.0 - 1.0/600.0, static_cast<double>(nNow - nLastTime));
                 nLastTime = nNow;
                 // -limitfreerelay unit is thousand-bytes-per-minute
                 // At default rate it would take over a month to fill 1GB
@@ -367,7 +405,6 @@ void TxValidationState::checkTransaction()
             parent->mempool->UpdateTransactionsFromBlock(me);
         }
 
-        parent->mempool->check();
         if (m_validationFlags & Validation::ForwardGoodToPeers)
             RelayTransaction(tx);
 
@@ -406,7 +443,8 @@ void TxValidationState::checkTransaction()
             LOCK(cs_main);
             CNode *node = FindNode(m_originatingNodeId);
             if (node) {
-                node->PushMessage(NetMsgType::REJECT, std::string(NetMsgType::TX), (uint8_t)ex.rejectCode(),
+                node->PushMessage(NetMsgType::REJECT, std::string(NetMsgType::TX),
+                                      static_cast<uint8_t>(ex.rejectCode()),
                                       std::string(ex.what()).substr(0, MAX_REJECT_MESSAGE_LENGTH), txid);
                if (ex.punishment() > 0)
                    Misbehaving(m_originatingNodeId, ex.punishment());

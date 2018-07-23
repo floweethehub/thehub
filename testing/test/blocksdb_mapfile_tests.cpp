@@ -186,6 +186,7 @@ BOOST_AUTO_TEST_CASE(mapFile_write)
 
 BOOST_AUTO_TEST_CASE(mapFile_writeUndo)
 {
+    /*
     BOOST_CHECK_EQUAL(vinfoBlockFile.size(), 1);
     vinfoBlockFile[0].nSize = MAX_BLOCKFILE_SIZE - 107;
 
@@ -216,6 +217,7 @@ BOOST_AUTO_TEST_CASE(mapFile_writeUndo)
         BOOST_CHECK_EQUAL(block2.vtxundo[0].vprevout.size(), 1);
         BOOST_CHECK_EQUAL(block2.vtxundo[0].vprevout[0].nVersion, 3);
     }
+    */
 }
 
 BOOST_AUTO_TEST_SUITE_END()

@@ -97,7 +97,7 @@ public:
     void setReindexing(ReindexingState state);
 
     FastBlock loadBlock(CDiskBlockPos pos);
-    FastUndoBlock loadUndoBlock(CDiskBlockPos pos, const uint256 &origBlockHash);
+    FastUndoBlock loadUndoBlock(CDiskBlockPos pos);
     Streaming::ConstBuffer loadBlockFile(int fileIndex);
     FastBlock writeBlock(const FastBlock &block, CDiskBlockPos &pos);
     /**
@@ -107,7 +107,7 @@ public:
      * @param fileIndex the index the original block was written to, this determines which revert index this block goes to.
      * @param posInFile a return value of the position this block ended up in.
      */
-    FastUndoBlock writeUndoBlock(const FastUndoBlock &block, const uint256 &blockHash, int fileIndex, uint32_t *posInFile = 0);
+    void writeUndoBlock(const UndoBlockBuilder &undoBlock, int fileIndex, uint32_t *posInFile = 0);
 
     /**
      * @brief make the blocks-DB aware of a new header-only tip.

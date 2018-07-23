@@ -20,6 +20,7 @@
 #include <boost/test/unit_test.hpp>
 
 #include <validation/BlockValidation_p.h>
+#include <server/BlocksDB.h>
 #include <chainparams.h>
 #include <key.h>
 #include <consensus/merkle.h>

@@ -19,35 +19,103 @@
 
 #include <streams.h>
 #include <undo.h>
+#include <streaming/MessageBuilder.h>
 #include <streaming/BufferPool.h>
 
-FastUndoBlock::FastUndoBlock()
+enum UndoBlockSpec
 {
-}
+    End = 0,
+    StartBlock = 0x10, // with block-hash as arg
+    /// an item that was inserted into the UTXO, that when undone will be removed
+    RMTxId,
+    RMTxOutIndex,
+    /// an item that was deleted from the UTXO, that when undo will be re-inserted.
+    InsTxId,
+    InsTxOutIndex,
+    InsBlockHeight,
+    InsOffsetInBlock
+};
+
 
 FastUndoBlock::FastUndoBlock(const Streaming::ConstBuffer &rawBlock)
-    : m_data(rawBlock)
+    : m_data(rawBlock),
+      m_parser(m_data)
 {
 }
 
-CBlockUndo FastUndoBlock::createOldBlock() const
+FastUndoBlock::Item FastUndoBlock::nextItem()
 {
-    CBlockUndo answer;
-    CDataStream buf(m_data.begin(), m_data.end(), 0 , 0);
-    answer.Unserialize(buf, 0, 0);
-    return std::move(answer);
-}
-
-FastUndoBlock FastUndoBlock::fromOldBlock(const CBlockUndo &block, Streaming::BufferPool *pool)
-{
-    CSizeComputer sc(0, 0);
-    sc << block;
-    if (pool) {
-        pool->reserve(sc.size());
-        block.Serialize(*pool, 0, 0);
-        return FastUndoBlock(pool->commit());
+    FastUndoBlock::Item answer;
+    auto type = m_parser.next();
+    while (type == Streaming::FoundTag) {
+        switch (m_parser.tag()) {
+        case End:
+            return answer;
+        case StartBlock: break;
+        case RMTxId:
+            answer.prevTxId = m_parser.uint256Data();
+            break;
+        case RMTxOutIndex:
+            answer.outputIndex = m_parser.intData();
+            return answer;
+        case InsTxId:
+            answer.prevTxId = m_parser.uint256Data();
+            break;
+        case InsTxOutIndex:
+            answer.outputIndex = m_parser.intData();
+            break;
+        case InsBlockHeight:
+            answer.blockHeight = m_parser.intData();
+            break;
+        case InsOffsetInBlock:
+            answer.blockHeight = m_parser.intData();
+            return answer;
+        default:
+            assert(false);
+            return answer;
+        }
+        type = m_parser.next();
     }
-    Streaming::BufferPool pl(sc.size());
-    block.Serialize(pl, 0, 0);
-    return FastUndoBlock(pl.commit());
+    return answer;
+}
+
+UndoBlockBuilder::UndoBlockBuilder(const uint256 &blockId, Streaming::BufferPool *pool)
+    : m_pool(pool),
+    m_ownsPool(m_pool == nullptr)
+{
+    if (m_ownsPool)
+        m_pool = new Streaming::BufferPool();
+    m_pool->reserve(40);
+    Streaming::MessageBuilder builder(*m_pool);
+    builder.add(StartBlock, blockId);
+    m_data.push_back(builder.buffer());
+}
+
+UndoBlockBuilder::~UndoBlockBuilder()
+{
+    if (m_ownsPool)
+        delete m_pool;
+}
+
+void UndoBlockBuilder::append(const std::deque<FastUndoBlock::Item> &items)
+{
+    m_pool->reserve(items.size() * 60);
+    Streaming::MessageBuilder builder(*m_pool);
+    for (auto item : items) {
+        if (item.isInsert()) { // in undo that means we remember the reverse action
+            builder.add(RMTxId, item.prevTxId);
+            builder.add(RMTxOutIndex, item.outputIndex);
+        } else {
+            builder.add(InsTxId, item.prevTxId);
+            builder.add(InsTxOutIndex, item.outputIndex);
+            builder.add(InsBlockHeight, item.blockHeight);
+            builder.add(InsOffsetInBlock, item.offsetInBlock);
+        }
+    }
+    m_data.push_back(builder.buffer());
+}
+
+std::deque<Streaming::ConstBuffer> UndoBlockBuilder::finish() const
+{
+    return m_data;
 }

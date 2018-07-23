@@ -38,7 +38,7 @@
 class UnspentOutput {
 public:
     UnspentOutput() = default;
-    UnspentOutput(Streaming::BufferPool &pool, const uint256 &txid, int outIndex, int offsetInBlock, int blockHeight);
+    UnspentOutput(Streaming::BufferPool &pool, const uint256 &txid, int outIndex, int blockHeight, int offsetInBlock);
     UnspentOutput(const Streaming::ConstBuffer &buffer);
 
     inline bool isValid() const {
@@ -57,8 +57,15 @@ public:
         return m_blockHeight;
     }
 
+    bool isCoinbase() const;
+
     inline Streaming::ConstBuffer data() const {
         return m_data;
+    }
+
+    /// return the UnspentOutputDatabase internal numbered data file this came from, which helps speed up deletions.
+    int dataFile() const {
+        return m_datafile;
     }
 
 private:
@@ -70,23 +77,32 @@ private:
     int m_datafile = -1;
 };
 
+class SpentOutput {
+public:
+    int blockHeight = -1;
+    int offsetInBlock = -1;
+    bool isValid() const { return blockHeight > 0; }
+};
 
 class UODBPrivate;
-/// The unspent outputs database. ALso known as the UTXO
+/// The unspent outputs database. Also known as the UTXO
 class UnspentOutputDatabase
 {
 public:
     UnspentOutputDatabase(boost::asio::io_service &service, const boost::filesystem::path &basedir);
+    UnspentOutputDatabase(UODBPrivate *priv);
     ~UnspentOutputDatabase();
+
+    static UnspentOutputDatabase *createMemOnlyDB(const boost::filesystem::path &basedir);
 
     /**
      * @brief insert a new spendable output.
      * @param txid the (prev) transaction id.
      * @param output Index the index of the output.
-     * @param offsetInBlock the amount of bytes into the block the tx is positioned.
      * @param blockHeight which block the output is in.
+     * @param offsetInBlock the amount of bytes into the block the tx is positioned.
      */
-    void insert(const uint256 &txid, int outIndex, int offsetInBlock, int blockHeight);
+    void insert(const uint256 &txid, int outIndex, int blockHeight, int offsetInBlock);
 
     /**
      * @brief find an output by (prev) txid and output-index.
@@ -101,9 +117,9 @@ public:
      * This spends an output, forgetting it from the latest tree of the DB.
      * @param txid the previous transaction index. The one that created the output.
      * @param index the output index inside the prev-tx.
-     * @return true if something was found to remove, false if there was nothing to remove.
+     * @return valid SpendOutput if something was found to remove
      */
-    bool remove(const uint256 &txid, int index, int dbHint = -1);
+    SpentOutput remove(const uint256 &txid, int index, int dbHint = -1);
 
     /**
      * The blockFinished should be called after every block to update the UnspentOutput DB

@@ -24,13 +24,16 @@
 #include "ValidationSettings_p.h"
 #include "ValidationException.h"
 #include <primitives/FastBlock.h>
+#include <primitives/FastUndoBlock.h>
 #include <chain.h>
 #include <bloom.h>
-#include <coins.h>
 #include <versionbits.h>
 #include <txmempool.h>
+#include <BlocksDB.h>
+
 #include <boost/thread.hpp>
 #include <interfaces/boost_compat.h>
+#include <boost/unordered_map.hpp>
 
 // #define ENABLE_BENCHMARKS
 
@@ -44,7 +47,6 @@ struct ValidationFlags {
     bool scriptVerifySequenceVerify;
     bool nLocktimeVerifySequence;
     bool uahfRules;
-    // TODO bool daa3Rules;
 
     uint32_t scriptValidationFlags() const;
 
@@ -54,9 +56,21 @@ struct ValidationFlags {
 
 // implemented in TxValidation.cpp
 namespace ValidationPrivate {
-void validateTransactionInputs(CTransaction &tx, const std::vector<CCoins> &coins, int blockHeight,
+struct UnspentOutput {
+    CScript outputScript;
+    int64_t amount = 0;
+    int blockheight = 0;
+    bool isCoinbase = false;
+};
+void validateTransactionInputs(CTransaction &tx, const std::vector<UnspentOutput> &unspents, int blockHeight,
                                       ValidationFlags flags, int64_t &fees, uint32_t &txSigops, bool &spendsCoinbase);
 }
+
+struct Output {
+    uint256 txid;
+    int index = -1;
+    int offsetInBlock = 0;
+};
 
 class BlockValidationState : public std::enable_shared_from_this<BlockValidationState>
 {
@@ -94,7 +108,11 @@ public:
     void checks1NoContext();
     void checks2HaveParentHeaders();
 
-    void checkSignaturesChunk();
+    enum CheckType {
+        CheckOrdered,
+        CheckUnordered
+    };
+    void checkSignaturesChunk(CheckType type);
 
     void blockFailed(int punishment, const std::string &error, Validation::RejectCodes code, bool corruptionPossible = false);
 
@@ -116,10 +134,10 @@ public:
     /// When the previous block's transactions are added to the UTXO, we start our validation.
     void updateUtxoAndStartValidation();
 
-    /// throws FailedException for any errors
-    void validateTransaction(int txIndex, int64_t &fees, uint32_t &txSigops);
+    // this throws on double-spend detection (in-block)
+    void findOrderedTransactions();
 
-    void storeUndoBlock(CBlockIndex *index);
+    void rollbackUnspendUnspentOutputsChanged(CTxMemPool *mempool);
 
     /**
      * @brief calculateTxCheckChunks returns the amount of 'chunks' we split the transaction pool into for parallel validation.
@@ -128,13 +146,13 @@ public:
     inline void calculateTxCheckChunks(int &chunks, int &itemsPerChunk) const {
         size_t txCount = m_block.transactions().size();
         chunks = std::min<int>((txCount+1) / 2, boost::thread::hardware_concurrency());
-        itemsPerChunk = std::ceil(txCount / (float) chunks);
+        itemsPerChunk = std::lrint(std::ceil(txCount / static_cast<float>(chunks)));
     }
 
     FastBlock m_block;
+    std::set<int> m_orderedTransactions; // filled with the transactions indexes that have to be processed 'in-order' because they depend on each other.
     CDiskBlockPos m_blockPos;
     CBlockIndex *m_blockIndex;
-    std::unique_ptr<CCoinsViewCache> m_coinView;
 
     const std::uint8_t m_onResultFlags;
     std::uint8_t punishment = 100;
@@ -155,16 +173,21 @@ public:
     mutable std::atomic<int> m_txChunkLeftToFinish;
     mutable std::atomic<int> m_validationStatus;
 
-    std::vector<std::vector<CCoins> > m_coins; // one per transaction, with a vector for its inputs
     mutable std::atomic<std::int64_t> m_blockFees;
     mutable std::atomic<std::uint32_t> m_sigOpsCounted;
-    CBlockUndo m_undoBlock;
+
+    std::vector<std::deque<FastUndoBlock::Item> *> m_undoItems;
 
     std::weak_ptr<ValidationEnginePrivate> m_parent;
     std::weak_ptr<ValidationSettingsPrivate> m_settings;
     // These children are waiting to be notified when I reach the conclusion
     // my block is likely on the main chain since that means they might be as well.
     std::vector<std::weak_ptr<BlockValidationState> > m_chainChildren;
+
+    // when a block is being checked for validity only (not appended) we store changes
+    // in this map to detect double-spends.
+    typedef boost::unordered_map<uint256, std::deque<int>, Blocks::BlockHashShortener> SpentMap;
+    SpentMap m_spentMap;
 };
 
 struct MapHashShortener
@@ -206,7 +229,7 @@ public:
         return ((int) boost::thread::hardware_concurrency());
     }
 
-    bool disconnectTip(const FastBlock &tip, CBlockIndex *index, CCoinsViewCache *view, bool *userClean = nullptr, bool *error = nullptr);
+    bool disconnectTip(const FastBlock &tip, CBlockIndex *index, bool *userClean = nullptr, bool *error = nullptr);
 
     BoostCompatStrand strand;
     std::atomic<bool> shuttingDown;

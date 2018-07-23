@@ -20,22 +20,39 @@
 #define FLOWEE_PRIMITIVES_FASTUNDOBLOCK_H
 
 #include <streaming/ConstBuffer.h>
+#include <streaming/MessageParser.h>
 #include <undo.h>
 
+#include <deque>
 #include <vector>
 
 class CBlockUndo;
 
-namespace Streaming {
-    class BufferPool;
-}
-
 class FastUndoBlock
 {
 public:
-    /// Create invalid block
-    FastUndoBlock();
-    /// Constructs a block from a buffer, notice that the buffer has to be at least 80 bytes as that is the block header size.
+    struct Item {
+        /// Create a new item that was inserted into the UTXO, that when undone will be removed
+        Item (const uint256 &prevTxId, int outputIndex)
+            : prevTxId(prevTxId), outputIndex(outputIndex) {}
+
+        /// Create a new item that was deleted from the UTXO, that when undo will be re-inserted.
+        Item (const uint256 &prevTxId, int outputIndex, int blockHeight, int offsetInBlock)
+            : prevTxId(prevTxId), outputIndex(outputIndex), blockHeight(blockHeight), offsetInBlock(offsetInBlock) {}
+
+        Item() {}
+
+        bool isInsert() const {
+            return blockHeight == -1;
+        }
+        bool isValid() const {
+            return !prevTxId.IsNull();
+        }
+        uint256 prevTxId;
+        int outputIndex = -1;
+        int blockHeight = -1;
+        int offsetInBlock = -1;
+    };
     FastUndoBlock(const Streaming::ConstBuffer &rawBlock);
     FastUndoBlock(const FastUndoBlock &other) = default;
 
@@ -44,24 +61,31 @@ public:
         return m_data.size();
     }
 
-    /// For backwards compatibility with old code, load a CBlock and return it.
-    CBlockUndo createOldBlock() const;
-
-    /**
-     * @brief fromOldBlock saves the old block in a buffer which it returns a CFastUndoBlock instance with.
-     * @param block the old block, which can be discarded afterwards.
-     * @param pool an optional bufferPool, if not passed a local one will be created.
-     * @return the newly created CFastUndoBlock
-     */
-    static FastUndoBlock fromOldBlock(const CBlockUndo &block, Streaming::BufferPool *pool = 0);
-
     /// \internal
     inline Streaming::ConstBuffer data() const {
         return m_data;
     }
 
+    Item nextItem();
+
 private:
     Streaming::ConstBuffer m_data;
+    Streaming::MessageParser m_parser;
+};
+
+class UndoBlockBuilder {
+public:
+    UndoBlockBuilder(const uint256 &blockId, Streaming::BufferPool *pool = nullptr);
+    ~UndoBlockBuilder();
+
+    void append(const std::deque<FastUndoBlock::Item> &items);
+
+    std::deque<Streaming::ConstBuffer> finish() const;
+
+private:
+    Streaming::BufferPool *m_pool;
+    std::deque<Streaming::ConstBuffer> m_data;
+    bool m_ownsPool;
 };
 
 #endif

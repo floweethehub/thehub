@@ -342,7 +342,6 @@ static void addDebuggingOptions(AllowedArgs& allowedArgs, HelpMessageMode mode)
         .addHeader(_("Debugging/Testing options:"))
         .addArg("uacomment=<cmt>", requiredStr, _("Append comment to the user agent string"))
         .addDebugArg("checkblockindex", optionalBool, strprintf("Do a full consistency check for mapBlockIndex, setBlockIndexCandidates, chainActive and mapBlocksUnlinked occasionally (default: %u)", false))
-        .addDebugArg("checkmempool=<n>", requiredInt, strprintf("Run checks every <n> transactions (default: %u)", 0))
         .addDebugArg("checkpoints", optionalBool, strprintf("Disable expensive verification for known chain history (default: %u)", DefaultCheckpointsEnabled))
 #ifdef ENABLE_WALLET
         .addDebugArg("dblogsize=<n>", requiredInt, strprintf("Flush wallet database activity from memory to disk log every <n> megabytes (default: %u)", DefaultWalletDBLogSize))

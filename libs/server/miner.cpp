@@ -32,7 +32,6 @@
 #include "Application.h"
 #include "chain.h"
 #include "chainparams.h"
-#include "coins.h"
 #include "consensus/consensus.h"
 #include "consensus/merkle.h"
 #include "consensus/validation.h"
@@ -137,7 +136,7 @@ CBlockTemplate* Mining::CreateNewBlock(Validation::Engine &validationEngine) con
     // Add dummy coinbase tx as first transaction
     pblock->vtx.push_back(CTransaction());
     pblocktemplate->vTxFees.push_back(-1); // updated at end
-    pblocktemplate->vTxSigOps.push_back(-1); // updated at end
+    pblocktemplate->vTxSigOps.push_back(0); // updated at end
 
     // Largest block you're willing to create (in bytes):
     uint32_t nBlockMaxSize = std::max<uint32_t>(1000, GetArg("-blockmaxsize", Settings::DefaultBlockMAxSize));
@@ -338,7 +337,11 @@ CBlockTemplate* Mining::CreateNewBlock(Validation::Engine &validationEngine) con
         UpdateTime(pblock, Params().GetConsensus(), pindexPrev);
         pblock->nBits          = GetNextWorkRequired(pindexPrev, pblock, Params().GetConsensus());
         pblock->nNonce         = 0;
-        pblocktemplate->vTxSigOps[0] = GetLegacySigOpCount(pblock->vtx[0]);
+        uint32_t sigops = 0;
+        for (auto out : pblock->vtx.at(0).vout) {
+            sigops += out.scriptPubKey.GetSigOpCount(false);
+        }
+        pblocktemplate->vTxSigOps[0] = sigops;
     }
     auto conf = validationEngine.addBlock(FastBlock::fromOldBlock(*pblock), 0);
     conf.setCheckMerkleRoot(false);

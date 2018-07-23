@@ -35,8 +35,14 @@
 #include <chainparams.h>
 #include <consensus/validation.h>
 #include <consensus/merkle.h>
-#include <fstream>
 #include <streaming/BufferPool.h>
+#include <server/BlocksDB.h>
+#include <utxo/UnspentOutputDatabase.h>
+
+#include <UnspentOutputData.h>
+#include <fstream>
+
+#include <streaming/MessageBuilder.h>
 
 // #define DEBUG_BLOCK_VALIDATION
 #ifdef DEBUG_BLOCK_VALIDATION
@@ -46,52 +52,6 @@
 #endif
 
 using Validation::Exception;
-
-namespace {
-/**
- * Apply the undo operation of a CTxInUndo to the given chain state.
- * @param undo The undo object.
- * @param view The coins view to which to apply the changes.
- * @param out The out point that corresponds to the tx input.
- * @return True on success.
- */
-static bool applyTxInUndo(const CTxInUndo &undo, CCoinsViewCache *view, const COutPoint &out)
-{
-    bool clean = true;
-
-    CCoinsModifier coins = view->ModifyCoins(out.hash);
-    if (undo.nHeight != 0) {
-        // undo data contains height: this is the last output of the prevout tx being spent
-        if (!coins->IsPruned()) {
-            if (clean)
-                logCritical("Undo data overwriting existing transaction");
-            clean = false;
-        }
-        coins->Clear();
-        coins->fCoinBase = undo.fCoinBase;
-        coins->nHeight = undo.nHeight;
-        coins->nVersion = undo.nVersion;
-    } else {
-        if (coins->IsPruned()) {
-            if (clean)
-                logCritical("Undo data adding output to missing transaction");
-            clean = false;
-        }
-    }
-    if (coins->IsAvailable(out.n)) {
-        if (clean)
-            logCritical("Undo data overwriting existing output");
-        clean = false;
-    }
-    if (coins->vout.size() < out.n+1)
-        coins->vout.resize(out.n+1);
-    coins->vout[out.n] = undo.txout;
-
-    return clean;
-}
-
-}
-
 
 //---------------------------------------------------------
 
@@ -363,7 +323,6 @@ void ValidationEnginePrivate::blockHeaderValidated(std::shared_ptr<BlockValidati
                 }
 
                 item->m_validationStatus.fetch_or(BlockValidationState::BlockValidTree);
-                item->m_coinView.reset(new CCoinsViewCache(mempool->coins()));
                 Application::instance()->ioService().post(std::bind(&BlockValidationState::checks2HaveParentHeaders, item));
             }
         }
@@ -461,6 +420,7 @@ void ValidationEnginePrivate::cleanup()
             settings->error = "shutdown";
             settings->markFinished();
         }
+        block->rollbackUnspendUnspentOutputsChanged(mempool);
         ++iter2;
     }
     blocksBeingValidated.clear();
@@ -527,11 +487,8 @@ void ValidationEnginePrivate::startOrphanWithParent(std::list<std::shared_ptr<Bl
 }
 
 /*
- * When a block gets passed to this method we know  the block is fully validated for
+ * When a block gets passed to this method we know the block is fully validated for
  * correctness, and so are all of the parent blocks.
- *
- * We don't know yet if the transactions inputs are actually unspent, a validation we keep
- * back because we need to have an up to date UTXO first.
  */
 void ValidationEnginePrivate::processNewBlock(std::shared_ptr<BlockValidationState> state)
 {
@@ -565,33 +522,28 @@ void ValidationEnginePrivate::processNewBlock(std::shared_ptr<BlockValidationSta
     DEBUGBV << "   chain:" << blockchain->Height();
 
     assert(blockchain->Height() == -1 || index->nChainWork >= blockchain->Tip()->nChainWork); // the new block has more POW.
+    const bool blockValid = (state->m_validationStatus.load() & BlockValidationState::BlockInvalid) == 0;
+    if (!blockValid)
+        state->rollbackUnspendUnspentOutputsChanged(mempool);
 
     const bool isNextChainTip = index->nHeight <= blockchain->Height() + 1; // If a parent was rejected for some reason, this is false
-    const bool blockValid = isNextChainTip && (state->m_validationStatus.load() & BlockValidationState::BlockInvalid) == 0 ;
-    bool addToChain = blockValid && Blocks::DB::instance()->headerChain().Contains(index);
+    bool addToChain = isNextChainTip && blockValid && Blocks::DB::instance()->headerChain().Contains(index);
     try {
         if (!isNextChainTip)
             index->nStatus |= BLOCK_FAILED_CHILD;
         if (addToChain) {
-            CCoinsViewCache *view = state->m_coinView.get();
-
-            DEBUGBV << "UTXO best block is" << view->GetBestBlock() << "my parent is" <<  state->m_block.previousBlockId();
-            if (view->GetBestBlock() != state->m_block.previousBlockId()) {
-                throw Exception("View DB inconsistent!");
-            }
-            assert(view->GetBestBlock() == state->m_block.previousBlockId());
+            DEBUGBV << "UTXO best block is" << mempool->utxo()->blockId() << "my parent is" <<  state->m_block.previousBlockId();
+            if (mempool->utxo()->blockId() != state->m_block.previousBlockId())
+                throw Exception("UnspentOutput DB inconsistent!");
 
             index->nChainTx = index->nTx + (index->pprev ? index->pprev->nChainTx : 0); // pprev is only null if this is the genesisblock.
 
             index->RaiseValidity(BLOCK_VALID_CHAIN);
 
             if (index->nHeight == 0) { // is genesis block
-                view->SetBestBlock(hash);
+                mempool->utxo()->blockFinished(index->nHeight, hash);
                 blockchain->SetTip(index);
                 index->RaiseValidity(BLOCK_VALID_SCRIPTS); // done
-                const bool flushOk = view->Flush();
-                if (!flushOk)
-                    fatal("Failed to flush UTXO to disk.");
                 state->signalChildren();
             } else {
                 std::vector<std::pair<uint256, CDiskTxPos> > vPos;
@@ -620,15 +572,24 @@ void ValidationEnginePrivate::processNewBlock(std::shared_ptr<BlockValidationSta
                         fatal("Failed to write transaction index");
                 }
 
-                uint32_t *bench = nullptr;
 #ifdef ENABLE_BENCHMARKS
-                int64_t end, start; start = GetTimeMicros();
-                uint32_t utxoTime;
-                bench = &utxoTime;
+                int64_t end, start = GetTimeMicros();
 #endif
-                view->SetBestBlock(state->m_block.createHash());
+                Streaming::BufferPool pool;
+                UndoBlockBuilder undoBlock(hash, &pool);
+                for (auto chunk : state->m_undoItems) {
+                    if (!chunk) continue;
+                    undoBlock.append(*chunk);
+                    delete chunk;
+                }
+                state->m_undoItems.clear();
+                Blocks::DB::instance()->writeUndoBlock(undoBlock, index->nFile, &index->nUndoPos);
+                index->nStatus |= BLOCK_HAVE_UNDO;
+                mempool->utxo()->blockFinished(index->nHeight, hash);
+
                 std::list<CTransaction> txConflicted;
-                mempool->removeForBlock(block.vtx, index->nHeight, txConflicted, orphanBlocks.size() > 3, view, bench);
+                // TODO don't use orphanBlocSize below, instead check the height of the headers vs the height of the main chain
+                mempool->removeForBlock(block.vtx, index->nHeight, txConflicted, orphanBlocks.size() > 3);
                 index->RaiseValidity(BLOCK_VALID_SCRIPTS); // done
                 state->signalChildren(); // start tx-validation of next one.
 
@@ -638,8 +599,7 @@ void ValidationEnginePrivate::processNewBlock(std::shared_ptr<BlockValidationSta
                 cvBlockChange.notify_all();
 #ifdef ENABLE_BENCHMARKS
                 end = GetTimeMicros();
-                m_utxoTime.fetch_add(utxoTime);
-                m_mempoolTime.fetch_add(end - start - utxoTime);
+                m_utxoTime.fetch_add(end - start);
                 start = end;
 #endif
                 {
@@ -648,7 +608,6 @@ void ValidationEnginePrivate::processNewBlock(std::shared_ptr<BlockValidationSta
                 }
 
                 // Tell wallet about transactions that went from mempool to conflicted:
-                Streaming::BufferPool pool;
                 for(const CTransaction &tx : txConflicted) {
                     ValidationNotifier().SyncTransaction(tx);
                     ValidationNotifier().SyncTx(Tx::fromOldTransaction(tx, &pool));
@@ -736,8 +695,7 @@ void ValidationEnginePrivate::processNewBlock(std::shared_ptr<BlockValidationSta
     logCritical(Log::BlockValidation).nospace() << "new best=" << hash << " height=" << index->nHeight
             << " tx=" << blockchain->Tip()->nChainTx
             << " date=" << DateTimeStrFormat("%Y-%m-%d %H:%M:%S", index->GetBlockTime()).c_str()
-            << Log::Fixed << Log::precision(1) << " cache=" << mempool->coins()->DynamicMemoryUsage() * (1.0 / (1<<20))
-            << "MiB(" << mempool->coins()->GetCacheSize() << "txo)";
+            << Log::Fixed << Log::precision(1);
 #ifdef ENABLE_BENCHMARKS
     if ((index->nHeight % 1000) == 0) {
         logCritical(Log::Bench) << "Times. Header:" << m_headerCheckTime
@@ -751,7 +709,6 @@ void ValidationEnginePrivate::processNewBlock(std::shared_ptr<BlockValidationSta
     }
     int64_t start = GetTimeMicros();
 #endif
-    mempool->check();
     uiInterface.NotifyBlockTip(orphanBlocks.size() > 3, index);
     {
         LOCK(cs_main);
@@ -833,7 +790,6 @@ void ValidationEnginePrivate::prepareChain()
     std::vector<FastBlock> revertedBlocks;
 
     LOCK(mempool->cs);
-    CCoinsViewCache view(mempool->coins());
     while (!Blocks::DB::instance()->headerChain().Contains(blockchain->Tip())) {
         CBlockIndex *index = blockchain->Tip();
         DEBUGBV << "Removing (rollback) chain tip at" << index->nHeight << index->GetBlockHash();
@@ -841,19 +797,19 @@ void ValidationEnginePrivate::prepareChain()
         try {
             block = Blocks::DB::instance()->loadBlock(index->GetBlockPos());
             revertedBlocks.push_back(block);
+            block.findTransactions();
         } catch (const std::runtime_error &error) {
             logFatal(Log::BlockValidation) << "ERROR: Can't undo the tip because I can't find it on disk";
             fatal(error.what());
         }
         if (block.size() == 0)
             fatal("BlockValidationPrivate::prepareChainForBlock: got no block, can't continue.");
-        if (!disconnectTip(block, index, &view))
+        if (!disconnectTip(block, index))
             fatal("Failed to disconnect block");
 
         blockchain->SetTip(index->pprev);
         tip.store(index->pprev);
     }
-    view.Flush();
     mempool->removeForReorg(blockchain->Tip()->nHeight + 1, STANDARD_LOCKTIME_VERIFY_FLAGS);
 
     // Add transactions. Only after we have flushed our removal of transactions from the UTXO view.
@@ -949,7 +905,6 @@ void ValidationEnginePrivate::findMoreJobs()
         }
         state->flags.enableValidation = enableValidation;
         state->m_validationStatus = BlockValidationState::BlockValidHeader | BlockValidationState::BlockValidTree;
-        state->m_coinView.reset(new CCoinsViewCache(mempool->coins()));
         state->m_checkingHeader = false;
         blocksBeingValidated.insert(std::make_pair(state->m_block.createHash(), state));
 
@@ -966,11 +921,12 @@ void ValidationEnginePrivate::findMoreJobs()
     }
 }
 
-bool ValidationEnginePrivate::disconnectTip(const FastBlock &tip, CBlockIndex *index, CCoinsViewCache *view, bool *userClean, bool *error)
+bool ValidationEnginePrivate::disconnectTip(const FastBlock &tip, CBlockIndex *index, bool *userClean, bool *error)
 {
     assert(index);
-    assert(view);
-    assert(tip.createHash() == view->GetBestBlock());
+    assert(index->pprev);
+    assert(tip.createHash() == mempool->utxo()->blockId());
+    assert(tip.transactions().size() > 0); // make sure we called findTransactions elsewhere
 
     CDiskBlockPos pos = index->GetUndoPos();
     if (pos.IsNull()) {
@@ -978,68 +934,30 @@ bool ValidationEnginePrivate::disconnectTip(const FastBlock &tip, CBlockIndex *i
         if (error) *error = true;
         return false;
     }
-    FastUndoBlock blockUndoFast = Blocks::DB::instance()->loadUndoBlock(pos, index->pprev->GetBlockHash());
+    FastUndoBlock blockUndoFast = Blocks::DB::instance()->loadUndoBlock(pos);
     if (blockUndoFast.size() == 0) {
         logFatal(Log::BlockValidation) << "Failed reading undo data";
         if (error) *error = true;
         return false;
     }
-    CBlockUndo blockUndo = blockUndoFast.createOldBlock();
-    CBlock block = tip.createOldBlock();
-    if (blockUndo.vtxundo.size() + 1 != block.vtx.size()) {
-        logFatal(Log::BlockValidation) << "block and undo data inconsistent";
-        if (error) *error = true;
-        return false;
-    }
 
+    UnspentOutputDatabase *utxo = mempool->utxo();
     bool clean = true;
-
-    // undo transactions in reverse order
-    for (int i = block.vtx.size() - 1; i >= 0; i--) {
-        const CTransaction &tx = block.vtx[i];
-        const uint256 hash = tx.GetHash();
-
-        // Check that all outputs are available and match the outputs in the block itself
-        // exactly.
-        {
-        CCoinsModifier outs = view->ModifyCoins(hash);
-        outs->ClearUnspendable();
-
-        CCoins outsBlock(tx, index->nHeight);
-        // The CCoins serialization does not serialize negative numbers.
-        // No network rules currently depend on the version here, so an inconsistency is harmless
-        // but it must be corrected before txout nversion ever influences a network rule.
-        if (outsBlock.nVersion < 0)
-            outs->nVersion = outsBlock.nVersion;
-        if (*outs != outsBlock) {
-            if (clean)
-                logCritical(Log::BlockValidation) << "added transaction mismatch? database corruption suspected";
-            clean = false;
-        }
-
-        // remove outputs
-        outs->Clear();
-        }
-
-        // restore inputs
-        if (i > 0) { // not coinbases
-            const CTxUndo &txundo = blockUndo.vtxundo[i-1];
-            if (txundo.vprevout.size() != tx.vin.size()) {
-                logCritical(Log::BlockValidation) << "transaction and undo data inconsistent";
+    while (true) {
+        FastUndoBlock::Item item = blockUndoFast.nextItem();
+        if (!item.isValid())
+            break;
+        if (item.isInsert()) {
+            if (!utxo->remove(item.prevTxId, item.outputIndex).isValid())
                 clean = false;
-            }
-            for (unsigned int j = tx.vin.size(); j-- > 0;) {
-                const COutPoint &out = tx.vin[j].prevout;
-                const CTxInUndo &undo = txundo.vprevout[j];
-                if (!applyTxInUndo(undo, view, out))
-                    clean = false;
-            }
+        }
+        else {
+            utxo->insert(item.prevTxId, item.outputIndex, item.blockHeight, item.offsetInBlock);
         }
     }
 
     // move best block pointer to prevout block
-    view->SetBestBlock(index->pprev->GetBlockHash());
-
+    utxo->blockFinished(index->pprev->nHeight, index->pprev->GetBlockHash());
     if (userClean) {
         *userClean = clean;
         return true;
@@ -1404,7 +1322,7 @@ void BlockValidationState::checks2HaveParentHeaders()
         }
 
         // Sigops.
-        // Notice that we continue counting in validateTransaction and do one last check in processNewBlock()
+        // Notice that we continue counting in validateTransactionInputs and do one last check in processNewBlock()
         // TODO chunk this over all CPUs
         uint32_t sigOpsCounted = 0;
         for (const CTransaction &tx : block.vtx)
@@ -1453,43 +1371,24 @@ void BlockValidationState::updateUtxoAndStartValidation()
 {
     DEBUGBV << m_block.createHash();
     assert(m_txChunkLeftToStart.load() < 0); // this method should get called only once
-    assert(m_undoBlock.vtxundo.empty());
 
     if (m_blockIndex->pprev == nullptr) { // genesis
         finishUp();
         return;
     }
-    auto view = m_coinView.get();
+
     try {
-#ifdef ENABLE_BENCHMARKS
-        int64_t start = GetTimeMicros();
-#endif
-        m_coins = view->processBlock(m_block, m_undoBlock, m_blockIndex->nHeight,
-                (flags.enforceBIP30 ? CCoinsViewCache::CheckDuplicateTxId : CCoinsViewCache::SkipDuplicateTxIdCheck));
-
-#ifdef ENABLE_BENCHMARKS
-        int64_t end = GetTimeMicros();
-        auto parent = m_parent.lock();
-        if (parent)
-            parent->m_utxoTime.fetch_add(end - start);
-        // logDebug(Log::BlockValication).nospace() << "updateUtxo duration: " << (end - start)/1000. << " ms (height: " << m_blockIndex->nHeight << ")";
-#endif
-
-        if (!flags.enableValidation) {
-            CBlockIndex *index = m_blockIndex;
-            finishUp();
-            storeUndoBlock(index);
-            return;
-        }
+        findOrderedTransactions(); // TODO move to check2
 
         int chunks, itemsPerChunk;
         calculateTxCheckChunks(chunks, itemsPerChunk);
-        m_txChunkLeftToFinish.store(chunks);
+        m_txChunkLeftToFinish.store(chunks + (m_orderedTransactions.empty() ? 0 : 1));
         m_txChunkLeftToStart.store(chunks);
-
-        for (int i = 1; i < chunks; ++i)
-            Application::instance()->ioService().post(std::bind(&BlockValidationState::checkSignaturesChunk, shared_from_this()));
-        checkSignaturesChunk();
+        m_undoItems.resize(static_cast<size_t>(chunks + 1));
+        for (int i = 0; i < chunks; ++i)
+            Application::instance()->ioService().post(std::bind(&BlockValidationState::checkSignaturesChunk, shared_from_this(), CheckUnordered));
+        if (!m_orderedTransactions.empty())
+            checkSignaturesChunk(CheckOrdered);
     } catch(const Exception &ex) {
         blockFailed(ex.punishment(), ex.what(), ex.rejectCode(), ex.corruptionPossible());
         finishUp();
@@ -1500,14 +1399,20 @@ void BlockValidationState::updateUtxoAndStartValidation()
     }
 }
 
-void BlockValidationState::checkSignaturesChunk()
+void BlockValidationState::checkSignaturesChunk(CheckType type)
 {
 #ifdef ENABLE_BENCHMARKS
     int64_t start = GetTimeMicros();
 #endif
-    const int totalTxCount = (int) m_block.transactions().size();
+    auto parent_ = m_parent.lock();
+    if (!parent_)
+        return;
+    assert(parent_->mempool);
+    UnspentOutputDatabase *utxo = parent_->mempool->utxo();
+    assert(utxo);
+    const int totalTxCount = static_cast<int>(m_block.transactions().size());
 
-    int chunkToStart = m_txChunkLeftToStart.fetch_sub(1) - 1;
+    int chunkToStart = type == CheckOrdered ? 0 : (m_txChunkLeftToStart.fetch_sub(1) - 1);
     assert(chunkToStart >= 0);
     DEBUGBV << chunkToStart << m_block.createHash();
 
@@ -1515,102 +1420,272 @@ void BlockValidationState::checkSignaturesChunk()
     calculateTxCheckChunks(chunks, itemsPerChunk);
     bool blockValid = (m_validationStatus.load() & BlockInvalid) == 0;
     int txIndex = itemsPerChunk * chunkToStart;
+    if (type == CheckOrdered) { // check all (but skips non-flagged ones below)
+        txIndex = 0;
+        itemsPerChunk = totalTxCount;
+    }
     const int txMax = std::min(txIndex + itemsPerChunk, totalTxCount);
     uint32_t chunkSigops = 0;
     CAmount chunkFees = 0;
+    std::deque<FastUndoBlock::Item> *undoItems = new std::deque<FastUndoBlock::Item>();
+    std::deque<Output> newOutputs; // for when processing ordered items
+
+    // If \a type == CheckOrdered we have transactions spending outputs that may come from this block.
+    // because we don't want to inserts stuff in the unspendOutputDB and shortly after delete it again
+    // we store a map here
+    typedef boost::unordered_map<uint256, int, Blocks::BlockHashShortener> TXMap;
+    TXMap txMap;
     try {
         for (;blockValid && txIndex < txMax; ++txIndex) {
-            if (txIndex > 0) { // skip coinbase
+            if (parent_->shuttingDown)
+                break;
+            // ordered Tx are only checked when type == CheckOrdered
+            const bool isOrderedTx = m_orderedTransactions.find(txIndex) != m_orderedTransactions.end();
+            // We only process ordered transactions when type is CheckOrdered
+            if ((type == CheckOrdered) == isOrderedTx) { // this is like an xor.
                 CAmount fees = 0;
                 uint32_t sigops = 0;
-                validateTransaction(txIndex, fees, sigops);
-                chunkSigops += sigops;
-                chunkFees += fees;
+                Tx tx = m_block.transactions().at(static_cast<size_t>(txIndex));
+                const uint256 hash = tx.createHash();
+
+                std::vector<ValidationPrivate::UnspentOutput> unspents; // list of prev outputs
+                auto txIter = Tx::Iterator(tx);
+                auto inputs = Tx::findInputs(txIter);
+                if (txIndex == 0)
+                    inputs.clear(); // skip inputs check for coinbase
+                std::vector<int> prevheights; // the height of each input
+                for (auto input : inputs) { // find inputs
+                    ValidationPrivate::UnspentOutput prevOut;
+                    bool found = false;
+                    if (type == CheckOrdered) {
+                        auto ti = txMap.find(input.txid);
+                        if (ti != txMap.end()) { // Comes from this block
+                            found = true;
+                            const int outIndex = ti->second;
+                            Tx prevTx = m_block.transactions().at(static_cast<size_t>(outIndex));
+                            assert(prevTx.isValid());
+                            Tx::Output out = prevTx.output(input.index);
+                            if (out.outputValue < 0) // output not found
+                                throw Exception("missing-inputs", 0);
+
+                            prevheights.push_back(m_blockIndex->nHeight);
+                            prevOut.amount = out.outputValue;
+                            prevOut.outputScript = out.outputScript;
+                            prevOut.blockheight = m_blockIndex->nHeight;
+                            unspents.push_back(prevOut);
+
+                            // remove the now-spent-output from the ones I should save.
+                            const auto offsetInBlock = prevTx.offsetInBlock(m_block);
+                            for (auto iter = newOutputs.begin(); iter != newOutputs.end(); ++iter) {
+                                if (iter->offsetInBlock == offsetInBlock && iter->index == outIndex) {
+                                    assert(iter->txid == prevTx.createHash());
+                                    newOutputs.erase(iter);
+                                    break;
+                                }
+                            }
+                        }
+                    }
+                    if (!found) { // should come from UnspentOutputDB (utxo)
+                        UnspentOutput unspentOutput = utxo->find(input.txid, input.index);
+                        if (!unspentOutput.isValid())
+                            throw Exception("missing-inputs", 0);
+                        prevheights.push_back(unspentOutput.blockHeight());
+                        if (flags.enableValidation) {
+                            UnspentOutputData data(unspentOutput);
+                            prevOut.amount = data.outputValue();
+                            prevOut.outputScript = data.outputScript();
+                            prevOut.blockheight = data.blockHeight();
+                            unspents.push_back(prevOut);
+                        }
+
+                        if (m_checkValidityOnly) {
+                            // we just checked the UTXO, but when this bool is true
+                            // the output is not removed from the UTXO, and as such we need a bit of extra code
+                            // to detect double-spends.
+                            auto ti = m_spentMap.find(input.txid);
+                            if (ti != m_spentMap.end()) {
+                                for (int index : ti->second) {
+                                    if (index == input.index)
+                                        throw Exception("missing-inputs", 0);
+                                }
+                                ti->second.push_back(input.index);
+                            } else {
+                                std::deque<int> spentIndex = { input.index };
+                                m_spentMap.insert(std::make_pair(input.txid, spentIndex));
+                            }
+                        } else {
+                            SpentOutput removed = utxo->remove(input.txid, input.index);
+                            assert(removed.isValid());
+                            undoItems->push_back(FastUndoBlock::Item(input.txid, input.index,
+                                                                       removed.blockHeight, removed.offsetInBlock));
+                        }
+                    }
+                }
+
+                if (flags.enableValidation && txIndex > 0) {
+                    CTransaction old = tx.createOldTransaction();
+                    // Check that transaction is BIP68 final
+                    int nLockTimeFlags = 0;
+                    if (flags.nLocktimeVerifySequence)
+                        nLockTimeFlags |= LOCKTIME_VERIFY_SEQUENCE;
+                    if (!SequenceLocks(old, nLockTimeFlags, &prevheights, *m_blockIndex))
+                        throw Exception("bad-txns-nonfinal");
+
+                    bool spendsCoinBase;
+                    // TODO check for xthin style block and if the transaction was already checked or not. If so, then skip parts of the next method.
+                    ValidationPrivate::validateTransactionInputs(old, unspents, m_blockIndex->nHeight, flags, fees, sigops, spendsCoinBase);
+                    chunkSigops += sigops;
+                    chunkFees += fees;
+                }
+
+                if (!m_checkValidityOnly) {
+                    // Find the outputs to be added to the unspentOutputDB
+                    int outputCount = 0;
+                    const int offsetInBlock = static_cast<int>(tx.offsetInBlock(m_block));
+                    auto content = txIter.tag();
+                    while (content != Tx::End) {
+                        if (content == Tx::OutputValue) {
+                            if (txIter.longData() == 0)
+                                logDebug() << "Output with zero value";
+                            utxo->insert(hash, outputCount, m_blockIndex->nHeight, offsetInBlock);
+                            undoItems->push_back(FastUndoBlock::Item(hash, outputCount, m_blockIndex->nHeight, offsetInBlock));
+                            outputCount++;
+                        }
+                        content = txIter.next();
+                    }
+                }
+
+                if (type == CheckOrdered)
+                    txMap.insert(std::make_pair(hash, txIndex));
             }
         }
-    } catch (const Exception &e){
+    } catch (const Exception &e) {
         DEBUGBV << "Failed validation due to" << e.what();
         blockFailed(e.punishment(), e.what(), e.rejectCode(), e.corruptionPossible());
         blockValid = false;
-    } catch (const std::runtime_error &e){
+    } catch (const std::runtime_error &e) {
         DEBUGBV << "Failed validation due to" << e.what();
-        assert(false);
-        blockFailed(100, e.what(), Validation::RejectInternal);
+        blockFailed(100, e.what(), Validation::RejectMalformed);
         blockValid = false;
     }
     m_blockFees.fetch_add(chunkFees);
     m_sigOpsCounted.fetch_add(chunkSigops);
+    m_undoItems[static_cast<size_t>(chunkToStart)] = undoItems;
 
 #ifdef ENABLE_BENCHMARKS
     int64_t end = GetTimeMicros();
-    if (blockValid) {
-        auto parent_ = m_parent.lock();
-        if (parent_)
-            parent_->m_validationTime.fetch_add(end - start);
-    }
+    if (blockValid)
+        parent_->m_validationTime.fetch_add(end - start);
     logDebug(Log::BlockValidation) << "batch:" << chunkToStart << '/' << chunks << (end - start)/1000. << "ms" << "success so far:" << blockValid;
 #endif
 
     const int chunksLeft = m_txChunkLeftToFinish.fetch_sub(1) - 1;
-    if (chunksLeft <= 0) { // I'm the last one to finish
-        CBlockIndex *index = m_blockIndex;
+    if (chunksLeft <= 0) // I'm the last one to finish
         finishUp();
-        // saving this is rather slow, but ultimately irrelevant to the processNewBlock, so we do those at the same time.
-        storeUndoBlock(index);
-    }
 }
 
-void BlockValidationState::storeUndoBlock(CBlockIndex *index)
+/*
+ * A block is pre-sorted. Transactions depend (spend) transactions that were created before them.
+ * The majority will be depend on transactions created in older blocks, those can be processed
+ * perfectly parallel.
+ * Below we check inputs of all transactions to find those that spend transactions from this block.
+ * Which means they depend on other transactions we still have to validate. Those inter-dependend ones
+ * we put in the 'm_orderedTransactions' set and process in-sequence.
+ */
+void BlockValidationState::findOrderedTransactions()
 {
-    if (m_checkValidityOnly)
+    if (m_block.transactions().size() <= 1)
         return;
-    if (!(m_onResultFlags & Validation::SaveGoodToDisk))
-        return;
-    // note, we take index from the argument because the processNewBlock runs at the same time and it may set the m_blockindex to null
-    if (index->nStatus & BLOCK_HAVE_UNDO)
-        return;
-    DEBUGBV << "Saving undo data for block" << index->nHeight << "to file" << index->nFile;
-    assert(index->nFile >= 0);
-    try {
-        FastUndoBlock block = FastUndoBlock::fromOldBlock(m_undoBlock);
-        Blocks::DB::instance()->writeUndoBlock(block, index->pprev->GetBlockHash(), index->nFile, &index->nUndoPos);
-        index->nStatus |= BLOCK_HAVE_UNDO;
-        MarkIndexUnsaved(index);
-    } catch (std::exception &ex) {
-        logFatal(Log::DB) << ex;
-        auto parent = m_parent.lock();
-        if (parent)
-            parent->fatal("Failed to write undo data");
+#ifdef ENABLE_BENCHMARKS
+    int64_t start = GetTimeMicros();
+#endif
+    typedef boost::unordered_map<uint256, int, Blocks::BlockHashShortener> TXMap;
+    TXMap txMap;
+
+    typedef boost::unordered_map<uint256, std::vector<bool>, Blocks::BlockHashShortener> MiniUTXO;
+    MiniUTXO miniUTXO;
+
+    bool first = true;
+    int txNum = 1;
+    for (auto tx : m_block.transactions()) {
+        if (first) { // skip coinbase
+            first = false;
+            continue;
+        }
+        uint256 hash = tx.createHash();
+        bool ocd = false; // if true, tx requires order.
+
+        auto i = Tx::Iterator(tx);
+        auto inputs = Tx::findInputs(i);
+        for (auto input : inputs) {
+            auto ti = txMap.find(input.txid);
+            if (ti != txMap.end()) {
+                ocd = true;
+                /*
+                 * ok, so we spent a tx also in this block.
+                 * to make sure we don't hit a double-spend here I have to actually check the outputs of the prev-tx.
+                 *
+                 * At this time this isn't unit tested, as such you should assume it is broken.
+                 */
+                auto prevIter = miniUTXO.find(input.txid);
+                if (prevIter == miniUTXO.end()) {
+                    /*
+                     *  insert into the miniUTXO the prevtx outputs.
+                     * we **could** have done this at the more logical code-place for all transactions,
+                     * but since we expect less than 1% of the transactions to spend inside of the same block,
+                     * that would waste resources.
+                     */
+                    auto iter = Tx::Iterator(m_block.transactions().at(static_cast<size_t>(ti->second)));
+                    Tx::Component component;
+                    std::vector<bool> outputs;
+                    while (true) {
+                        component = iter.next(Tx::OutputValue);
+                        if (component == Tx::End)
+                            break;
+                        outputs.push_back(true);
+                    }
+
+                    prevIter = miniUTXO.insert(std::make_pair(input.txid, outputs)).first;
+
+                    m_orderedTransactions.insert(ti->second);
+                }
+                if (static_cast<int>(prevIter->second.size()) <= input.index)
+                    throw std::runtime_error("spending utxo output out of range");
+                if (prevIter->second[static_cast<size_t>(input.index)] == false)
+                    throw std::runtime_error("spending utxo in-block double-spend");
+                prevIter->second[static_cast<size_t>(input.index)] = false;
+            }
+        }
+
+        if (ocd)
+            m_orderedTransactions.insert(txNum);
+        txMap.insert(std::make_pair(hash, txNum++));
     }
+#ifdef ENABLE_BENCHMARKS
+    int64_t end = GetTimeMicros();
+    auto parent = m_parent.lock();
+    if (parent)
+        parent->m_utxoTime.fetch_add(end - start);
+#endif
 }
 
-void BlockValidationState::validateTransaction(int txIndex, int64_t &fees, uint32_t &txSigops)
+void BlockValidationState::rollbackUnspendUnspentOutputsChanged(CTxMemPool *mempool)
 {
-    assert(txIndex != 0); // we don't expect to be called for the coinbase.
-
-    auto tx = m_block.transactions().at(txIndex).createOldTransaction();
-    const std::vector<CCoins> *coins = &m_coins.at(txIndex);
-    assert(coins);
-    assert(coins->size() == tx.vin.size());
-    assert(tx.vin.size() == coins->size());
-    const int spendHeight = m_blockIndex->nHeight;
-
-    // Check that transaction is BIP68 final
-    int nLockTimeFlags = 0;
-    if (flags.nLocktimeVerifySequence)
-        nLockTimeFlags |= LOCKTIME_VERIFY_SEQUENCE;
-
-    std::vector<int> prevheights;
-    prevheights.reserve(tx.vin.size());
-    for (size_t i = 0; i < tx.vin.size(); ++i) {
-        prevheights.push_back(coins->at(i).nHeight);
+    assert(mempool);
+    auto utxo = mempool->utxo();
+    assert(utxo);
+    // then run undo items on UTXO
+    for (auto chunk : m_undoItems) {
+        if (!chunk) continue;
+        for (auto item : *chunk) {
+            if (item.isInsert())
+                utxo->remove(item.prevTxId, item.outputIndex);
+            else
+                utxo->insert(item.prevTxId, item.outputIndex, item.offsetInBlock, item.blockHeight);
+        }
+        delete chunk;
     }
-    if (!SequenceLocks(tx, nLockTimeFlags, &prevheights, *m_blockIndex))
-        throw Exception("bad-txns-nonfinal");
-
-    bool spendsCoinBase;
-    // TODO check for xthin style block and if the transaction was already checked or not. If so, then skip the next
-    ValidationPrivate::validateTransactionInputs(tx, *coins, spendHeight, flags, fees, txSigops, spendsCoinBase);
+    m_undoItems.clear();
 }
 
 //---------------------------------------------------------

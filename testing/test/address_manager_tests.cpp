@@ -23,6 +23,7 @@
 #include "streams.h"
 #include "net.h"
 #include "chainparams.h"
+#include "clientversion.h"
 
 class CAddrManSerializationMock : public CAddrMan
 {

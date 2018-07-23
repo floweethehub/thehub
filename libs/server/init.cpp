@@ -43,7 +43,6 @@
 #include "script/standard.h"
 #include "script/sigcache.h"
 #include "scheduler.h"
-#include "txdb.h"
 #include "BlocksDB.h"
 #include "txmempool.h"
 #include "torcontrol.h"
@@ -79,6 +78,7 @@
 #include <boost/interprocess/sync/file_lock.hpp>
 #include <boost/thread.hpp>
 #include <openssl/crypto.h>
+#include <utxo/UnspentOutputDatabase.h>
 
 #if ENABLE_ZMQ
 #include "zmq/zmqnotificationinterface.h"
@@ -154,29 +154,9 @@ bool ShutdownRequested()
     return fRequestShutdown;
 }
 
-class CCoinsViewErrorCatcher : public CCoinsViewBacked
-{
-public:
-    CCoinsViewErrorCatcher(CCoinsView* view) : CCoinsViewBacked(view) {}
-    bool GetCoins(const uint256 &txid, CCoins &coins) const {
-        try {
-            return CCoinsViewBacked::GetCoins(txid, coins);
-        } catch(const std::runtime_error& e) {
-            uiInterface.ThreadSafeMessageBox(_("Error reading from database, shutting down."), "", CClientUIInterface::MSG_ERROR);
-            logFatal(Log::DB) << "Error reading from database:" << e;
-            // Starting the shutdown sequence and returning false to the caller would be
-            // interpreted as 'entry not found' (as opposed to unable to read data), and
-            // could lead to invalid interpretation. Just exit immediately, as we can't
-            // continue anyway, and all writes should be atomic.
-            abort();
-        }
-    }
-    // Writes do not need similar protection, as failure to write is handled by the caller.
-};
-
-static CCoinsViewDB *pcoinsdbview = NULL;
-static CCoinsViewErrorCatcher *pcoinscatcher = NULL;
 static boost::scoped_ptr<ECCVerifyHandle> globalVerifyHandle;
+
+UnspentOutputDatabase *g_utxo = nullptr;
 
 void Interrupt(boost::thread_group& threadGroup)
 {
@@ -232,15 +212,9 @@ void Shutdown()
 
     {
         LOCK(cs_main);
-        if (pcoinsTip != NULL) {
-            FlushStateToDisk();
-        }
-        delete pcoinsTip;
-        pcoinsTip = NULL;
-        delete pcoinscatcher;
-        pcoinscatcher = NULL;
-        delete pcoinsdbview;
-        pcoinsdbview = NULL;
+        FlushStateToDisk();
+        delete g_utxo;
+        g_utxo = nullptr;
         Blocks::DB::shutdown();
     }
 #ifdef ENABLE_WALLET
@@ -597,11 +571,6 @@ bool AppInit2(boost::thread_group& threadGroup, CScheduler& scheduler)
 
     // ********************************************************* Step 3: parameter-to-internal-flags
 
-    // Checkmempool and checkblockindex default to true in regtest mode
-    int ratio = std::min<int>(std::max<int>(GetArg("-checkmempool", chainparams.DefaultConsistencyChecks() ? 1 : 0), 0), 1000000);
-    if (ratio != 0) {
-        mempool.setSanityCheck(1.0 / ratio);
-    }
     fCheckpointsEnabled = GetBoolArg("-checkpoints", Settings::DefaultCheckpointsEnabled);
 
     // mempool limits
@@ -860,15 +829,21 @@ bool AppInit2(boost::thread_group& threadGroup, CScheduler& scheduler)
         do {
             try {
                 UnloadBlockIndex();
-                delete pcoinsTip;
-                delete pcoinsdbview;
-                delete pcoinscatcher;
-
+                delete g_utxo;
+                g_utxo = nullptr;
                 Blocks::DB::createInstance(nBlockTreeDBCache, fReindex);
-                pcoinsdbview = new CCoinsViewDB(nCoinDBCache, false, fReindex);
-                pcoinscatcher = new CCoinsViewErrorCatcher(pcoinsdbview);
-                pcoinsTip = new CCoinsViewCache(pcoinscatcher);
-                mempool.setCoinsView(pcoinsTip);
+                const auto utxoDir = GetDataDir() / "unspent";
+                if (fReindex) {
+                    boost::system::error_code error;
+                    boost::filesystem::remove_all(utxoDir, error);
+                    if (error) {
+                        fRequestShutdown = true;
+                        logFatal(Log::Bitcoin) << "Can't remove the unspent dir to do a reindex" << error.message();
+                        break;
+                    }
+                }
+                g_utxo = new UnspentOutputDatabase(Application::instance()->ioService(), utxoDir);
+                mempool.setUtxo(g_utxo);
 
                 if (fReindex) {
                     Blocks::DB::instance()->setReindexing(Blocks::ScanningFiles);
@@ -927,7 +902,7 @@ bool AppInit2(boost::thread_group& threadGroup, CScheduler& scheduler)
                     }
                 }
 
-                if (!VerifyDB().verifyDB(pcoinsdbview, GetArg("-checklevel", Settings::DefaultCheckLevel),
+                if (!VerifyDB().verifyDB(GetArg("-checklevel", Settings::DefaultCheckLevel),
                               GetArg("-checkblocks", Settings::DefaultCheckBlocks))) {
                     strLoadError = _("Corrupted block database detected");
                     break;

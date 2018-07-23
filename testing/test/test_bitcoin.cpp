@@ -27,15 +27,17 @@
 #include <random.h>
 #include <UiInterface.h>
 #include <interfaces/validationinterface.h>
+#include <utxo/UnspentOutputDatabase.h>
 #ifdef ENABLE_WALLET
 # include <wallet/wallet.h>
 CWallet* pwalletMain;
 #endif
 
-
 #include <boost/test/included/unit_test.hpp>
 
 CClientUIInterface uiInterface; // Declared but not defined in UiInterface.h
+
+UnspentOutputDatabase *g_utxo = nullptr;
 
 extern void noui_connect();
 
@@ -71,8 +73,7 @@ TestingSetup::TestingSetup(const std::string& chainName) : BasicTestingSetup(cha
     boost::filesystem::create_directories(pathTemp / "blocks/index");
     mapArgs["-datadir"] = pathTemp.string();
     Blocks::DB::createTestInstance(1<<20);
-    pcoinsdbview = new CCoinsViewDB(1 << 23, true);
-    pcoinsTip = new CCoinsViewCache(pcoinsdbview);
+    g_utxo = new UnspentOutputDatabase(Application::instance()->ioService(), GetDataDir(true) / "unspent");
 
     bv.initSingletons();
     bv.appendGenesis();
@@ -101,8 +102,7 @@ TestingSetup::~TestingSetup()
     pwalletMain = NULL;
 #endif
     UnloadBlockIndex();
-    delete pcoinsTip;
-    delete pcoinsdbview;
+    delete g_utxo;
 #ifdef ENABLE_WALLET
     bitdb.Flush(true);
     bitdb.Reset();
@@ -148,16 +148,15 @@ MockBlockValidation::MockBlockValidation()
 void MockBlockValidation::initSingletons()
 {
     // set all the stuff that has been created in the Fixture (TestingSetup::TestingSetup())
-    mp.setCoinsView(pcoinsTip);
+    mp.setUtxo(g_utxo);
     setMempool(&mp);
-    mp.setSanityCheck(1); // slow but correct
     chainActive.SetTip(nullptr);
     setBlockchain(&chainActive);
 }
 
 MockBlockValidation::~MockBlockValidation()
 {
-    pcoinsTip = 0;
+    g_utxo = 0;
 }
 
 FastBlock MockBlockValidation::createBlock(CBlockIndex *parent, const CScript& scriptPubKey, const std::vector<CTransaction>& txns) const

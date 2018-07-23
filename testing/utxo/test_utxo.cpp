@@ -45,8 +45,8 @@ public:
             char buf[67];
             sprintf(buf, templateTxId, i);
             uint256 txid = uint256S(buf);
-            db.insert(txid, 0, 6000+i, 100+i);
-            db.insert(txid, 1, 6000+i, 100+i);
+            db.insert(txid, 0, 100+i, 6000+i);
+            db.insert(txid, 1, 100+i, 6000+i);
 
             UnspentOutput uo = db.find(txid, 0);
             BOOST_CHECK_EQUAL(uo.offsetInBlock(), 6000 + i);
@@ -74,19 +74,22 @@ BOOST_AUTO_TEST_CASE(basic)
     boost::asio::io_service ioService;
     UnspentOutputDatabase db(ioService, m_testPath);
     uint256 txid = uint256S("0xb4749f017444b051c44dfd2720e88f314ff94f3dd6d56d40ef65854fcd7fff6b");
-    db.insert(txid, 0, 6000, 100);
+    db.insert(txid, 0, 100, 6000);
     UnspentOutput uo = db.find(txid, 0);
     BOOST_CHECK_EQUAL(uo.offsetInBlock(), 6000);
     BOOST_CHECK_EQUAL(uo.blockHeight(), 100);
 
-    bool success = db.remove(txid, 0);
-    BOOST_CHECK(success);
+    SpentOutput rmData = db.remove(txid, 0);
+    BOOST_CHECK(rmData.isValid());
+    BOOST_CHECK_EQUAL(rmData.blockHeight, 100);
+    BOOST_CHECK_EQUAL(rmData.offsetInBlock, 6000);
 
     UnspentOutput uo2 = db.find(txid, 0);
     BOOST_CHECK_EQUAL(uo2.blockHeight(), 0);
 
-    bool removed = db.remove(txid, 0);
-    BOOST_CHECK_EQUAL(removed, false);
+    rmData = db.remove(txid, 0);
+    BOOST_CHECK_EQUAL(rmData.isValid(), false);
+    BOOST_CHECK(rmData.blockHeight <= 0);
 }
 
 // test if we can keep multiple entries separate
@@ -98,8 +101,10 @@ BOOST_AUTO_TEST_CASE(multiple)
     insertTransactions(db, 100);
     const uint256 remove1 = insertedTxId(20);
     const uint256 remove2 = insertedTxId(89);
-    bool success = db.remove(remove1, 0);
-    BOOST_CHECK(success);
+    SpentOutput rmData = db.remove(remove1, 0);
+    BOOST_CHECK(rmData.isValid());
+    BOOST_CHECK_EQUAL(rmData.blockHeight, 120);
+    BOOST_CHECK_EQUAL(rmData.offsetInBlock, 6020);
 
     UnspentOutput find1 = db.find(remove1, 0);
     BOOST_CHECK_EQUAL(find1.blockHeight(), 0); // we just removed it
@@ -111,8 +116,10 @@ BOOST_AUTO_TEST_CASE(multiple)
     UnspentOutput find4 = db.find(remove2, 1);
     BOOST_CHECK_EQUAL(find4.blockHeight(), 189); // its here now
 
-    success = db.remove(remove2, 1);
-    BOOST_CHECK(success);
+    rmData = db.remove(remove2, 1);
+    BOOST_CHECK(rmData.isValid());
+    BOOST_CHECK_EQUAL(rmData.blockHeight, 189);
+    BOOST_CHECK_EQUAL(rmData.offsetInBlock, 6089);
 
     UnspentOutput find5 = db.find(remove2, 0);
     BOOST_CHECK_EQUAL(find5.blockHeight(), 189);

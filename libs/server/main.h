@@ -26,7 +26,6 @@
 
 #include "amount.h"
 #include "chain.h"
-#include "coins.h"
 #include "net.h"
 #include "script/script_error.h"
 #include "sync.h"
@@ -195,7 +194,7 @@ bool IsInitialBlockDownload();
  */
 std::string GetWarnings(const std::string& strFor);
 /** Retrieve a transaction (from memory pool, or from disk, if possible) */
-bool GetTransaction(const uint256 &hash, CTransaction &tx, const Consensus::Params& params, uint256 &hashBlock, bool fAllowSlow = false);
+bool GetTransaction(const uint256 &hash, CTransaction &tx, uint256 &hashBlock);
 /** Find the best known block, and make it the tip of the block chain */
 bool ActivateBestChain(CValidationState& state, const CChainParams& chainparams, const CBlock* pblock = NULL);
 CAmount GetBlockSubsidy(int nHeight, const Consensus::Params& consensusParams);
@@ -283,34 +282,6 @@ struct CDiskTxPos : public CDiskBlockPos
 };
 
 
-/** 
- * Count ECDSA signature operations the old-fashioned (pre-0.6) way
- * @return number of sigops this transaction's outputs will produce when spent
- * @see CTransaction::FetchInputs
- */
-unsigned int GetLegacySigOpCount(const CTransaction& tx);
-
-/**
- * Count ECDSA signature operations in pay-to-script-hash inputs.
- * 
- * @param[in] mapInputs Map of previous transactions that have outputs we're spending
- * @return maximum number of sigops required to validate this transaction's inputs
- * @see CTransaction::FetchInputs
- */
-unsigned int GetP2SHSigOpCount(const CTransaction& tx, const CCoinsViewCache& mapInputs);
-
-
-/**
- * Check whether all inputs of this transaction are valid (no double spends, scripts & sigs, amounts)
- * This does not modify the UTXO set. If pvChecks is not NULL, script checks are pushed onto it
- * instead of being performed inline.
- */
-bool CheckInputs(const CTransaction& tx, CValidationState &state, const CCoinsViewCache &view, bool fScriptChecks,
-                 unsigned int flags, bool cacheStore, std::vector<CScriptCheck> *pvChecks = NULL);
-
-/** Apply the effects of this transaction on the UTXO set represented by view */
-void UpdateCoins(const CTransaction& tx, CValidationState &state, CCoinsViewCache &inputs, int nHeight);
-
 /** Context-independent validity checks */
 bool CheckTransaction(const CTransaction& tx, CValidationState& state);
 
@@ -370,10 +341,15 @@ private:
 
 public:
     CScriptCheck(): amount(0), ptxTo(0), nIn(0), nFlags(0), cacheStore(false), error(SCRIPT_ERR_UNKNOWN_ERROR) {}
-    CScriptCheck(const CCoins& txFromIn, const CTransaction& txToIn, unsigned int nInIn, unsigned int nFlagsIn, bool cacheIn) :
-        scriptPubKey(txFromIn.vout[txToIn.vin[nInIn].prevout.n].scriptPubKey),
-        amount(txFromIn.vout[txToIn.vin[nInIn].prevout.n].nValue),
-        ptxTo(&txToIn), nIn(nInIn), nFlags(nFlagsIn), cacheStore(cacheIn), error(SCRIPT_ERR_UNKNOWN_ERROR) { }
+    CScriptCheck(const CScript &outputScript, CAmount amount, const CTransaction& txToIn, unsigned int nInIn, unsigned int nFlagsIn, bool cacheIn)
+        : scriptPubKey(outputScript),
+        amount(amount),
+        ptxTo(&txToIn),
+        nIn(nInIn),
+        nFlags(nFlagsIn),
+        cacheStore(cacheIn),
+        error(SCRIPT_ERR_UNKNOWN_ERROR) {
+    }
 
     bool operator()();
 
@@ -396,15 +372,6 @@ bool ReadBlockFromDisk(CBlock& block, const CDiskBlockPos& pos, const Consensus:
 bool ReadBlockFromDisk(CBlock& block, const CBlockIndex* pindex, const Consensus::Params& consensusParams);
 
 /** Functions for validating blocks and updating the block tree */
-
-/** Undo the effects of this block (with given index) on the UTXO set represented by coins.
- *  In case pfClean is provided, operation will try to be tolerant about errors, and *pfClean
- *  will be true if no problems were found. Otherwise, the return value will be false in case
- *  of problems. Note that in any case, coins may be modified. */
-bool DisconnectBlock(const CBlock& block, const CBlockIndex* pindex, CCoinsViewCache& coins, bool* pfClean = NULL);
-
-/** Apply the effects of this block (with given index) on the UTXO set represented by coins */
-bool ConnectBlock(const CBlock& block, CValidationState& state, CBlockIndex* pindex, CCoinsViewCache& coins, bool fJustCheck = false);
 
 /** Context-independent validity checks */
 bool CheckBlockHeader(const CBlockHeader& block, CValidationState& state, bool fCheckPOW = true);
@@ -470,15 +437,8 @@ CBlockIndex* FindForkInGlobalIndex(const CChain& chain, const CBlockLocator& loc
 /** The currently-connected chain of blocks (protected by cs_main). */
 extern CChain chainActive;
 
-/** Global variable that points to the active CCoinsView (protected by cs_main) */
-extern CCoinsViewCache *pcoinsTip;
-
-/**
- * Return the spend height, which is one more than the inputs.GetBestBlock().
- * While checking, GetBestBlock() refers to the parent block. (protected by cs_main)
- * This is also true for mempool checks.
- */
-int GetSpendHeight(const CCoinsViewCache& inputs);
+class UnspentOutputDatabase;
+extern UnspentOutputDatabase *g_utxo;
 
 void LimitMempoolSize(CTxMemPool& pool, size_t limit, unsigned long age);
 

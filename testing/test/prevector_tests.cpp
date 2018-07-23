@@ -26,6 +26,7 @@
 #include "test/test_bitcoin.h"
 
 #include <boost/test/unit_test.hpp>
+#include <boost/foreach.hpp>
 
 BOOST_FIXTURE_TEST_SUITE(PrevectorTests, TestingSetup)
 

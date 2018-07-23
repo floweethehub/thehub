@@ -20,6 +20,10 @@
 #include "random.h"
 #include "utilmoneystr.h"
 #include "test/test_bitcoin.h"
+#include <utilstrencodings.h>
+#include <utiltime.h>
+#include <allowed_args.h>
+#include <util.h>
 
 #include <boost/test/unit_test.hpp>
 

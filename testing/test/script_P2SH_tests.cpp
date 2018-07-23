@@ -22,6 +22,8 @@
 #include "script/sign.h"
 #include "test/test_bitcoin.h"
 
+#include <utxo/UnspentOutputDatabase.h>
+
 #ifdef ENABLE_WALLET
 #include "wallet/wallet_ismine.h"
 #endif
@@ -123,7 +125,11 @@ BOOST_AUTO_TEST_CASE(sign)
         {
             CScript sigSave = txTo[i].vin[0].scriptSig;
             txTo[i].vin[0].scriptSig = txTo[j].vin[0].scriptSig;
-            bool sigOK = CScriptCheck(CCoins(txFrom, 0), txTo[i], 0, SCRIPT_VERIFY_P2SH | SCRIPT_VERIFY_STRICTENC, false)();
+            const CTransaction &txToIn = txTo[i];
+            bool sigOK = CScriptCheck(txFrom.vout[txToIn.vin[0].prevout.n].scriptPubKey,
+                        txFrom.vout[txToIn.vin[0].prevout.n].nValue,
+                        txTo[i], 0, SCRIPT_VERIFY_P2SH | SCRIPT_VERIFY_STRICTENC, false)();
+
             if (i == j)
                 BOOST_CHECK_MESSAGE(sigOK, strprintf("VerifySignature %d %d", i, j));
             else
@@ -270,8 +276,7 @@ BOOST_AUTO_TEST_CASE(switchover)
 BOOST_AUTO_TEST_CASE(AreInputsStandard)
 {
     LOCK(cs_main);
-    CCoinsView coinsDummy;
-    CCoinsViewCache coins(&coinsDummy);
+    UnspentOutputDatabase *utxo = UnspentOutputDatabase::createMemOnlyDB("unspent");
     CBasicKeyStore keystore;
     CKey key[6];
     std::vector<CPubKey> keys;
@@ -328,8 +333,6 @@ BOOST_AUTO_TEST_CASE(AreInputsStandard)
     txFrom.vout[6].scriptPubKey = GetScriptForDestination(CScriptID(twentySigops));
     txFrom.vout[6].nValue = 6000;
 
-    coins.ModifyCoins(txFrom.GetHash())->FromTx(txFrom, 0);
-
     CMutableTransaction txTo;
     txTo.vout.resize(1);
     txTo.vout[0].scriptPubKey = GetScriptForDestination(key[1].GetPubKey().GetID());
@@ -349,9 +352,23 @@ BOOST_AUTO_TEST_CASE(AreInputsStandard)
     txTo.vin[3].scriptSig << OP_11 << OP_11 << std::vector<unsigned char>(oneAndTwo.begin(), oneAndTwo.end());
     txTo.vin[4].scriptSig << std::vector<unsigned char>(fifteenSigops.begin(), fifteenSigops.end());
 
-    BOOST_CHECK(::AreInputsStandard(txTo, coins));
-    // 22 P2SH sigops for all inputs (1 for vin[0], 6 for vin[3], 15 for vin[4]
-    BOOST_CHECK_EQUAL(GetP2SHSigOpCount(txTo, coins), 22U);
+    for (size_t i = 0; i < txTo.vin.size(); ++i) {
+        const auto in = txTo.vin.at(i);
+        const auto prevOut = txFrom.vout.at(i);
+        BOOST_CHECK(Policy::isInputStandard(prevOut.scriptPubKey, in.scriptSig));
+        // 22 P2SH sigops for all inputs (1 for vin[0], 6 for vin[3], 15 for vin[4]
+        if (prevOut.scriptPubKey.IsPayToScriptHash()) {
+            int expected = 0;
+            switch (i) {
+            case 1: case 2: case 5: expected = 0; break;
+            case 0: expected = 1; break;
+            case 3: expected = 6; break;
+            case 4: expected = 15; break;
+            }
+            // an incredibly-expensive-to-validate block.
+            BOOST_CHECK_EQUAL(prevOut.scriptPubKey.GetSigOpCount(in.scriptSig), expected);
+        }
+    }
 
     CMutableTransaction txToNonStd1;
     txToNonStd1.vout.resize(1);
@@ -362,8 +379,9 @@ BOOST_AUTO_TEST_CASE(AreInputsStandard)
     txToNonStd1.vin[0].prevout.hash = txFrom.GetHash();
     txToNonStd1.vin[0].scriptSig << std::vector<unsigned char>(sixteenSigops.begin(), sixteenSigops.end());
 
-    BOOST_CHECK(!::AreInputsStandard(txToNonStd1, coins));
-    BOOST_CHECK_EQUAL(GetP2SHSigOpCount(txToNonStd1, coins), 16U);
+    BOOST_CHECK(!Policy::isInputStandard(txFrom.vout.at(0).scriptPubKey,
+                                        txToNonStd1.vin.at(0).scriptSig));
+    BOOST_CHECK_EQUAL(txFrom.vout.at(5).scriptPubKey.GetSigOpCount(txToNonStd1.vin.at(0).scriptSig), 16);
 
     CMutableTransaction txToNonStd2;
     txToNonStd2.vout.resize(1);
@@ -374,8 +392,9 @@ BOOST_AUTO_TEST_CASE(AreInputsStandard)
     txToNonStd2.vin[0].prevout.hash = txFrom.GetHash();
     txToNonStd2.vin[0].scriptSig << std::vector<unsigned char>(twentySigops.begin(), twentySigops.end());
 
-    BOOST_CHECK(!::AreInputsStandard(txToNonStd2, coins));
-    BOOST_CHECK_EQUAL(GetP2SHSigOpCount(txToNonStd2, coins), 20U);
+    BOOST_CHECK(!Policy::isInputStandard(txFrom.vout.at(0).scriptPubKey,
+                                        txToNonStd2.vin.at(0).scriptSig));
+    BOOST_CHECK_EQUAL(txFrom.vout.at(6).scriptPubKey.GetSigOpCount(txToNonStd2.vin.at(0).scriptSig), 20);
 }
 
 BOOST_AUTO_TEST_SUITE_END()

@@ -23,7 +23,6 @@
 #include "chain.h"
 #include "chainparams.h"
 #include "checkpoints.h"
-#include "coins.h"
 #include "consensus/validation.h"
 #include "main.h"
 #include "policy/policy.h"
@@ -36,6 +35,7 @@
 #include "timedata.h"
 #include "util.h"
 #include "utilstrencodings.h"
+#include "UnspentOutputData.h"
 #include "primitives/block.h"
 #include <Application.h>
 #include <validation/Engine.h>
@@ -443,44 +443,6 @@ UniValue getblock(const UniValue& params, bool fHelp)
     return blockToJSON(block, pblockindex);
 }
 
-UniValue gettxoutsetinfo(const UniValue& params, bool fHelp)
-{
-    if (fHelp || params.size() != 0)
-        throw std::runtime_error(
-            "gettxoutsetinfo\n"
-            "\nReturns statistics about the unspent transaction output set.\n"
-            "Note this call may take some time.\n"
-            "\nResult:\n"
-            "{\n"
-            "  \"height\":n,     (numeric) The current block height (index)\n"
-            "  \"bestblock\": \"hex\",   (string) the best block hash hex\n"
-            "  \"transactions\": n,      (numeric) The number of transactions\n"
-            "  \"txouts\": n,            (numeric) The number of output transactions\n"
-            "  \"bytes_serialized\": n,  (numeric) The serialized size\n"
-            "  \"hash_serialized\": \"hash\",   (string) The serialized hash\n"
-            "  \"total_amount\": x.xxx          (numeric) The total amount\n"
-            "}\n"
-            "\nExamples:\n"
-            + HelpExampleCli("gettxoutsetinfo", "")
-            + HelpExampleRpc("gettxoutsetinfo", "")
-        );
-
-    UniValue ret(UniValue::VOBJ);
-
-    CCoinsStats stats;
-    FlushStateToDisk();
-    if (pcoinsTip->GetStats(stats)) {
-        ret.push_back(Pair("height", (int64_t)stats.nHeight));
-        ret.push_back(Pair("bestblock", stats.hashBlock.GetHex()));
-        ret.push_back(Pair("transactions", (int64_t)stats.nTransactions));
-        ret.push_back(Pair("txouts", (int64_t)stats.nTransactionOutputs));
-        ret.push_back(Pair("bytes_serialized", (int64_t)stats.nSerializedSize));
-        ret.push_back(Pair("hash_serialized", stats.hashSerialized.GetHex()));
-        ret.push_back(Pair("total_amount", ValueFromAmount(stats.nTotalAmount)));
-    }
-    return ret;
-}
-
 UniValue gettxout(const UniValue& params, bool fHelp)
 {
     if (fHelp || params.size() < 2 || params.size() > 3)
@@ -530,33 +492,52 @@ UniValue gettxout(const UniValue& params, bool fHelp)
     if (params.size() > 2)
         fMempool = params[2].get_bool();
 
-    CCoins coins;
+    int confirmedHeight;
+    std::uint64_t value = -1;
+    CScript outScript;
+    int version;
+    bool isCoinbase;
+    bool found = false;
     if (fMempool) {
         LOCK(mempool.cs);
-        CCoinsViewMemPool view(&mempool);
-        if (!view.GetCoins(hash, coins))
-            return NullUniValue;
-        mempool.pruneSpent(hash, coins); // TODO: this should be done by the CCoinsViewMemPool
-    } else {
-        if (!pcoinsTip->GetCoins(hash, coins))
-            return NullUniValue;
+        CTransaction tx;
+        if (mempool.lookup(hash, tx) && tx.vout.size() > n) { // found it!
+            confirmedHeight = MEMPOOL_HEIGHT;
+            value = tx.vout[n].nValue;
+            outScript = tx.vout[n].scriptPubKey;
+            version = tx.nVersion;
+            isCoinbase = n == 0;
+            found = true;
+        }
     }
-    if (n<0 || (unsigned int)n>=coins.vout.size() || coins.vout[n].IsNull())
-        return NullUniValue;
+    if (!found) {
+        auto result = g_utxo->find(hash, n);
+        if (result.isValid()) {
+            UnspentOutputData data(result);
+            confirmedHeight = data.blockHeight();
+            value = data.outputValue();
+            outScript = data.outputScript();
+            version = data.prevTxVersion();
+            isCoinbase = data.isCoinbase();
+            found = true;
+        }
+    }
 
-    CBlockIndex *pindex = Blocks::Index::get(pcoinsTip->GetBestBlock());
+    if (!found)
+        return NullUniValue;
+    CBlockIndex *pindex = Blocks::Index::get(g_utxo->blockId());
     assert(pindex);
     ret.push_back(Pair("bestblock", pindex->GetBlockHash().GetHex()));
-    if ((unsigned int)coins.nHeight == MEMPOOL_HEIGHT)
+    if ((unsigned int)confirmedHeight == MEMPOOL_HEIGHT)
         ret.push_back(Pair("confirmations", 0));
     else
-        ret.push_back(Pair("confirmations", pindex->nHeight - coins.nHeight + 1));
-    ret.push_back(Pair("value", ValueFromAmount(coins.vout[n].nValue)));
+        ret.push_back(Pair("confirmations", pindex->nHeight - confirmedHeight + 1));
+    ret.push_back(Pair("value", ValueFromAmount(value)));
     UniValue o(UniValue::VOBJ);
-    ScriptPubKeyToJSON(coins.vout[n].scriptPubKey, o, true);
+    ScriptPubKeyToJSON(outScript, o, true);
     ret.push_back(Pair("scriptPubKey", o));
-    ret.push_back(Pair("version", coins.nVersion));
-    ret.push_back(Pair("coinbase", coins.fCoinBase));
+    ret.push_back(Pair("version", version));
+    ret.push_back(Pair("coinbase", isCoinbase));
 
     return ret;
 }
@@ -584,7 +565,7 @@ UniValue verifychain(const UniValue& params, bool fHelp)
     if (params.size() > 1)
         nCheckDepth = params[1].get_int();
 
-    return VerifyDB().verifyDB(pcoinsTip, nCheckLevel, nCheckDepth);
+    return VerifyDB().verifyDB(nCheckLevel, nCheckDepth);
 }
 
 /** Implementation of IsSuperMajority with better feedback */

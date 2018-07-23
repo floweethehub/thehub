@@ -26,8 +26,8 @@
 
 #include <string>
 
-class CCoinsViewCache;
-class CCoins;
+class Tx;
+class UnspentOutputDatabase;
 
 /** The maximum size for transactions we're willing to relay/mine */
 static const unsigned int MAX_STANDARD_TX_SIZE = 100000;
@@ -66,17 +66,20 @@ bool IsStandard(const CScript& scriptPubKey, txnouttype& whichType);
      * @return True if all outputs (scriptPubKeys) use only standard transaction forms
      */
 bool IsStandardTx(const CTransaction& tx, std::string& reason);
-    /**
-     * Check for standard transaction types
-     * @param[in] mapInputs    Map of previous transactions that have outputs we're spending
-     * @return True if all inputs (scriptSigs) use only standard transaction forms
-     */
-bool AreInputsStandard(const CTransaction& tx, const CCoinsViewCache& mapInputs);
 
 namespace Policy {
     std::int32_t blockSizeAcceptLimit();
     uint32_t blockSigOpAcceptLimit(int32_t nBlockSize);
-    bool areInputsStandard(const CTransaction& tx, const std::vector<CCoins> &inputs);
+    /**
+     * Check for standard transaction types
+     * @return True if input use standard transaction forms
+     */
+    bool isInputStandard(const CScript &outputScript, const CScript &inputScript);
+    /**
+     * Check for standard transaction types
+     * @return True if all inputs use only standard transaction forms
+     */
+    bool areInputsStandard(const Tx &tx, const UnspentOutputDatabase *utxo);
 }
 
 #endif

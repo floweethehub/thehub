@@ -277,7 +277,7 @@ void Importer::parseBlock(const CBlockIndex *index, FastBlock block)
     time.start();
     for (auto uo: commandsForallTransactions.outputs) {
         // logDebug() << "inserting" << uo.prevTXID << uo.outIndex << uo.blockHeight;
-        m_utxo.insert(uo.prevTx, uo.outIndex, uo.offsetInBlock, uo.blockHeight);
+        m_utxo.insert(uo.prevTx, uo.outIndex, uo.blockHeight, uo.offsetInBlock);
     }
     m_inserts.fetchAndAddRelaxed(time.elapsed());
 
@@ -353,7 +353,7 @@ Importer::ProcessTxResult Importer::processTx(const CBlockIndex *index, Tx tx, b
         // TODO well, that means I need some sort of way to undo these when the block fails.
         for (auto uo : result.outputs) {
             // logDebug() << "inserting direct" << uo.prevTXID << uo.outIndex << uo.blockHeight;
-            m_utxo.insert(uo.prevTx, uo.outIndex, uo.offsetInBlock, uo.blockHeight);
+            m_utxo.insert(uo.prevTx, uo.outIndex, uo.blockHeight, uo.offsetInBlock);
         }
         result.outputs.clear();
         m_inserts.fetchAndAddRelaxed(time.elapsed());

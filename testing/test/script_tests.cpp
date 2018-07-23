@@ -29,6 +29,7 @@
 #include "script/sign.h"
 #include "test/test_bitcoin.h"
 #include <policy/policy.h>
+#include <utilstrencodings.h>
 
 #include <boost/foreach.hpp>
 #include <boost/test/unit_test.hpp>
