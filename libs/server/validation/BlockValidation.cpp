@@ -525,20 +525,8 @@ void ValidationEnginePrivate::processNewBlock(std::shared_ptr<BlockValidationSta
 
 
     const bool blockValid = (state->m_validationStatus.load() & BlockValidationState::BlockInvalid) == 0;
-    if (!blockValid) {
-        auto utxo = mempool->utxo();
-        // then run undo items on UTXO
-        for (auto chunk : state->m_undoItems) {
-            if (!chunk) continue;
-            for (auto item : *chunk) {
-                if (item.isInsert())
-                    utxo->remove(item.prevTxId, item.outputIndex);
-                else
-                    utxo->insert(item.prevTxId, item.outputIndex, item.offsetInBlock, item.blockHeight);
-            }
-            delete chunk;
-        }
-    }
+    if (!blockValid)
+        mempool->utxo()->rollback();
 
     const bool isNextChainTip = index->nHeight <= blockchain->Height() + 1; // If a parent was rejected for some reason, this is false
     bool addToChain = isNextChainTip && blockValid && Blocks::DB::instance()->headerChain().Contains(index);
@@ -592,11 +580,8 @@ void ValidationEnginePrivate::processNewBlock(std::shared_ptr<BlockValidationSta
                 Streaming::BufferPool pool;
                 UndoBlockBuilder undoBlock(hash, &pool);
                 for (auto chunk : state->m_undoItems) {
-                    if (!chunk) continue;
-                    undoBlock.append(*chunk);
-                    delete chunk;
+                    if (chunk) undoBlock.append(*chunk);
                 }
-                state->m_undoItems.clear();
                 Blocks::DB::instance()->writeUndoBlock(undoBlock, index->nFile, &index->nUndoPos);
                 index->nStatus |= BLOCK_HAVE_UNDO;
                 mempool->utxo()->blockFinished(index->nHeight, hash);
@@ -1116,6 +1101,11 @@ BlockValidationState::~BlockValidationState()
         delete m_blockIndex;
     if (m_block.size() >= 80)
         DEBUGBV << "Finished" << m_block.createHash();
+
+    for (auto undoItem : m_undoItems) {
+        delete undoItem;
+    }
+    m_undoItems.clear();
 }
 
 void BlockValidationState::load()
