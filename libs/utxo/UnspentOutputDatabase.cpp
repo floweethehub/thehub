@@ -507,8 +507,8 @@ UnspentOutput DataFile::find(const uint256 &txid, int index) const
             bucket = &m_buckets.at(bucketId & MEMMASK);
             assert(bucket);
         } catch (const std::exception &e) {
-            logDebug(Log::UTXO) << e;
-            logDebug(Log::UTXO) << "Bucket inconsistency" << Log::Hex << bucketId;
+            logFatal(Log::UTXO) << e;
+            logFatal(Log::UTXO) << "Bucket inconsistency" << Log::Hex << bucketId;
             assert(false);
             throw;
         }
@@ -795,14 +795,14 @@ bool DataFile::flushSomeNodesToDisk(ForceBool force)
                 && static_cast<int>(bucket->unspentOutputs.size()) == bucketSize) { // nothing added/removed since we saved it.
             bool allSaved = true;
             for (auto i : bucket->unspentOutputs) {
-                if ((i.leafPos & MEMBIT) > 0) {
+                if (i.leafPos >= MEMBIT) {
                     allSaved = false;
                     break;
                 }
             }
             if (allSaved) {
                 // replace pointers to use the saved bucket.
-                m_jumptables[shortHash] = bucketOffsets.at(shortHash);
+                m_jumptables[shortHash] = savedOffset->second;
                 m_buckets.erase(bucketIter);
             }
         }
