@@ -420,7 +420,6 @@ void ValidationEnginePrivate::cleanup()
             settings->error = "shutdown";
             settings->markFinished();
         }
-        block->rollbackUnspendUnspentOutputsChanged(mempool);
         ++iter2;
     }
     blocksBeingValidated.clear();
@@ -522,9 +521,24 @@ void ValidationEnginePrivate::processNewBlock(std::shared_ptr<BlockValidationSta
     DEBUGBV << "   chain:" << blockchain->Height();
 
     assert(blockchain->Height() == -1 || index->nChainWork >= blockchain->Tip()->nChainWork); // the new block has more POW.
+
+
+
     const bool blockValid = (state->m_validationStatus.load() & BlockValidationState::BlockInvalid) == 0;
-    if (!blockValid)
-        state->rollbackUnspendUnspentOutputsChanged(mempool);
+    if (!blockValid) {
+        auto utxo = mempool->utxo();
+        // then run undo items on UTXO
+        for (auto chunk : state->m_undoItems) {
+            if (!chunk) continue;
+            for (auto item : *chunk) {
+                if (item.isInsert())
+                    utxo->remove(item.prevTxId, item.outputIndex);
+                else
+                    utxo->insert(item.prevTxId, item.outputIndex, item.offsetInBlock, item.blockHeight);
+            }
+            delete chunk;
+        }
+    }
 
     const bool isNextChainTip = index->nHeight <= blockchain->Height() + 1; // If a parent was rejected for some reason, this is false
     bool addToChain = isNextChainTip && blockValid && Blocks::DB::instance()->headerChain().Contains(index);
@@ -1437,8 +1451,6 @@ void BlockValidationState::checkSignaturesChunk(CheckType type)
     TXMap txMap;
     try {
         for (;blockValid && txIndex < txMax; ++txIndex) {
-            if (parent_->shuttingDown)
-                break;
             // ordered Tx are only checked when type == CheckOrdered
             const bool isOrderedTx = m_orderedTransactions.find(txIndex) != m_orderedTransactions.end();
             // We only process ordered transactions when type is CheckOrdered
@@ -1667,25 +1679,6 @@ void BlockValidationState::findOrderedTransactions()
     if (parent)
         parent->m_utxoTime.fetch_add(end - start);
 #endif
-}
-
-void BlockValidationState::rollbackUnspendUnspentOutputsChanged(CTxMemPool *mempool)
-{
-    assert(mempool);
-    auto utxo = mempool->utxo();
-    assert(utxo);
-    // then run undo items on UTXO
-    for (auto chunk : m_undoItems) {
-        if (!chunk) continue;
-        for (auto item : *chunk) {
-            if (item.isInsert())
-                utxo->remove(item.prevTxId, item.outputIndex);
-            else
-                utxo->insert(item.prevTxId, item.outputIndex, item.offsetInBlock, item.blockHeight);
-        }
-        delete chunk;
-    }
-    m_undoItems.clear();
 }
 
 //---------------------------------------------------------

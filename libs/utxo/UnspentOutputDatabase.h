@@ -128,14 +128,18 @@ public:
      * It is essential that this happens in a synchronous manner so we know that if we
      * need to restart from this point, we can start from the next block and the UTXO is
      * consistent with the full block passed in via the args.
+     *
+     * @see revert
      */
     void blockFinished(int blockheight, const uint256 &blockId);
 
+    /**
+     * Changes made since the last blockFinished() call are reverted.
+     */
+    void rollback();
+
     int blockheight() const;
     uint256 blockId() const;
-
-    /// hard flush to disk
-    void flush();
 
 private:
     UODBPrivate *d;

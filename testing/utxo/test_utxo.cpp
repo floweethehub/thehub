@@ -135,6 +135,7 @@ BOOST_AUTO_TEST_CASE(restart)
     { // scope for DB
         UnspentOutputDatabase db(workers.ioService(), m_testPath);
         insertTransactions(db, 50);
+        db.blockFinished(1, uint256()); // commmit
     }
 
     logDebug() << "Step 2";
@@ -152,6 +153,122 @@ BOOST_AUTO_TEST_CASE(restart)
             BOOST_CHECK_EQUAL(uo2.blockHeight(), 100 + i);
             BOOST_CHECK_EQUAL(uo2.offsetInBlock(), 6000 + i);
         }
+    }
+}
+
+BOOST_AUTO_TEST_CASE(commit)
+{
+    /*
+     * delete is by far the most complex usecase.
+     * I should test;
+     *   1) delete a leaf from an on-disk bucket that only contains the one item
+     *   2) delete a leaf from an on-disk bucket where there are more leafs
+     *   3) delete a leaf from an in-memory bucket where there are more leafs
+     *   4) delete a leaf from an in-memory bucket where its the last leaf
+     *
+     * Also I should create a new leaf
+     *   5) in an existing bucket
+     *   6) in a new bucket
+     */
+    boost::asio::io_service ioService;
+    uint256 txid;
+    {   // usecase 3
+        UnspentOutputDatabase db(ioService, m_testPath);
+        insertTransactions(db, 100);
+        db.blockFinished(1, uint256()); // this is a 'commit'
+
+        txid = insertedTxId(99);
+        SpentOutput rmData = db.remove(txid, 0);
+        BOOST_CHECK(rmData.isValid());
+    }
+
+    {   // usecase 2
+        UnspentOutputDatabase db(ioService, m_testPath);
+        // after a restart, the not committed tx is again there.
+        SpentOutput rmData = db.remove(txid, 0);
+        BOOST_CHECK(rmData.isValid());
+    }
+
+    {   // usecase 2 && 2
+        UnspentOutputDatabase db(ioService, m_testPath);
+        // after a restart, the not committed tx is again there.
+        SpentOutput rmData = db.remove(txid, 0);
+        BOOST_CHECK(rmData.isValid());
+
+        db.rollback();
+        rmData = db.remove(txid, 0); // it reappeared
+        BOOST_CHECK(rmData.isValid());
+
+        db.blockFinished(2, uint256()); // commit
+
+        rmData = db.remove(txid, 0);
+        BOOST_CHECK(!rmData.isValid());
+    }
+
+    {
+        UnspentOutputDatabase db(ioService, m_testPath);
+        // the commit made the removed tx actually go away.
+        SpentOutput rmData = db.remove(txid, 0);
+        BOOST_CHECK(!rmData.isValid());
+    }
+
+    // because the helper method insertTransactions generates transactions
+    // that all land in the same bucket I need to create a new one to test buckets with only one tx.
+    const char *txid2 = "0x1a3454117444b051c44dfd2720e88f314ff94f3dd6d56d40ef65854fcd7fff6b";
+
+    {
+        UnspentOutputDatabase db(ioService, m_testPath);
+        db.insert(uint256S(txid2), 0, 200, 2000);
+        SpentOutput rmData = db.remove(uint256S(txid2), 0);
+        BOOST_CHECK(rmData.isValid()); // delete should be Ok
+    }
+
+    {
+        UnspentOutputDatabase db(ioService, m_testPath);
+        // test usecase 5
+        SpentOutput rmData = db.remove(uint256S(txid2), 0);
+        BOOST_CHECK(!rmData.isValid()); // it was never committed
+
+        // test usecase 1
+        db.insert(uint256S(txid2), 0, 200, 2000);
+        db.blockFinished(3, uint256());
+    }
+    {
+        // continue to test usecase 1
+        UnspentOutputDatabase db(ioService, m_testPath);
+        SpentOutput rmData = db.remove(uint256S(txid2), 0);
+        BOOST_CHECK(rmData.isValid());
+    }
+    {
+        // continue to test usecase 1
+        UnspentOutputDatabase db(ioService, m_testPath);
+        SpentOutput rmData = db.remove(uint256S(txid2), 0);
+        BOOST_CHECK(rmData.isValid()); // it came back!
+    }
+
+    const char *txid3 = "0x4a3454117444b051c44dfd2720e88f314ff94f3dd6d56d40ef65854fcd7fff6b";
+    // usecase 6
+    {
+        UnspentOutputDatabase db(ioService, m_testPath);
+        db.insert(txid3, 2, 300, 1000);
+    }
+    {
+        UnspentOutputDatabase db(ioService, m_testPath);
+        UnspentOutput uo = db.find(uint256S(txid3), 2);
+        BOOST_CHECK(!uo.isValid()); // it was never committed
+    }
+
+    // test usecase 5
+    char buf[67];
+    sprintf(buf, templateTxId, 200);
+    uint256 txid4 = uint256S(buf);
+    {
+        UnspentOutputDatabase db(ioService, m_testPath);
+        db.insert(txid4, 5, 40, 40);
+    }
+    {
+        UnspentOutputDatabase db(ioService, m_testPath);
+        BOOST_CHECK(!db.find(txid4, 5).isValid());
     }
 }
 

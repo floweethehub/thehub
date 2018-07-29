@@ -1222,9 +1222,6 @@ bool FlushStateToDisk(CValidationState &state, FlushStateMode mode) {
     if (fDoFullFlush) {
         if (!CheckDiskSpace(50000000))
             return state.Error("out of disk space");
-        // Flush the chainstate (which may refer to block index entries).
-        if (g_utxo)
-            g_utxo->flush();
         nLastFlush = nNow;
     }
     if (fDoFullFlush || ((mode == FLUSH_STATE_ALWAYS || mode == FLUSH_STATE_PERIODIC) && nNow > nLastSetChain + (int64_t)DATABASE_WRITE_INTERVAL * 1000000)) {

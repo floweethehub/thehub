@@ -27,6 +27,7 @@
 
 #include <unordered_map>
 #include <list>
+#include <set>
 #include <mutex>
 #include <uint256.h>
 
@@ -124,10 +125,15 @@ public:
     UnspentOutput find(const uint256 &txid, int index) const;
     SpentOutput remove(const UODBPrivate *priv, const uint256 &txid, int index);
 
-    // writing to disk.
-    void flushSomeNodesToDisk(ForceBool force);
+    // writing to disk. Return if there are still unsaved items left
+    bool flushSomeNodesToDisk(ForceBool force);
     void flushAll();
     int32_t saveLeaf(const UnspentOutput &uo);
+
+    // session management.
+    void commit();
+    void rollback();
+
     bool m_jumptableNeedsSave = false;
     bool m_fileFull = false;
 
@@ -159,6 +165,14 @@ public:
     int m_changeCount = 0;
     int m_changesSinceJumptableWritten = 0;
     bool m_flushScheduled = false;
+
+    // rollback info
+    int m_leafIndex_saved = 0;
+    int m_bucketIndex_saved = 0;
+    std::unordered_map<int, UnspentOutput> m_deletedLeafs;
+    std::unordered_map<uint32_t, uint32_t> m_deletedBuckets; // shorthash to position-in-file
+    std::unordered_map<int, Bucket> m_changedBuckets; // bucketId to bucket-copy
+    std::unordered_map<int, uint32_t> m_committedJumptable; // when we load (and change) a bucket we need to remember where on disk the previous one was
 };
 
 class UODBPrivate

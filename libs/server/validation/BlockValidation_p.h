@@ -137,8 +137,6 @@ public:
     // this throws on double-spend detection (in-block)
     void findOrderedTransactions();
 
-    void rollbackUnspendUnspentOutputsChanged(CTxMemPool *mempool);
-
     /**
      * @brief calculateTxCheckChunks returns the amount of 'chunks' we split the transaction pool into for parallel validation.
      * @return the chunk-count.
