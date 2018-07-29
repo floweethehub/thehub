@@ -36,6 +36,10 @@ struct OutputRef {
     OutputRef(uint64_t cheapHash, uint32_t leafPos)
         : cheapHash(cheapHash), leafPos(leafPos) {
     }
+    inline bool operator==(const OutputRef &other) {
+        return cheapHash == other.cheapHash && leafPos == other.leafPos;
+    }
+    inline bool operator!=(const OutputRef &other) { return !operator==(other); }
     uint64_t cheapHash;
     uint32_t leafPos;
 };

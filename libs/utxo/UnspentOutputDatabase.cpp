@@ -168,6 +168,7 @@ UnspentOutputDatabase::~UnspentOutputDatabase()
     if (!d->memOnly) {
         std::lock_guard<std::mutex> lock(d->lock);
         for (auto df : d->dataFiles) {
+            std::lock_guard<std::recursive_mutex> lock2(df->m_lock);
             df->rollback();
             df->flushAll();
         }
@@ -503,15 +504,19 @@ UnspentOutput DataFile::find(const uint256 &txid, int index) const
     const Bucket *bucket;
     Bucket memBucket;
     if (bucketId & MEMBIT) { // highest bit is set. Bucket is in memory.
+#ifndef NDEBUG
         try {
+#endif
             bucket = &m_buckets.at(bucketId & MEMMASK);
             assert(bucket);
-        } catch (const std::exception &e) {
-            logFatal(Log::UTXO) << e;
-            logFatal(Log::UTXO) << "Bucket inconsistency" << Log::Hex << bucketId;
+#ifndef NDEBUG
+        } catch (const std::out_of_range &e) {
+            logFatal(Log::UTXO) << "Utxo::find() Out of Range exception" << e;
+            logFatal(Log::UTXO) << "Bucket inconsistency" << (bucketId & MEMMASK) << Log::Hex << shortHash;
+            logFatal(Log::UTXO) << "At" << m_lastBlockHash << m_lastBlockheight;
             assert(false);
-            throw;
         }
+#endif
     } else {
         // copy from disk
         if (bucketId >= m_file.size()) // data corruption
@@ -652,7 +657,6 @@ SpentOutput DataFile::remove(const UODBPrivate *priv, const uint256 &txid, int i
 
 bool DataFile::flushSomeNodesToDisk(ForceBool force)
 {
-    bool unsavedItemsLeft = false;
     logInfo(Log::UTXO) << "Flush nodes starting" << m_path.filename().string();
     std::list<OutputRef> unsavedOutputs;
     std::unordered_map<int, UnspentOutput> leafs;
@@ -667,9 +671,8 @@ bool DataFile::flushSomeNodesToDisk(ForceBool force)
         for (auto iter = m_buckets.begin(); iter != m_buckets.end(); ++iter) {
             assert(!iter->second.unspentOutputs.empty());
              // refrain from saving new or changed buckets till commit
-            if (iter->first > m_bucketIndex_saved)
-                continue;
-            if (m_changedBuckets.find(iter->first) != m_changedBuckets.end())
+            if (force != ForceSave
+                    && (iter->first > m_bucketIndex_saved || m_changedBuckets.find(iter->first) != m_changedBuckets.end()))
                 continue;
 
             const short saveAttempt = ++iter->second.saveAttempt;
@@ -698,10 +701,8 @@ bool DataFile::flushSomeNodesToDisk(ForceBool force)
                     }
                 }
             }
-            if (unsavedOutputs.size() > SAVE_CHUNK_SIZE * 5) {
-                unsavedItemsLeft = true;
+            if (unsavedOutputs.size() > SAVE_CHUNK_SIZE * 5)
                 break;
-            }
         }
     }
     if (unsavedOutputs.empty())
@@ -739,6 +740,7 @@ bool DataFile::flushSomeNodesToDisk(ForceBool force)
         if (bucketsToSave.find(shortHash) != bucketsToSave.end()) {
             flushedToDiskCount++;
             auto offset = updatedBucket.saveToDisk(m_writeBuffer);
+            assert(offset < MEMBIT && offset >= 0);
             bucketOffsets.insert(std::make_pair(shortHash, offset));
         }
 
@@ -746,12 +748,12 @@ bool DataFile::flushSomeNodesToDisk(ForceBool force)
     }
     while (end != unsavedOutputs.end());
 
+    // lock again and update inner structures as fast as possible
     std::lock_guard<std::recursive_mutex> lock(m_lock);
     DEBUGUTXO << " +~ Leafs in mem:" << m_leafs.size() << "buckets in mem:" << m_buckets.size();
     begin = unsavedOutputs.begin();
     end = nextBucket(unsavedOutputs, begin);
     do {
-        int bucketSize = 0;
         const auto shortHash = createShortHash(begin->cheapHash);
         assert(shortHash < 0x100000);
         const uint32_t bucketId = m_jumptables[shortHash];
@@ -761,14 +763,19 @@ bool DataFile::flushSomeNodesToDisk(ForceBool force)
             end = nextBucket(unsavedOutputs, begin);
             continue; // next bucket
         }
+        bool eraseBucket = bucketsToSave.find(shortHash) != bucketsToSave.end();
+
         auto bucketIter = m_buckets.find(bucketId & MEMMASK);
         assert(bucketIter != m_buckets.end());
         Bucket *bucket = &bucketIter->second;
         assert(bucket);
         assert(!bucket->unspentOutputs.empty()); // the remove code should have removed empty buckets.
+        auto inMemOutputsIter = bucket->unspentOutputs.begin();
 
         // for each leaf. Remove from memory and update pointers to saved version.
         while (begin != end) {
+            eraseBucket = eraseBucket && inMemOutputsIter != bucket->unspentOutputs.end()
+                    && *inMemOutputsIter == *begin;
             auto newOffset = leafOffsets.find(begin->leafPos);
             if (newOffset != leafOffsets.end()) {
                 auto oldLeaf = m_leafs.find(begin->leafPos & MEMMASK);
@@ -777,36 +784,29 @@ bool DataFile::flushSomeNodesToDisk(ForceBool force)
                     m_leafs.erase(oldLeaf);
                     for (auto iter = bucket->unspentOutputs.begin(); iter != bucket->unspentOutputs.end(); ++iter) {
                         if (iter->leafPos == begin->leafPos) {
-                            // DEBUGUTXO << Log::Hex << " + === changing to" << newOffset->second << " for bucket" << bucketId;
+                            // DEBUGUTXO << Log::Hex << " + === changing to" << newOffset->second << " for bucket" << Log::Dec << bucketId;
                             iter->leafPos = newOffset->second;
                             break;
                         }
                     }
                 }
             }
+            // if this leaf didn't get saved, then we won't save the bucket.
+            eraseBucket = eraseBucket && inMemOutputsIter->leafPos < MEMBIT;
 
             ++begin;
-            ++bucketSize;
+            ++inMemOutputsIter;
         }
 
-        const auto savedOffset = bucketOffsets.find(shortHash); // only present if we decided to save it
-        // Now check if we can remove the bucket from memory
-        if (savedOffset != bucketOffsets.end()
-                && static_cast<int>(bucket->unspentOutputs.size()) == bucketSize) { // nothing added/removed since we saved it.
-            bool allSaved = true;
-            for (auto i : bucket->unspentOutputs) {
-                if (i.leafPos >= MEMBIT) {
-                    allSaved = false;
-                    break;
-                }
-            }
-            if (allSaved) {
+        if (eraseBucket && inMemOutputsIter == bucket->unspentOutputs.end()) {
+            const auto savedOffset = bucketOffsets.find(shortHash); // only present if we decided to save it
+            if (savedOffset != bucketOffsets.end()) {
                 // replace pointers to use the saved bucket.
+                assert(savedOffset->second < MEMBIT);
                 m_jumptables[shortHash] = savedOffset->second;
                 m_buckets.erase(bucketIter);
             }
         }
-
         end = nextBucket(unsavedOutputs, begin);
     }
     while (end != unsavedOutputs.end());
@@ -821,19 +821,28 @@ bool DataFile::flushSomeNodesToDisk(ForceBool force)
         m_fileFull = true;
     m_changesSinceJumptableWritten += flushedToDiskCount;
 
-    return unsavedItemsLeft;
+    return !m_leafs.empty() || !m_buckets.empty();
 }
 
 void DataFile::flushAll()
 {
-    DEBUGUTXO;
+    // mutex already locked by caller.
+    // std::lock_guard<std::recursive_mutex> lock(m_lock);
     // save all, the UnspentOutputDatabase has a lock that makes this a stop-the-world event
     while (flushSomeNodesToDisk(ForceSave));
+    assert(m_buckets.size() == 0);
+    assert(m_leafs.size() == 0);
+#ifndef NDEBUG
+    for (int i = 0; i < 0x100000; ++i) {
+        assert(m_jumptables[i] < MEMBIT);
+    }
+#endif
     m_bucketIndex = 0;
     m_buckets.clear();
     m_leafIndex = 0;
     m_leafs.clear();
     m_memBuffers.clear();
+    commit();
     if (!m_jumptableNeedsSave)
         return;
 
@@ -912,6 +921,7 @@ void DataFile::rollback()
     m_changedBuckets.clear();
     for (auto iter = m_deletedBuckets.begin(); iter != m_deletedBuckets.end(); ++iter) {
         DEBUGUTXO << "Rolling back removing/changing a bucketptr" << iter->first;
+        assert(iter->second < MEMBIT); // can only be used to point to an on-disk bucket
         m_jumptables[iter->first] = iter->second;
     }
     m_deletedBuckets.clear();
