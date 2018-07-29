@@ -1,4 +1,4 @@
-image: $IMG_DEBIAN_STABLE
+image: registry.gitlab.com/floweethehub/buildenvironments/builder-debian:stable
 
 stages:
 - build
@@ -43,7 +43,7 @@ test_utxo.deb:
 #####  Static build (Linux)
 
 build-static:
-  image: $IMG_STATIC
+  image: registry.gitlab.com/floweethehub/buildenvironments/builder-static:stable
   stage: build
   script: build_static
   artifacts:
