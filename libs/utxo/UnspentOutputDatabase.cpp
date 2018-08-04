@@ -682,7 +682,7 @@ bool DataFile::flushSomeNodesToDisk(ForceBool force)
             const short saveAttempt = ++iter->second.saveAttempt;
             // we only save the bucket when the amount of outputs is large or after a while,
             // based on saveCount
-            const bool forceSave = force == ForceSave || saveAttempt > 3;
+            const bool forceSave = force == ForceSave || saveAttempt > 0;
             if (forceSave) {
                 bucketsToSave.insert(createShortHash(iter->second.unspentOutputs.begin()->cheapHash));
                 unsavedOutputs.insert(unsavedOutputs.end(), iter->second.unspentOutputs.begin(), iter->second.unspentOutputs.end());
