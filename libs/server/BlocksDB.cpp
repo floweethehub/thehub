@@ -76,7 +76,7 @@ bool LoadExternalBlockFile(const CDiskBlockPos &pos)
     auto validation = Application::instance()->validation();
     const int blockHeaderMessage = *reinterpret_cast<const int*>(Params().MessageStart());
     const char *buf = dataFile.begin();
-    while (buf < dataFile.end()) {
+    while (buf < dataFile.end() && !Application::closingDown()) {
         buf = reinterpret_cast<const char*>(memchr(buf, blockHeaderMessage, (dataFile.end() - buf) / sizeof(int)));
         if (buf == nullptr) {
             // no valid block header found; don't complain

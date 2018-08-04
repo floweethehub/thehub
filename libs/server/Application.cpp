@@ -52,10 +52,10 @@ void Application::quit(int rc)
 {
     Application *app = Application::instance();
     app->m_returnCode = rc;
+    app->m_closingDown = true;
     if (app->m_validationEngine.get())
         app->m_validationEngine->shutdown();
     app->stopThreads();
-    app->m_closingDown = true;
 }
 
 Application::Application()
