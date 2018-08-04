@@ -844,7 +844,6 @@ bool AppInit2(boost::thread_group& threadGroup, CScheduler& scheduler)
                 }
                 g_utxo = new UnspentOutputDatabase(Application::instance()->ioService(), utxoDir);
                 mempool.setUtxo(g_utxo);
-
                 if (fReindex) {
                     Blocks::DB::instance()->setReindexing(Blocks::ScanningFiles);
                     //If we're reindexing in prune mode, wipe away unusable block files and all undo data files
@@ -854,6 +853,13 @@ bool AppInit2(boost::thread_group& threadGroup, CScheduler& scheduler)
 
                 if (!fReindex && !LoadBlockIndexDB()) {
                     strLoadError = _("Error loading block database");
+                    break;
+                }
+                logFatal() << g_utxo->blockheight()  <<  Blocks::Index::size();
+                if (!fReindex && g_utxo->blockheight() == 0 && Blocks::Index::size() > 0) {
+                    // We have block-indexes, but we have no UTXO. This means we need to reindex.
+                    fRequestShutdown = true;
+                    logFatal(Log::Bitcoin) << "This version uses a new UTXO format, you need to restart with -reindex";
                     break;
                 }
                 Application::instance()->validation()->setBlockchain(&chainActive);
