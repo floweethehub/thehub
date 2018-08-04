@@ -457,7 +457,7 @@ void DataFile::insert(const UODBPrivate *priv, const uint256 &txid, int outIndex
     const std::int32_t leafPos = m_leafIndex++;
     m_leafs.insert(std::make_pair(leafPos, UnspentOutput(m_memBuffers, txid, outIndex, blockHeight, offsetInBlock)));
     const uint32_t shortHash = createShortHash(txid);
-    DEBUGUTXO << "Insert leaf"  << (leafPos & MEMMASK) << Log::Hex << shortHash;
+    DEBUGUTXO << "Insert leaf"  << (leafPos & MEMMASK) << "shortHash:" << Log::Hex << shortHash;
     Bucket *bucket;
     uint32_t bucketId = m_jumptables[shortHash];
     if (bucketId == 0) {
@@ -468,6 +468,10 @@ void DataFile::insert(const UODBPrivate *priv, const uint256 &txid, int outIndex
         m_jumptables[shortHash] = bucketId + MEMBIT;
     } else if (bucketId & MEMBIT) { // highest bit is set. Bucket is in memory.
         bucket = &m_buckets.at(bucketId & MEMMASK);
+        // check if I need to make a backup
+        if ((bucketId & MEMMASK) <= static_cast<uint32_t>(m_bucketIndex_saved)
+                && m_changedBuckets.find(bucketId & MEMMASK) == m_changedBuckets.end())
+            m_changedBuckets.insert(std::make_pair(bucketId & MEMMASK, *bucket));
     } else {
         // copy from disk and insert into memory so it can be saved later
         auto iterator = m_buckets.insert(std::make_pair(m_bucketIndex, Bucket())).first;

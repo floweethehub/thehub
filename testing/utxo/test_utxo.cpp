@@ -270,6 +270,19 @@ BOOST_AUTO_TEST_CASE(commit)
         UnspentOutputDatabase db(ioService, m_testPath);
         BOOST_CHECK(!db.find(txid4, 5).isValid());
     }
+    // now separate the saving of the bucket and the leafs.
+    {
+        UnspentOutputDatabase db(ioService, m_testPath);
+        db.insert(txid4, 6, 40, 40);
+        db.blockFinished(4, uint256());
+        db.insert(txid4, 7, 40, 40);
+    }
+    {
+        UnspentOutputDatabase db(ioService, m_testPath);
+        BOOST_CHECK(!db.find(txid4, 5).isValid());
+        BOOST_CHECK(db.find(txid4, 6).isValid());
+        BOOST_CHECK(!db.find(txid4, 7).isValid());
+    }
 }
 
 BOOST_AUTO_TEST_SUITE_END()
