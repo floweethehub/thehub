@@ -69,6 +69,7 @@ Log::Manager::Manager()
     d->sectionNames.emplace(Log::Mempool, "Mempool");
     d->sectionNames.emplace(Log::Random, "Random");
     d->sectionNames.emplace(Log::FeeEstimation, "fees");
+    d->sectionNames.emplace(Log::UTXO, "UTXO");
     d->sectionNames.emplace(8002, "UAHF");
 
     // this is purely to be backwards compatible with the old style where the section was a string.
