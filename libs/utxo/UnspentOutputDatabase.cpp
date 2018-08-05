@@ -193,7 +193,7 @@ void UnspentOutputDatabase::insert(const uint256 &txid, int outIndex, int blockH
         if (df->m_fileFull) {
             DEBUGUTXO << "Creating a new DataFile" << d->dataFiles.size();
             d->dataFiles.push_back(DataFile::createDatafile(d->filepathForIndex(static_cast<int>(d->dataFiles.size() + 1)),
-                    df->m_lastBlockheight, df->m_lastBlockHash));
+                    df->m_lastBlockHeight, df->m_lastBlockHash));
             df = d->dataFiles.back();
         }
     }
@@ -251,14 +251,11 @@ SpentOutput UnspentOutputDatabase::remove(const uint256 &txid, int index, int db
 void UnspentOutputDatabase::blockFinished(int blockheight, const uint256 &blockId)
 {
     std::lock_guard<std::mutex> lock(d->lock);
-    auto df = d->dataFiles.back();
-    std::lock_guard<std::recursive_mutex> lock2(df->m_lock);
-    df->m_lastBlockHash = blockId;
-    df->m_lastBlockheight = blockheight;
-
     int totalChanges = 0;
     for (auto df : d->dataFiles) {
-        std::lock_guard<std::recursive_mutex> lock3(df->m_lock);
+        std::lock_guard<std::recursive_mutex> lock2(df->m_lock);
+        df->m_lastBlockHash = blockId;
+        df->m_lastBlockHeight = blockheight;
         totalChanges += df->m_changesSinceJumptableWritten;
         df->commit();
     }
@@ -283,7 +280,7 @@ void UnspentOutputDatabase::rollback()
 int UnspentOutputDatabase::blockheight() const
 {
     std::lock_guard<std::mutex> lock(d->lock);
-    return d->dataFiles.back()->m_lastBlockheight;
+    return d->dataFiles.back()->m_lastBlockHeight;
 }
 
 uint256 UnspentOutputDatabase::blockId() const
@@ -311,8 +308,30 @@ UODBPrivate::UODBPrivate(boost::asio::io_service &service, const boost::filesyst
         dataFiles.push_back(new DataFile(path));
         ++i;
     }
-    if (dataFiles.empty())
+    if (dataFiles.empty()) {
         dataFiles.push_back(DataFile::createDatafile(filepathForIndex(1), 0, uint256()));
+    } else {
+        // find a version all nodes can agree on.
+        bool allEqual = false;
+        while (!allEqual) {
+            allEqual = true; // we assume they are until they are not.
+            int lastBlock = -1;
+            for (auto df : dataFiles) {
+                if (lastBlock == -1)
+                    lastBlock = df->m_lastBlockHeight;
+                else if (lastBlock != df->m_lastBlockHeight) {
+                    allEqual = false;
+                    logCritical(Log::UTXO) << "Need to roll back to an older state:" << df->m_lastBlockHeight
+                                           << "Where the first knew:" << lastBlock;
+                    int oldestHeigt = std::min(lastBlock, df->m_lastBlockHeight);
+                    for (auto dataFile : dataFiles) {
+                        dataFile->openInfo(oldestHeigt);
+                    }
+                    break;
+                }
+            }
+        }
+    }
 }
 
 
@@ -427,7 +446,6 @@ DataFile::DataFile(const boost::filesystem::path &filename)
 {
     memset(m_jumptables, 0, sizeof(m_jumptables));
 
-    DataFileCache cache(m_path);
     auto dbFile(filename);
     dbFile.concat(".db");
     m_file.open(dbFile, std::ios_base::binary | std::ios_base::in | std::ios_base::out);
@@ -436,6 +454,7 @@ DataFile::DataFile(const boost::filesystem::path &filename)
     m_buffer = std::shared_ptr<char>(const_cast<char*>(m_file.const_data()), nothing);
     m_writeBuffer = Streaming::BufferPool(m_buffer, static_cast<int>(m_file.size()), true);
 
+    DataFileCache cache(m_path);
     while (!cache.m_validInfoFiles.empty()) {
         auto iter = cache.m_validInfoFiles.begin();
         auto highest = iter;
@@ -517,7 +536,7 @@ UnspentOutput DataFile::find(const uint256 &txid, int index) const
         } catch (const std::out_of_range &e) {
             logFatal(Log::UTXO) << "Utxo::find() Out of Range exception" << e;
             logFatal(Log::UTXO) << "Bucket inconsistency" << (bucketId & MEMMASK) << Log::Hex << shortHash;
-            logFatal(Log::UTXO) << "At" << m_lastBlockHash << m_lastBlockheight;
+            logFatal(Log::UTXO) << "At" << m_lastBlockHash << m_lastBlockHeight;
             assert(false);
         }
 #endif
@@ -847,8 +866,6 @@ void DataFile::flushAll()
     m_leafs.clear();
     m_memBuffers.clear();
     commit();
-    if (!m_jumptableNeedsSave)
-        return;
 
     DataFileCache cache(m_path);
     cache.writeInfoFile(this);
@@ -933,6 +950,19 @@ void DataFile::rollback()
     // Optionally I could rewind the file, but I don't think its useful
 }
 
+bool DataFile::openInfo(int targetHeight)
+{
+    DataFileCache cache(m_path);
+    DataFileCache::InfoFile candidate;
+    for (auto info : cache.m_validInfoFiles) {
+        if (info.lastBlockHeight <= targetHeight)
+            candidate = info;
+    }
+    if (candidate.lastBlockHeight != 0)
+        return cache.load(candidate, this);
+    return false;
+}
+
 DataFile *DataFile::createDatafile(const boost::filesystem::path &filename, int firstBlockHeight, const uint256 &firstHash)
 {
     auto dbFile = filename;
@@ -958,7 +988,7 @@ DataFile *DataFile::createDatafile(const boost::filesystem::path &filename, int 
 
     DataFile *df = new DataFile(filename);
     df->m_initialBlockHeight = firstBlockHeight;
-    df->m_lastBlockheight = firstBlockHeight;
+    df->m_lastBlockHeight = firstBlockHeight;
     df->m_lastBlockHash = firstHash;
     return df;
 }
@@ -1033,16 +1063,18 @@ void DataFileCache::writeInfoFile(DataFile *source)
             break;
         }
     }
+
     assert(newIndex > 0);
     assert(newIndex < 10);
 
+    boost::filesystem::remove(filenameFor(newIndex));
     std::ofstream out(filenameFor(newIndex).string(), std::ios::binary | std::ios::out | std::ios::trunc);
     if (!out.is_open())
         throw std::runtime_error("Failed to open info file for writing");
 
     Streaming::MessageBuilder builder(Streaming::NoHeader, 256);
     builder.add(UODB::FirstBlockHeight, source->m_initialBlockHeight);
-    builder.add(UODB::LastBlockHeight, source->m_lastBlockheight);
+    builder.add(UODB::LastBlockHeight, source->m_lastBlockHeight);
     builder.add(UODB::LastBlockId, source->m_lastBlockHash);
     builder.add(UODB::PositionInFile, source->m_writeBuffer.offset());
     CHash256 ctx;
@@ -1072,7 +1104,7 @@ bool DataFileCache::load(const DataFileCache::InfoFile &info, DataFile *target)
         Streaming::MessageParser parser(Streaming::ConstBuffer(buf, buf.get(), buf.get() + 256));
         while (parser.next() == Streaming::FoundTag) {
             if (parser.tag() == UODB::LastBlockHeight)
-                target->m_lastBlockheight = parser.intData();
+                target->m_lastBlockHeight = parser.intData();
             else if (parser.tag() == UODB::FirstBlockHeight)
                 target->m_initialBlockHeight = parser.intData();
             else if (parser.tag() == UODB::LastBlockId)

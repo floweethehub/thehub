@@ -138,6 +138,8 @@ public:
     void commit();
     void rollback();
 
+    bool openInfo(int targetHeight);
+
     bool m_jumptableNeedsSave = false;
     bool m_fileFull = false;
 
@@ -162,7 +164,7 @@ public:
     mutable std::recursive_mutex m_lock;
 
     int m_initialBlockHeight = 0;
-    int m_lastBlockheight = 0;
+    int m_lastBlockHeight = 0;
     uint256 m_lastBlockHash;
 
     // Amount of inserts/deletes since last flush
