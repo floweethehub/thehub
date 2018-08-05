@@ -108,6 +108,12 @@ void reimportBlockFiles()
     RenameThread("bitcoin-loadblk");
     if (Blocks::DB::instance()->reindexing() == Blocks::ScanningFiles) {
         int nFile = 0;
+        for (size_t indexedFiles = 0; indexedFiles < vinfoBlockFile.size(); ++indexedFiles) {
+            if (vinfoBlockFile[indexedFiles].nBlocks <= 0)
+                break;
+            nFile = indexedFiles;
+        }
+
         while (true) {
             if (!LoadExternalBlockFile(CDiskBlockPos(nFile, 0)))
                 break;
