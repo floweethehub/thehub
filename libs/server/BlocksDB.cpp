@@ -756,6 +756,7 @@ void Blocks::DBPrivate::foundBlockFile(int index, const CBlockFileInfo &info)
     // copy all but the undosize since that may have been assigned already.
     vinfoBlockFile[static_cast<size_t>(index)].nBlocks = info.nBlocks;
     vinfoBlockFile[static_cast<size_t>(index)].nSize = info.nSize;
+    setDirtyFileInfo.insert(index);
     logCritical(Log::DB) << "Registring block file info" << index << info.nBlocks << "blocks with a total of" << info.nSize << "bytes";
 }
 
