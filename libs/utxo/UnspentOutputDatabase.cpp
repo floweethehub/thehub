@@ -488,7 +488,7 @@ void DataFile::insert(const UODBPrivate *priv, const uint256 &txid, int outIndex
     } else if (bucketId & MEMBIT) { // highest bit is set. Bucket is in memory.
         bucket = &m_buckets.at(bucketId & MEMMASK);
         // check if I need to make a backup
-        if ((bucketId & MEMMASK) <= static_cast<uint32_t>(m_bucketIndex_saved)
+        if ((bucketId & MEMMASK) < static_cast<uint32_t>(m_bucketIndex_saved)
                 && m_changedBuckets.find(bucketId & MEMMASK) == m_changedBuckets.end())
             m_changedBuckets.insert(std::make_pair(bucketId & MEMMASK, *bucket));
     } else {
@@ -643,7 +643,7 @@ SpentOutput DataFile::remove(const UODBPrivate *priv, const uint256 &txid, int i
             bucket->saveAttempt = 0;
             if (bucketId & MEMBIT) { // highest bit is set. Bucket is in memory.
                 // first check if I need to make a backup
-                if ((bucketId & MEMMASK) <= static_cast<uint32_t>(m_bucketIndex_saved)
+                if ((bucketId & MEMMASK) < static_cast<uint32_t>(m_bucketIndex_saved)
                         && m_changedBuckets.find(bucketId & MEMMASK) == m_changedBuckets.end())
                     m_changedBuckets.insert(std::make_pair(bucketId & MEMMASK, *bucket));
 
