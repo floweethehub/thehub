@@ -267,8 +267,8 @@ void AddressMonitorService::findTxInMempool(int connectionId, const CKeyID &keyI
                 bool recognizedTx = Solver(scriptPubKey, whichType, vSolutions);
                 if (recognizedTx && whichType != TX_NULL_DATA) {
                     if (whichType == TX_PUBKEY || whichType == TX_PUBKEYHASH) {
-                        if (whichType == TX_PUBKEY && keyId == CPubKey(vSolutions[0]).GetID()
-                                || whichType == TX_PUBKEYHASH &&  keyId == CKeyID(uint160(vSolutions[0]))) {
+                        if ((whichType == TX_PUBKEY && keyId == CPubKey(vSolutions[0]).GetID())
+                                || (whichType == TX_PUBKEYHASH &&  keyId == CKeyID(uint160(vSolutions[0])))) {
 
                             match = true;
                             matchedAmounts += curAmount;
