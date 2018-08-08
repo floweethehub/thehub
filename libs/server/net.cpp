@@ -1356,7 +1356,7 @@ void ThreadMapPort()
             {
                 if(externalIPAddress[0])
                 {
-                    logInfo(Log::Net) << ("UPnP: ExternalIPAddress = %s\n", externalIPAddress);
+                    logInfo(Log::Net) << "UPnP: ExternalIPAddress =" << externalIPAddress;
                     AddLocal(CNetAddr(externalIPAddress), LOCAL_UPNP);
                 }
                 else
