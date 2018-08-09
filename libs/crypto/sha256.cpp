@@ -1,6 +1,6 @@
 /*
  * This file is part of the Flowee project
- * Copyright (C) 2014 The Bitcoin Core developers
+ * Copyright (C) 2014-2017 The Bitcoin Core developers
  *
  * This program is free software: you can redistribute it and/or modify
  * it under the terms of the GNU General Public License as published by
@@ -19,7 +19,21 @@
 #include "sha256.h"
 #include "common.h"
 
+#include <cassert>
 #include <cstring>
+
+#if defined(__x86_64__) || defined(__amd64__) || defined(__i386__)
+#include <cpuid.h>
+namespace sha256_sse41
+{
+void Transform(uint32_t* s, const unsigned char* chunk, size_t blocks);
+}
+
+namespace sha256_shani
+{
+void Transform(uint32_t* s, const unsigned char* chunk, size_t blocks);
+}
+#endif
 
 // Internal implementation code.
 namespace
@@ -148,8 +162,94 @@ void Transform(uint32_t* s, const unsigned char* chunk, size_t blocks)
 typedef void (*TransformType)(uint32_t*, const unsigned char*, size_t);
 static TransformType Transform = sha256::Transform;
 
+bool SelfTest() {
+    // Input state (equal to the initial SHA256 state)
+    static const uint32_t init[8] = {
+        0x6a09e667ul, 0xbb67ae85ul, 0x3c6ef372ul, 0xa54ff53aul, 0x510e527ful, 0x9b05688cul, 0x1f83d9abul, 0x5be0cd19ul
+    };
+    // Some random input data to test with
+    static const unsigned char data[641] = "-" // Intentionally not aligned
+        "Lorem ipsum dolor sit amet, consectetur adipiscing elit, sed do "
+        "eiusmod tempor incididunt ut labore et dolore magna aliqua. Et m"
+        "olestie ac feugiat sed lectus vestibulum mattis ullamcorper. Mor"
+        "bi blandit cursus risus at ultrices mi tempus imperdiet nulla. N"
+        "unc congue nisi vita suscipit tellus mauris. Imperdiet proin fer"
+        "mentum leo vel orci. Massa tempor nec feugiat nisl pretium fusce"
+        " id velit. Telus in metus vulputate eu scelerisque felis. Mi tem"
+        "pus imperdiet nulla malesuada pellentesque. Tristique magna sit.";
+    // Expected output state for hashing the i*64 first input bytes above (excluding SHA256 padding).
+    static const uint32_t result[9][8] = {
+        {0x6a09e667ul, 0xbb67ae85ul, 0x3c6ef372ul, 0xa54ff53aul, 0x510e527ful, 0x9b05688cul, 0x1f83d9abul, 0x5be0cd19ul},
+        {0x91f8ec6bul, 0x4da10fe3ul, 0x1c9c292cul, 0x45e18185ul, 0x435cc111ul, 0x3ca26f09ul, 0xeb954caeul, 0x402a7069ul},
+        {0xcabea5acul, 0x374fb97cul, 0x182ad996ul, 0x7bd69cbful, 0x450ff900ul, 0xc1d2be8aul, 0x6a41d505ul, 0xe6212dc3ul},
+        {0xbcff09d6ul, 0x3e76f36eul, 0x3ecb2501ul, 0x78866e97ul, 0xe1c1e2fdul, 0x32f4eafful, 0x8aa6c4e5ul, 0xdfc024bcul},
+        {0xa08c5d94ul, 0x0a862f93ul, 0x6b7f2f40ul, 0x8f9fae76ul, 0x6d40439ful, 0x79dcee0cul, 0x3e39ff3aul, 0xdc3bdbb1ul},
+        {0x216a0895ul, 0x9f1a3662ul, 0xe99946f9ul, 0x87ba4364ul, 0x0fb5db2cul, 0x12bed3d3ul, 0x6689c0c7ul, 0x292f1b04ul},
+        {0xca3067f8ul, 0xbc8c2656ul, 0x37cb7e0dul, 0x9b6b8b0ful, 0x46dc380bul, 0xf1287f57ul, 0xc42e4b23ul, 0x3fefe94dul},
+        {0x3e4c4039ul, 0xbb6fca8cul, 0x6f27d2f7ul, 0x301e44a4ul, 0x8352ba14ul, 0x5769ce37ul, 0x48a1155ful, 0xc0e1c4c6ul},
+        {0xfe2fa9ddul, 0x69d0862bul, 0x1ae0db23ul, 0x471f9244ul, 0xf55c0145ul, 0xc30f9c3bul, 0x40a84ea0ul, 0x5b8a266cul},
+    };
+
+    // Test Transform() for 0 through 8 transformations.
+    for (size_t i = 0; i <= 8; ++i) {
+        uint32_t state[8];
+        std::copy(init, init + 8, state);
+        Transform(state, data + 1, i);
+        if (!std::equal(state, state + 8, result[i])) return false;
+    }
+
+    return true;
+}
+
+#if defined(__x86_64__) || defined(__amd64__) || defined(__i386__)
+// We can't use cpuid.h's __get_cpuid as it does not support subleafs.
+inline void cpuid(uint32_t leaf, uint32_t subleaf, uint32_t& a, uint32_t& b, uint32_t& c, uint32_t& d)
+{
+#ifdef __GNUC__
+    __cpuid_count(leaf, subleaf, a, b, c, d);
+#else
+    __asm__ ("cpuid" : "=a"(a), "=b"(b), "=c"(c), "=d"(d) : "0"(leaf), "2"(subleaf));
+#endif
+}
+#endif
 } // namespace
 
+std::string SHA256AutoDetect()
+{
+    std::string ret = "standard";
+#if defined(__x86_64__) || defined(__amd64__) || defined(__i386__)
+    bool have_sse4 = false;
+    bool have_shani = false;
+
+    (void)have_sse4;
+    (void)have_shani;
+
+    uint32_t eax, ebx, ecx, edx;
+    cpuid(1, 0, eax, ebx, ecx, edx);
+    have_sse4 = (ecx >> 19) & 1;
+    if (have_sse4) {
+        cpuid(7, 0, eax, ebx, ecx, edx);
+        have_shani = (ebx >> 29) & 1;
+    }
+
+#ifdef ENABLE_SHANI
+    if (have_shani) {
+        Transform = sha256_shani::Transform;
+        ret = "shani(1way)";
+        have_sse4 = false; // Disable SSE4/AVX2;
+    }
+#endif
+
+#ifdef ENABLE_SSE41
+    if (have_sse4) {
+        Transform = sha256_sse41::Transform;
+        ret = "sse41(4way)";
+    }
+#endif
+#endif
+    assert(SelfTest());
+    return ret;
+}
 
 ////// SHA-256
 

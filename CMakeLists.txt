@@ -191,6 +191,16 @@ foreach (ARG "" "-std=gnu++11" "-std=c++11")
     set (_V "${_V}_")
 endforeach()
 
+include(CheckCXXCompilerFlag)
+check_cxx_compiler_flag("-msse4 -msse4.1" SSE41)
+if (${SSE41})
+    set(CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS} -msse4 -msse4.1 -DENABLE_SSE41")
+endif()
+check_cxx_compiler_flag("-msse4 -msha" SHANI)
+if (${SHANI})
+    set(CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS} -msse4 -msha -DENABLE_SHANI")
+endif()
+
 message ("===== Find optional dependencies")
 
 find_package(ZeroMQ 4.0)
