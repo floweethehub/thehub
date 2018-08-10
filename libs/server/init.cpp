@@ -402,14 +402,12 @@ bool AppInitServers()
     RPCServer::OnPreCommand(&OnRPCPreCommand);
     if (!InitHTTPServer())
         return false;
-    if (!StartRPC())
-        return false;
+    StartRPC();
     if (!StartHTTPRPC())
         return false;
-    if (GetBoolArg("-rest", Settings::DefaultRestEnable) && !StartREST())
-        return false;
-    if (!StartHTTPServer())
-        return false;
+    if (GetBoolArg("-rest", Settings::DefaultRestEnable))
+        StartREST();
+    StartHTTPServer();
     return true;
 }
 

@@ -452,7 +452,7 @@ bool InitHTTPServer()
 
 boost::thread threadHTTP;
 
-bool StartHTTPServer()
+void StartHTTPServer()
 {
     logInfo(Log::HTTP) << "Starting HTTP server";
     int rpcThreads = std::max((long)GetArg("-rpcthreads", Settings::DefaultHttpThreads), 1L);
@@ -461,7 +461,6 @@ bool StartHTTPServer()
 
     for (int i = 0; i < rpcThreads; i++)
         boost::thread(boost::bind(&HTTPWorkQueueRun, workQueue));
-    return true;
 }
 
 void InterruptHTTPServer()
@@ -676,4 +675,3 @@ void UnregisterHTTPHandler(const std::string &prefix, bool exactMatch)
         pathHandlers.erase(i);
     }
 }
-
