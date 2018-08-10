@@ -189,9 +189,11 @@ static const std::string DefaultUIPlatform =
 // //////// Misc
 static const bool DefaultTxIndex = false;
 
-// DoS prevention: limit transaction signature cache size to less than 40MB (over 500000
+// DoS prevention: limit cache size to 32MB (over 1000000 entries on 64-bit
 // entries on 64-bit systems).
-static const unsigned int DefaultMaxSigCacheSize = 40;
+// systems). Due to how we count cache size, actual memory usage is slightly
+// more (~32.25 MB)
+static const unsigned int DefaultMaxSigCacheSize = 32;
 
 static const bool DefaultRestEnable = false;
 static const bool DefaultDisableSafemode = false;
