@@ -200,6 +200,10 @@ check_cxx_compiler_flag("-msse4 -msha" SHANI)
 if (${SHANI})
     set(CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS} -msse4 -msha -DENABLE_SHANI")
 endif()
+check_cxx_compiler_flag("-mavx -mavx2" AVX2)
+if (${AVX2})
+    set(CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS} -mavx -mavx2 -DENABLE_AVX2")
+endif()
 
 message ("===== Find optional dependencies")
 
