@@ -22,6 +22,7 @@ add_library(flowee_crypto STATIC
     hmac_sha512.cpp
     ripemd160.cpp
     sha1.cpp
+    sha256_avx2.cpp
     sha256_shani.cpp
     sha256_sse41.cpp
     sha256.cpp

@@ -1,6 +1,6 @@
 /*
  * This file is part of the Flowee project
- * Copyright (C) 2017-2018 The Bitcoin Core developers
+ * Copyright (C) 2018 The Bitcoin Core developers
  *
  * This program is free software: you can redistribute it and/or modify
  * it under the terms of the GNU General Public License as published by
@@ -16,303 +16,110 @@
  * along with this program.  If not, see <http://www.gnu.org/licenses/>.
  */
 
-#ifdef ENABLE_SSE41
+// Based on https://github.com/noloader/SHA-Intrinsics/blob/master/sha256-x86.c,
+// Written and placed in public domain by Jeffrey Walton.
+// Based on code from Intel, and by Sean Gulley for the miTLS project.
+
+#ifdef ENABLE_AVX2
 
 #include <cstdint>
 #include <immintrin.h>
 
 #include "common.h"
 
-namespace sha256_sse41 {
-
-/*
-* The implementation in this namespace is a conversion to intrinsics from a
-* NASM implementation by Intel, found at
-* https://github.com/intel/intel-ipsec-mb/blob/master/sse/sha256_one_block_sse.asm
-*
-* Its original copyright text:
-
-;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
-; Copyright (c) 2012, Intel Corporation
-;
-; All rights reserved.
-;
-; Redistribution and use in source and binary forms, with or without
-; modification, are permitted provided that the following conditions are
-; met:
-;
-; * Redistributions of source code must retain the above copyright
-;   notice, this list of conditions and the following disclaimer.
-;
-; * Redistributions in binary form must reproduce the above copyright
-;   notice, this list of conditions and the following disclaimer in the
-;   documentation and/or other materials provided with the
-;   distribution.
-;
-; * Neither the name of the Intel Corporation nor the names of its
-;   contributors may be used to endorse or promote products derived from
-;   this software without specific prior written permission.
-;
-; THIS SOFTWARE IS PROVIDED BY INTEL CORPORATION "AS IS" AND ANY
-; EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT NOT LIMITED TO, THE
-; IMPLIED WARRANTIES OF MERCHANTABILITY AND FITNESS FOR A PARTICULAR
-; PURPOSE ARE DISCLAIMED. IN NO EVENT SHALL INTEL CORPORATION OR
-; CONTRIBUTORS BE LIABLE FOR ANY DIRECT, INDIRECT, INCIDENTAL, SPECIAL,
-; EXEMPLARY, OR CONSEQUENTIAL DAMAGES (INCLUDING, BUT NOT LIMITED TO,
-; PROCUREMENT OF SUBSTITUTE GOODS OR SERVICES; LOSS OF USE, DATA, OR
-; PROFITS; OR BUSINESS INTERRUPTION) HOWEVER CAUSED AND ON ANY THEORY OF
-; LIABILITY, WHETHER IN CONTRACT, STRICT LIABILITY, OR TORT (INCLUDING
-; NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE OF THIS
-; SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
-*/
-
+namespace sha256d64_avx2 {
 namespace {
 
-uint32_t inline __attribute__((always_inline)) Ror(uint32_t x, int val) { return ((x >> val) | (x << (32 - val))); }
+__m256i inline K(uint32_t x) { return _mm256_set1_epi32(x); }
 
-/** Compute one round of SHA256. */
-void inline __attribute__((always_inline)) Round(uint32_t& a, uint32_t& b, uint32_t& c, uint32_t& d, uint32_t& e, uint32_t& f, uint32_t& g, uint32_t& h, uint32_t w)
-{
-   uint32_t t0, t1, t2;
-   t0 = Ror(e, 25 - 11) ^ e;
-   t1 = Ror(a, 22 - 13) ^ a;
-   t2 = (f ^ g) & e;
-   t0 = Ror(t0, 11 - 6) ^ e;
-   t1 = Ror(t1, 13 - 2) ^ a;
-   t0 = Ror(t0, 6);
-   t2 = (t2 ^ g) + t0 + w;
-   t1 = Ror(t1, 2);
-   h += t2;
-   t0 = (a | c) & b;
-   d += h;
-   h += t1;
-   t0 |= (a & c);
-   h += t0;
-}
+__m256i inline Add(__m256i x, __m256i y) { return _mm256_add_epi32(x, y); }
+__m256i inline Add(__m256i x, __m256i y, __m256i z) { return Add(Add(x, y), z); }
+__m256i inline Add(__m256i x, __m256i y, __m256i z, __m256i w) { return Add(Add(x, y), Add(z, w)); }
+__m256i inline Add(__m256i x, __m256i y, __m256i z, __m256i w, __m256i v) { return Add(Add(x, y, z), Add(w, v)); }
+__m256i inline Inc(__m256i& x, __m256i y) { x = Add(x, y); return x; }
+__m256i inline Inc(__m256i& x, __m256i y, __m256i z) { x = Add(x, y, z); return x; }
+__m256i inline Inc(__m256i& x, __m256i y, __m256i z, __m256i w) { x = Add(x, y, z, w); return x; }
+__m256i inline Xor(__m256i x, __m256i y) { return _mm256_xor_si256(x, y); }
+__m256i inline Xor(__m256i x, __m256i y, __m256i z) { return Xor(Xor(x, y), z); }
+__m256i inline Or(__m256i x, __m256i y) { return _mm256_or_si256(x, y); }
+__m256i inline And(__m256i x, __m256i y) { return _mm256_and_si256(x, y); }
+__m256i inline ShR(__m256i x, int n) { return _mm256_srli_epi32(x, n); }
+__m256i inline ShL(__m256i x, int n) { return _mm256_slli_epi32(x, n); }
 
-/** Compute 4 rounds of SHA256, while simultaneously computing the expansion for
-*  16 rounds later.
-*
-*  Input: a,b,c,d,e,f,g,h: The state variables to update with 4 rounds
-*         x0,x1,x2,x3:     4 128-bit variables containing expansions.
-*                          If the current round is r, x0,x1,x2,x3 contain the
-*                          expansions for rounds r..r+15. x0 will be updated
-*                          to have the expansions for round r+16..r+19.
-*         W:               The round constants for r..r+3.
-*/
-void inline __attribute__((always_inline)) QuadRoundSched(uint32_t& a, uint32_t& b, uint32_t& c, uint32_t& d, uint32_t& e, uint32_t& f, uint32_t& g, uint32_t& h, __m128i& x0, __m128i x1, __m128i x2, __m128i x3, __m128i w)
-{
-   alignas(__m128i) uint32_t w32[4];
-   __m128i t0, t1, t2, t3, t4;
-
-   w = _mm_add_epi32(w, x0);
-   _mm_store_si128((__m128i*)w32, w);
-
-   Round(a, b, c, d, e, f, g, h, w32[0]);
-   t0 = _mm_add_epi32(_mm_alignr_epi8(x3, x2, 4), x0);
-   t3 = t2 = t1 = _mm_alignr_epi8(x1, x0, 4);
-   t2 = _mm_srli_epi32(t2, 7);
-   t1 = _mm_or_si128(_mm_slli_epi32(t1, 32 - 7), t2);
-
-   Round(h, a, b, c, d, e, f, g, w32[1]);
-   t4 = t2 = t3;
-   t3 = _mm_slli_epi32(t3, 32 - 18);
-   t2 = _mm_srli_epi32(t2, 18);
-   t1 = _mm_xor_si128(t1, t3);
-   t4 = _mm_srli_epi32(t4, 3);
-   t1 = _mm_xor_si128(_mm_xor_si128(t1, t2), t4);
-   t2 = _mm_shuffle_epi32(x3, 0xFA);
-   t0 = _mm_add_epi32(t0, t1);
-
-   Round(g, h, a, b, c, d, e, f, w32[2]);
-   t4 = t3 = t2;
-   t2 = _mm_srli_epi64(t2, 17);
-   t3 = _mm_srli_epi64(t3, 19);
-   t4 = _mm_srli_epi32(t4, 10);
-   t2 = _mm_xor_si128(t2, t3);
-   t4 = _mm_shuffle_epi8(_mm_xor_si128(t4, t2), _mm_set_epi64x(0xFFFFFFFFFFFFFFFFULL, 0x0b0a090803020100ULL));
-   t0 = _mm_add_epi32(t0, t4);
-   t2 = _mm_shuffle_epi32(t0, 0x50);
-
-   Round(f, g, h, a, b, c, d, e, w32[3]);
-   x0 = t3 = t2;
-   t2 = _mm_srli_epi64(t2, 17);
-   t3 = _mm_srli_epi64(t3, 19);
-   x0 = _mm_srli_epi32(x0, 10);
-   t2 = _mm_xor_si128(t2, t3);
-   x0 = _mm_add_epi32(_mm_shuffle_epi8(_mm_xor_si128(x0, t2), _mm_set_epi64x(0x0b0a090803020100ULL, 0xFFFFFFFFFFFFFFFFULL)), t0);
-}
-
-void inline __attribute__((always_inline)) QuadRound(uint32_t& a, uint32_t& b, uint32_t& c, uint32_t& d, uint32_t& e, uint32_t& f, uint32_t& g, uint32_t& h, __m128i x0, __m128i w)
-{
-   alignas(__m128i) uint32_t w32[32];
-
-   x0 = _mm_add_epi32(x0, w);
-   _mm_store_si128((__m128i*)w32, x0);
-
-   Round(a, b, c, d, e, f, g, h, w32[0]);
-   Round(h, a, b, c, d, e, f, g, w32[1]);
-   Round(g, h, a, b, c, d, e, f, w32[2]);
-   Round(f, g, h, a, b, c, d, e, w32[3]);
-}
-
-__m128i inline __attribute__((always_inline)) KK(uint32_t a, uint32_t b, uint32_t c, uint32_t d)
-{
-   return _mm_set_epi32(d, c, b, a);
-}
-
-}
-
-void Transform(uint32_t* s, const unsigned char* chunk, size_t blocks)
-{
-   const unsigned char* end = chunk + blocks * 64;
-   static const __m128i BYTE_FLIP_MASK = _mm_set_epi64x(0x0c0d0e0f08090a0b, 0x0405060700010203);
-
-   static const __m128i TBL[16] = {
-       KK(0x428a2f98, 0x71374491, 0xb5c0fbcf, 0xe9b5dba5),
-       KK(0x3956c25b, 0x59f111f1, 0x923f82a4, 0xab1c5ed5),
-       KK(0xd807aa98, 0x12835b01, 0x243185be, 0x550c7dc3),
-       KK(0x72be5d74, 0x80deb1fe, 0x9bdc06a7, 0xc19bf174),
-       KK(0xe49b69c1, 0xefbe4786, 0x0fc19dc6, 0x240ca1cc),
-       KK(0x2de92c6f, 0x4a7484aa, 0x5cb0a9dc, 0x76f988da),
-       KK(0x983e5152, 0xa831c66d, 0xb00327c8, 0xbf597fc7),
-       KK(0xc6e00bf3, 0xd5a79147, 0x06ca6351, 0x14292967),
-       KK(0x27b70a85, 0x2e1b2138, 0x4d2c6dfc, 0x53380d13),
-       KK(0x650a7354, 0x766a0abb, 0x81c2c92e, 0x92722c85),
-       KK(0xa2bfe8a1, 0xa81a664b, 0xc24b8b70, 0xc76c51a3),
-       KK(0xd192e819, 0xd6990624, 0xf40e3585, 0x106aa070),
-       KK(0x19a4c116, 0x1e376c08, 0x2748774c, 0x34b0bcb5),
-       KK(0x391c0cb3, 0x4ed8aa4a, 0x5b9cca4f, 0x682e6ff3),
-       KK(0x748f82ee, 0x78a5636f, 0x84c87814, 0x8cc70208),
-       KK(0x90befffa, 0xa4506ceb, 0xbef9a3f7, 0xc67178f2),
-   };
-
-   uint32_t a = s[0], b = s[1], c = s[2], d = s[3], e = s[4], f = s[5], g = s[6], h = s[7];
-
-   __m128i x0, x1, x2, x3;
-
-   while (chunk != end) {
-       x0 = _mm_shuffle_epi8(_mm_loadu_si128((const __m128i*)chunk), BYTE_FLIP_MASK);
-       x1 = _mm_shuffle_epi8(_mm_loadu_si128((const __m128i*)(chunk + 16)), BYTE_FLIP_MASK);
-       x2 = _mm_shuffle_epi8(_mm_loadu_si128((const __m128i*)(chunk + 32)), BYTE_FLIP_MASK);
-       x3 = _mm_shuffle_epi8(_mm_loadu_si128((const __m128i*)(chunk + 48)), BYTE_FLIP_MASK);
-
-       QuadRoundSched(a, b, c, d, e, f, g, h, x0, x1, x2, x3, TBL[0]);
-       QuadRoundSched(e, f, g, h, a, b, c, d, x1, x2, x3, x0, TBL[1]);
-       QuadRoundSched(a, b, c, d, e, f, g, h, x2, x3, x0, x1, TBL[2]);
-       QuadRoundSched(e, f, g, h, a, b, c, d, x3, x0, x1, x2, TBL[3]);
-       QuadRoundSched(a, b, c, d, e, f, g, h, x0, x1, x2, x3, TBL[4]);
-       QuadRoundSched(e, f, g, h, a, b, c, d, x1, x2, x3, x0, TBL[5]);
-       QuadRoundSched(a, b, c, d, e, f, g, h, x2, x3, x0, x1, TBL[6]);
-       QuadRoundSched(e, f, g, h, a, b, c, d, x3, x0, x1, x2, TBL[7]);
-       QuadRoundSched(a, b, c, d, e, f, g, h, x0, x1, x2, x3, TBL[8]);
-       QuadRoundSched(e, f, g, h, a, b, c, d, x1, x2, x3, x0, TBL[9]);
-       QuadRoundSched(a, b, c, d, e, f, g, h, x2, x3, x0, x1, TBL[10]);
-       QuadRoundSched(e, f, g, h, a, b, c, d, x3, x0, x1, x2, TBL[11]);
-       QuadRound(a, b, c, d, e, f, g, h, x0, TBL[12]);
-       QuadRound(e, f, g, h, a, b, c, d, x1, TBL[13]);
-       QuadRound(a, b, c, d, e, f, g, h, x2, TBL[14]);
-       QuadRound(e, f, g, h, a, b, c, d, x3, TBL[15]);
-
-       a += s[0]; s[0] = a;
-       b += s[1]; s[1] = b;
-       c += s[2]; s[2] = c;
-       d += s[3]; s[3] = d;
-       e += s[4]; s[4] = e;
-       f += s[5]; s[5] = f;
-       g += s[6]; s[6] = g;
-       h += s[7]; s[7] = h;
-
-       chunk += 64;
-   }
-}
-}
-
-namespace sha256d64_sse41 {
-namespace {
-
-__m128i inline K(uint32_t x) { return _mm_set1_epi32(x); }
-
-__m128i inline Add(__m128i x, __m128i y) { return _mm_add_epi32(x, y); }
-__m128i inline Add(__m128i x, __m128i y, __m128i z) { return Add(Add(x, y), z); }
-__m128i inline Add(__m128i x, __m128i y, __m128i z, __m128i w) { return Add(Add(x, y), Add(z, w)); }
-__m128i inline Add(__m128i x, __m128i y, __m128i z, __m128i w, __m128i v) { return Add(Add(x, y, z), Add(w, v)); }
-__m128i inline Inc(__m128i& x, __m128i y) { x = Add(x, y); return x; }
-__m128i inline Inc(__m128i& x, __m128i y, __m128i z) { x = Add(x, y, z); return x; }
-__m128i inline Inc(__m128i& x, __m128i y, __m128i z, __m128i w) { x = Add(x, y, z, w); return x; }
-__m128i inline Xor(__m128i x, __m128i y) { return _mm_xor_si128(x, y); }
-__m128i inline Xor(__m128i x, __m128i y, __m128i z) { return Xor(Xor(x, y), z); }
-__m128i inline Or(__m128i x, __m128i y) { return _mm_or_si128(x, y); }
-__m128i inline And(__m128i x, __m128i y) { return _mm_and_si128(x, y); }
-__m128i inline ShR(__m128i x, int n) { return _mm_srli_epi32(x, n); }
-__m128i inline ShL(__m128i x, int n) { return _mm_slli_epi32(x, n); }
-
-__m128i inline Ch(__m128i x, __m128i y, __m128i z) { return Xor(z, And(x, Xor(y, z))); }
-__m128i inline Maj(__m128i x, __m128i y, __m128i z) { return Or(And(x, y), And(z, Or(x, y))); }
-__m128i inline Sigma0(__m128i x) { return Xor(Or(ShR(x, 2), ShL(x, 30)), Or(ShR(x, 13), ShL(x, 19)), Or(ShR(x, 22), ShL(x, 10))); }
-__m128i inline Sigma1(__m128i x) { return Xor(Or(ShR(x, 6), ShL(x, 26)), Or(ShR(x, 11), ShL(x, 21)), Or(ShR(x, 25), ShL(x, 7))); }
-__m128i inline sigma0(__m128i x) { return Xor(Or(ShR(x, 7), ShL(x, 25)), Or(ShR(x, 18), ShL(x, 14)), ShR(x, 3)); }
-__m128i inline sigma1(__m128i x) { return Xor(Or(ShR(x, 17), ShL(x, 15)), Or(ShR(x, 19), ShL(x, 13)), ShR(x, 10)); }
+__m256i inline Ch(__m256i x, __m256i y, __m256i z) { return Xor(z, And(x, Xor(y, z))); }
+__m256i inline Maj(__m256i x, __m256i y, __m256i z) { return Or(And(x, y), And(z, Or(x, y))); }
+__m256i inline Sigma0(__m256i x) { return Xor(Or(ShR(x, 2), ShL(x, 30)), Or(ShR(x, 13), ShL(x, 19)), Or(ShR(x, 22), ShL(x, 10))); }
+__m256i inline Sigma1(__m256i x) { return Xor(Or(ShR(x, 6), ShL(x, 26)), Or(ShR(x, 11), ShL(x, 21)), Or(ShR(x, 25), ShL(x, 7))); }
+__m256i inline sigma0(__m256i x) { return Xor(Or(ShR(x, 7), ShL(x, 25)), Or(ShR(x, 18), ShL(x, 14)), ShR(x, 3)); }
+__m256i inline sigma1(__m256i x) { return Xor(Or(ShR(x, 17), ShL(x, 15)), Or(ShR(x, 19), ShL(x, 13)), ShR(x, 10)); }
 
 /** One round of SHA-256. */
-void inline __attribute__((always_inline)) Round(__m128i a, __m128i b, __m128i c, __m128i& d, __m128i e, __m128i f, __m128i g, __m128i& h, __m128i k)
+void inline __attribute__((always_inline)) Round(__m256i a, __m256i b, __m256i c, __m256i& d, __m256i e, __m256i f, __m256i g, __m256i& h, __m256i k)
 {
-    __m128i t1 = Add(h, Sigma1(e), Ch(e, f, g), k);
-    __m128i t2 = Add(Sigma0(a), Maj(a, b, c));
+    __m256i t1 = Add(h, Sigma1(e), Ch(e, f, g), k);
+    __m256i t2 = Add(Sigma0(a), Maj(a, b, c));
     d = Add(d, t1);
     h = Add(t1, t2);
 }
 
-__m128i inline Read4(const unsigned char* chunk, int offset) {
-    __m128i ret = _mm_set_epi32(
+__m256i inline Read8(const unsigned char* chunk, int offset) {
+    __m256i ret = _mm256_set_epi32(
         ReadLE32(chunk + 0 + offset),
         ReadLE32(chunk + 64 + offset),
         ReadLE32(chunk + 128 + offset),
-        ReadLE32(chunk + 192 + offset)
+        ReadLE32(chunk + 192 + offset),
+        ReadLE32(chunk + 256 + offset),
+        ReadLE32(chunk + 320 + offset),
+        ReadLE32(chunk + 384 + offset),
+        ReadLE32(chunk + 448 + offset)
     );
-    return _mm_shuffle_epi8(ret, _mm_set_epi32(0x0C0D0E0FUL, 0x08090A0BUL, 0x04050607UL, 0x00010203UL));
+    return _mm256_shuffle_epi8(ret, _mm256_set_epi32(0x0C0D0E0FUL, 0x08090A0BUL, 0x04050607UL, 0x00010203UL, 0x0C0D0E0FUL, 0x08090A0BUL, 0x04050607UL, 0x00010203UL));
 }
 
-void inline Write4(unsigned char* out, int offset, __m128i v) {
-    v = _mm_shuffle_epi8(v, _mm_set_epi32(0x0C0D0E0FUL, 0x08090A0BUL, 0x04050607UL, 0x00010203UL));
-    WriteLE32(out + 0 + offset, _mm_extract_epi32(v, 3));
-    WriteLE32(out + 32 + offset, _mm_extract_epi32(v, 2));
-    WriteLE32(out + 64 + offset, _mm_extract_epi32(v, 1));
-    WriteLE32(out + 96 + offset, _mm_extract_epi32(v, 0));
+void inline Write8(unsigned char* out, int offset, __m256i v) {
+    v = _mm256_shuffle_epi8(v, _mm256_set_epi32(0x0C0D0E0FUL, 0x08090A0BUL, 0x04050607UL, 0x00010203UL, 0x0C0D0E0FUL, 0x08090A0BUL, 0x04050607UL, 0x00010203UL));
+    WriteLE32(out + 0 + offset, _mm256_extract_epi32(v, 7));
+    WriteLE32(out + 32 + offset, _mm256_extract_epi32(v, 6));
+    WriteLE32(out + 64 + offset, _mm256_extract_epi32(v, 5));
+    WriteLE32(out + 96 + offset, _mm256_extract_epi32(v, 4));
+    WriteLE32(out + 128 + offset, _mm256_extract_epi32(v, 3));
+    WriteLE32(out + 160 + offset, _mm256_extract_epi32(v, 2));
+    WriteLE32(out + 192 + offset, _mm256_extract_epi32(v, 1));
+    WriteLE32(out + 224 + offset, _mm256_extract_epi32(v, 0));
 }
 
 }
 
-void Transform_4way(unsigned char* out, const unsigned char* in)
+void Transform_8way(unsigned char* out, const unsigned char* in)
 {
     // Transform 1
-    __m128i a = K(0x6a09e667ul);
-    __m128i b = K(0xbb67ae85ul);
-    __m128i c = K(0x3c6ef372ul);
-    __m128i d = K(0xa54ff53aul);
-    __m128i e = K(0x510e527ful);
-    __m128i f = K(0x9b05688cul);
-    __m128i g = K(0x1f83d9abul);
-    __m128i h = K(0x5be0cd19ul);
+    __m256i a = K(0x6a09e667ul);
+    __m256i b = K(0xbb67ae85ul);
+    __m256i c = K(0x3c6ef372ul);
+    __m256i d = K(0xa54ff53aul);
+    __m256i e = K(0x510e527ful);
+    __m256i f = K(0x9b05688cul);
+    __m256i g = K(0x1f83d9abul);
+    __m256i h = K(0x5be0cd19ul);
 
-    __m128i w0, w1, w2, w3, w4, w5, w6, w7, w8, w9, w10, w11, w12, w13, w14, w15;
+    __m256i w0, w1, w2, w3, w4, w5, w6, w7, w8, w9, w10, w11, w12, w13, w14, w15;
 
-    Round(a, b, c, d, e, f, g, h, Add(K(0x428a2f98ul), w0 = Read4(in, 0)));
-    Round(h, a, b, c, d, e, f, g, Add(K(0x71374491ul), w1 = Read4(in, 4)));
-    Round(g, h, a, b, c, d, e, f, Add(K(0xb5c0fbcful), w2 = Read4(in, 8)));
-    Round(f, g, h, a, b, c, d, e, Add(K(0xe9b5dba5ul), w3 = Read4(in, 12)));
-    Round(e, f, g, h, a, b, c, d, Add(K(0x3956c25bul), w4 = Read4(in, 16)));
-    Round(d, e, f, g, h, a, b, c, Add(K(0x59f111f1ul), w5 = Read4(in, 20)));
-    Round(c, d, e, f, g, h, a, b, Add(K(0x923f82a4ul), w6 = Read4(in, 24)));
-    Round(b, c, d, e, f, g, h, a, Add(K(0xab1c5ed5ul), w7 = Read4(in, 28)));
-    Round(a, b, c, d, e, f, g, h, Add(K(0xd807aa98ul), w8 = Read4(in, 32)));
-    Round(h, a, b, c, d, e, f, g, Add(K(0x12835b01ul), w9 = Read4(in, 36)));
-    Round(g, h, a, b, c, d, e, f, Add(K(0x243185beul), w10 = Read4(in, 40)));
-    Round(f, g, h, a, b, c, d, e, Add(K(0x550c7dc3ul), w11 = Read4(in, 44)));
-    Round(e, f, g, h, a, b, c, d, Add(K(0x72be5d74ul), w12 = Read4(in, 48)));
-    Round(d, e, f, g, h, a, b, c, Add(K(0x80deb1feul), w13 = Read4(in, 52)));
-    Round(c, d, e, f, g, h, a, b, Add(K(0x9bdc06a7ul), w14 = Read4(in, 56)));
-    Round(b, c, d, e, f, g, h, a, Add(K(0xc19bf174ul), w15 = Read4(in, 60)));
+    Round(a, b, c, d, e, f, g, h, Add(K(0x428a2f98ul), w0 = Read8(in, 0)));
+    Round(h, a, b, c, d, e, f, g, Add(K(0x71374491ul), w1 = Read8(in, 4)));
+    Round(g, h, a, b, c, d, e, f, Add(K(0xb5c0fbcful), w2 = Read8(in, 8)));
+    Round(f, g, h, a, b, c, d, e, Add(K(0xe9b5dba5ul), w3 = Read8(in, 12)));
+    Round(e, f, g, h, a, b, c, d, Add(K(0x3956c25bul), w4 = Read8(in, 16)));
+    Round(d, e, f, g, h, a, b, c, Add(K(0x59f111f1ul), w5 = Read8(in, 20)));
+    Round(c, d, e, f, g, h, a, b, Add(K(0x923f82a4ul), w6 = Read8(in, 24)));
+    Round(b, c, d, e, f, g, h, a, Add(K(0xab1c5ed5ul), w7 = Read8(in, 28)));
+    Round(a, b, c, d, e, f, g, h, Add(K(0xd807aa98ul), w8 = Read8(in, 32)));
+    Round(h, a, b, c, d, e, f, g, Add(K(0x12835b01ul), w9 = Read8(in, 36)));
+    Round(g, h, a, b, c, d, e, f, Add(K(0x243185beul), w10 = Read8(in, 40)));
+    Round(f, g, h, a, b, c, d, e, Add(K(0x550c7dc3ul), w11 = Read8(in, 44)));
+    Round(e, f, g, h, a, b, c, d, Add(K(0x72be5d74ul), w12 = Read8(in, 48)));
+    Round(d, e, f, g, h, a, b, c, Add(K(0x80deb1feul), w13 = Read8(in, 52)));
+    Round(c, d, e, f, g, h, a, b, Add(K(0x9bdc06a7ul), w14 = Read8(in, 56)));
+    Round(b, c, d, e, f, g, h, a, Add(K(0xc19bf174ul), w15 = Read8(in, 60)));
     Round(a, b, c, d, e, f, g, h, Add(K(0xe49b69c1ul), Inc(w0, sigma1(w14), w9, sigma0(w1))));
     Round(h, a, b, c, d, e, f, g, Add(K(0xefbe4786ul), Inc(w1, sigma1(w15), w10, sigma0(w2))));
     Round(g, h, a, b, c, d, e, f, Add(K(0x0fc19dc6ul), Inc(w2, sigma1(w0), w11, sigma0(w3))));
@@ -371,7 +178,7 @@ void Transform_4way(unsigned char* out, const unsigned char* in)
     g = Add(g, K(0x1f83d9abul));
     h = Add(h, K(0x5be0cd19ul));
 
-    __m128i t0 = a, t1 = b, t2 = c, t3 = d, t4 = e, t5 = f, t6 = g, t7 = h;
+    __m256i t0 = a, t1 = b, t2 = c, t3 = d, t4 = e, t5 = f, t6 = g, t7 = h;
 
     // Transform 2
     Round(a, b, c, d, e, f, g, h, K(0xc28a2f98ul));
@@ -524,14 +331,14 @@ void Transform_4way(unsigned char* out, const unsigned char* in)
     Round(b, c, d, e, f, g, h, a, Add(K(0xc67178f2ul), w15, sigma1(w13), w8, sigma0(w0)));
 
     // Output
-    Write4(out, 0, Add(a, K(0x6a09e667ul)));
-    Write4(out, 4, Add(b, K(0xbb67ae85ul)));
-    Write4(out, 8, Add(c, K(0x3c6ef372ul)));
-    Write4(out, 12, Add(d, K(0xa54ff53aul)));
-    Write4(out, 16, Add(e, K(0x510e527ful)));
-    Write4(out, 20, Add(f, K(0x9b05688cul)));
-    Write4(out, 24, Add(g, K(0x1f83d9abul)));
-    Write4(out, 28, Add(h, K(0x5be0cd19ul)));
+    Write8(out, 0, Add(a, K(0x6a09e667ul)));
+    Write8(out, 4, Add(b, K(0xbb67ae85ul)));
+    Write8(out, 8, Add(c, K(0x3c6ef372ul)));
+    Write8(out, 12, Add(d, K(0xa54ff53aul)));
+    Write8(out, 16, Add(e, K(0x510e527ful)));
+    Write8(out, 20, Add(f, K(0x9b05688cul)));
+    Write8(out, 24, Add(g, K(0x1f83d9abul)));
+    Write8(out, 28, Add(h, K(0x5be0cd19ul)));
 }
 }
 
