@@ -20,12 +20,14 @@ set(CMAKE_AUTOMOC ON)
 
 include_directories(${LIBS_INCLUDES}
     ${CMAKE_CURRENT_BINARY_DIR}
+    ..
     ${Qt5Core_INCLUDE_DIRS}
     ${Qt5Test_INCLUDE_DIRS}
 )
 
 add_executable(test_prevector
     test_prevector.cpp
+    ../common/TestFlowee.cpp
 )
 
 target_link_libraries(test_prevector

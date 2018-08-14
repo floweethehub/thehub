@@ -24,6 +24,7 @@
 #include "tinyformat.h"
 
 #include <boost/filesystem/path.hpp>
+#include <functional>
 
 namespace Log {
 
@@ -150,12 +151,13 @@ public:
     /// Request files to be closed and opened anew.
     void reopenLogFiles();
 
-    /// Load a simple setup that prints all logging to stdout and nothing to file.
-    void loadDefaultTestSetup(const std::string &testName = std::string());
-
-    /// call this to print a nice "exit test" line
-    /// will only do something if loadDefaultTestSetup has been called with a testname
-    void exitTest();
+    /**
+     * Load a simple setup that prints all logging to stdout and nothing to file.
+     * This code behaves differently if in release mode, in that case nothing is logged instead of everything.
+     * @param testNameFunction a function that will return a c-string that is prefixed to each line to indicate
+     *        which test-function they are in.
+     */
+    void loadDefaultTestSetup(const std::function<const char*()> &testNameFunction);
 
     /**
      * @brief parseConfig reads the config file logs.conf from the datadir.

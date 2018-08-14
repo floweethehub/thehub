@@ -18,10 +18,9 @@
 #ifndef TEST_PREVECTOR_H
 #define TEST_PREVECTOR_H
 
-#include <QObject>
-#include <QtTest/QtTest>
+#include <common/TestFlowee.h>
 
-class TestPrevector : public QObject
+class TestPrevector : public Test::Flowee
 {
     Q_OBJECT
 public:

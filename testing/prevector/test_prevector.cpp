@@ -20,11 +20,16 @@
 #include "test_prevector.h"
 #include <vector>
 #include <utils/prevector.h>
+#include <Logger.h>
 #include <random.h>
 
 #include "serialize.h"
 #include "streams.h"
 #include <boost/foreach.hpp>
+#include <utils/Logger.h>
+#include <server/chainparams.h>
+
+#include <server/CrashCatcher.h>
 
 template<unsigned int N, typename T>
 class prevector_tester {
@@ -162,8 +167,18 @@ public:
     }
 };
 
+
 void TestPrevector::runTests()
 {
+    /*
+     * Likely the best chance I have to make this work is to create a method
+     * that is called from the logger itself. The method should be one that I
+     * implement in a separate header file and in each app I include that header file.
+     * In unit tests instead I link to my own version of that call.
+     *
+     * Ah, I can set a bool on the Log::Manager that enables the call of this method :)
+     * Or, even better, set a std::function there!  When unset we just use the old one.
+     */
     for (int j = 0; j < 64; j++) {
         prevector_tester<8, int> test;
         for (int i = 0; i < 2048; i++) {
