@@ -15,27 +15,11 @@
 # along with this program.  If not, see <http://www.gnu.org/licenses/>.
 
 project (test_prevector)
-set(CMAKE_INCLUDE_CURRENT_DIR ON)
-set(CMAKE_AUTOMOC ON)
-
-include_directories(${LIBS_INCLUDES}
-    ${CMAKE_CURRENT_BINARY_DIR}
-    ..
-    ${Qt5Core_INCLUDE_DIRS}
-    ${Qt5Test_INCLUDE_DIRS}
-)
+include (testlib)
 
 add_executable(test_prevector
     test_prevector.cpp
     ../common/TestFlowee.cpp
 )
-
-target_link_libraries(test_prevector
-    flowee_utils
-
-    ${Boost_LIBRARIES}
-    ${OPENSSL_LIBRARIES}
-    Qt5::Test
-)
-
+target_link_libraries(test_prevector flowee_utils ${TEST_LIBS} ${OPENSSL_LIBRARIES})
 add_test(NAME HUB_test_prevector COMMAND test_prevector)

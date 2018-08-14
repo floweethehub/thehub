@@ -14,18 +14,14 @@
 # You should have received a copy of the GNU General Public License
 # along with this program.  If not, see <http://www.gnu.org/licenses/>.
 
-project (test_utxo)
-include (testlib)
+set(CMAKE_INCLUDE_CURRENT_DIR ON)
+set(CMAKE_AUTOMOC ON)
 
-add_executable(test_utxo
-    ../common/TestFlowee.cpp
-    test_utxo.cpp
+include_directories(${LIBS_INCLUDES}
+    ${CMAKE_CURRENT_BINARY_DIR}
+    ${CMAKE_SOURCE_DIR}/testing/
+    ${Qt5Core_INCLUDE_DIRS}
+    ${Qt5Test_INCLUDE_DIRS}
 )
-target_link_libraries(test_utxo
-    flowee_utils
-    flowee_utxo
 
-    ${TEST_LIBS}
-    ${OPENSSL_LIBRARIES}
-)
-add_test(NAME HUB_test_utxo COMMAND test_utxo)
+set (TEST_LIBS ${Boost_LIBRARIES} Qt5::Test)
