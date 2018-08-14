@@ -16,16 +16,17 @@
  * along with this program.  If not, see <http://www.gnu.org/licenses/>.
  */
 
-#include "TestFlowee.h"
+#include "TestFloweeBase.h"
 #include <Logger.h>
 
 
-Test::Flowee::Flowee()
+TestFloweeBase::TestFloweeBase()
 {
-    Log::Manager::instance()->loadDefaultTestSetup(std::bind(&Test::Flowee::currentTestName, this));
+    memset(m_currentTestname, 0, sizeof(m_currentTestname));
+    Log::Manager::instance()->loadDefaultTestSetup(std::bind(&TestFloweeBase::currentTestName, this));
 }
 
-const char *Test::Flowee::currentTestName()
+const char *TestFloweeBase::currentTestName()
 {
     if (m_prevTest == QTest::currentTestFunction())
         return m_currentTestname;

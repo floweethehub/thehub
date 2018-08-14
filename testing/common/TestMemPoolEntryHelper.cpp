@@ -1,6 +1,7 @@
 /*
  * This file is part of the Flowee project
- * Copyright (C) 2018 Tom Zander <tomz@freedommail.ch>
+ * Copyright (C) 2011-2015 The Bitcoin Core developers
+ * Copyright (C) 2017 Tom Zander <tomz@freedommail.ch>
  *
  * This program is free software: you can redistribute it and/or modify
  * it under the terms of the GNU General Public License as published by
@@ -15,19 +16,16 @@
  * You should have received a copy of the GNU General Public License
  * along with this program.  If not, see <http://www.gnu.org/licenses/>.
  */
-#ifndef TEST_PREVECTOR_H
-#define TEST_PREVECTOR_H
 
-#include <common/TestFloweeBase.h>
+#include "TestMemPoolEntryHelper.h"
 
-class TestPrevector : public TestFloweeBase
+CTxMemPoolEntry TestMemPoolEntryHelper::FromTx(CMutableTransaction &tx, CTxMemPool *pool)
 {
-    Q_OBJECT
-public:
-    TestPrevector() {}
+    CTransaction txn(tx);
+    bool hasNoDependencies = pool ? pool->HasNoInputsOf(tx) : hadNoDependencies;
+    // Hack to assume either its completely dependent on other mempool txs or not at all
+    CAmount inChainValue = hasNoDependencies ? txn.GetValueOut() : 0;
 
-private slots:
-    void runTests();
-};
-
-#endif
+    return CTxMemPoolEntry(txn, nFee, nTime, dPriority, nHeight,
+                           hasNoDependencies, inChainValue, spendsCoinbase, sigOpCount, lp);
+}

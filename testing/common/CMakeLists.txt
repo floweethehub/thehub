@@ -14,18 +14,20 @@
 # You should have received a copy of the GNU General Public License
 # along with this program.  If not, see <http://www.gnu.org/licenses/>.
 
-project (test_utxo)
-include (testlib)
+include_directories(${LIBSERVER_INCLUDES})
 
-add_executable(test_utxo
-    ../common/TestFloweeBase.cpp
-    test_utxo.cpp
+set(CMAKE_INCLUDE_CURRENT_DIR ON)
+set(CMAKE_AUTOMOC ON)
+
+add_library(flowee_testlib STATIC
+    MockBlockValidation.cpp
+    TestFloweeBase.cpp
+    TestFloweeEnvPlusNet.cpp
+    TestFloweeSession.cpp
+    TestMemPoolEntryHelper.cpp
 )
-target_link_libraries(test_utxo
+
+target_link_libraries(flowee_testlib
     flowee_utils
-    flowee_utxo
-
-    ${TEST_LIBS}
-    ${OPENSSL_LIBRARIES}
+    Qt5::Test
 )
-add_test(NAME HUB_test_utxo COMMAND test_utxo)

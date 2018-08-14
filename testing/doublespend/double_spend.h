@@ -15,19 +15,20 @@
  * You should have received a copy of the GNU General Public License
  * along with this program.  If not, see <http://www.gnu.org/licenses/>.
  */
-#ifndef TEST_PREVECTOR_H
-#define TEST_PREVECTOR_H
+#ifndef DOUBLE_SPEND_H
+#define DOUBLE_SPEND_H
 
-#include <common/TestFloweeBase.h>
+#include <common/TestFloweeSession.h>
 
-class TestPrevector : public TestFloweeBase
+class TestDoubleSpend : public TestFloweeSession
 {
     Q_OBJECT
 public:
-    TestPrevector() {}
+    // TestDoubleSpend();
 
-private slots:
-    void runTests();
+public slots:
+    void test();
 };
 
 #endif
+

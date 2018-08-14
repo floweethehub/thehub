@@ -15,19 +15,21 @@
  * You should have received a copy of the GNU General Public License
  * along with this program.  If not, see <http://www.gnu.org/licenses/>.
  */
-#ifndef TEST_PREVECTOR_H
-#define TEST_PREVECTOR_H
+#ifndef FLOWEE_TEST_H
+#define FLOWEE_TEST_H
 
-#include <common/TestFloweeBase.h>
+#include <QObject>
+#include <QtTest/QtTest>
 
-class TestPrevector : public TestFloweeBase
-{
+class TestFloweeBase : public QObject {
     Q_OBJECT
 public:
-    TestPrevector() {}
+    TestFloweeBase();
 
-private slots:
-    void runTests();
+private:
+    const char *currentTestName();
+    char m_currentTestname[40];
+    const char *m_prevTest = nullptr;
 };
 
 #endif

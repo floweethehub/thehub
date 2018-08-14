@@ -14,18 +14,23 @@
 # You should have received a copy of the GNU General Public License
 # along with this program.  If not, see <http://www.gnu.org/licenses/>.
 
-project (test_utxo)
+project (test_doublespend)
 include (testlib)
 
-add_executable(test_utxo
-    ../common/TestFloweeBase.cpp
-    test_utxo.cpp
-)
-target_link_libraries(test_utxo
-    flowee_utils
-    flowee_utxo
+add_executable(test_doublespend double_spend.cpp)
+target_link_libraries(test_doublespend
+    flowee_testlib
+    flowee_server
 
-    ${TEST_LIBS}
+    ${LEVELDB_LIBRARY}
+    ${SECP256K1_LIBRARY}
+    ${UNIVALUE_LIBRARY}
     ${OPENSSL_LIBRARIES}
+    ${Boost_LIBRARIES}
+    ${ZMQ_LIBRARIES}
+    ${Event_LIBRARIES}
+    ${BERKELEY_DB_LIBRARIES}
+    ${MINIUPNP_LIBRARY}
+    ${BOOST_THREAD_LIBRARY}
 )
-add_test(NAME HUB_test_utxo COMMAND test_utxo)
+add_test(NAME HUB_test_doublespend COMMAND test_doublespend)

@@ -23,7 +23,6 @@
 
 void TestUtxo::init()
 {
-    // in 1.61 this only gets called from constructor, in 1.67 this gets called twice.
     m_testPath = GetTempPath() / strprintf("test_flowee_%lu", (unsigned long)GetTime());
     boost::filesystem::remove_all(m_testPath);
 }

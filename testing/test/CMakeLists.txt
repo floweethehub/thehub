@@ -60,7 +60,6 @@ set (TEST_SOURCES
     crypto_tests.cpp
     dbwrapper_tests.cpp
     DoS_tests.cpp
-    double_spend.cpp
     getarg_tests.cpp
     hash_tests.cpp
     key_tests.cpp

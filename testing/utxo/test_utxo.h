@@ -18,13 +18,13 @@
 #ifndef TEST_UTXO_H
 #define TEST_UTXO_H
 
-#include <common/TestFlowee.h>
+#include <common/TestFloweeBase.h>
 #include <utxo/UnspentOutputDatabase.h>
 #include <uint256.h>
 
 #include <boost/filesystem.hpp>
 
-class TestUtxo : public Test::Flowee
+class TestUtxo : public TestFloweeBase
 {
     Q_OBJECT
 public:

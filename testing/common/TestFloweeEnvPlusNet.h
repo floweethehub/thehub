@@ -1,6 +1,7 @@
 /*
  * This file is part of the Flowee project
- * Copyright (C) 2018 Tom Zander <tomz@freedommail.ch>
+ * Copyright (c) 2015 The Bitcoin Core developers
+ * Copyright (C) 2017 Tom Zander <tomz@freedommail.ch>
  *
  * This program is free software: you can redistribute it and/or modify
  * it under the terms of the GNU General Public License as published by
@@ -15,19 +16,23 @@
  * You should have received a copy of the GNU General Public License
  * along with this program.  If not, see <http://www.gnu.org/licenses/>.
  */
-#ifndef TEST_PREVECTOR_H
-#define TEST_PREVECTOR_H
 
-#include <common/TestFloweeBase.h>
+#ifndef BASICTESTINGSETUP_H
+#define BASICTESTINGSETUP_H
 
-class TestPrevector : public TestFloweeBase
+#include "TestFloweeBase.h"
+
+#include <chainparamsbase.h>
+#include <pubkey.h>
+
+class TestFloweeEnvPlusNet : public TestFloweeBase
 {
     Q_OBJECT
 public:
-    TestPrevector() {}
+    ECCVerifyHandle globalVerifyHandle;
 
-private slots:
-    void runTests();
+    TestFloweeEnvPlusNet(const std::string& chainName = CBaseChainParams::MAIN);
+    ~TestFloweeEnvPlusNet();
 };
 
 #endif
