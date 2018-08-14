@@ -22,9 +22,7 @@ build-debian-stable:
   artifacts:
     paths:
     - bin
-    - build/testing/test/test_hub
-    - build/testing/utxo/test_utxo
-    - build/testing/prevector/test_prevector
+    - build/testing/*/test_*
     expire_in: 1 hrs
 
 # this fails on gitlab but the same setup passes on my laptop.
@@ -44,6 +42,12 @@ test_utxo.deb:
 test_prevector.deb:
   stage: test
   script: build/testing/prevector/test_prevector
+  dependencies:
+  - build-debian-stable
+
+test_doublespend.deb:
+  stage: test
+  script: build/testing/doublespend/test_doublespend
   dependencies:
   - build-debian-stable
 
