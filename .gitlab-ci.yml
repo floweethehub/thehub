@@ -24,6 +24,7 @@ build-debian-stable:
     - bin
     - build/testing/test/test_hub
     - build/testing/utxo/test_utxo
+    - build/testing/prevector/test_prevector
     expire_in: 1 hrs
 
 # this fails on gitlab but the same setup passes on my laptop.
@@ -36,7 +37,13 @@ build-debian-stable:
 
 test_utxo.deb:
   stage: test
-  script: testing/test-parallel build/testing/utxo/test_utxo
+  script: build/testing/utxo/test_utxo
+  dependencies:
+  - build-debian-stable
+
+test_prevector.deb:
+  stage: test
+  script: build/testing/prevector/test_prevector
   dependencies:
   - build-debian-stable
 

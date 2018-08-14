@@ -74,7 +74,6 @@ set (TEST_SOURCES
     pmt_tests.cpp
     policyestimator_tests.cpp
     pow_tests.cpp
-    prevector_tests.cpp
     rpc_tests.cpp
     sanity_tests.cpp
     scriptnum_tests.cpp

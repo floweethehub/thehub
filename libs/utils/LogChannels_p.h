@@ -75,8 +75,8 @@ class ConsoleLogChannel : public Log::Channel
 public:
     ConsoleLogChannel();
 
-    void setPrefix(const std::string &prefix);
-    const std::string &prefix() const {
+    void setPrefix(const char *prefix);
+    const char *prefix() const {
         return m_prefix;
     }
 
@@ -84,7 +84,7 @@ public:
                          int lineNumber, const char *methodName, short logSection, short logLevel);
 
 private:
-    std::string m_prefix;
+    const char *m_prefix = nullptr;
 };
 
 class FileLogChannel : public Log::Channel

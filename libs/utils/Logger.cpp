@@ -43,6 +43,11 @@ public:
     std::map<short, std::string> sectionNames;
     std::map<std::string, short> categoryMapping;
     std::map<short, short> enabledSections;
+
+#ifndef NDEBUG
+    bool inUnitTests = false; // if true, assumes testNameFunctor is non-empty
+    std::function<const char*()> testNameFunctor;
+#endif
 };
 
 Log::Manager::Manager()
@@ -104,6 +109,18 @@ Log::Manager::~Manager()
 
 bool Log::Manager::isEnabled(short section, Verbosity verbosity) const
 {
+#ifndef NDEBUG
+    if (d->inUnitTests) {
+        assert(!d->channels.empty());
+        ConsoleLogChannel *lc = dynamic_cast<ConsoleLogChannel*>(d->channels.front());
+        assert(lc);
+        const char *newPrefix = d->testNameFunctor();
+        if (lc->prefix() != newPrefix) {
+            lc->setPrefix(newPrefix);
+            d->lastDateTime.clear();
+        }
+    }
+#endif
     auto iter = d->enabledSections.find(section);
     if (iter != d->enabledSections.end())
         return iter->second <= verbosity;
@@ -182,52 +199,21 @@ void Log::Manager::reopenLogFiles()
     }
 }
 
-void Log::Manager::loadDefaultTestSetup(const std::string &testName)
+void Log::Manager::loadDefaultTestSetup(const std::function<const char*()> &testNameFunction)
 {
     clearChannels();
 #ifndef NDEBUG
     auto channel = new ConsoleLogChannel();
-    if (!testName.empty()) {
-        const int64_t timeMillis = GetTimeMillis();
-        std::ostringstream timeStream;
-        timeStream << DateTimeStrFormat("%H:%M:%S", timeMillis/1000);
-        d->lastDateTime = timeStream.str();
-        timeStream << '.' << std::setw(3) << std::setfill('0') << timeMillis % 1000;
-        std::string time = timeStream.str();
-        channel->pushLog(0, &time, "*** Entering unit test '" + testName + '`', nullptr, 0, nullptr, 0, InfoLevel);
-    }
-
     channel->setPrintMethodName(true);
     channel->setTimeStampFormat(Channel::TimeOnly);
     channel->setPrintSection(true);
-    channel->setPrefix(testName);
     d->channels.push_back(channel);
+    d->testNameFunctor = testNameFunction;
+    d->inUnitTests = true;
 
     d->enabledSections.clear();
     for (short i = 0; i <= 20000; i+=1000)
         d->enabledSections[i] = Log::DebugLevel;
-#endif
-}
-
-void Log::Manager::exitTest()
-{
-#ifndef NDEBUG
-    if (d->channels.size() != 1)
-        return;
-    ConsoleLogChannel *lc = dynamic_cast<ConsoleLogChannel*>(d->channels.front());
-    if (!lc)
-        return;
-    if (lc->prefix().empty())
-        return;
-
-    d->lastDateTime.clear();
-    const int64_t timeMillis = GetTimeMillis();
-    std::ostringstream timeStream;
-    timeStream << DateTimeStrFormat("%H:%M:%S", timeMillis/1000) << '.' << std::setw(3) << std::setfill('0') << timeMillis % 1000;
-    std::string time = timeStream.str();
-    std::string testname = lc->prefix();
-    lc->setPrefix("");
-    lc->pushLog(0, &time, "*** Leaving unit test  '" + testname + '`', nullptr, 0, nullptr, 0, InfoLevel);
 #endif
 }
 

@@ -15,20 +15,19 @@
  * You should have received a copy of the GNU General Public License
  * along with this program.  If not, see <http://www.gnu.org/licenses/>.
  */
+#ifndef TEST_PREVECTOR_H
+#define TEST_PREVECTOR_H
 
-#include <boost/test/unit_test.hpp>
+#include <common/TestFlowee.h>
 
-#include <utils/Logger.h>
-#include <server/chainparams.h>
-
-#include <server/CrashCatcher.h>
-
-using boost::unit_test::test_suite;
-
-test_suite* init_unit_test_suite(int, char* [])
+class TestPrevector : public Test::Flowee
 {
-    SelectParams("main");
-    setupBacktraceCatcher();
+    Q_OBJECT
+public:
+    TestPrevector() {}
 
-    return BOOST_TEST_SUITE("Flowee generic test suite");
-}
+private slots:
+    void runTests();
+};
+
+#endif

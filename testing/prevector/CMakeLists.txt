@@ -14,16 +14,28 @@
 # You should have received a copy of the GNU General Public License
 # along with this program.  If not, see <http://www.gnu.org/licenses/>.
 
-enable_testing()
+project (test_prevector)
+set(CMAKE_INCLUDE_CURRENT_DIR ON)
+set(CMAKE_AUTOMOC ON)
 
-add_subdirectory(test)
-add_subdirectory(blackbox)
-if (${Qt5Core_FOUND})
-    find_package(Qt5Test)
-    if (${Qt5Test_FOUND})
-        add_subdirectory(prevector)
-        add_subdirectory(utxo)
-    else ()
-        message("Missing qt5 (test) library, not building some tests")
-    endif ()
-endif()
+include_directories(${LIBS_INCLUDES}
+    ${CMAKE_CURRENT_BINARY_DIR}
+    ..
+    ${Qt5Core_INCLUDE_DIRS}
+    ${Qt5Test_INCLUDE_DIRS}
+)
+
+add_executable(test_prevector
+    test_prevector.cpp
+    ../common/TestFlowee.cpp
+)
+
+target_link_libraries(test_prevector
+    flowee_utils
+
+    ${Boost_LIBRARIES}
+    ${OPENSSL_LIBRARIES}
+    Qt5::Test
+)
+
+add_test(NAME HUB_test_prevector COMMAND test_prevector)
