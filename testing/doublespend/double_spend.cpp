@@ -15,15 +15,17 @@
  * You should have received a copy of the GNU General Public License
  * along with this program.  If not, see <http://www.gnu.org/licenses/>.
  */
-#include "test_bitcoin.h"
+// #include "test_bitcoin.h"
+
+#include "double_spend.h"
+
+#include <primitives/FastTransaction.h>
 
 #include <base58.h>
 #include <script/sign.h>
 #include <keystore.h>
 #include <validationinterface.h>
 #include <utilstrencodings.h>
-
-#include <boost/test/auto_unit_test.hpp>
 
 class TestValidation : public ValidationInterface {
 public:
@@ -39,25 +41,23 @@ public:
     }
 };
 
-BOOST_FIXTURE_TEST_SUITE(DoubleSpend, TestingSetup)
-
-BOOST_AUTO_TEST_CASE(DoubleSpend)
+void TestDoubleSpend::test()
 {
     TestValidation myValidatioInterface;
     ValidationNotifier().addListener(&myValidatioInterface);
-    BOOST_CHECK(!myValidatioInterface.first.isValid());
-    BOOST_CHECK(!myValidatioInterface.duplicate.isValid());
+    QVERIFY(!myValidatioInterface.first.isValid());
+    QVERIFY(!myValidatioInterface.duplicate.isValid());
 
     CKey key;
     std::vector<FastBlock> blocks = bv.appendChain(101, key);
 
     CBasicKeyStore keystore;
     keystore.AddKey(key);
-    BOOST_CHECK_EQUAL(blocks.size(), 101);
+    QCOMPARE(blocks.size(), 101ul);
     blocks.front().findTransactions();
-    BOOST_CHECK_EQUAL(blocks.front().transactions().size(), 1);
+    QCOMPARE(blocks.front().transactions().size(), 1ul);
     Tx coinbase = blocks.front().transactions().at(0);
-    BOOST_CHECK(coinbase.isValid());
+    QVERIFY(coinbase.isValid());
 
     CMutableTransaction mutableFirst;
     mutableFirst.vin.resize(1);
@@ -70,9 +70,9 @@ BOOST_AUTO_TEST_CASE(DoubleSpend)
     Tx first = Tx::fromOldTransaction(mutableFirst);
     auto future = bv.addTransaction(first);
     std::string result = future.get();
-    BOOST_CHECK_EQUAL(result, std::string());
-    BOOST_CHECK(!myValidatioInterface.first.isValid());
-    BOOST_CHECK(!myValidatioInterface.duplicate.isValid());
+    QCOMPARE(result, std::string());
+    QVERIFY(!myValidatioInterface.first.isValid());
+    QVERIFY(!myValidatioInterface.duplicate.isValid());
 
 
     // now create a double-spending transaction.
@@ -87,11 +87,10 @@ BOOST_AUTO_TEST_CASE(DoubleSpend)
     Tx duplicate = Tx::fromOldTransaction(mutableDuplicate);
     future = bv.addTransaction(duplicate);
     result = future.get();
-    BOOST_CHECK_EQUAL(result, "258: txn-mempool-conflict");
-    BOOST_CHECK(myValidatioInterface.first.isValid());
-    BOOST_CHECK_EQUAL(HexStr(myValidatioInterface.first.createHash()), HexStr(first.createHash()));
-    BOOST_CHECK_EQUAL(HexStr(myValidatioInterface.duplicate.createHash()), HexStr(duplicate.createHash()));
+    QCOMPARE(result, std::string("258: txn-mempool-conflict"));
+    QVERIFY(myValidatioInterface.first.isValid());
+    QCOMPARE(HexStr(myValidatioInterface.first.createHash()), HexStr(first.createHash()));
+    QCOMPARE(HexStr(myValidatioInterface.duplicate.createHash()), HexStr(duplicate.createHash()));
 }
 
-BOOST_AUTO_TEST_SUITE_END()
-
+QTEST_MAIN(TestDoubleSpend)

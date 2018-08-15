@@ -1,6 +1,7 @@
 /*
  * This file is part of the Flowee project
  * Copyright (C) 2015 The Bitcoin Core developers
+ * Copyright (C) 2018 Tom Zander <tomz@freedommail.ch>
  *
  * This program is free software: you can redistribute it and/or modify
  * it under the terms of the GNU General Public License as published by
@@ -16,19 +17,17 @@
  * along with this program.  If not, see <http://www.gnu.org/licenses/>.
  */
 
+#include "test_prevector.h"
 #include <vector>
-#include "prevector.h"
-#include "random.h"
+#include <utils/prevector.h>
+#include <Logger.h>
+#include <random.h>
 
 #include "serialize.h"
 #include "streams.h"
-
-#include "test/test_bitcoin.h"
-
-#include <boost/test/unit_test.hpp>
 #include <boost/foreach.hpp>
-
-BOOST_FIXTURE_TEST_SUITE(PrevectorTests, TestingSetup)
+#include <utils/Logger.h>
+#include <server/chainparams.h>
 
 template<unsigned int N, typename T>
 class prevector_tester {
@@ -42,54 +41,54 @@ class prevector_tester {
 
     void test() {
         const pretype& const_pre_vector = pre_vector;
-        BOOST_CHECK_EQUAL(real_vector.size(), pre_vector.size());
-        BOOST_CHECK_EQUAL(real_vector.empty(), pre_vector.empty());
+        QCOMPARE(real_vector.size(), (size_t) pre_vector.size());
+        QCOMPARE(real_vector.empty(), pre_vector.empty());
         for (Size s = 0; s < real_vector.size(); s++) {
-             BOOST_CHECK(real_vector[s] == pre_vector[s]);
-             BOOST_CHECK(&(pre_vector[s]) == &(pre_vector.begin()[s]));
-             BOOST_CHECK(&(pre_vector[s]) == &*(pre_vector.begin() + s));
-             BOOST_CHECK(&(pre_vector[s]) == &*((pre_vector.end() + s) - real_vector.size()));
+             QVERIFY(real_vector[s] == pre_vector[s]);
+             QVERIFY(&(pre_vector[s]) == &(pre_vector.begin()[s]));
+             QVERIFY(&(pre_vector[s]) == &*(pre_vector.begin() + s));
+             QVERIFY(&(pre_vector[s]) == &*((pre_vector.end() + s) - real_vector.size()));
         }
-        // BOOST_CHECK(realtype(pre_vector) == real_vector);
-        BOOST_CHECK(pretype(real_vector.begin(), real_vector.end()) == pre_vector);
-        BOOST_CHECK(pretype(pre_vector.begin(), pre_vector.end()) == pre_vector);
+        // QVERIFY(realtype(pre_vector) == real_vector);
+        QVERIFY(pretype(real_vector.begin(), real_vector.end()) == pre_vector);
+        QVERIFY(pretype(pre_vector.begin(), pre_vector.end()) == pre_vector);
         size_t pos = 0;
-        BOOST_FOREACH(const T& v, pre_vector) {
-             BOOST_CHECK(v == real_vector[pos++]);
+        for (const T& v : pre_vector) {
+             QVERIFY(v == real_vector[pos++]);
         }
         BOOST_REVERSE_FOREACH(const T& v, pre_vector) {
-             BOOST_CHECK(v == real_vector[--pos]);
+             QVERIFY(v == real_vector[--pos]);
         }
-        BOOST_FOREACH(const T& v, const_pre_vector) {
-             BOOST_CHECK(v == real_vector[pos++]);
+        for (const T& v : const_pre_vector) {
+             QVERIFY(v == real_vector[pos++]);
         }
         BOOST_REVERSE_FOREACH(const T& v, const_pre_vector) {
-             BOOST_CHECK(v == real_vector[--pos]);
+             QVERIFY(v == real_vector[--pos]);
         }
         CDataStream ss1(SER_DISK, 0);
         CDataStream ss2(SER_DISK, 0);
         ss1 << real_vector;
         ss2 << pre_vector;
-        BOOST_CHECK_EQUAL(ss1.size(), ss2.size());
+        QCOMPARE(ss1.size(), ss2.size());
         for (Size s = 0; s < ss1.size(); s++) {
-            BOOST_CHECK_EQUAL(ss1[s], ss2[s]);
+            QCOMPARE(ss1[s], ss2[s]);
         }
     }
 
 public:
     void resize(Size s) {
         real_vector.resize(s);
-        BOOST_CHECK_EQUAL(real_vector.size(), s);
+        QCOMPARE(real_vector.size(), (size_t) s);
         pre_vector.resize(s);
-        BOOST_CHECK_EQUAL(pre_vector.size(), s);
+        QCOMPARE(pre_vector.size(), s);
         test();
     }
 
     void reserve(Size s) {
         real_vector.reserve(s);
-        BOOST_CHECK(real_vector.capacity() >= s);
+        QVERIFY(real_vector.capacity() >= s);
         pre_vector.reserve(s);
-        BOOST_CHECK(pre_vector.capacity() >= s);
+        QVERIFY(pre_vector.capacity() >= s);
         test();
     }
 
@@ -166,8 +165,18 @@ public:
     }
 };
 
-BOOST_AUTO_TEST_CASE(PrevectorTestInt)
+
+void TestPrevector::runTests()
 {
+    /*
+     * Likely the best chance I have to make this work is to create a method
+     * that is called from the logger itself. The method should be one that I
+     * implement in a separate header file and in each app I include that header file.
+     * In unit tests instead I link to my own version of that call.
+     *
+     * Ah, I can set a bool on the Log::Manager that enables the call of this method :)
+     * Or, even better, set a std::function there!  When unset we just use the old one.
+     */
     for (int j = 0; j < 64; j++) {
         prevector_tester<8, int> test;
         for (int i = 0; i < 2048; i++) {
@@ -229,4 +238,5 @@ BOOST_AUTO_TEST_CASE(PrevectorTestInt)
     }
 }
 
-BOOST_AUTO_TEST_SUITE_END()
+QTEST_MAIN(TestPrevector)
+

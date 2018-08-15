@@ -376,14 +376,12 @@ bool AppInitServers()
     RPCServer::OnPreCommand(&OnRPCPreCommand);
     if (!InitHTTPServer())
         return false;
-    if (!StartRPC())
-        return false;
+    StartRPC();
     if (!StartHTTPRPC())
         return false;
-    if (GetBoolArg("-rest", Settings::DefaultRestEnable) && !StartREST())
-        return false;
-    if (!StartHTTPServer())
-        return false;
+    if (GetBoolArg("-rest", Settings::DefaultRestEnable))
+        StartREST();
+    StartHTTPServer();
     return true;
 }
 
@@ -713,6 +711,9 @@ bool AppInit2(boost::thread_group& threadGroup, CScheduler& scheduler)
     // Initialize elliptic curve code
     ECC_Start();
     globalVerifyHandle.reset(new ECCVerifyHandle());
+
+    // Initialize SigCache
+    InitSignatureCache();
 
     // Sanity check
     if (!InitSanityCheck())

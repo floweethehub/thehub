@@ -28,6 +28,7 @@
 #include <UiInterface.h>
 #include <interfaces/validationinterface.h>
 #include <utxo/UnspentOutputDatabase.h>
+#include <script/sigcache.h>
 #ifdef ENABLE_WALLET
 # include <wallet/wallet.h>
 CWallet* pwalletMain;
@@ -46,6 +47,7 @@ BasicTestingSetup::BasicTestingSetup(const std::string& chainName)
     ECC_Start();
     SetupEnvironment();
     SetupNetworking();
+    InitSignatureCache();
     mapArgs["-checkblockindex"] = "1";
     SelectParams(chainName);
     noui_connect();

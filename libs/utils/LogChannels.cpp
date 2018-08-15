@@ -118,7 +118,7 @@ ConsoleLogChannel::ConsoleLogChannel()
 {
 }
 
-void ConsoleLogChannel::setPrefix(const std::string &prefix)
+void ConsoleLogChannel::setPrefix(const char *prefix)
 {
     m_prefix = prefix;
 }
@@ -137,7 +137,7 @@ void ConsoleLogChannel::pushLog(int64_t, std::string *timestamp, const std::stri
             out << logSection;
         out << "] ";
     }
-    if (!m_prefix.empty())
+    if (m_prefix)
         out << m_prefix << ' ';
     if (m_printFilename && filename)
         out << filename << (m_printLineNumber ? ':' : ' ');

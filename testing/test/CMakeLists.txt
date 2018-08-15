@@ -57,9 +57,9 @@ set (TEST_SOURCES
     Checkpoints_tests.cpp
     compress_tests.cpp
     crypto_tests.cpp
+    cuckoocache_tests.cpp
     dbwrapper_tests.cpp
     DoS_tests.cpp
-    double_spend.cpp
     getarg_tests.cpp
     hash_tests.cpp
     key_tests.cpp
@@ -73,7 +73,6 @@ set (TEST_SOURCES
     pmt_tests.cpp
     policyestimator_tests.cpp
     pow_tests.cpp
-    prevector_tests.cpp
     rpc_tests.cpp
     sanity_tests.cpp
     scriptnum_tests.cpp

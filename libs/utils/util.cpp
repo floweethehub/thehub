@@ -32,6 +32,8 @@
 #include "utilstrencodings.h"
 #include "utiltime.h"
 
+#include "crypto/sha256.h"
+
 #include <cstdarg>
 
 #if (defined(__FreeBSD__) || defined(__OpenBSD__) || defined(__DragonFly__))
@@ -671,6 +673,8 @@ void SetupEnvironment()
         setenv("LC_ALL", "C", 1);
     }
 #endif
+    // Choose the most efficient SHA256 compatible with the system
+    logInfo(Log::Bitcoin) << "Chosen SHA256 implementation:" << SHA256AutoDetect();
     // The path locale is lazy initialized and to avoid deinitialization errors
     // in multithreading environments, it is set explicitly by the main thread.
     // A dummy locale is used to extract the internal default locale, used by

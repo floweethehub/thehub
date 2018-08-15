@@ -15,21 +15,17 @@
 # along with this program.  If not, see <http://www.gnu.org/licenses/>.
 
 project (test_utxo)
-
-include_directories(${LIBS_INCLUDES} ${CMAKE_CURRENT_BINARY_DIR})
+include (testlib)
 
 add_executable(test_utxo
-    ../flowee_tests.cpp
+    ../common/TestFloweeBase.cpp
     test_utxo.cpp
 )
-
 target_link_libraries(test_utxo
-    flowee_server
     flowee_utils
     flowee_utxo
 
-    ${Boost_LIBRARIES}
+    ${TEST_LIBS}
     ${OPENSSL_LIBRARIES}
 )
-
 add_test(NAME HUB_test_utxo COMMAND test_utxo)

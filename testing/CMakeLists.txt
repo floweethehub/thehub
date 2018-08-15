@@ -17,5 +17,22 @@
 enable_testing()
 
 add_subdirectory(test)
-add_subdirectory(utxo)
 add_subdirectory(blackbox)
+if (${Qt5Core_FOUND})
+    find_package(Qt5Test)
+    if (${Qt5Test_FOUND})
+        add_subdirectory(common)
+        add_subdirectory(prevector)
+        add_subdirectory(utxo)
+        add_subdirectory(doublespend)
+
+        add_custom_target(check COMMAND ${CMAKE_CTEST_COMMAND} DEPENDS
+            test_utxo
+            test_doublespend
+            test_prevector
+            test_hub
+        )
+    else ()
+        message("Missing qt5 (test) library, not building some tests")
+    endif ()
+endif()

@@ -45,5 +45,5 @@ Then clone the repo and use cmake to create the makefile
 # Social
 
 * Twitter: https://twitter.com/floweethehub
-* Discord: https://discord.gg/KF38tTA
+* Discord: https://discord.gg/WXPcf6G
 * Email group: https://groups.google.com/d/forum/flowee

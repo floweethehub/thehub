@@ -408,12 +408,11 @@ const CRPCCommand *CRPCTable::operator[](const std::string &name) const
     return (*it).second;
 }
 
-bool StartRPC()
+void StartRPC()
 {
     LogPrint("rpc", "Starting RPC\n");
     fRPCRunning = true;
     g_rpcSignals.Started();
-    return true;
 }
 
 void InterruptRPC()

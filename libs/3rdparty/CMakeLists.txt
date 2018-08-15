@@ -35,7 +35,7 @@ ExternalProject_Add(leveldb
     SOURCE_DIR ${CMAKE_CURRENT_SOURCE_DIR}/leveldb
     BUILD_COMMAND make -C ${CMAKE_CURRENT_SOURCE_DIR}/leveldb all memenv_test
     CONFIGURE_COMMAND echo building leveldb in src dir
-    INSTALL_COMMAND cp -a "${CMAKE_CURRENT_SOURCE_DIR}/leveldb/${CMAKE_STATIC_LIBRARY_PREFIX}memenv${CMAKE_STATIC_LIBRARY_SUFFIX}" "${CMAKE_CURRENT_SOURCE_DIR}/leveldb/${CMAKE_STATIC_LIBRARY_PREFIX}leveldb${CMAKE_STATIC_LIBRARY_SUFFIX}" "${CMAKE_BINARY_DIR}/lib/" && cp -ra "${CMAKE_CURRENT_SOURCE_DIR}/leveldb/include/leveldb" "${CMAKE_CURRENT_SOURCE_DIR}/leveldb/helpers/memenv/memenv.h" "${CMAKE_BINARY_DIR}/include/"
+    INSTALL_COMMAND cp -a "${CMAKE_CURRENT_SOURCE_DIR}/leveldb/${CMAKE_STATIC_LIBRARY_PREFIX}memenv${CMAKE_STATIC_LIBRARY_SUFFIX}" "${CMAKE_CURRENT_SOURCE_DIR}/leveldb/${CMAKE_STATIC_LIBRARY_PREFIX}leveldb${CMAKE_STATIC_LIBRARY_SUFFIX}" "${CMAKE_BINARY_DIR}/lib/" && cp -Ra "${CMAKE_CURRENT_SOURCE_DIR}/leveldb/include/leveldb" "${CMAKE_CURRENT_SOURCE_DIR}/leveldb/helpers/memenv/memenv.h" "${CMAKE_BINARY_DIR}/include/"
 )
 
 ExternalProject_Add(secp256k1

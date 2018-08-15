@@ -15,85 +15,71 @@
  * You should have received a copy of the GNU General Public License
  * along with this program.  If not, see <http://www.gnu.org/licenses/>.
  */
-#include <utxo/UnspentOutputDatabase.h>
+#include "test_utxo.h"
 #include <server/chainparams.h>
 
 #include <WorkerThreads.h>
 #include <util.h>
 
-#include <boost/test/unit_test.hpp>
-#include <boost/test/included/unit_test_framework.hpp>
-#include <boost/filesystem.hpp>
-
-using boost::unit_test::test_suite;
-
-class BasicFixture
+void TestUtxo::init()
 {
-public:
-    BasicFixture() { setup(); }
-    ~BasicFixture() { teardown(); }
-    void setup() {
-        // in 1.61 this only gets called from constructor, in 1.67 this gets called twice.
-        m_testPath = GetTempPath() / strprintf("test_flowee_%lu", (unsigned long)GetTime());
-        boost::filesystem::remove_all(m_testPath);
-    }
-    void teardown() {
-        boost::filesystem::remove_all(m_testPath);
-    }
-    void insertTransactions(UnspentOutputDatabase &db, int number) {
-        for (int i = 0; i < number; ++i) {
-            char buf[67];
-            sprintf(buf, templateTxId, i);
-            uint256 txid = uint256S(buf);
-            db.insert(txid, 0, 100+i, 6000+i);
-            db.insert(txid, 1, 100+i, 6000+i);
+    m_testPath = GetTempPath() / strprintf("test_flowee_%lu", (unsigned long)GetTime());
+    boost::filesystem::remove_all(m_testPath);
+}
 
-            UnspentOutput uo = db.find(txid, 0);
-            BOOST_CHECK_EQUAL(uo.offsetInBlock(), 6000 + i);
-            BOOST_CHECK_EQUAL(uo.blockHeight(), 100 + i);
-        }
-    }
+void TestUtxo::cleanup()
+{
+    boost::filesystem::remove_all(m_testPath);
+}
 
-    uint256 insertedTxId(int index) {
+void TestUtxo::insertTransactions(UnspentOutputDatabase &db, int number)
+{
+    for (int i = 0; i < number; ++i) {
         char buf[67];
-        sprintf(buf, templateTxId, index);
-        return uint256S(buf);
+        sprintf(buf, templateTxId, i);
+        uint256 txid = uint256S(buf);
+        db.insert(txid, 0, 100+i, 6000+i);
+        db.insert(txid, 1, 100+i, 6000+i);
+
+        UnspentOutput uo = db.find(txid, 0);
+        QCOMPARE(uo.offsetInBlock(), 6000 + i);
+        QCOMPARE(uo.blockHeight(), 100 + i);
     }
+}
+
+uint256 TestUtxo::insertedTxId(int index)
+{
+    char buf[67];
+    sprintf(buf, templateTxId, index);
+    return uint256S(buf);
+}
 
 
-protected:
-    boost::filesystem::path m_testPath;
-    const char *templateTxId = "0x12345%02x17444b051c44dfd2720e88f314ff94f3dd6d56d40ef65854fcd7fff6b";
-};
-
-
-BOOST_FIXTURE_TEST_SUITE(utxo, BasicFixture)
-
-BOOST_AUTO_TEST_CASE(basic)
+void TestUtxo::basic()
 {
     boost::asio::io_service ioService;
     UnspentOutputDatabase db(ioService, m_testPath);
     uint256 txid = uint256S("0xb4749f017444b051c44dfd2720e88f314ff94f3dd6d56d40ef65854fcd7fff6b");
     db.insert(txid, 0, 100, 6000);
     UnspentOutput uo = db.find(txid, 0);
-    BOOST_CHECK_EQUAL(uo.offsetInBlock(), 6000);
-    BOOST_CHECK_EQUAL(uo.blockHeight(), 100);
+    QCOMPARE(uo.offsetInBlock(), 6000);
+    QCOMPARE(uo.blockHeight(), 100);
 
     SpentOutput rmData = db.remove(txid, 0);
-    BOOST_CHECK(rmData.isValid());
-    BOOST_CHECK_EQUAL(rmData.blockHeight, 100);
-    BOOST_CHECK_EQUAL(rmData.offsetInBlock, 6000);
+    QVERIFY(rmData.isValid());
+    QCOMPARE(rmData.blockHeight, 100);
+    QCOMPARE(rmData.offsetInBlock, 6000);
 
     UnspentOutput uo2 = db.find(txid, 0);
-    BOOST_CHECK_EQUAL(uo2.blockHeight(), 0);
+    QCOMPARE(uo2.blockHeight(), 0);
 
     rmData = db.remove(txid, 0);
-    BOOST_CHECK_EQUAL(rmData.isValid(), false);
-    BOOST_CHECK(rmData.blockHeight <= 0);
+    QCOMPARE(rmData.isValid(), false);
+    QVERIFY(rmData.blockHeight <= 0);
 }
 
 // test if we can keep multiple entries separate
-BOOST_AUTO_TEST_CASE(multiple)
+void TestUtxo::multiple()
 {
     boost::asio::io_service ioService;
     UnspentOutputDatabase db(ioService, m_testPath);
@@ -102,34 +88,34 @@ BOOST_AUTO_TEST_CASE(multiple)
     const uint256 remove1 = insertedTxId(20);
     const uint256 remove2 = insertedTxId(89);
     SpentOutput rmData = db.remove(remove1, 0);
-    BOOST_CHECK(rmData.isValid());
-    BOOST_CHECK_EQUAL(rmData.blockHeight, 120);
-    BOOST_CHECK_EQUAL(rmData.offsetInBlock, 6020);
+    QVERIFY(rmData.isValid());
+    QCOMPARE(rmData.blockHeight, 120);
+    QCOMPARE(rmData.offsetInBlock, 6020);
 
     UnspentOutput find1 = db.find(remove1, 0);
-    BOOST_CHECK_EQUAL(find1.blockHeight(), 0); // we just removed it
+    QCOMPARE(find1.blockHeight(), 0); // we just removed it
     UnspentOutput find2 = db.find(remove1, 1);
-    BOOST_CHECK_EQUAL(find2.blockHeight(), 120); // this should not be removed
+    QCOMPARE(find2.blockHeight(), 120); // this should not be removed
 
     UnspentOutput find3 = db.find(remove2, 0);
-    BOOST_CHECK_EQUAL(find3.blockHeight(), 189);
+    QCOMPARE(find3.blockHeight(), 189);
     UnspentOutput find4 = db.find(remove2, 1);
-    BOOST_CHECK_EQUAL(find4.blockHeight(), 189); // its here now
+    QCOMPARE(find4.blockHeight(), 189); // its here now
 
     rmData = db.remove(remove2, 1);
-    BOOST_CHECK(rmData.isValid());
-    BOOST_CHECK_EQUAL(rmData.blockHeight, 189);
-    BOOST_CHECK_EQUAL(rmData.offsetInBlock, 6089);
+    QVERIFY(rmData.isValid());
+    QCOMPARE(rmData.blockHeight, 189);
+    QCOMPARE(rmData.offsetInBlock, 6089);
 
     UnspentOutput find5 = db.find(remove2, 0);
-    BOOST_CHECK_EQUAL(find5.blockHeight(), 189);
+    QCOMPARE(find5.blockHeight(), 189);
     UnspentOutput find6 = db.find(remove2, 1);
-    BOOST_CHECK_EQUAL(find6.blockHeight(), 0); // poof.
+    QCOMPARE(find6.blockHeight(), 0); // poof.
 
 }
 
 // test if we can keep entries between restarts
-BOOST_AUTO_TEST_CASE(restart)
+void TestUtxo::restart()
 {
     WorkerThreads workers;
     { // scope for DB
@@ -146,17 +132,17 @@ BOOST_AUTO_TEST_CASE(restart)
             // logDebug() << "select" << i;
             uint256 txid = insertedTxId(i);
             UnspentOutput uo = db.find(txid, 0);
-            BOOST_CHECK_EQUAL(uo.blockHeight(), 100 + i);
-            BOOST_CHECK_EQUAL(uo.offsetInBlock(), 6000 + i);
+            QCOMPARE(uo.blockHeight(), 100 + i);
+            QCOMPARE(uo.offsetInBlock(), 6000 + i);
 
             UnspentOutput uo2 = db.find(txid, 1);
-            BOOST_CHECK_EQUAL(uo2.blockHeight(), 100 + i);
-            BOOST_CHECK_EQUAL(uo2.offsetInBlock(), 6000 + i);
+            QCOMPARE(uo2.blockHeight(), 100 + i);
+            QCOMPARE(uo2.offsetInBlock(), 6000 + i);
         }
     }
 }
 
-BOOST_AUTO_TEST_CASE(commit)
+void TestUtxo::commit()
 {
     /*
      * delete is by far the most complex usecase.
@@ -179,37 +165,37 @@ BOOST_AUTO_TEST_CASE(commit)
 
         txid = insertedTxId(99);
         SpentOutput rmData = db.remove(txid, 0);
-        BOOST_CHECK(rmData.isValid());
+        QVERIFY(rmData.isValid());
     }
 
     {   // usecase 2
         UnspentOutputDatabase db(ioService, m_testPath);
         // after a restart, the not committed tx is again there.
         SpentOutput rmData = db.remove(txid, 0);
-        BOOST_CHECK(rmData.isValid());
+        QVERIFY(rmData.isValid());
     }
 
     {   // usecase 2 && 2
         UnspentOutputDatabase db(ioService, m_testPath);
         // after a restart, the not committed tx is again there.
         SpentOutput rmData = db.remove(txid, 0);
-        BOOST_CHECK(rmData.isValid());
+        QVERIFY(rmData.isValid());
 
         db.rollback();
         rmData = db.remove(txid, 0); // it reappeared
-        BOOST_CHECK(rmData.isValid());
+        QVERIFY(rmData.isValid());
 
         db.blockFinished(2, uint256()); // commit
 
         rmData = db.remove(txid, 0);
-        BOOST_CHECK(!rmData.isValid());
+        QVERIFY(!rmData.isValid());
     }
 
     {
         UnspentOutputDatabase db(ioService, m_testPath);
         // the commit made the removed tx actually go away.
         SpentOutput rmData = db.remove(txid, 0);
-        BOOST_CHECK(!rmData.isValid());
+        QVERIFY(!rmData.isValid());
     }
 
     // because the helper method insertTransactions generates transactions
@@ -220,14 +206,14 @@ BOOST_AUTO_TEST_CASE(commit)
         UnspentOutputDatabase db(ioService, m_testPath);
         db.insert(uint256S(txid2), 0, 200, 2000);
         SpentOutput rmData = db.remove(uint256S(txid2), 0);
-        BOOST_CHECK(rmData.isValid()); // delete should be Ok
+        QVERIFY(rmData.isValid()); // delete should be Ok
     }
 
     {
         UnspentOutputDatabase db(ioService, m_testPath);
         // test usecase 5
         SpentOutput rmData = db.remove(uint256S(txid2), 0);
-        BOOST_CHECK(!rmData.isValid()); // it was never committed
+        QVERIFY(!rmData.isValid()); // it was never committed
 
         // test usecase 1
         db.insert(uint256S(txid2), 0, 200, 2000);
@@ -237,13 +223,13 @@ BOOST_AUTO_TEST_CASE(commit)
         // continue to test usecase 1
         UnspentOutputDatabase db(ioService, m_testPath);
         SpentOutput rmData = db.remove(uint256S(txid2), 0);
-        BOOST_CHECK(rmData.isValid());
+        QVERIFY(rmData.isValid());
     }
     {
         // continue to test usecase 1
         UnspentOutputDatabase db(ioService, m_testPath);
         SpentOutput rmData = db.remove(uint256S(txid2), 0);
-        BOOST_CHECK(rmData.isValid()); // it came back!
+        QVERIFY(rmData.isValid()); // it came back!
     }
 
     const char *txid3 = "0x4a3454117444b051c44dfd2720e88f314ff94f3dd6d56d40ef65854fcd7fff6b";
@@ -255,7 +241,7 @@ BOOST_AUTO_TEST_CASE(commit)
     {
         UnspentOutputDatabase db(ioService, m_testPath);
         UnspentOutput uo = db.find(uint256S(txid3), 2);
-        BOOST_CHECK(!uo.isValid()); // it was never committed
+        QVERIFY(!uo.isValid()); // it was never committed
     }
 
     // test usecase 5
@@ -268,7 +254,7 @@ BOOST_AUTO_TEST_CASE(commit)
     }
     {
         UnspentOutputDatabase db(ioService, m_testPath);
-        BOOST_CHECK(!db.find(txid4, 5).isValid());
+        QVERIFY(!db.find(txid4, 5).isValid());
     }
     // now separate the saving of the bucket and the leafs.
     {
@@ -279,10 +265,10 @@ BOOST_AUTO_TEST_CASE(commit)
     }
     {
         UnspentOutputDatabase db(ioService, m_testPath);
-        BOOST_CHECK(!db.find(txid4, 5).isValid());
-        BOOST_CHECK(db.find(txid4, 6).isValid());
-        BOOST_CHECK(!db.find(txid4, 7).isValid());
+        QVERIFY(!db.find(txid4, 5).isValid());
+        QVERIFY(db.find(txid4, 6).isValid());
+        QVERIFY(!db.find(txid4, 7).isValid());
     }
 }
 
-BOOST_AUTO_TEST_SUITE_END()
+QTEST_MAIN(TestUtxo)
