@@ -20,6 +20,7 @@
 #include "TestFloweeSession.h"
 #include "MockApplication.h"
 #include <Application.h>
+#include <utxo/UnspentOutputDatabase.h>
 #include <main.h>
 #ifdef ENABLE_WALLET
 # include <wallet/wallet.h>
@@ -29,6 +30,8 @@ CWallet* pwalletMain;
 #include <boost/filesystem.hpp>
 
 CClientUIInterface uiInterface; // Declared but not defined in UiInterface.h
+
+UnspentOutputDatabase *g_utxo = nullptr;
 
 TestFloweeSession::TestFloweeSession(const std::string& chainName) : TestFloweeEnvPlusNet(chainName)
 {
@@ -44,8 +47,7 @@ TestFloweeSession::TestFloweeSession(const std::string& chainName) : TestFloweeE
     boost::filesystem::create_directories(pathTemp / "blocks/index");
     mapArgs["-datadir"] = pathTemp.string();
     Blocks::DB::createTestInstance(1<<20);
-    pcoinsdbview = new CCoinsViewDB(1 << 23, true);
-    pcoinsTip = new CCoinsViewCache(pcoinsdbview);
+    g_utxo = new UnspentOutputDatabase(Application::instance()->ioService(), GetDataDir(true) / "unspent");
 
     bv.initSingletons();
     bv.appendGenesis();
@@ -74,12 +76,10 @@ TestFloweeSession::~TestFloweeSession()
     pwalletMain = NULL;
 #endif
     UnloadBlockIndex();
-    delete pcoinsTip;
-    delete pcoinsdbview;
+    delete g_utxo;
 #ifdef ENABLE_WALLET
     bitdb.Flush(true);
     bitdb.Reset();
 #endif
     boost::filesystem::remove_all(pathTemp);
 }
-

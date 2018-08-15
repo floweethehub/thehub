@@ -23,9 +23,6 @@
 #include "TestFloweeEnvPlusNet.h"
 #include "MockBlockValidation.h"
 
-#include <txdb.h>
-
-
 /** Testing setup that configures a complete environment.
  * Included are data directory, script check threads
  * and wallet (if enabled) setup.
@@ -35,7 +32,6 @@ class TestFloweeSession : public TestFloweeEnvPlusNet
     Q_OBJECT
 public:
     MockBlockValidation bv;
-    CCoinsViewDB *pcoinsdbview;
     boost::filesystem::path pathTemp;
 
     enum BlocksDb {

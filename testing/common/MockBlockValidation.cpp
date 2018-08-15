@@ -32,16 +32,15 @@ MockBlockValidation::MockBlockValidation()
 void MockBlockValidation::initSingletons()
 {
     // set all the stuff that has been created in the Fixture (TestingSetup::TestingSetup())
-    mp.setCoinsView(pcoinsTip);
+    mp.setUtxo(g_utxo);
     setMempool(&mp);
-    mp.setSanityCheck(1); // slow but correct
     chainActive.SetTip(nullptr);
     setBlockchain(&chainActive);
 }
 
 MockBlockValidation::~MockBlockValidation()
 {
-    pcoinsTip = 0;
+    g_utxo = 0;
 }
 
 FastBlock MockBlockValidation::createBlock(CBlockIndex *parent, const CScript& scriptPubKey, const std::vector<CTransaction>& txns) const
