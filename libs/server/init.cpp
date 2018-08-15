@@ -743,6 +743,9 @@ bool AppInit2(boost::thread_group& threadGroup, CScheduler& scheduler)
     ECC_Start();
     globalVerifyHandle.reset(new ECCVerifyHandle());
 
+    // Initialize SigCache
+    InitSignatureCache();
+
     // Sanity check
     if (!InitSanityCheck())
         return InitError(_("Initialization sanity check failed. The Hub is shutting down."));
