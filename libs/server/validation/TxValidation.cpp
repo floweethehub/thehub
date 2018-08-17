@@ -96,7 +96,7 @@ void ValidationPrivate::validateTransactionInputs(CTransaction &tx, const std::v
             throw Exception("bad-txns-inputvalues-outofrange");
 
         // Verify signature
-        CScriptCheck check(prevout.outputScript, prevout.amount, tx, i, scriptValidationFlags, false);
+        CScriptCheck check(prevout.outputScript, prevout.amount, tx, i, scriptValidationFlags, true);
         if (!check()) {
             if (scriptValidationFlags & STANDARD_NOT_MANDATORY_VERIFY_FLAGS) {
                 // Check whether the failure was caused by a
@@ -105,7 +105,7 @@ void ValidationPrivate::validateTransactionInputs(CTransaction &tx, const std::v
                 // arguments; if so, don't trigger DoS protection to
                 // avoid splitting the network between upgraded and
                 // non-upgraded nodes.
-                CScriptCheck check2(prevout.outputScript, prevout.amount, tx, i, scriptValidationFlags & ~STANDARD_NOT_MANDATORY_VERIFY_FLAGS, false);
+                CScriptCheck check2(prevout.outputScript, prevout.amount, tx, i, scriptValidationFlags & ~STANDARD_NOT_MANDATORY_VERIFY_FLAGS, true);
                 if (check2())
                     throw Exception(strprintf("non-mandatory-script-verify-flag (%s)", ScriptErrorString(check.GetScriptError())), Validation::RejectNonstandard);
             }
