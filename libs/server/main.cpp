@@ -26,7 +26,6 @@
 #include "Application.h"
 #include "chainparams.h"
 #include "checkpoints.h"
-#include "checkqueue.h"
 #include "consensus/consensus.h"
 #include "consensus/merkle.h"
 #include "consensus/validation.h"
@@ -61,7 +60,6 @@ CChain chainActive;
 CBlockIndex *pindexBestHeader = nullptr;
 CWaitableCriticalSection csBestBlock;
 CConditionVariable cvBlockChange;
-int nScriptCheckThreads = 0;
 bool fTxIndex = false;
 bool fHavePruned = false;
 bool fPruneMode = false;
@@ -1062,13 +1060,6 @@ bool AbortNode(CValidationState& state, const std::string& strMessage, const std
 {
     AbortNode(strMessage, userMessage);
     return state.Error(strMessage);
-}
-
-static CCheckQueue<CScriptCheck> scriptcheckqueue(128);
-
-void ThreadScriptCheck() {
-    RenameThread("bitcoin-scriptch");
-    scriptcheckqueue.Thread();
 }
 
 //

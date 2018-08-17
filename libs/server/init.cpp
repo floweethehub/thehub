@@ -577,13 +577,6 @@ bool AppInit2(boost::thread_group& threadGroup, CScheduler& scheduler)
     if (nMempoolSizeMax < 0 || nMempoolSizeMax < nMempoolSizeMin)
         return InitError(strprintf(_("-maxmempool must be at least %d MB"), std::ceil(nMempoolSizeMin / 1000000.0)));
 
-    // -par=0 means autodetect, but nScriptCheckThreads==0 means no concurrency
-    nScriptCheckThreads = GetArg("-par", DEFAULT_SCRIPTCHECK_THREADS);
-    if (nScriptCheckThreads <= 0)
-        nScriptCheckThreads += boost::thread::physical_concurrency();
-    if (nScriptCheckThreads <= 1)
-        nScriptCheckThreads = 0;
-
     fServer = GetBoolArg("-server", false);
 
     // block pruning; get the amount of disk space (in MiB) to allot for block & undo files
@@ -753,11 +746,6 @@ bool AppInit2(boost::thread_group& threadGroup, CScheduler& scheduler)
     logInfo(Log::Net) << "Using at most" << nMaxConnections  << "connections.";
     logInfo(Log::Internals) << nFD << "file descriptors available";
     std::ostringstream strErrors;
-
-    if (nScriptCheckThreads) {
-        for (int i=0; i<nScriptCheckThreads-1; i++)
-            threadGroup.create_thread(&ThreadScriptCheck);
-    }
 
     // Start the lightweight task scheduler thread
     CScheduler::Function serviceLoop = boost::bind(&CScheduler::serviceQueue, &scheduler);

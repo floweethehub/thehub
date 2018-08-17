@@ -104,7 +104,6 @@ extern uint64_t nLastBlockSize;
 extern const std::string strMessageMagic;
 extern CWaitableCriticalSection csBestBlock;
 extern CConditionVariable cvBlockChange;
-extern int nScriptCheckThreads;
 extern bool fTxIndex;
 extern bool fIsBareMultisigStd;
 extern bool fRequireStandard;
@@ -179,8 +178,6 @@ bool ProcessMessages(CNode* pfrom);
  * @param[in]   pto             The node which we are sending messages to.
  */
 bool SendMessages(CNode* pto);
-/** Run an instance of the script checking thread */
-void ThreadScriptCheck();
 /** Try to detect Partition (network isolation) attacks against us */
 void PartitionCheck(bool (*initialDownloadCheck)(), CCriticalSection& cs, const CBlockIndex *const &bestHeader, int64_t nPowTargetSpacing);
 /** Check whether we are doing an initial block download (synchronizing from disk or network) */
@@ -352,16 +349,6 @@ public:
     }
 
     bool operator()();
-
-    void swap(CScriptCheck &check) {
-        scriptPubKey.swap(check.scriptPubKey);
-        std::swap(ptxTo, check.ptxTo);
-        std::swap(amount, check.amount);
-        std::swap(nIn, check.nIn);
-        std::swap(nFlags, check.nFlags);
-        std::swap(cacheStore, check.cacheStore);
-        std::swap(error, check.error);
-    }
 
     ScriptError GetScriptError() const { return error; }
 };
