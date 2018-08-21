@@ -147,10 +147,10 @@ public:
     Streaming::BufferPool m_memBuffers;
     uint32_t m_jumptables[0x100000];
     std::unordered_map<int, Bucket> m_buckets;
-    int m_bucketIndex = 1;
+    int m_nextBucketIndex = 1;
     // unsaved leafs.
     std::unordered_map<int, UnspentOutput> m_leafs;
-    int m_leafIndex = 1;
+    int m_nextLeafIndex = 1;
 
     // on-disk file.
     const boost::filesystem::path m_path;
@@ -173,8 +173,8 @@ public:
     bool m_flushScheduled = false;
 
     // rollback info
-    int m_leafIndex_saved = 0;
-    int m_bucketIndex_saved = 0;
+    int m_firstUncommittedLeaf = 0;
+    int m_firstUncommittedBucket = 0;
     std::unordered_map<int, UnspentOutput> m_deletedLeafs;
     std::unordered_map<uint32_t, uint32_t> m_deletedBuckets; // shorthash to position-in-file
     std::unordered_map<int, Bucket> m_changedBuckets; // bucketId to bucket-copy

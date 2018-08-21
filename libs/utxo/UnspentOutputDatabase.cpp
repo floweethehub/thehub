@@ -473,37 +473,37 @@ DataFile::DataFile(const boost::filesystem::path &filename)
 void DataFile::insert(const UODBPrivate *priv, const uint256 &txid, int outIndex, int blockHeight, int offsetInBlock)
 {
     std::lock_guard<std::recursive_mutex> lock(m_lock);
-    const std::int32_t leafPos = m_leafIndex++;
+    const std::int32_t leafPos = m_nextLeafIndex++;
     m_leafs.insert(std::make_pair(leafPos, UnspentOutput(m_memBuffers, txid, outIndex, blockHeight, offsetInBlock)));
     const uint32_t shortHash = createShortHash(txid);
     DEBUGUTXO << "Insert leaf"  << (leafPos & MEMMASK) << "shortHash:" << Log::Hex << shortHash;
     Bucket *bucket;
     uint32_t bucketId = m_jumptables[shortHash];
     if (bucketId == 0) {
-        bucketId = static_cast<uint32_t>(m_bucketIndex++);
+        bucketId = static_cast<uint32_t>(m_nextBucketIndex++);
         DEBUGUTXO << "  + new BucketId:" << bucketId;
         auto iterator = m_buckets.insert(std::make_pair(bucketId, Bucket())).first;
         bucket = &iterator->second;
         m_jumptables[shortHash] = bucketId + MEMBIT;
     } else if (bucketId & MEMBIT) { // highest bit is set. Bucket is in memory.
         bucket = &m_buckets.at(bucketId & MEMMASK);
-        // check if I need to make a backup
-        if ((bucketId & MEMMASK) < static_cast<uint32_t>(m_bucketIndex_saved)
+        // check if I need to make a backup of already committed buckets
+        if ((bucketId & MEMMASK) < static_cast<uint32_t>(m_firstUncommittedBucket)
                 && m_changedBuckets.find(bucketId & MEMMASK) == m_changedBuckets.end())
             m_changedBuckets.insert(std::make_pair(bucketId & MEMMASK, *bucket));
     } else {
         // copy from disk and insert into memory so it can be saved later
-        auto iterator = m_buckets.insert(std::make_pair(m_bucketIndex, Bucket())).first;
+        auto iterator = m_buckets.insert(std::make_pair(m_nextBucketIndex, Bucket())).first;
         bucket = &iterator->second;
-        m_jumptables[shortHash] = static_cast<uint32_t>(m_bucketIndex) + MEMBIT;
+        m_jumptables[shortHash] = static_cast<uint32_t>(m_nextBucketIndex) + MEMBIT;
 
         if (bucketId >= m_file.size()) // data corruption
             throw std::runtime_error("Bucket points past end of file.");
         bucket->fillFromDisk(Streaming::ConstBuffer(m_buffer, m_buffer.get() + bucketId, m_buffer.get() + m_file.size()),
                              static_cast<int>(bucketId));
 
-        DEBUGUTXO << Log::Hex << "  + from disk, bucketId now:" << m_bucketIndex;
-        m_bucketIndex++;
+        DEBUGUTXO << Log::Hex << "  + from disk, bucketId:" << m_nextBucketIndex;
+        m_nextBucketIndex++;
     }
 
     bucket->unspentOutputs.push_back({txid.GetCheapHash(), static_cast<std::uint32_t>(leafPos) + MEMBIT});
@@ -623,8 +623,8 @@ SpentOutput DataFile::remove(const UODBPrivate *priv, const uint256 &txid, int i
                 // found!
                 answer.blockHeight = leafIter->second.blockHeight();
                 answer.offsetInBlock = leafIter->second.offsetInBlock();
-                // first back it up for rollback()
-                if (iter->leafPos <= (static_cast<uint32_t>(m_leafIndex_saved) | MEMBIT))
+                // first back already committed leafs up for rollback()
+                if (iter->leafPos < (static_cast<uint32_t>(m_firstUncommittedLeaf) | MEMBIT))
                     m_deletedLeafs.insert(std::make_pair(static_cast<int>(iter->leafPos & MEMMASK), leafIter->second));
                 m_leafs.erase(leafIter);
             } else { // its on disk
@@ -643,7 +643,7 @@ SpentOutput DataFile::remove(const UODBPrivate *priv, const uint256 &txid, int i
             bucket->saveAttempt = 0;
             if (bucketId & MEMBIT) { // highest bit is set. Bucket is in memory.
                 // first check if I need to make a backup
-                if ((bucketId & MEMMASK) < static_cast<uint32_t>(m_bucketIndex_saved)
+                if ((bucketId & MEMMASK) < static_cast<uint32_t>(m_firstUncommittedBucket)
                         && m_changedBuckets.find(bucketId & MEMMASK) == m_changedBuckets.end())
                     m_changedBuckets.insert(std::make_pair(bucketId & MEMMASK, *bucket));
 
@@ -661,9 +661,9 @@ SpentOutput DataFile::remove(const UODBPrivate *priv, const uint256 &txid, int i
                     // remove from jumptable
                     m_jumptables[shortHash] = 0;
                 } else {
-                    m_committedJumptable[m_bucketIndex] = bucketId;
-                    m_buckets.insert(std::make_pair(m_bucketIndex, memBucket));
-                    m_jumptables[shortHash] = static_cast<std::uint32_t>(m_bucketIndex++) + MEMBIT;
+                    m_committedJumptable[m_nextBucketIndex] = bucketId;
+                    m_buckets.insert(std::make_pair(m_nextBucketIndex, memBucket));
+                    m_jumptables[shortHash] = static_cast<std::uint32_t>(m_nextBucketIndex++) + MEMBIT;
                 }
             }
             break;
@@ -695,7 +695,7 @@ bool DataFile::flushSomeNodesToDisk(ForceBool force)
             assert(!iter->second.unspentOutputs.empty());
              // refrain from saving new or changed buckets till commit
             if (force != ForceSave
-                    && (iter->first > m_bucketIndex_saved || m_changedBuckets.find(iter->first) != m_changedBuckets.end()))
+                    && (iter->first >= m_firstUncommittedBucket || m_changedBuckets.find(iter->first) != m_changedBuckets.end()))
                 continue;
 
             const short saveAttempt = ++iter->second.saveAttempt;
@@ -709,7 +709,7 @@ bool DataFile::flushSomeNodesToDisk(ForceBool force)
                 bool canSave = true;
                 // check first if the bucket contains things created after 'commit'
                 for (auto leaf : iter->second.unspentOutputs) {
-                    if ((leaf.leafPos > (static_cast<uint32_t>(m_leafIndex_saved) | MEMBIT))
+                    if ((leaf.leafPos >= (static_cast<uint32_t>(m_firstUncommittedLeaf) | MEMBIT))
                             || (m_deletedLeafs.find(static_cast<int>(leaf.leafPos & MEMMASK)) != m_deletedLeafs.end())) {
                         canSave = false;
                         break;
@@ -860,9 +860,9 @@ void DataFile::flushAll()
         assert(m_jumptables[i] < MEMBIT);
     }
 #endif
-    m_bucketIndex = 0;
+    m_nextBucketIndex = 0;
     m_buckets.clear();
-    m_leafIndex = 0;
+    m_nextLeafIndex = 0;
     m_leafs.clear();
     m_memBuffers.clear();
     commit();
@@ -885,9 +885,10 @@ void DataFile::commit()
 {
     // mutex already locked by caller.
     // std::lock_guard<std::recursive_mutex> lock(m_lock);
+    DEBUGUTXO << "--- Block final. bucketIndex:" << m_nextBucketIndex << "leafIndex:" << m_nextLeafIndex;
 
-    m_bucketIndex_saved = m_bucketIndex;
-    m_leafIndex_saved = m_leafIndex;
+    m_firstUncommittedBucket = m_nextBucketIndex;
+    m_firstUncommittedLeaf = m_nextLeafIndex;
     m_deletedLeafs.clear();
     m_deletedBuckets.clear();
     m_changedBuckets.clear();
@@ -900,7 +901,7 @@ void DataFile::rollback()
     // inserted new stuff is mostly irrelevant for rollback, we haven't been saving them,
     // all we need to do is remove them from memory.
     for (auto iter = m_buckets.begin(); iter != m_buckets.end();) {
-        if (iter->first >= m_bucketIndex_saved) {
+        if (iter->first >= m_firstUncommittedBucket) {
             DEBUGUTXO << "Rolling back adding a bucket" << iter->first;
             assert (!iter->second.unspentOutputs.empty());
             const uint32_t shortHash = createShortHash(iter->second.unspentOutputs.front().cheapHash);
@@ -917,7 +918,7 @@ void DataFile::rollback()
     m_committedJumptable.clear();
 
     for (auto iter = m_leafs.begin(); iter != m_leafs.end();) {
-        if (iter->first >= m_leafIndex_saved) {
+        if (iter->first >= m_firstUncommittedLeaf) {
             DEBUGUTXO << "Rolling back adding a leaf:" << iter->first;
             iter = m_leafs.erase(iter);
         } else {
