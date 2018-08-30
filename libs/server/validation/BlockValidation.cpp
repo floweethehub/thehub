@@ -1336,6 +1336,8 @@ void BlockValidationState::checks2HaveParentHeaders()
             throw Exception("bad-blk-sigops");
         assert(m_sigOpsCounted == 0);
         m_sigOpsCounted = sigOpsCounted;
+
+        findOrderedTransactions();
     } catch (const Exception &e) {
         blockFailed(e.punishment(), e.what(), e.rejectCode(), e.corruptionPossible());
         finishUp();
@@ -1382,8 +1384,6 @@ void BlockValidationState::updateUtxoAndStartValidation()
     }
 
     try {
-        findOrderedTransactions(); // TODO move to check2
-
         int chunks, itemsPerChunk;
         calculateTxCheckChunks(chunks, itemsPerChunk);
         m_txChunkLeftToFinish.store(chunks + (m_orderedTransactions.empty() ? 0 : 1));
