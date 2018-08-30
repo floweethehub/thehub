@@ -1516,7 +1516,7 @@ void BlockValidationState::checkSignaturesChunk(CheckType type)
                                 m_spentMap.insert(std::make_pair(input.txid, spentIndex));
                             }
                         } else {
-                            SpentOutput removed = utxo->remove(input.txid, input.index);
+                            SpentOutput removed = utxo->remove(input.txid, input.index, unspentOutput.rmHint());
                             assert(removed.isValid());
                             undoItems->push_back(FastUndoBlock::Item(input.txid, input.index,
                                                                        removed.blockHeight, removed.offsetInBlock));

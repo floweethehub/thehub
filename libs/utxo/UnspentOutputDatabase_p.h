@@ -31,15 +31,17 @@
 #include <mutex>
 #include <uint256.h>
 
+// #define ENABLE_BENCHMARKS
+
 struct OutputRef {
     OutputRef() = default;
     OutputRef(uint64_t cheapHash, uint32_t leafPos)
         : cheapHash(cheapHash), leafPos(leafPos) {
     }
-    inline bool operator==(const OutputRef &other) {
+    inline bool operator==(const OutputRef &other) const {
         return cheapHash == other.cheapHash && leafPos == other.leafPos;
     }
-    inline bool operator!=(const OutputRef &other) { return !operator==(other); }
+    inline bool operator!=(const OutputRef &other) const { return !operator==(other); }
     uint64_t cheapHash;
     uint32_t leafPos;
 };
@@ -127,7 +129,7 @@ public:
 
     void insert(const UODBPrivate *priv, const uint256 &txid, int outIndex, int blockHeight, int offsetInBlock);
     UnspentOutput find(const uint256 &txid, int index) const;
-    SpentOutput remove(const UODBPrivate *priv, const uint256 &txid, int index);
+    SpentOutput remove(const UODBPrivate *priv, const uint256 &txid, int index, uint32_t leafHint = 0);
 
     // writing to disk. Return if there are still unsaved items left
     bool flushSomeNodesToDisk(ForceBool force);
@@ -137,6 +139,9 @@ public:
     // session management.
     void commit();
     void rollback();
+
+    // update m_changeCount
+    void addChange(const UODBPrivate *priv);
 
     bool openInfo(int targetHeight);
 
@@ -161,7 +166,7 @@ public:
     /// wipes and creates a new datafile
     static DataFile *createDatafile(const boost::filesystem::path &filename, int firstBlockindex, const uint256 &firstHash);
 
-    mutable std::recursive_mutex m_lock;
+    mutable std::recursive_mutex m_lock, m_saveLock;
 
     int m_initialBlockHeight = 0;
     int m_lastBlockHeight = 0;
@@ -179,6 +184,23 @@ public:
     std::unordered_map<uint32_t, uint32_t> m_deletedBuckets; // shorthash to position-in-file
     std::unordered_map<int, Bucket> m_changedBuckets; // bucketId to bucket-copy
     std::unordered_map<int, uint32_t> m_committedJumptable; // when we load (and change) a bucket we need to remember where on disk the previous one was
+
+#ifdef ENABLE_BENCHMARKS
+    mutable std::atomic<long> m_findWait;
+    mutable std::atomic<long> m_findCount;
+    std::atomic<long> m_insertReadWait;
+    std::atomic<long> m_insertWriteWait;
+    std::atomic<long> m_insertCount;
+    std::atomic<long> m_insertWriteHeld;
+    std::atomic<long> m_removeReadWait;
+    std::atomic<long> m_removeWriteWait;
+    std::atomic<long> m_removeCount;
+    std::atomic<long> m_removeWriteHeld;
+    std::atomic<long> m_commitWait;
+    std::atomic<long> m_flushReadWait;
+    std::atomic<long> m_flushWriteWait;
+    std::atomic<long> m_flushWriteHeld;
+#endif
 };
 
 class UODBPrivate
@@ -190,7 +212,6 @@ public:
     // find existing DataFiles
     void init();
 
-    void flushNodesToDisk();
     boost::filesystem::path filepathForIndex(int fileIndex);
 
     boost::asio::io_service& ioService;

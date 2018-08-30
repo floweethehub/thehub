@@ -63,9 +63,15 @@ public:
         return m_data;
     }
 
-    /// return the UnspentOutputDatabase internal numbered data file this came from, which helps speed up deletions.
-    int dataFile() const {
-        return m_datafile;
+    /// return the UnspentOutputDatabase internal to make remove faster
+    /// pass in to UnspentOutputDatabase::remove() if available
+    uint64_t rmHint() const {
+        return m_privData;
+    }
+
+    /// \internal
+    inline void setRmHint(uint64_t hint) {
+        m_privData = hint;
     }
 
 private:
@@ -74,7 +80,7 @@ private:
     int m_outIndex = 0;
     int m_offsetInBlock = 0; // in bytes. 2GB blocks is enough for a while.
     int m_blockHeight = 0;
-    int m_datafile = -1;
+    uint64_t m_privData = 0; // used by the database for cache
 };
 
 class SpentOutput {
@@ -119,7 +125,7 @@ public:
      * @param index the output index inside the prev-tx.
      * @return valid SpendOutput if something was found to remove
      */
-    SpentOutput remove(const uint256 &txid, int index, int dbHint = -1);
+    SpentOutput remove(const uint256 &txid, int index, uint64_t rmHint = 0);
 
     /**
      * The blockFinished should be called after every block to update the UnspentOutput DB

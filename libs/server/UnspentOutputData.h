@@ -64,9 +64,10 @@ public:
         return m_outputScript;
     }
 
-    /// return the UnspentOutputDatabase internal numbered data file this came from, which helps speed up deletions.
-    inline int dataFile() const {
-        return m_uo.dataFile();
+    /// return the UnspentOutputDatabase internal to make remove faster
+    /// pass in to UnspentOutputDatabase::remove() if available
+    inline uint64_t rmHint() const {
+        return m_uo.rmHint();
     }
 
 private:
