@@ -105,7 +105,7 @@ bool LoadExternalBlockFile(const CDiskBlockPos &pos)
 void reimportBlockFiles()
 {
     const CChainParams& chainparams = Params();
-    RenameThread("bitcoin-loadblk");
+    RenameThread("flowee-loadblk");
     if (Blocks::DB::instance()->reindexing() == Blocks::ScanningFiles) {
         int nFile = 0;
         while (true) {
@@ -118,7 +118,8 @@ void reimportBlockFiles()
         Blocks::DB::instance()->setReindexing(Blocks::ParsingBlocks);
     }
     Application::instance()->validation()->waitValidationFinished();
-    Blocks::DB::instance()->setReindexing(Blocks::NoReindex);
+    if (!Application::closingDown()) // waitValidationFinished may not have finished then
+        Blocks::DB::instance()->setReindexing(Blocks::NoReindex);
     FlushStateToDisk();
     logCritical(Log::Bitcoin) << "Reindexing finished";
     // To avoid ending up in a situation without genesis block, re-try initializing (no-op if reindexing worked):
