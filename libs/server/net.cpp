@@ -692,7 +692,7 @@ bool CNode::ReceiveMsgBytes(const char *pch, unsigned int nBytes)
                 return false;
 
         if (msg.in_data && msg.hdr.nMessageSize > (uint32_t) Policy::blockSizeAcceptLimit() + 20000) {
-            logWarning(Log::Net) << "Oversized message from peer:" << GetId() << "disconnecting";
+            logCritical(Log::Net) << "Oversized message from peer:" << GetId() << "disconnecting";
             return false;
         }
 
