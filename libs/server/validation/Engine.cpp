@@ -141,7 +141,7 @@ void Validation::Engine::waitValidationFinished()
     if (!dd.get())
         return;
     std::unique_lock<decltype(dd->lock)> lock(dd->lock);
-    while (dd->headersInFlight > 0 || dd->blocksInFlight > 0)
+    while (!dd->shuttingDown && (dd->headersInFlight > 0 || dd->blocksInFlight > 0))
         dd->waitVariable.wait(lock);
 }
 
