@@ -1467,8 +1467,10 @@ void BlockValidationState::checkSignaturesChunk(CheckType type)
                             Tx prevTx = m_block.transactions().at(static_cast<size_t>(outIndex));
                             assert(prevTx.isValid());
                             Tx::Output out = prevTx.output(input.index);
-                            if (out.outputValue < 0) // output not found
+                            if (out.outputValue < 0) { // output not found
+                                logCritical() << "Rejecting block" << m_block.createHash() << "due to missing inputs (in-block)";
                                 throw Exception("missing-inputs", 0);
+                            }
 
                             prevheights.push_back(m_blockIndex->nHeight);
                             prevOut.amount = out.outputValue;
@@ -1489,8 +1491,12 @@ void BlockValidationState::checkSignaturesChunk(CheckType type)
                     }
                     if (!found) { // should come from UnspentOutputDB (utxo)
                         UnspentOutput unspentOutput = utxo->find(input.txid, input.index);
-                        if (!unspentOutput.isValid())
+                        if (!unspentOutput.isValid()) {
+                            logCritical() << "Rejecting block" << m_block.createHash() << "due to missing inputs";
+                            logInfo() << " |  txid:" << tx.createHash();
+                            logInfo() << " + input:" << input.txid << input.index;
                             throw Exception("missing-inputs", 0);
+                        }
                         prevheights.push_back(unspentOutput.blockHeight());
                         if (flags.enableValidation) {
                             UnspentOutputData data(unspentOutput);
