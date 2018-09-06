@@ -27,13 +27,15 @@ include_directories(. ${LIBS_INCLUDES})
 
 add_executable(unspent-db
     main.cpp
+    AbstractCommand.cpp
+    InfoCommand.cpp
 )
 
 target_link_libraries(unspent-db
     flowee_utils
     flowee_utxo
 
-    # ${OPENSSL_LIBRARIES}
+    ${OPENSSL_LIBRARIES}
     ${Boost_LIBRARIES}
     ${BOOST_THREAD_LIBRARY}
     Qt5::Core
