@@ -49,13 +49,19 @@ public:
 
 protected:
     enum DBFileType {
-        InfoFile,
-        DBFile,
-        Datadir
+        InfoFile, // the .info file, multiple per database file
+        DBFile,   // the data-n.db file, multiple in a datadir
+        Datadir,   // the directory 'unspent' where all UTXO is stored
+        Unknown
     };
     class DatabaseFile {
     public:
+        DatabaseFile();
         DatabaseFile(const QString &filepath, DBFileType filetype);
+        DatabaseFile(const DatabaseFile &other) = default;
+
+        QList<DatabaseFile> infoFiles() const;
+        QList<DatabaseFile> databaseFiles() const;
 
         QString filepath() const;
         DBFileType filetype() const;
@@ -78,12 +84,12 @@ protected:
      */
     virtual Flowee::ReturnCodes run() = 0;
 
-    QList<DatabaseFile> dbDataFiles() const;
+    DatabaseFile dbDataFile() const;
 
     QTextStream out, err;
 
 private:
-    QList<DatabaseFile> m_data;
+    DatabaseFile m_data;
 };
 
 #endif

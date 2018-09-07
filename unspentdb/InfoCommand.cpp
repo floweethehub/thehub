@@ -37,13 +37,13 @@ QString InfoCommand::commandDescription() const
 Flowee::ReturnCodes InfoCommand::run()
 {
     Streaming::BufferPool pool(500);
-    foreach (auto df, dbDataFiles()) {
-        // TODO convert to info if needed
+    foreach (auto df, dbDataFile().infoFiles()) {
         QFile file(df.filepath());
         if (!file.open(QIODevice::ReadOnly)) {
             err << "Can't open file " << df.filepath() << endl;
             continue;
         }
+        out << "Info file; " << df.filepath() << endl;
         pool.reserve(500);
         qint64 read = file.read(pool.begin(), 500);
         Streaming::MessageParser parser(pool.commit(read));
@@ -85,6 +85,7 @@ Flowee::ReturnCodes InfoCommand::run()
             }
             type = parser.next();
         }
+        out << endl;
     }
     return Flowee::Ok;
 }

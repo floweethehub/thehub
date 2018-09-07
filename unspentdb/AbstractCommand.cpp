@@ -19,6 +19,8 @@
 #include <Logger.h>
 
 #include <QCommandLineParser>
+#include <QFileInfo>
+#include <QDir>
 
 AbstractCommand::AbstractCommand()
     : out(stdout),
@@ -45,23 +47,23 @@ Flowee::ReturnCodes AbstractCommand::start(const QStringList &args)
     parser.process(args);
 
     if (parser.isSet(datafile)) {
-        m_data.append(DatabaseFile(parser.value(datafile), DBFile));
+        m_data = DatabaseFile(parser.value(datafile), DBFile);
     }
     if (parser.isSet(basedir)) {
-        if (!m_data.isEmpty()) {
+        if (m_data.filetype() != Unknown) {
             err << "You can only pass in one of --datafile, --unspent or --info" << endl;
             return Flowee::InvalidOptions;
         }
-        m_data.append(DatabaseFile(parser.value(basedir), Datadir));
+        m_data = DatabaseFile(parser.value(basedir), Datadir);
     }
     if (parser.isSet(infoFile)) {
-        if (!m_data.isEmpty()) {
+        if (m_data.filetype() != Unknown) {
             err << "You can only pass in one of --datafile, --unspent or --info" << endl;
             return Flowee::InvalidOptions;
         }
-        m_data.append(DatabaseFile(parser.value(infoFile), InfoFile));
+        m_data = DatabaseFile(parser.value(infoFile), InfoFile);
     }
-    if (m_data.isEmpty())
+    if (m_data.filetype() == Unknown)
         parser.showHelp();
 
     return run();
@@ -71,13 +73,18 @@ void AbstractCommand::addArguments(QCommandLineParser &parser)
 {
 }
 
-QList<AbstractCommand::DatabaseFile> AbstractCommand::dbDataFiles() const
+AbstractCommand::DatabaseFile AbstractCommand::dbDataFile() const
 {
     return m_data;
 }
 
 
 /////////////////////////////////////
+
+AbstractCommand::DatabaseFile::DatabaseFile()
+    : m_filetype(Unknown)
+{
+}
 
 AbstractCommand::DatabaseFile::DatabaseFile(const QString &filepath, AbstractCommand::DBFileType filetype)
     : m_filepath(filepath),
@@ -93,4 +100,44 @@ QString AbstractCommand::DatabaseFile::filepath() const
 AbstractCommand::DBFileType AbstractCommand::DatabaseFile::filetype() const
 {
     return m_filetype;
+}
+
+QList<AbstractCommand::DatabaseFile> AbstractCommand::DatabaseFile::infoFiles() const
+{
+    QList<DatabaseFile> answer;
+    if (m_filetype == InfoFile) {
+        answer.append(*this);
+    }
+    else if (m_filetype == DBFile) {
+        const QFileInfo dbInfo(m_filepath);
+        QString templateName = dbInfo.fileName().remove(".db");
+        templateName += ".%1.info";
+        for (int i = 0; i < 10; ++i) {
+            QFileInfo info(dbInfo.absoluteDir(), templateName.arg(i));
+            if (info.exists())
+                answer += DatabaseFile(info.absoluteFilePath(), InfoFile);
+        }
+    }
+    else {
+        foreach (auto dbf, databaseFiles()) {
+            answer.append(dbf.infoFiles());
+        }
+    }
+    return answer;
+}
+
+QList<AbstractCommand::DatabaseFile> AbstractCommand::DatabaseFile::databaseFiles() const
+{
+    QList<DatabaseFile> answer;
+    if (m_filetype == Datadir) {
+        const QDir dir(m_filepath);
+        QString templateName("data-%1.db");
+        for (int i = 1; i < 1000; ++i) {
+            QFileInfo info(dir, templateName.arg(i));
+            if (!info.exists())
+                break;
+            answer += DatabaseFile(info.absoluteFilePath(), DBFile);
+        }
+    }
+    return answer;
 }
