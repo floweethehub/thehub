@@ -20,6 +20,12 @@
 
 #include "AbstractCommand.h"
 
+#include <uint256.h>
+
+#include <QCommandLineOption>
+
+class QFile;
+
 class InfoCommand : public AbstractCommand
 {
 public:
@@ -27,6 +33,19 @@ public:
 
     QString commandDescription() const;
     Flowee::ReturnCodes run();
+
+protected:
+    void addArguments(QCommandLineParser &commandLineParser);
+
+private:
+    uint256 printBucketUsage(int startPos, QFile *infoFile);
+
+    void readJumptabls(QFile *infoFile, int startPos, uint32_t *tables);
+    uint256 calcChecksum(uint32_t *tables) const;
+    void printStats(uint32_t *tables, const DatabaseFile &df);
+
+
+    QCommandLineOption m_printUsage;
 };
 
 #endif

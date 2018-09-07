@@ -18,6 +18,7 @@
 #ifndef ABSTRACTCOMMAND_H
 #define ABSTRACTCOMMAND_H
 
+#include <QCommandLineParser>
 #include <QString>
 #include <QTextStream>
 
@@ -71,7 +72,7 @@ protected:
         DBFileType m_filetype;
     };
 
-    virtual void addArguments(QCommandLineParser &parser);
+    virtual void addArguments(QCommandLineParser &commandLineParser);
 
     /**
      * return long (multiline) Description of the command.
@@ -88,7 +89,10 @@ protected:
 
     QTextStream out, err;
 
+    const QCommandLineParser &commandLineParser() const;
+
 private:
+    QCommandLineParser m_parser;
     DatabaseFile m_data;
 };
 

@@ -21,6 +21,7 @@
 #include <QCommandLineParser>
 #include <QFileInfo>
 #include <QDir>
+#include <QDebug>
 
 AbstractCommand::AbstractCommand()
     : out(stdout),
@@ -34,48 +35,52 @@ AbstractCommand::~AbstractCommand()
 
 Flowee::ReturnCodes AbstractCommand::start(const QStringList &args)
 {
-    QCommandLineParser parser;
-    parser.setApplicationDescription(commandDescription());
+    m_parser.setApplicationDescription(commandDescription());
     QCommandLineOption datafile(QStringList() << "f" << "datafile", "<PATH> to datafile.db.", "PATH");
     QCommandLineOption basedir(QStringList() << "d" << "unspent", "<PATH> to unspent datadir.", "PATH");
     QCommandLineOption infoFile(QStringList() << "i" << "info", "<PATH> to specific info file.", "PATH");
-    parser.addOption(datafile);
-    parser.addOption(basedir);
-    parser.addOption(infoFile);
-    parser.addHelpOption();
-    addArguments(parser);
-    parser.process(args);
+    m_parser.addOption(datafile);
+    m_parser.addOption(basedir);
+    m_parser.addOption(infoFile);
+    m_parser.addHelpOption();
+    addArguments(m_parser);
+    m_parser.process(args);
 
-    if (parser.isSet(datafile)) {
-        m_data = DatabaseFile(parser.value(datafile), DBFile);
+    if (m_parser.isSet(datafile)) {
+        m_data = DatabaseFile(m_parser.value(datafile), DBFile);
     }
-    if (parser.isSet(basedir)) {
+    if (m_parser.isSet(basedir)) {
         if (m_data.filetype() != Unknown) {
             err << "You can only pass in one of --datafile, --unspent or --info" << endl;
             return Flowee::InvalidOptions;
         }
-        m_data = DatabaseFile(parser.value(basedir), Datadir);
+        m_data = DatabaseFile(m_parser.value(basedir), Datadir);
     }
-    if (parser.isSet(infoFile)) {
+    if (m_parser.isSet(infoFile)) {
         if (m_data.filetype() != Unknown) {
             err << "You can only pass in one of --datafile, --unspent or --info" << endl;
             return Flowee::InvalidOptions;
         }
-        m_data = DatabaseFile(parser.value(infoFile), InfoFile);
+        m_data = DatabaseFile(m_parser.value(infoFile), InfoFile);
     }
     if (m_data.filetype() == Unknown)
-        parser.showHelp();
+        m_parser.showHelp();
 
     return run();
 }
 
-void AbstractCommand::addArguments(QCommandLineParser &parser)
+void AbstractCommand::addArguments(QCommandLineParser &)
 {
 }
 
 AbstractCommand::DatabaseFile AbstractCommand::dbDataFile() const
 {
     return m_data;
+}
+
+const QCommandLineParser &AbstractCommand::commandLineParser() const
+{
+    return m_parser;
 }
 
 
@@ -138,6 +143,15 @@ QList<AbstractCommand::DatabaseFile> AbstractCommand::DatabaseFile::databaseFile
                 break;
             answer += DatabaseFile(info.absoluteFilePath(), DBFile);
         }
+    }
+    else if (m_filetype == InfoFile && m_filepath.endsWith(".info")) {
+        int index = m_filepath.lastIndexOf(".", -6);
+        if (index > 0) {
+            answer.append(DatabaseFile(m_filepath.left(index) + ".db", DBFile));
+        }
+    }
+    else if (m_filetype == DBFile) {
+        answer.append(*this);
     }
     return answer;
 }
