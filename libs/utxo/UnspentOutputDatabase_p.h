@@ -103,13 +103,13 @@ public:
     };
 
     InfoFile parseInfoFile(int index) const;
+    boost::filesystem::path filenameFor(int index) const;
 
     void writeInfoFile(DataFile *source);
     bool load(const InfoFile &info, DataFile *target);
 
     std::list<InfoFile> m_validInfoFiles;
 private:
-    boost::filesystem::path filenameFor(int index) const;
     const boost::filesystem::path m_baseFilename;
 };
 

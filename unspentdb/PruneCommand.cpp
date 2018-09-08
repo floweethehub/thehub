@@ -22,6 +22,7 @@
 #include <streaming/MessageParser.h>
 
 #include <QFileInfo>
+#include <QDir>
 #include <hash.h>
 #include <fstream>
 #include <boost/iostreams/device/mapped_file.hpp>
@@ -96,6 +97,7 @@ uint32_t writeBucket(const Prune::Bucket &bucket, const std::shared_ptr<char> &i
             builder.add(UODB::LeafPosRelToBucket, static_cast<int>(posOfBucket - diskPositions.at(i)));
         }
         builder.add(UODB::Separator, true);
+        outBuf.commit();
         return posOfBucket;
     }
     return 0;
@@ -120,27 +122,11 @@ void PruneCommand::addArguments(QCommandLineParser &parser)
 
 bool PruneCommand::prune(const std::string &dbFile, const std::string &infoFilename)
 {
-    /*
-     * open info file. Validate checksum.
-     * read the jump table.
-     * close info file.
-     *
-     * memmap the dbfile.
-     * iterate over jump table and read each bucket.
-     *    create a new bucket data-structure.
-     *    store absolute file locations of leafs in it.
-     *
-     * Iterate over buckets, for each bucket that has one or two leafs only
-     *    write out bucket, including leafs
-     *
-     * Iterate over buckets, for each bucket that has more than 2 leafs
-     *    write out leafs followed by the bucket.
-     *
-     */
-
+    out << "Counting buckets...";
+    out.flush();
     std::ifstream in(infoFilename, std::ios::binary | std::ios::in);
     if (!in.is_open()) {
-        err << "Failed to read from info file" << endl;
+        err << endl << "Failed to read from info file" << endl;
         return false;
     }
 
@@ -181,7 +167,7 @@ bool PruneCommand::prune(const std::string &dbFile, const std::string &infoFilen
         uint256 result;
         ctx.Finalize(reinterpret_cast<unsigned char*>(&result));
         if (result != checksum) {
-            err << "Checksum of info file failed, prune aborted." << endl;
+            err << endl << "Checksum of info file failed, prune aborted." << endl;
             return false;
         }
     }
@@ -189,7 +175,7 @@ bool PruneCommand::prune(const std::string &dbFile, const std::string &infoFilen
     boost::iostreams::mapped_file file;
     file.open(dbFile, std::ios_base::binary | std::ios_base::in);
     if (!file.is_open()) {
-        err << "Failed to open db file" << endl;
+        err << endl << "Failed to open db file" << endl;
         return false;
     }
     std::shared_ptr<char> buffer = std::shared_ptr<char>(const_cast<char*>(file.const_data()), nothing);
@@ -201,23 +187,24 @@ bool PruneCommand::prune(const std::string &dbFile, const std::string &infoFilen
         if (jumptable[i] == 0)
             continue;
         if (jumptable[i] > 0x7FFFFFFF) {
-            err << "Error found. Info file jumps to pos > 2GB" << endl;
+            err << endl << "Error found. Info file jumps to pos > 2GB" << endl;
             continue;
         }
         int32_t bucketOffsetInFile = static_cast<int>(jumptable[i]);
         if (bucketOffsetInFile > file.size()) {
-            err << "Error found. Info file jumps to pos greater than db file" << endl;
+            err << endl << "Error found. Info file jumps to pos greater than db file" << endl;
             continue;
         }
 
         Prune::Bucket bucket;
+        bucket.shorthash = i;
         Streaming::ConstBuffer buf(buffer, buffer.get() + bucketOffsetInFile, buffer.get() + file.size());
         Streaming::MessageParser parser(buf);
         while (parser.next() == Streaming::FoundTag) {
             if (parser.tag() == UODB::LeafPosRelToBucket) {
                 int offset = parser.intData();
                 if (offset >= bucketOffsetInFile)
-                    err << "Error found. Offset to bucket leads to negative file position." << endl;
+                    err << endl << "Error found. Offset to bucket leads to negative file position." << endl;
                 else
                     bucket.leafPositions.push_back(bucketOffsetInFile - offset);
             }
@@ -230,8 +217,9 @@ bool PruneCommand::prune(const std::string &dbFile, const std::string &infoFilen
         if (!bucket.leafPositions.empty())
             buckets.push_back(bucket);
     }
-    out << "buckets found: " << buckets.size() << endl;
+    out << " found: " << buckets.size() << endl;
 
+    memset(jumptable, 0, sizeof(jumptable));
     const std::string outFilename(dbFile + ".new");
     {
         boost::filesystem::remove(outFilename);
@@ -239,31 +227,78 @@ bool PruneCommand::prune(const std::string &dbFile, const std::string &infoFilen
         outFle.close();
         boost::filesystem::resize_file(outFilename, 2147483600); // ~2GB // TODO estimate new size better!
     }
-    boost::iostreams::mapped_file outFile;
-    outFile.open(outFilename, std::ios_base::binary | std::ios_base::out);
-    if (!outFile.is_open()) {
-        err << "Failed to open replacement db file for writing" << endl;
-        return false;
+    int outFileSize = 0;
+    {
+        boost::iostreams::mapped_file outFile;
+        outFile.open(outFilename, std::ios_base::binary | std::ios_base::out);
+        if (!outFile.is_open()) {
+            err << "Failed to open replacement db file for writing" << endl;
+            return false;
+        }
+        out << "Copying leafs and buckets.";
+        out.flush();
+        std::shared_ptr<char> outStream = std::shared_ptr<char>(const_cast<char*>(outFile.const_data()), nothing);
+        Streaming::BufferPool outBuf = Streaming::BufferPool(outStream, static_cast<int>(outFile.size()), true);
+        Streaming::MessageBuilder builder(outBuf);
+        int index = 0;
+        int stop = buckets.size() / 50;
+        for (const Prune::Bucket &bucket : buckets) {
+            if (bucket.leafPositions.size() > 2)
+                continue;
+            if ((++index % stop) == 0) {
+                out << ".";
+                out.flush();
+            }
+            // copy leafs
+            uint32_t newPos = Prune::writeBucket(bucket, buffer, outBuf, builder);
+            jumptable[bucket.shorthash] = newPos;
+        }
+        out << " ";
+        out.flush();
+        for (const Prune::Bucket &bucket : buckets) {
+            if (bucket.leafPositions.size() <= 2)
+                continue;
+            if ((++index % stop) == 0) {
+                out << ".";
+                out.flush();
+            }
+            // copy leafs
+            uint32_t newPos = Prune::writeBucket(bucket, buffer, outBuf, builder);
+            jumptable[bucket.shorthash] = newPos;
+        }
+        outFileSize = outBuf.offset();
+        outFile.close();
     }
-    std::shared_ptr<char> outStream = std::shared_ptr<char>(const_cast<char*>(outFile.const_data()), nothing);
-    Streaming::BufferPool outBuf = Streaming::BufferPool(outStream, static_cast<int>(outFile.size()), true);
-    Streaming::MessageBuilder builder(outBuf);
-    for (const Prune::Bucket &bucket : buckets) {
-        if (bucket.leafPositions.size() > 2)
-            continue;
-        // copy leafs
-        uint32_t newPos = Prune::writeBucket(bucket, buffer, outBuf, builder);
-        // TODO write newPos to jump list.
-        // TODO store buckets shorthash to the bucket struct
+    file.close();
+    out << " " << outFileSize << " bytes" << endl << "Writing new info file" << endl;
+
+    // write new info file
+    boost::filesystem::remove(infoFilename + ".new");
+    std::ofstream outInfo(infoFilename + ".new", std::ios::binary | std::ios::out | std::ios::trunc);
+    if (!outInfo.is_open()) {
+        err << "Failed to open new index file" << endl;
+        return Flowee::CommandFailed;
     }
-    for (const Prune::Bucket &bucket : buckets) {
-        if (bucket.leafPositions.size() <= 2)
-            continue;
-        // copy leafs
-        uint32_t newPos = Prune::writeBucket(bucket, buffer, outBuf, builder);
-        // TODO write newPos to jump list.
-        // TODO store buckets shorthash to the bucket struct
+
+    Streaming::MessageBuilder builder(Streaming::NoHeader, 256);
+    builder.add(UODB::FirstBlockHeight, initialBlockHeight);
+    builder.add(UODB::LastBlockHeight, lastBlockHeight);
+    builder.add(UODB::LastBlockId, lastBlockHash);
+    builder.add(UODB::PositionInFile, outFileSize);
+    {
+        CHash256 ctx;
+        ctx.Write(reinterpret_cast<const unsigned char*>(jumptable), sizeof(jumptable));
+        uint256 result;
+        ctx.Finalize(reinterpret_cast<unsigned char*>(&result));
+        builder.add(UODB::JumpTableHash, result);
     }
+    builder.add(UODB::Separator, true);
+    Streaming::ConstBuffer header = builder.buffer();
+    outInfo.write(header.constData(), header.size());
+    outInfo.write(reinterpret_cast<const char*>(jumptable), sizeof(jumptable));
+    outInfo.flush();
+    outInfo.close();
+
     return true;
 }
 
@@ -312,6 +347,20 @@ Flowee::ReturnCodes PruneCommand::run()
     QFileInfo dbInfo(infoFile.databaseFiles().first().filepath());
     out << "Operating on " << dbInfo.fileName() << " and snapshot file " << info.fileName() << endl;
 
-    bool ok = prune(dbInfo.absoluteFilePath().toStdString(), info.absoluteFilePath().toStdString());
-    return ok ? Flowee::Ok : Flowee::CommandFailed;
+    const std::string dbFilePath = dbInfo.absoluteFilePath().toStdString();
+    const std::string infoFilePath = info.absoluteFilePath().toStdString();
+    if (prune(dbFilePath, infoFilePath)) {
+        out << "Finishing up" << endl;
+        // remove all old info files (they can no longer work) and rename the db file
+        // and the info file over the original ones
+        DataFileCache cache(dbInfo.dir().filePath(dbInfo.baseName()).toStdString());
+        for (int i = 0; i < 10; ++i)
+            boost::filesystem::remove(cache.filenameFor(i));
+
+        boost::filesystem::rename(dbFilePath + ".new", dbFilePath);
+        boost::filesystem::rename(infoFilePath + ".new", infoFilePath);
+        out << "Done" << endl;
+        return Flowee::Ok;
+    }
+    return Flowee::CommandFailed;
 }
