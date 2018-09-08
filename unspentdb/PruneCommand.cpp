@@ -18,8 +18,90 @@
 #include "PruneCommand.h"
 
 #include <utxo/UnspentOutputDatabase_p.h>
+#include <streaming/MessageBuilder.h>
+#include <streaming/MessageParser.h>
 
 #include <QFileInfo>
+#include <hash.h>
+#include <fstream>
+#include <boost/iostreams/device/mapped_file.hpp>
+#include <boost/filesystem.hpp>
+
+static void nothing(const char *){}
+
+namespace Prune {
+struct Bucket
+{
+    uint32_t shorthash;
+    std::vector<int> leafPositions; // absolute positions.
+};
+
+uint32_t writeBucket(const Prune::Bucket &bucket, const std::shared_ptr<char> &inputBuf, Streaming::BufferPool &outBuf, Streaming::MessageBuilder &builder)
+{
+    std::vector<uint64_t> cheapHashes;
+    std::vector<uint32_t> diskPositions;
+    for (auto pos : bucket.leafPositions) {
+        int blockHeight = -1;
+        int offsetInBlock = -1;
+        int outIndex = 0;
+        uint256 txid;
+        bool failed = false;
+        // read from old
+        Streaming::ConstBuffer buf(inputBuf, inputBuf.get() + pos, inputBuf.get() + pos + 100);
+        Streaming::MessageParser parser(buf);
+        while (!failed && parser.next() == Streaming::FoundTag) {
+            if (parser.tag() == UODB::BlockHeight) {
+                if (!parser.isInt())
+                    failed = true;
+                blockHeight = parser.intData();
+            }
+            else if (parser.tag() == UODB::OffsetInBlock) {
+                if (!parser.isInt())
+                    failed = true;
+                offsetInBlock = parser.intData();
+            } else if (parser.tag() == UODB::OutIndex) {
+                if (!parser.isInt())
+                    failed = true;
+                outIndex = parser.intData();
+            } else if (parser.tag() == UODB::TXID) {
+                if (!parser.isByteArray() || parser.dataLength() != 32)
+                    failed = true;
+                txid = parser.uint256Data();
+            } else if (parser.tag() == UODB::Separator)
+                break;
+        }
+        if (failed || parser.next() == Streaming::Error || blockHeight < 1 || offsetInBlock <= 0 || outIndex < 0) {
+            // err << "Error found. Failed to parse Leaf at " << pos << endl;
+        } else {
+            diskPositions.push_back(outBuf.offset());
+            cheapHashes.push_back(txid.GetCheapHash());
+            builder.add(UODB::TXID, txid);
+            if (outIndex != 0)
+                builder.add(UODB::OutIndex, outIndex);
+            builder.add(UODB::BlockHeight, blockHeight);
+            builder.add(UODB::OffsetInBlock, offsetInBlock);
+            builder.add(UODB::Separator, true);
+        }
+    }
+    assert(diskPositions.size() == cheapHashes.size());
+    if (!diskPositions.empty()) {
+        outBuf.commit();
+        const uint32_t posOfBucket = outBuf.offset();
+        uint64_t prevCH = 0;
+        for (size_t i = 0; i < diskPositions.size(); ++i) {
+            if (prevCH != cheapHashes.at(i)) {
+                builder.add(UODB::CheapHash, cheapHashes.at(i));
+                prevCH = cheapHashes.at(i);
+            }
+            builder.add(UODB::LeafPosRelToBucket, static_cast<int>(posOfBucket - diskPositions.at(i)));
+        }
+        builder.add(UODB::Separator, true);
+        return posOfBucket;
+    }
+    return 0;
+}
+}
+
 
 PruneCommand::PruneCommand()
     : m_force(QStringList() << "force", "Force pruning")
@@ -34,6 +116,155 @@ QString PruneCommand::commandDescription() const
 void PruneCommand::addArguments(QCommandLineParser &parser)
 {
     parser.addOption(m_force);
+}
+
+bool PruneCommand::prune(const std::string &dbFile, const std::string &infoFilename)
+{
+    /*
+     * open info file. Validate checksum.
+     * read the jump table.
+     * close info file.
+     *
+     * memmap the dbfile.
+     * iterate over jump table and read each bucket.
+     *    create a new bucket data-structure.
+     *    store absolute file locations of leafs in it.
+     *
+     * Iterate over buckets, for each bucket that has one or two leafs only
+     *    write out bucket, including leafs
+     *
+     * Iterate over buckets, for each bucket that has more than 2 leafs
+     *    write out leafs followed by the bucket.
+     *
+     */
+
+    std::ifstream in(infoFilename, std::ios::binary | std::ios::in);
+    if (!in.is_open()) {
+        err << "Failed to read from info file" << endl;
+        return false;
+    }
+
+    int initialBlockHeight = -1;
+    int lastBlockHeight = 1;
+    uint256 lastBlockHash;
+    int posInFile = 0;
+
+    int posOfJumptable = 0;
+    uint256 checksum;
+    {
+        std::shared_ptr<char> buf(new char[256], std::default_delete<char[]>());
+        in.read(buf.get(), 256);
+        Streaming::MessageParser parser(Streaming::ConstBuffer(buf, buf.get(), buf.get() + 256));
+        while (parser.next() == Streaming::FoundTag) {
+            if (parser.tag() == UODB::LastBlockHeight)
+                lastBlockHeight = parser.intData();
+            else if (parser.tag() == UODB::FirstBlockHeight)
+                initialBlockHeight = parser.intData();
+            else if (parser.tag() == UODB::LastBlockId)
+                lastBlockHash = parser.uint256Data();
+            else if (parser.tag() == UODB::JumpTableHash)
+                checksum = parser.uint256Data();
+            else if (parser.tag() == UODB::PositionInFile)
+                posInFile = parser.intData();
+            else if (parser.tag() == UODB::Separator)
+                break;
+        }
+        posOfJumptable = parser.consumed();
+    }
+    in.seekg(posOfJumptable);
+    uint32_t jumptable[0x100000];
+    in.read(reinterpret_cast<char*>(jumptable), sizeof(jumptable));
+
+    {
+        CHash256 ctx;
+        ctx.Write(reinterpret_cast<const unsigned char*>(jumptable), sizeof(jumptable));
+        uint256 result;
+        ctx.Finalize(reinterpret_cast<unsigned char*>(&result));
+        if (result != checksum) {
+            err << "Checksum of info file failed, prune aborted." << endl;
+            return false;
+        }
+    }
+
+    boost::iostreams::mapped_file file;
+    file.open(dbFile, std::ios_base::binary | std::ios_base::in);
+    if (!file.is_open()) {
+        err << "Failed to open db file" << endl;
+        return false;
+    }
+    std::shared_ptr<char> buffer = std::shared_ptr<char>(const_cast<char*>(file.const_data()), nothing);
+
+    std::vector<Prune::Bucket> buckets;
+    buckets.reserve(100000);
+    // Find all buckets
+    for (int i = 0; i < 0x100000; ++i) {
+        if (jumptable[i] == 0)
+            continue;
+        if (jumptable[i] > 0x7FFFFFFF) {
+            err << "Error found. Info file jumps to pos > 2GB" << endl;
+            continue;
+        }
+        int32_t bucketOffsetInFile = static_cast<int>(jumptable[i]);
+        if (bucketOffsetInFile > file.size()) {
+            err << "Error found. Info file jumps to pos greater than db file" << endl;
+            continue;
+        }
+
+        Prune::Bucket bucket;
+        Streaming::ConstBuffer buf(buffer, buffer.get() + bucketOffsetInFile, buffer.get() + file.size());
+        Streaming::MessageParser parser(buf);
+        while (parser.next() == Streaming::FoundTag) {
+            if (parser.tag() == UODB::LeafPosRelToBucket) {
+                int offset = parser.intData();
+                if (offset >= bucketOffsetInFile)
+                    err << "Error found. Offset to bucket leads to negative file position." << endl;
+                else
+                    bucket.leafPositions.push_back(bucketOffsetInFile - offset);
+            }
+            else if (parser.tag() == UODB::LeafPosition) {
+                bucket.leafPositions.push_back(parser.intData());
+            } else if (parser.tag() == UODB::Separator) {
+                break;
+            }
+        }
+        if (!bucket.leafPositions.empty())
+            buckets.push_back(bucket);
+    }
+    out << "buckets found: " << buckets.size() << endl;
+
+    const std::string outFilename(dbFile + ".new");
+    {
+        boost::filesystem::remove(outFilename);
+        boost::filesystem::ofstream outFle(outFilename);
+        outFle.close();
+        boost::filesystem::resize_file(outFilename, 2147483600); // ~2GB // TODO estimate new size better!
+    }
+    boost::iostreams::mapped_file outFile;
+    outFile.open(outFilename, std::ios_base::binary | std::ios_base::out);
+    if (!outFile.is_open()) {
+        err << "Failed to open replacement db file for writing" << endl;
+        return false;
+    }
+    std::shared_ptr<char> outStream = std::shared_ptr<char>(const_cast<char*>(outFile.const_data()), nothing);
+    Streaming::BufferPool outBuf = Streaming::BufferPool(outStream, static_cast<int>(outFile.size()), true);
+    Streaming::MessageBuilder builder(outBuf);
+    for (const Prune::Bucket &bucket : buckets) {
+        if (bucket.leafPositions.size() > 2)
+            continue;
+        // copy leafs
+        uint32_t newPos = Prune::writeBucket(bucket, buffer, outBuf, builder);
+        // TODO write newPos to jump list.
+        // TODO store buckets shorthash to the bucket struct
+    }
+    for (const Prune::Bucket &bucket : buckets) {
+        if (bucket.leafPositions.size() <= 2)
+            continue;
+        // copy leafs
+        uint32_t newPos = Prune::writeBucket(bucket, buffer, outBuf, builder);
+        // TODO write newPos to jump list.
+        // TODO store buckets shorthash to the bucket struct
+    }
+    return true;
 }
 
 Flowee::ReturnCodes PruneCommand::run()
@@ -81,5 +312,6 @@ Flowee::ReturnCodes PruneCommand::run()
     QFileInfo dbInfo(infoFile.databaseFiles().first().filepath());
     out << "Operating on " << dbInfo.fileName() << " and snapshot file " << info.fileName() << endl;
 
-    return Flowee::Ok;
+    bool ok = prune(dbInfo.absoluteFilePath().toStdString(), info.absoluteFilePath().toStdString());
+    return ok ? Flowee::Ok : Flowee::CommandFailed;
 }

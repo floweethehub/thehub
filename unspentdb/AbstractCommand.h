@@ -31,6 +31,7 @@ namespace Flowee
         Ok = 0,
         InvalidOptions = 1,
         NeedForce = 2,
+        CommandFailed = 3
     };
 }
 

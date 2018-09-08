@@ -33,6 +33,15 @@
 
 // #define ENABLE_BENCHMARKS
 
+namespace {
+    inline std::uint32_t createShortHash(uint64_t cheapHash) {
+        std::uint32_t answer = static_cast<uint32_t>(cheapHash & 0xFF) << 12;
+        answer += (cheapHash & 0xFF00) >> 4;
+        answer += (cheapHash & 0xF00000) >> 20;
+        return answer;
+    }
+}
+
 struct OutputRef {
     OutputRef() = default;
     OutputRef(uint64_t cheapHash, uint32_t leafPos)

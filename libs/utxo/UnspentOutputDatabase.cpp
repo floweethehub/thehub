@@ -46,14 +46,6 @@ static std::uint32_t createShortHash(const uint256 &hash)
     return (txid[0] << 12) + (txid[1] << 4) + ((txid[2] & 0xF0) >> 4);
 }
 
-static std::uint32_t createShortHash(uint64_t cheapHash)
-{
-    std::uint32_t answer = static_cast<uint32_t>(cheapHash & 0xFF) << 12;
-    answer += (cheapHash & 0xFF00) >> 4;
-    answer += (cheapHash & 0xF00000) >> 20;
-    return answer;
-}
-
 static std::list<OutputRef>::iterator nextBucket(const std::list<OutputRef> &unsavedOutputs, const std::list<OutputRef>::iterator &begin)
 {
     auto answer(begin);

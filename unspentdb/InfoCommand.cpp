@@ -90,7 +90,6 @@ Flowee::ReturnCodes InfoCommand::run()
             if (!done)
                 type = parser.next();
         }
-        out << endl;
         if (commandLineParser().isSet(m_printUsage)) {
             try {
                 uint32_t jumptables[0x100000];
@@ -102,6 +101,7 @@ Flowee::ReturnCodes InfoCommand::run()
             } catch (const std::exception &) {
             }
         }
+        out << endl;
     }
 
 
