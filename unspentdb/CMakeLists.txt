@@ -29,6 +29,7 @@ add_executable(unspent-db
     main.cpp
     AbstractCommand.cpp
     InfoCommand.cpp
+    PruneCommand.cpp
 )
 
 target_link_libraries(unspent-db

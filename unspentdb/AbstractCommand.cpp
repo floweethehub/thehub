@@ -91,9 +91,10 @@ AbstractCommand::DatabaseFile::DatabaseFile()
 {
 }
 
-AbstractCommand::DatabaseFile::DatabaseFile(const QString &filepath, AbstractCommand::DBFileType filetype)
+AbstractCommand::DatabaseFile::DatabaseFile(const QString &filepath, AbstractCommand::DBFileType filetype, int index)
     : m_filepath(filepath),
-      m_filetype(filetype)
+      m_filetype(filetype),
+      m_index(index)
 {
 }
 
@@ -105,6 +106,11 @@ QString AbstractCommand::DatabaseFile::filepath() const
 AbstractCommand::DBFileType AbstractCommand::DatabaseFile::filetype() const
 {
     return m_filetype;
+}
+
+int AbstractCommand::DatabaseFile::index() const
+{
+    return m_index;
 }
 
 QList<AbstractCommand::DatabaseFile> AbstractCommand::DatabaseFile::infoFiles() const
@@ -120,7 +126,7 @@ QList<AbstractCommand::DatabaseFile> AbstractCommand::DatabaseFile::infoFiles() 
         for (int i = 0; i < 10; ++i) {
             QFileInfo info(dbInfo.absoluteDir(), templateName.arg(i));
             if (info.exists())
-                answer += DatabaseFile(info.absoluteFilePath(), InfoFile);
+                answer += DatabaseFile(info.absoluteFilePath(), InfoFile, i);
         }
     }
     else {
@@ -141,7 +147,7 @@ QList<AbstractCommand::DatabaseFile> AbstractCommand::DatabaseFile::databaseFile
             QFileInfo info(dir, templateName.arg(i));
             if (!info.exists())
                 break;
-            answer += DatabaseFile(info.absoluteFilePath(), DBFile);
+            answer += DatabaseFile(info.absoluteFilePath(), DBFile, i);
         }
     }
     else if (m_filetype == InfoFile && m_filepath.endsWith(".info")) {

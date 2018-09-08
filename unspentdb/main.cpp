@@ -17,6 +17,7 @@
  */
 #include "AbstractCommand.h"
 #include "InfoCommand.h"
+#include "PruneCommand.h"
 
 #include <QCoreApplication>
 #include <QTextStream>
@@ -40,6 +41,8 @@ int main(int argc, char **argv)
         const QString command = args.at(1);
         if (command == "info")
             run = new InfoCommand();
+        else if (command == "prune")
+            run = new PruneCommand();
     }
 
     if (run == nullptr) {
@@ -52,6 +55,7 @@ int main(int argc, char **argv)
         out << "Commands:" << endl;
         out << "  help       Display help for unspentdb or single commands." << endl;
         out << "  info       Prints generic info about a database or part of it." << endl;
+        out << "  prune      Prunes spent outputs to speed up database usage." << endl;
         out << endl;
         return Flowee::InvalidOptions;
     }

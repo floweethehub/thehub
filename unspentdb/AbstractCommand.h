@@ -30,6 +30,7 @@ namespace Flowee
         // note that Unix requires 'Ok' to be zero.
         Ok = 0,
         InvalidOptions = 1,
+        NeedForce = 2,
     };
 }
 
@@ -58,7 +59,7 @@ protected:
     class DatabaseFile {
     public:
         DatabaseFile();
-        DatabaseFile(const QString &filepath, DBFileType filetype);
+        DatabaseFile(const QString &filepath, DBFileType filetype, int index = -1);
         DatabaseFile(const DatabaseFile &other) = default;
 
         QList<DatabaseFile> infoFiles() const;
@@ -67,9 +68,13 @@ protected:
         QString filepath() const;
         DBFileType filetype() const;
 
+        /// return the index if applicable. Indexes are used in filenames.
+        int index() const;
+
     private:
         QString m_filepath;
         DBFileType m_filetype;
+        int m_index = -1;
     };
 
     virtual void addArguments(QCommandLineParser &commandLineParser);
