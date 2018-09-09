@@ -124,21 +124,7 @@ bool PruneCommand::prune(const std::string &dbFile, const std::string &infoFilen
         Bucket bucket;
         bucket.shorthash = i;
         Streaming::ConstBuffer buf(buffer, buffer.get() + bucketOffsetInFile, buffer.get() + file.size());
-        Streaming::MessageParser parser(buf);
-        while (parser.next() == Streaming::FoundTag) {
-            if (parser.tag() == UODB::LeafPosRelToBucket) {
-                int offset = parser.intData();
-                if (offset >= bucketOffsetInFile)
-                    err << endl << "Error found. Offset to bucket leads to negative file position." << endl;
-                else
-                    bucket.leafPositions.push_back(bucketOffsetInFile - offset);
-            }
-            else if (parser.tag() == UODB::LeafPosition) {
-                bucket.leafPositions.push_back(parser.intData());
-            } else if (parser.tag() == UODB::Separator) {
-                break;
-            }
-        }
+        bucket.leafPositions = readBucket(buf, bucketOffsetInFile);
         if (!bucket.leafPositions.empty())
             buckets.push_back(bucket);
     }

@@ -123,7 +123,9 @@ protected:
         uint256 txid;
     };
 
-    Leaf readLeaf(Streaming::ConstBuffer buf, bool *failed);
+    Leaf readLeaf(Streaming::ConstBuffer buf, bool *failed = nullptr);
+
+    std::vector<int> readBucket(Streaming::ConstBuffer buf, int bucketOffsetInFile, bool *failed = nullptr);
 
 private:
     QCommandLineParser m_parser;

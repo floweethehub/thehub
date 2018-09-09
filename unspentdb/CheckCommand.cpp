@@ -21,6 +21,8 @@
 #include <boost/filesystem.hpp>
 #include <streaming/ConstBuffer.h>
 #include <streaming/MessageParser.h>
+// private header for createShortHas()
+#include <utxo/UnspentOutputDatabase_p.h>
 
 static void nothing(const char *){}
 
@@ -66,6 +68,8 @@ Flowee::ReturnCodes CheckCommand::run()
             continue;
         }
 
+        out << "Opening DB file";
+        out.flush();
         // open db file
         boost::iostreams::mapped_file file;
         file.open(dbs.first().filepath().toStdString(), std::ios_base::binary | std::ios_base::in);
@@ -75,29 +79,50 @@ Flowee::ReturnCodes CheckCommand::run()
         }
         std::shared_ptr<char> buffer = std::shared_ptr<char>(const_cast<char*>(file.const_data()), nothing);
 
+        out << " ok\nChecking buckets..." << endl;
         // read buckets
         for (int shorthash = 0; shorthash < 0x100000; ++shorthash) {
             if (jumptables[shorthash] == 0)
                 continue;
             int32_t bucketOffsetInFile = static_cast<int>(jumptables[shorthash]);
-
             Streaming::ConstBuffer buf(buffer, buffer.get() + bucketOffsetInFile, buffer.get() + file.size());
-            Streaming::MessageParser parser(buf);
+            std::vector<int> leafPositions = readBucket(buf, bucketOffsetInFile);
+            for (auto leafPos : leafPositions) {
+                if (leafPos > checkpoint.positionInFile) {
+                    err << "Leaf after checkpoint pos" << endl;
+                    continue;
+                }
+                Streaming::ConstBuffer leafBuf(buffer, buffer.get() + leafPos, buffer.get() + file.size());
+                Leaf leaf = readLeaf(leafBuf);
+                const uint64_t cheapHash = leaf.txid.GetCheapHash();
+                const uint32_t leafShorthash = createShortHash(cheapHash);
+                if (shorthash != leafShorthash)
+                    err << "Leaf found under bucket with different shorthashes " << shorthash << " != " << leafShorthash << endl;
 
+                if (leaf.blockHeight > checkpoint.lastBlockHeight)
+                    err << "Leaf belongs to a block older than this checkpoint" << leaf.blockHeight << endl;
+                else if (leaf.blockHeight < checkpoint.firstBlockHeight)
+                    err << "Leaf belongs to a block before this db file" << leaf.blockHeight << endl;
+            }
+
+            for (size_t n = 0; n < leafPositions.size(); ++n) {
+                const int leafPos = leafPositions[n];
+                if (leafPos > checkpoint.positionInFile)  continue;
+                Streaming::ConstBuffer leafBuf(buffer, buffer.get() + leafPos, buffer.get() + file.size());
+                Leaf leaf = readLeaf(leafBuf);
+                for (size_t m = n + 1; m < leafPositions.size(); ++m) {
+                    const int leafPos2 = leafPositions[m];
+                    Streaming::ConstBuffer leafBuf2(buffer, buffer.get() + leafPos2, buffer.get() + file.size());
+                    Leaf leaf2 = readLeaf(leafBuf2);
+                    if (leaf.outIndex == leaf2.outIndex && leaf.txid == leaf2.txid) {
+                        err << "One utxo-entry is duplicated. " << QString::fromStdString(leaf.txid.GetHex())
+                            << " | " << leaf.outIndex;
+                    }
+                }
+            }
         }
     }
+    out << "Check finished" << endl;
 
-    /*
-     * open each info file and check if its checksum passes.
-     * remember the highest disk position
-     * then walk through the table and check nothing has a higher offset-in-file
-     *
-     * checkBucket(shortHash, diskPos);
-     *   read bucket
-     *   read each leaf
-     *      check if the shorthash is consistent
-     *      check if we have any duplicate leafs
-     *
-     */
     return Flowee::Ok;
 }

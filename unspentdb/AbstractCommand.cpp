@@ -294,3 +294,26 @@ AbstractCommand::Leaf AbstractCommand::readLeaf(Streaming::ConstBuffer buf, bool
     }
     return answer;
 }
+
+std::vector<int> AbstractCommand::readBucket(Streaming::ConstBuffer buf, int bucketOffsetInFile, bool *failed)
+{
+    std::vector<int> answer;
+    Streaming::MessageParser parser(buf);
+    while (parser.next() == Streaming::FoundTag) {
+        if (parser.tag() == UODB::LeafPosRelToBucket) {
+            int offset = parser.intData();
+            if (offset > bucketOffsetInFile) {
+                if (failed) *failed = true;
+                else err << "Error found. Offset to bucket leads to negative file position." << endl;
+            }
+            else
+                answer.push_back(bucketOffsetInFile - offset);
+        }
+        else if (parser.tag() == UODB::LeafPosition) {
+            answer.push_back(parser.intData());
+        } else if (parser.tag() == UODB::Separator) {
+            break;
+        }
+    }
+    return answer;
+}
