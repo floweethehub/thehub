@@ -19,6 +19,7 @@
 #include "CheckCommand.h"
 #include "ExportCommand.h"
 #include "InfoCommand.h"
+#include "LookupCommand.h"
 #include "PruneCommand.h"
 
 #include <QCoreApplication>
@@ -49,6 +50,8 @@ int main(int argc, char **argv)
             run = new CheckCommand();
         else if (command == "export")
             run = new ExportCommand();
+        else if (command == "lookup")
+            run = new LookupCommand();
     }
 
     if (run == nullptr) {
@@ -60,9 +63,12 @@ int main(int argc, char **argv)
         out << "-i, --info <PATH>      <PATH> to specific info file." << endl << endl;
         out << "Commands:" << endl;
         out << "  help       Display help for unspentdb or single commands." << endl;
+        out << "Querying the database:" << endl;
+        out << "  lookup     Finds utxo entries." << endl;
         out << "  info       Prints generic info about a database or part of it." << endl;
-        out << "  check      Checks the internal structures of the database." << endl;
         out << "  export     Exports the entire set of a database." << endl;
+        out << "Database maintainance:" << endl;
+        out << "  check      Checks the internal structures of the database." << endl;
         out << "  prune      Prunes spent outputs to speed up database usage." << endl;
         out << endl;
         return Flowee::InvalidOptions;

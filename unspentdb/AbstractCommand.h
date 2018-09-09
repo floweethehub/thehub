@@ -98,11 +98,13 @@ protected:
 
     DatabaseFile dbDataFile() const;
 
+    QList<DatabaseFile> highestDataFiles();
+
     QTextStream out, err;
 
-    const QCommandLineParser &commandLineParser() const;
+    QCommandLineParser &commandLineParser();
 
-    bool readJumptabls(const QString &filepath, int startPos, uint32_t *tables);
+    bool readJumptables(const QString &filepath, int startPos, uint32_t *tables);
     uint256 calcChecksum(uint32_t *tables) const;
 
     struct CheckPoint {

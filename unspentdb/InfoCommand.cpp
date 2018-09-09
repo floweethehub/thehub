@@ -49,7 +49,7 @@ Flowee::ReturnCodes InfoCommand::run()
         out << "Filesize         : " << checkpoint.positionInFile << endl;
         if (commandLineParser().isSet(m_printUsage)) {
             uint32_t jumptables[0x100000];
-            if (readJumptabls(df.filepath(), checkpoint.jumptableFilepos, jumptables)) {
+            if (readJumptables(df.filepath(), checkpoint.jumptableFilepos, jumptables)) {
                 if (checkpoint.jumptableHash != calcChecksum(jumptables))
                     err << "CHECKSUM Failed" << endl;
                 else

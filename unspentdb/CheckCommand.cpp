@@ -43,7 +43,7 @@ Flowee::ReturnCodes CheckCommand::run()
         if (checkpoint.jumptableFilepos < 0)
             continue;
         uint32_t jumptables[0x100000];
-        if (!readJumptabls(df.filepath(), checkpoint.jumptableFilepos, jumptables))
+        if (!readJumptables(df.filepath(), checkpoint.jumptableFilepos, jumptables))
             continue;
         if (checkpoint.jumptableHash != calcChecksum(jumptables)) {
             err << "CHECKSUM Failed" << endl;
@@ -97,10 +97,12 @@ Flowee::ReturnCodes CheckCommand::run()
                 const uint64_t cheapHash = leaf.txid.GetCheapHash();
                 const uint32_t leafShorthash = createShortHash(cheapHash);
                 if (shorthash != leafShorthash)
-                    err << "Leaf found under bucket with different shorthashes " << shorthash << " != " << leafShorthash << endl;
+                    err << "Leaf found under bucket with different shorthashes " << shorthash << " != " << leafShorthash
+                        << endl << "  " << QString::fromStdString(leaf.txid.GetHex()) << "-" << leaf.outIndex
+                        << ", b: " << leaf.blockHeight << endl;
 
                 if (leaf.blockHeight > checkpoint.lastBlockHeight)
-                    err << "Leaf belongs to a block older than this checkpoint" << leaf.blockHeight << endl;
+                    err << "Leaf belongs to a block newer than this checkpoint" << leaf.blockHeight << endl;
                 else if (leaf.blockHeight < checkpoint.firstBlockHeight)
                     err << "Leaf belongs to a block before this db file" << leaf.blockHeight << endl;
             }

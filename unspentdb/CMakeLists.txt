@@ -31,6 +31,7 @@ add_executable(unspent-db
     CheckCommand.cpp
     ExportCommand.cpp
     InfoCommand.cpp
+    LookupCommand.cpp
     PruneCommand.cpp
 )
 

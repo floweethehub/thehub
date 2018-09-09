@@ -95,7 +95,7 @@ Flowee::ReturnCodes ExportCommand::run()
     if (checkpoint.jumptableFilepos < 0)
         return Flowee::CommandFailed;
     uint32_t jumptables[0x100000];
-    if (!readJumptabls(infoFile.filepath(), checkpoint.jumptableFilepos, jumptables))
+    if (!readJumptables(infoFile.filepath(), checkpoint.jumptableFilepos, jumptables))
         return Flowee::CommandFailed;
     if (checkpoint.jumptableHash != calcChecksum(jumptables))
         out << "Checkpoint CHECKSUM Failed" << endl;

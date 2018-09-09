@@ -83,7 +83,34 @@ AbstractCommand::DatabaseFile AbstractCommand::dbDataFile() const
     return m_data;
 }
 
-const QCommandLineParser &AbstractCommand::commandLineParser() const
+QList<AbstractCommand::DatabaseFile> AbstractCommand::highestDataFiles()
+{
+    QList<DatabaseFile> answer;
+    switch (m_data.filetype()) {
+    case InfoFile:
+        return QList<DatabaseFile>() << m_data;
+    case DBFile: {
+        DatabaseFile infoFile;
+        int highest = 0;
+        foreach (auto info, m_data.infoFiles()) {
+            const auto checkpoint = readInfoFile(info.filepath());
+            if (checkpoint.lastBlockHeight > highest) {
+                infoFile = info;
+                highest = checkpoint.lastBlockHeight;
+            }
+        }
+        if (highest != 0)
+            answer.append(infoFile);
+        return answer;
+    }
+    case Datadir:
+        err << "Syncing info files between all databases is not yet implemented." << endl;
+        throw std::runtime_error("Not implemented yet");
+    }
+    return answer;
+}
+
+QCommandLineParser &AbstractCommand::commandLineParser()
 {
     return m_parser;
 }
@@ -167,7 +194,7 @@ QList<AbstractCommand::DatabaseFile> AbstractCommand::DatabaseFile::databaseFile
     return answer;
 }
 
-bool AbstractCommand::readJumptabls(const QString &filepath, int startPos, uint32_t *tables)
+bool AbstractCommand::readJumptables(const QString &filepath, int startPos, uint32_t *tables)
 {
     QFile file(filepath);
     if (!file.open(QIODevice::ReadOnly))
