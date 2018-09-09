@@ -159,9 +159,9 @@ UnspentOutputDatabase::~UnspentOutputDatabase()
     if (!d->memOnly) {
         std::lock_guard<std::mutex> lock(d->lock);
         for (auto df : d->dataFiles) {
-            df->rollback();
             std::lock_guard<std::recursive_mutex> saveLock(df->m_saveLock);
             std::lock_guard<std::recursive_mutex> lock2(df->m_lock);
+            df->rollback();
             df->flushAll();
         }
     }
@@ -306,13 +306,17 @@ UODBPrivate::UODBPrivate(boost::asio::io_service &service, const boost::filesyst
     if (dataFiles.empty()) {
         dataFiles.push_back(DataFile::createDatafile(filepathForIndex(1), 0, uint256()));
     } else {
-        // find a version all nodes can agree on.
+        // find a checkpoint version all datafiles can agree on.
         bool allEqual = false;
+        int tries = 0;
         while (!allEqual) {
             allEqual = true; // we assume they are until they are not.
+            if (++tries > 9) {
+                // can't find a state all databases rely on. This is a fatal problem.
+                throw std::runtime_error("Can't find a usable UTXO state");
+            }
             int lastBlock = -1;
-            for (auto dfIter = dataFiles.begin(); dfIter != dataFiles.end(); ++dfIter) {
-                auto df = *dfIter;
+            for (auto df : dataFiles) {
                 if (lastBlock == -1) {
                     lastBlock = df->m_lastBlockHeight;
                 } else if (lastBlock != df->m_lastBlockHeight) {
@@ -321,19 +325,7 @@ UODBPrivate::UODBPrivate(boost::asio::io_service &service, const boost::filesyst
                                            << "Where the first knew:" << lastBlock;
                     int oldestHeight = std::min(lastBlock, df->m_lastBlockHeight);
                     for (auto dataFile : dataFiles) {
-                        if (!dataFile->openInfo(oldestHeight)) {
-                            DataFileCache cache(dataFile->m_path);
-                            bool moreToFind = false;
-                            for (auto info : cache.m_validInfoFiles) {
-                                if (info.initialBlockHeight < oldestHeight)
-                                    moreToFind = true;
-                            }
-                            if (!moreToFind) { // then we can't use the DB file
-                                dataFiles.erase(dfIter);
-                                delete df;
-                            }
-                            break;
-                        }
+                        dataFile->openInfo(oldestHeight);
                     }
                     break;
                 }
@@ -348,6 +340,7 @@ UODBPrivate::~UODBPrivate()
     for (auto df : dataFiles) {
         delete df;
     }
+    fflush(nullptr);
 }
 
 boost::filesystem::path UODBPrivate::filepathForIndex(int fileIndex)
@@ -374,8 +367,11 @@ void Bucket::fillFromDisk(const Streaming::ConstBuffer &buffer, const int32_t bu
         }
         else if (parser.tag() == UODB::LeafPosRelToBucket) {
             int offset = parser.intData();
-            if (offset >= bucketOffsetInFile)
+            if (offset > bucketOffsetInFile) {
+                logFatal(Log::UTXO) << "Database corruption, offset to bucket messed up"
+                                    << offset << bucketOffsetInFile;
                 throw std::runtime_error("Database corruption, offset to bucket messed up");
+            }
             unspentOutputs.push_back( {cheaphash,
                                        static_cast<std::uint32_t>(bucketOffsetInFile - offset)} );
         }
@@ -1057,7 +1053,7 @@ bool DataFile::openInfo(int targetHeight)
     DataFileCache cache(m_path);
     DataFileCache::InfoFile candidate;
     for (auto info : cache.m_validInfoFiles) {
-        if (info.lastBlockHeight <= targetHeight)
+        if (info.lastBlockHeight <= targetHeight && info.lastBlockHeight > candidate.lastBlockHeight)
             candidate = info;
     }
     if (candidate.lastBlockHeight > 0)
@@ -1214,6 +1210,7 @@ bool DataFileCache::load(const DataFileCache::InfoFile &info, DataFile *target)
             else if (parser.tag() == UODB::JumpTableHash)
                 checksum = parser.uint256Data();
             else if (parser.tag() == UODB::PositionInFile) {
+                target->m_writeBuffer = Streaming::BufferPool(target->m_buffer, static_cast<int>(target->m_file.size()), true);
                 target->m_writeBuffer.markUsed(parser.intData());
                 target->m_writeBuffer.forget(parser.intData());
             }
