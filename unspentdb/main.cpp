@@ -17,6 +17,7 @@
  */
 #include "AbstractCommand.h"
 #include "CheckCommand.h"
+#include "ExportCommand.h"
 #include "InfoCommand.h"
 #include "PruneCommand.h"
 
@@ -46,6 +47,8 @@ int main(int argc, char **argv)
             run = new PruneCommand();
         else if (command == "check")
             run = new CheckCommand();
+        else if (command == "export")
+            run = new ExportCommand();
     }
 
     if (run == nullptr) {
@@ -59,6 +62,7 @@ int main(int argc, char **argv)
         out << "  help       Display help for unspentdb or single commands." << endl;
         out << "  info       Prints generic info about a database or part of it." << endl;
         out << "  check      Checks the internal structures of the database." << endl;
+        out << "  export     Exports the entire set of a database." << endl;
         out << "  prune      Prunes spent outputs to speed up database usage." << endl;
         out << endl;
         return Flowee::InvalidOptions;

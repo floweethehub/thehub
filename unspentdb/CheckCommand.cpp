@@ -46,7 +46,7 @@ Flowee::ReturnCodes CheckCommand::run()
         if (!readJumptabls(df.filepath(), checkpoint.jumptableFilepos, jumptables))
             continue;
         if (checkpoint.jumptableHash != calcChecksum(jumptables)) {
-            out << "CHECKSUM Failed";
+            err << "CHECKSUM Failed" << endl;
             continue;
         }
 
