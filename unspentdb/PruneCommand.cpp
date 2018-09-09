@@ -30,81 +30,6 @@
 
 static void nothing(const char *){}
 
-namespace Prune {
-struct Bucket
-{
-    uint32_t shorthash;
-    std::vector<int> leafPositions; // absolute positions.
-};
-
-uint32_t writeBucket(const Prune::Bucket &bucket, const std::shared_ptr<char> &inputBuf, Streaming::BufferPool &outBuf, Streaming::MessageBuilder &builder)
-{
-    std::vector<uint64_t> cheapHashes;
-    std::vector<uint32_t> diskPositions;
-    for (auto pos : bucket.leafPositions) {
-        int blockHeight = -1;
-        int offsetInBlock = -1;
-        int outIndex = 0;
-        uint256 txid;
-        bool failed = false;
-        // read from old
-        Streaming::ConstBuffer buf(inputBuf, inputBuf.get() + pos, inputBuf.get() + pos + 100);
-        Streaming::MessageParser parser(buf);
-        while (!failed && parser.next() == Streaming::FoundTag) {
-            if (parser.tag() == UODB::BlockHeight) {
-                if (!parser.isInt())
-                    failed = true;
-                blockHeight = parser.intData();
-            }
-            else if (parser.tag() == UODB::OffsetInBlock) {
-                if (!parser.isInt())
-                    failed = true;
-                offsetInBlock = parser.intData();
-            } else if (parser.tag() == UODB::OutIndex) {
-                if (!parser.isInt())
-                    failed = true;
-                outIndex = parser.intData();
-            } else if (parser.tag() == UODB::TXID) {
-                if (!parser.isByteArray() || parser.dataLength() != 32)
-                    failed = true;
-                txid = parser.uint256Data();
-            } else if (parser.tag() == UODB::Separator)
-                break;
-        }
-        if (failed || parser.next() == Streaming::Error || blockHeight < 1 || offsetInBlock <= 0 || outIndex < 0) {
-            // err << "Error found. Failed to parse Leaf at " << pos << endl;
-        } else {
-            diskPositions.push_back(outBuf.offset());
-            cheapHashes.push_back(txid.GetCheapHash());
-            builder.add(UODB::TXID, txid);
-            if (outIndex != 0)
-                builder.add(UODB::OutIndex, outIndex);
-            builder.add(UODB::BlockHeight, blockHeight);
-            builder.add(UODB::OffsetInBlock, offsetInBlock);
-            builder.add(UODB::Separator, true);
-        }
-    }
-    assert(diskPositions.size() == cheapHashes.size());
-    if (!diskPositions.empty()) {
-        outBuf.commit();
-        const uint32_t posOfBucket = outBuf.offset();
-        uint64_t prevCH = 0;
-        for (size_t i = 0; i < diskPositions.size(); ++i) {
-            if (prevCH != cheapHashes.at(i)) {
-                builder.add(UODB::CheapHash, cheapHashes.at(i));
-                prevCH = cheapHashes.at(i);
-            }
-            builder.add(UODB::LeafPosRelToBucket, static_cast<int>(posOfBucket - diskPositions.at(i)));
-        }
-        builder.add(UODB::Separator, true);
-        outBuf.commit();
-        return posOfBucket;
-    }
-    return 0;
-}
-}
-
-
 PruneCommand::PruneCommand()
     : m_force(QStringList() << "force", "Force pruning")
 {
@@ -180,7 +105,7 @@ bool PruneCommand::prune(const std::string &dbFile, const std::string &infoFilen
     }
     std::shared_ptr<char> buffer = std::shared_ptr<char>(const_cast<char*>(file.const_data()), nothing);
 
-    std::vector<Prune::Bucket> buckets;
+    std::vector<Bucket> buckets;
     buckets.reserve(100000);
     // Find all buckets
     for (int i = 0; i < 0x100000; ++i) {
@@ -196,7 +121,7 @@ bool PruneCommand::prune(const std::string &dbFile, const std::string &infoFilen
             continue;
         }
 
-        Prune::Bucket bucket;
+        Bucket bucket;
         bucket.shorthash = i;
         Streaming::ConstBuffer buf(buffer, buffer.get() + bucketOffsetInFile, buffer.get() + file.size());
         Streaming::MessageParser parser(buf);
@@ -242,7 +167,7 @@ bool PruneCommand::prune(const std::string &dbFile, const std::string &infoFilen
         Streaming::MessageBuilder builder(outBuf);
         int index = 0;
         int stop = buckets.size() / 50;
-        for (const Prune::Bucket &bucket : buckets) {
+        for (const Bucket &bucket : buckets) {
             if (bucket.leafPositions.size() > 2)
                 continue;
             if ((++index % stop) == 0) {
@@ -250,12 +175,12 @@ bool PruneCommand::prune(const std::string &dbFile, const std::string &infoFilen
                 out.flush();
             }
             // copy leafs
-            uint32_t newPos = Prune::writeBucket(bucket, buffer, outBuf, builder);
+            uint32_t newPos = copyBucket(bucket, buffer, outBuf, builder);
             jumptable[bucket.shorthash] = newPos;
         }
         out << " ";
         out.flush();
-        for (const Prune::Bucket &bucket : buckets) {
+        for (const Bucket &bucket : buckets) {
             if (bucket.leafPositions.size() <= 2)
                 continue;
             if ((++index % stop) == 0) {
@@ -263,7 +188,7 @@ bool PruneCommand::prune(const std::string &dbFile, const std::string &infoFilen
                 out.flush();
             }
             // copy leafs
-            uint32_t newPos = Prune::writeBucket(bucket, buffer, outBuf, builder);
+            uint32_t newPos = copyBucket(bucket, buffer, outBuf, builder);
             jumptable[bucket.shorthash] = newPos;
         }
         outFileSize = outBuf.offset();
@@ -359,8 +284,53 @@ Flowee::ReturnCodes PruneCommand::run()
 
         boost::filesystem::rename(dbFilePath + ".new", dbFilePath);
         boost::filesystem::rename(infoFilePath + ".new", infoFilePath);
+        fflush(nullptr);
         out << "Done" << endl;
         return Flowee::Ok;
     }
     return Flowee::CommandFailed;
+}
+
+uint32_t PruneCommand::copyBucket(const Bucket &bucket, const std::shared_ptr<char> &inputBuf, Streaming::BufferPool &outBuf, Streaming::MessageBuilder &builder)
+{
+    std::vector<uint64_t> cheapHashes;
+    std::vector<uint32_t> diskPositions;
+    for (auto pos : bucket.leafPositions) {
+        bool failed = false;
+        // read from old
+        Streaming::ConstBuffer buf(inputBuf, inputBuf.get() + pos, inputBuf.get() + pos + 100);
+        Leaf bucket = readLeaf(buf, &failed);
+        if (failed || bucket.blockHeight < 1 || bucket.offsetInBlock <= 0 || bucket.outIndex < 0) {
+            err << "Error found. Failed to parse Leaf at " << pos << endl;
+        } else {
+            diskPositions.push_back(outBuf.offset());
+            cheapHashes.push_back(bucket.txid.GetCheapHash());
+            builder.add(UODB::TXID, bucket.txid);
+            if (bucket.outIndex != 0)
+                builder.add(UODB::OutIndex, bucket.outIndex);
+            builder.add(UODB::BlockHeight, bucket.blockHeight);
+            builder.add(UODB::OffsetInBlock, bucket.offsetInBlock);
+            builder.add(UODB::Separator, true);
+        }
+    }
+    assert(diskPositions.size() == cheapHashes.size());
+    if (!diskPositions.empty()) {
+        outBuf.commit();
+        const uint32_t posOfBucket = outBuf.offset();
+        uint64_t prevCH = 0;
+        for (size_t i = 0; i < diskPositions.size(); ++i) {
+            if (prevCH != cheapHashes.at(i)) {
+                builder.add(UODB::CheapHash, cheapHashes.at(i));
+                prevCH = cheapHashes.at(i);
+            }
+            assert(posOfBucket > diskPositions.at(i));
+            int offset = posOfBucket - diskPositions.at(i);
+            assert(offset > 0);
+            builder.add(UODB::LeafPosRelToBucket, static_cast<int>(posOfBucket - diskPositions.at(i)));
+        }
+        builder.add(UODB::Separator, true);
+        outBuf.commit();
+        return posOfBucket;
+    }
+    return 0;
 }

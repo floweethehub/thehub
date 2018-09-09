@@ -20,11 +20,7 @@
 
 #include "AbstractCommand.h"
 
-#include <uint256.h>
-
 #include <QCommandLineOption>
-
-class QFile;
 
 class InfoCommand : public AbstractCommand
 {
@@ -40,8 +36,6 @@ protected:
 private:
     uint256 printBucketUsage(int startPos, QFile *infoFile);
 
-    void readJumptabls(QFile *infoFile, int startPos, uint32_t *tables);
-    uint256 calcChecksum(uint32_t *tables) const;
     void printStats(uint32_t *tables, const DatabaseFile &df);
 
 

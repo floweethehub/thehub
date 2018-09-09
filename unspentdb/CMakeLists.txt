@@ -28,6 +28,7 @@ include_directories(. ${LIBS_INCLUDES})
 add_executable(unspent-db
     main.cpp
     AbstractCommand.cpp
+    CheckCommand.cpp
     InfoCommand.cpp
     PruneCommand.cpp
 )

@@ -18,11 +18,16 @@
 #ifndef ABSTRACTCOMMAND_H
 #define ABSTRACTCOMMAND_H
 
+#include <uint256.h>
+
 #include <QCommandLineParser>
 #include <QString>
 #include <QTextStream>
 
+#include <streaming/ConstBuffer.h>
+
 class QCommandLineParser;
+class QFile;
 
 namespace Flowee
 {
@@ -96,6 +101,29 @@ protected:
     QTextStream out, err;
 
     const QCommandLineParser &commandLineParser() const;
+
+    bool readJumptabls(const QString &filepath, int startPos, uint32_t *tables);
+    uint256 calcChecksum(uint32_t *tables) const;
+
+    struct CheckPoint {
+        uint256 lastBlockId;
+        uint256 jumptableHash;
+        int firstBlockHeight = -1;
+        int lastBlockHeight = -1;
+        int positionInFile = -1;
+        int jumptableFilepos = -1;
+    };
+    CheckPoint readInfoFile(const QString &filepath);
+
+
+    struct Leaf {
+        int blockHeight = -1;
+        int offsetInBlock = -1;
+        int outIndex = 0;
+        uint256 txid;
+    };
+
+    Leaf readLeaf(Streaming::ConstBuffer buf, bool *failed);
 
 private:
     QCommandLineParser m_parser;

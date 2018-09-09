@@ -16,6 +16,7 @@
  * along with this program.  If not, see <http://www.gnu.org/licenses/>.
  */
 #include "AbstractCommand.h"
+#include "CheckCommand.h"
 #include "InfoCommand.h"
 #include "PruneCommand.h"
 
@@ -43,6 +44,8 @@ int main(int argc, char **argv)
             run = new InfoCommand();
         else if (command == "prune")
             run = new PruneCommand();
+        else if (command == "check")
+            run = new CheckCommand();
     }
 
     if (run == nullptr) {
@@ -55,6 +58,7 @@ int main(int argc, char **argv)
         out << "Commands:" << endl;
         out << "  help       Display help for unspentdb or single commands." << endl;
         out << "  info       Prints generic info about a database or part of it." << endl;
+        out << "  check      Checks the internal structures of the database." << endl;
         out << "  prune      Prunes spent outputs to speed up database usage." << endl;
         out << endl;
         return Flowee::InvalidOptions;

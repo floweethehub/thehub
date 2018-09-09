@@ -17,11 +17,16 @@
  */
 #include "AbstractCommand.h"
 #include <Logger.h>
+// private header as we read the db tags directly
+#include <utxo/UnspentOutputDatabase_p.h>
 
 #include <QCommandLineParser>
 #include <QFileInfo>
 #include <QDir>
 #include <QDebug>
+#include <hash.h>
+
+#include <streaming/MessageParser.h>
 
 AbstractCommand::AbstractCommand()
     : out(stdout),
@@ -158,6 +163,134 @@ QList<AbstractCommand::DatabaseFile> AbstractCommand::DatabaseFile::databaseFile
     }
     else if (m_filetype == DBFile) {
         answer.append(*this);
+    }
+    return answer;
+}
+
+bool AbstractCommand::readJumptabls(const QString &filepath, int startPos, uint32_t *tables)
+{
+    QFile file(filepath);
+    if (!file.open(QIODevice::ReadOnly))
+        return false;
+    file.seek(startPos);
+    auto bytesRead = file.read(reinterpret_cast<char*>(tables), 0x400000);
+    if (bytesRead <= 0) {
+        err << "Jumptable not present or file could not be read";
+        return false;
+    }
+    if (bytesRead < 0x400000) {
+        err << "Hashtable truncated, expected " << 0x400000 << " bytes, got " << bytesRead << endl;
+        return false;
+    }
+    return true;
+}
+
+uint256 AbstractCommand::calcChecksum(uint32_t *tables) const
+{
+    CHash256 ctx;
+    ctx.Write(reinterpret_cast<const unsigned char*>(tables), 0x400000);
+    uint256 checksum;
+    ctx.Finalize(reinterpret_cast<unsigned char*>(&checksum));
+    return checksum;
+}
+
+
+AbstractCommand::CheckPoint AbstractCommand::readInfoFile(const QString &filepath)
+{
+    CheckPoint checkpoint;
+    QFile file(filepath);
+    if (!file.open(QIODevice::ReadOnly)) {
+        err << "Can't open file " << filepath << endl;
+        return checkpoint;
+    }
+    Streaming::BufferPool pool(500);
+    qint64 read = file.read(pool.begin(), 500);
+    Streaming::MessageParser parser(pool.commit(read));
+    Streaming::ParsedType type = parser.next();
+    while (type == Streaming::FoundTag) {
+        switch (static_cast<UODB::MessageTags>(parser.tag())) {
+        case UODB::Separator:
+            checkpoint.jumptableFilepos = parser.consumed();
+            return checkpoint;
+        case UODB::LastBlockId:
+            checkpoint.lastBlockId = parser.uint256Data();
+            break;
+        case UODB::FirstBlockHeight:
+            checkpoint.firstBlockHeight = parser.longData();
+            break;
+        case UODB::LastBlockHeight:
+            checkpoint.lastBlockHeight = parser.longData();
+            break;
+        case UODB::JumpTableHash:
+            checkpoint.jumptableHash = parser.uint256Data();
+            break;
+        case UODB::PositionInFile:
+            checkpoint.positionInFile = parser.longData();
+            break;
+
+        case UODB::TXID:
+        case UODB::OutIndex:
+        case UODB::BlockHeight:
+        case UODB::OffsetInBlock:
+        case UODB::LeafPosition:
+        case UODB::LeafPosRelToBucket:
+        case UODB::CheapHash:
+            err << "Unexpected non-info tag found in info file. " << parser.tag() << endl;
+            break;
+        default:
+            err << "Unknown tag found in info file. " << parser.tag() << endl;
+            break;
+        }
+        type = parser.next();
+    }
+    return checkpoint;
+}
+
+AbstractCommand::Leaf AbstractCommand::readLeaf(Streaming::ConstBuffer buf, bool *failed)
+{
+    Leaf answer;
+    if (failed) *failed = false;
+    Streaming::MessageParser parser(buf);
+    Streaming::ParsedType type = parser.next();
+    while (type == Streaming::FoundTag) {
+        if (parser.tag() == UODB::BlockHeight) {
+            if (!parser.isInt()) {
+                if (failed) *failed = true;
+                else err << "Tag mismatch, blockheight should be an int" << endl;
+                break;
+            }
+            answer.blockHeight = parser.intData();
+        }
+        else if (parser.tag() == UODB::OffsetInBlock) {
+            if (!parser.isInt()) {
+                if (failed) *failed = true;
+                else err << "Tag mismatch, offsetInBlock should be an int" << endl;
+                break;
+            }
+            answer.offsetInBlock = parser.intData();
+        } else if (parser.tag() == UODB::OutIndex) {
+            if (!parser.isInt()) {
+                if (failed) *failed = true;
+                else err << "Tag mismatch, outIndex should be an int" << endl;
+                break;
+            }
+            answer.outIndex = parser.intData();
+            if (!failed && answer.outIndex == 0)
+                err << "Warn; outindex saved while zero" << endl;
+        } else if (parser.tag() == UODB::TXID) {
+            if (!parser.isByteArray() || parser.dataLength() != 32) {
+                if (failed) *failed = true;
+                else err << "Tag mismatch, txid should be a 32 byte bytearray" << endl;
+                break;
+            }
+            answer.txid = parser.uint256Data();
+        } else if (parser.tag() == UODB::Separator)
+            break;
+        type = parser.next();
+    }
+    if (type == Streaming::Error) {
+        if (failed) *failed = true;
+        else err << "CMF Parse error in reading bucket" << endl;
     }
     return answer;
 }

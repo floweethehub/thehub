@@ -24,7 +24,6 @@
 #include <utxo/UnspentOutputDatabase_p.h>
 
 #include <QFile>
-#include <hash.h>
 
 InfoCommand::InfoCommand()
     : m_printUsage(QStringList() << "v" << "print-usage", "Print how many entries this file contains")
@@ -38,72 +37,27 @@ QString InfoCommand::commandDescription() const
 
 Flowee::ReturnCodes InfoCommand::run()
 {
-    Streaming::BufferPool pool(500);
     foreach (auto df, dbDataFile().infoFiles()) {
-        QFile file(df.filepath());
-        if (!file.open(QIODevice::ReadOnly)) {
-            err << "Can't open file " << df.filepath() << endl;
+        out << "Working on checkpoint file; " << df.filepath() << endl;
+        auto checkpoint = readInfoFile(df.filepath());
+        if (checkpoint.jumptableFilepos < 0)
             continue;
-        }
-        out << "Info file; " << df.filepath() << endl;
-        pool.reserve(500);
-        qint64 read = file.read(pool.begin(), 500);
-        Streaming::MessageParser parser(pool.commit(read));
-        Streaming::ParsedType type = parser.next();
-        bool done = false;
-        uint256 checksum;
-        while (!done && type == Streaming::FoundTag) {
-            switch (static_cast<UODB::MessageTags>(parser.tag())) {
-            case UODB::Separator:
-                done = true;
-                break;
-            case UODB::LastBlockId:
-                out << "Last Block ID    : " << QString::fromStdString(parser.uint256Data().GetHex()) << endl;
-                break;
-            case UODB::FirstBlockHeight:
-                out << "First Blockheight: " << parser.longData() << endl;
-                break;
-            case UODB::LastBlockHeight:
-                out << "Last Blockheight : " << parser.longData() << endl;
-                break;
-            case UODB::JumpTableHash:
-                checksum = parser.uint256Data();
-                out << "Jumptable hash   : " << QString::fromStdString(checksum.GetHex()) << endl;
-                break;
-            case UODB::PositionInFile:
-                out << "Filesize         : " << parser.longData() << endl;
-                break;
-
-            case UODB::TXID:
-            case UODB::OutIndex:
-            case UODB::BlockHeight:
-            case UODB::OffsetInBlock:
-            case UODB::LeafPosition:
-            case UODB::LeafPosRelToBucket:
-            case UODB::CheapHash:
-                err << "Unexpected non-info tag found in info file. " << parser.tag() << endl;
-                break;
-            default:
-                err << "Unknown tag found in info file. " << parser.tag() << endl;
-                break;
-            }
-            if (!done)
-                type = parser.next();
-        }
+        out << "Last Block ID    : " << QString::fromStdString(checkpoint.lastBlockId.GetHex()) << endl;
+        out << "First Blockheight: " << checkpoint.firstBlockHeight << endl;
+        out << "Last Blockheight : " << checkpoint.lastBlockHeight << endl;
+        out << "Jumptable hash   : " << QString::fromStdString(checkpoint.jumptableHash.GetHex()) << endl;
+        out << "Filesize         : " << checkpoint.positionInFile << endl;
         if (commandLineParser().isSet(m_printUsage)) {
-            try {
-                uint32_t jumptables[0x100000];
-                readJumptabls(&file, parser.consumed(), jumptables);
-                if (checksum != calcChecksum(jumptables))
-                    out << "CHECKSUM Failed";
+            uint32_t jumptables[0x100000];
+            if (readJumptabls(df.filepath(), checkpoint.jumptableFilepos, jumptables)) {
+                if (checkpoint.jumptableHash != calcChecksum(jumptables))
+                    err << "CHECKSUM Failed" << endl;
                 else
                     printStats(jumptables, df);
-            } catch (const std::exception &) {
             }
         }
         out << endl;
     }
-
 
     return Flowee::Ok;
 }
@@ -111,32 +65,6 @@ Flowee::ReturnCodes InfoCommand::run()
 void InfoCommand::addArguments(QCommandLineParser &parser)
 {
     parser.addOption(m_printUsage);
-}
-
-void InfoCommand::readJumptabls(QFile *infoFile, int startPos, uint32_t *tables)
-{
-    Q_ASSERT(infoFile);
-    Q_ASSERT(infoFile->isOpen());
-    infoFile->seek(startPos);
-
-    auto bytesRead = infoFile->read(reinterpret_cast<char*>(tables), 0x400000);
-    if (bytesRead <= 0) {
-        err << "Jumptable not present or file could not be read";
-        throw std::runtime_error("err");
-    }
-    if (bytesRead < 0x400000) {
-        err << "Hashtable truncated, expected " << 0x400000 << " bytes, got " << bytesRead << endl;
-        throw std::runtime_error("err");
-    }
-}
-
-uint256 InfoCommand::calcChecksum(uint32_t *tables) const
-{
-    CHash256 ctx;
-    ctx.Write(reinterpret_cast<const unsigned char*>(tables), 0x400000);
-    uint256 checksum;
-    ctx.Finalize(reinterpret_cast<unsigned char*>(&checksum));
-    return checksum;
 }
 
 void InfoCommand::printStats(uint32_t *tables, const DatabaseFile &df)

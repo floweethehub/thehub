@@ -22,6 +22,9 @@
 
 #include <QCommandLineOption>
 
+#include <streaming/BufferPool.h>
+#include <streaming/MessageBuilder.h>
+
 class QFile;
 
 class PruneCommand : public AbstractCommand
@@ -37,6 +40,13 @@ protected:
 
 private:
     bool prune(const std::string &dbFile, const std::string &infoFilename);
+
+    struct Bucket {
+        uint32_t shorthash;
+        std::vector<int> leafPositions; // absolute positions.
+    };
+
+    uint32_t copyBucket(const Bucket &bucket, const std::shared_ptr<char> &inputBuf, Streaming::BufferPool &outBuf, Streaming::MessageBuilder &builder);
     QCommandLineOption m_force;
 };
 
