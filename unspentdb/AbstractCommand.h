@@ -98,6 +98,11 @@ protected:
 
     DatabaseFile dbDataFile() const;
 
+    /**
+     * Find the files representing the highest consistent version
+     * in the selection of dbDataFile().
+     * At most one info file is returned per datafile.
+     */
     QList<DatabaseFile> highestDataFiles();
 
     QTextStream out, err;

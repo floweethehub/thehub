@@ -35,6 +35,8 @@ protected:
 
 private:
     QCommandLineOption m_printDebug;
+    QCommandLineOption m_all;
+    QCommandLineOption m_filepos;
 };
 
 #endif

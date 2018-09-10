@@ -85,14 +85,16 @@ AbstractCommand::DatabaseFile AbstractCommand::dbDataFile() const
 
 QList<AbstractCommand::DatabaseFile> AbstractCommand::highestDataFiles()
 {
+    Q_ASSERT(m_data.filetype() != Unknown);
     QList<DatabaseFile> answer;
-    switch (m_data.filetype()) {
-    case InfoFile:
-        return QList<DatabaseFile>() << m_data;
-    case DBFile: {
-        DatabaseFile infoFile;
+    if (m_data.filetype() == InfoFile)
+        return answer << m_data;
+
+    for (auto db : m_data.databaseFiles()) {
+        // TODO sync checkpoint-versions between datafiles
+        AbstractCommand::DatabaseFile infoFile;
         int highest = 0;
-        foreach (auto info, m_data.infoFiles()) {
+        foreach (auto info, db.infoFiles()) {
             const auto checkpoint = readInfoFile(info.filepath());
             if (checkpoint.lastBlockHeight > highest) {
                 infoFile = info;
@@ -101,11 +103,6 @@ QList<AbstractCommand::DatabaseFile> AbstractCommand::highestDataFiles()
         }
         if (highest != 0)
             answer.append(infoFile);
-        return answer;
-    }
-    case Datadir:
-        err << "Syncing info files between all databases is not yet implemented." << endl;
-        throw std::runtime_error("Not implemented yet");
     }
     return answer;
 }

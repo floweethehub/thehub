@@ -23,7 +23,9 @@
 static void nothing(const char *){}
 
 LookupCommand::LookupCommand()
-    : m_printDebug(QStringList() << "v" << "debug", "Print internal DB details")
+    : m_printDebug(QStringList() << "v" << "debug", "Print internal DB details"),
+    m_all(QStringList() << "a" << "all", "Use historical checkpoints as well"),
+    m_filepos(QStringList() << "filepos", "Lookup and print the leaf at a specific file [pos]", "pos")
 {
 }
 
@@ -37,6 +39,8 @@ void LookupCommand::addArguments(QCommandLineParser &commandLineParser)
     commandLineParser.addPositionalArgument("txid", "Transaction ID");
     commandLineParser.addPositionalArgument("output", "index of the output");
     commandLineParser.addOption(m_printDebug);
+    commandLineParser.addOption(m_all);
+    commandLineParser.addOption(m_filepos);
 }
 
 Flowee::ReturnCodes LookupCommand::run()
@@ -66,7 +70,24 @@ Flowee::ReturnCodes LookupCommand::run()
     if (debug)
         out << "cheapHash: " << cheapHash << ", shortHash: " << shortHash << endl;
 
-    for (auto info : highestDataFiles()) {
+    int filePos = -1;
+    if (commandLineParser().isSet(m_filepos)) {
+        bool ok;
+        filePos = commandLineParser().value(m_filepos).toInt(&ok);
+        if (!ok << filePos < 0) {
+            err << "Filepos has to be a positive number" << endl;
+            return Flowee::InvalidOptions;
+        }
+    }
+
+    QList<DatabaseFile> files;
+    if (commandLineParser().isSet(m_all))
+        files = dbDataFile().infoFiles();
+    else
+        files = highestDataFiles();
+    for (auto info : files) {
+        if (debug)
+            out << "Opening " << info.filepath() << endl;
         const auto checkpoint = readInfoFile(info.filepath());
         if (checkpoint.jumptableFilepos < 0) {
             err << "failed parsing " << info.filepath() << endl;
@@ -90,33 +111,46 @@ Flowee::ReturnCodes LookupCommand::run()
             continue;
         }
         std::shared_ptr<char> buffer = std::shared_ptr<char>(const_cast<char*>(file.const_data()), nothing);
-        if (jumptables[shortHash]) {
+
+        const int32_t bucketOffsetInFile = static_cast<int>(jumptables[shortHash]);
+        std::vector<int> leafs;
+        if (filePos >= 0) {
+            leafs.push_back(filePos);
+        }
+        else if (bucketOffsetInFile) {
             if (debug)
                 out << "File has appropriate bucket " << db.filepath() << endl;
-            int32_t bucketOffsetInFile = static_cast<int>(jumptables[shortHash]);
             Streaming::ConstBuffer buf(buffer, buffer.get() + bucketOffsetInFile, buffer.get() + file.size());
-            bool foundOne = false;
-            for (auto pos : readBucket(buf, bucketOffsetInFile)) {
-                Streaming::ConstBuffer leafBuf(buffer, buffer.get() + pos, buffer.get() + file.size());
-                Leaf leaf = readLeaf(leafBuf);
-                if (debug)
-                    out << " + checking leaf at filepos: " << pos << endl;
-                if (leaf.txid == hash && (outindex == -1 || outindex == leaf.outIndex)) {
-                    if (!foundOne) {
-                        out << "In UTXO up to block height: " << checkpoint.lastBlockHeight << " (" <<
-                            QString::fromStdString(checkpoint.lastBlockId.GetHex()) << ")" << endl;
-                        if (debug)
-                            out << "In DB file " << db.filepath() << endl;
-                    }
-                    foundOne = true;
-                    out << "Entry is unspent; " << QString::fromStdString(leaf.txid.GetHex()) << "-"
-                        << leaf.outIndex << endl;
+            leafs = readBucket(buf, bucketOffsetInFile);
+        }
+        bool foundOne = false;
+        for (auto pos : leafs) {
+            Streaming::ConstBuffer leafBuf(buffer, buffer.get() + pos, buffer.get() + file.size());
+            if (debug)
+                out << " + checking leaf at filepos: " << pos << endl;
+            Leaf leaf = readLeaf(leafBuf);
+            if (leaf.txid == hash && (outindex == -1 || outindex == leaf.outIndex)) {
+                if (!foundOne) {
+                    out << "In UTXO up to block height: " << checkpoint.lastBlockHeight << " (" <<
+                        QString::fromStdString(checkpoint.lastBlockId.GetHex()) << ")" << endl;
                     if (debug)
-                        out << "  tx is in block " << leaf.blockHeight << ", tx is at bytepos in block: " << leaf.offsetInBlock << endl;
+                        out << "In DB file " << db.filepath() << endl;
+                }
+                foundOne = true;
+                out << "Entry is unspent; " << QString::fromStdString(leaf.txid.GetHex()) << "-"
+                    << leaf.outIndex << endl;
+                if (debug) {
+                    out << "  tx is in block " << leaf.blockHeight << ", tx is at bytepos in block: " << leaf.offsetInBlock << endl;
+                    out << "  Leaf file offset: " << pos << endl;
                 }
             }
             if (foundOne)
                 return Flowee::Ok;
+            else if (debug && filePos >= 0) {
+                out << "Recoverable data:" << endl
+                    << "  TXID: " << QString::fromStdString(leaf.txid.GetHex()) << "-" << leaf.outIndex << endl
+                    << "  Block height: " << leaf.blockHeight << ", offset in block: " << leaf.offsetInBlock << endl << endl;
+            }
         }
     }
     return Flowee::CommandFailed;
