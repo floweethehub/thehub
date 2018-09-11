@@ -31,8 +31,6 @@
 #include <mutex>
 #include <uint256.h>
 
-// #define ENABLE_BENCHMARKS
-
 namespace {
     inline std::uint32_t createShortHash(uint64_t cheapHash) {
         std::uint32_t answer = static_cast<uint32_t>(cheapHash & 0xFF) << 12;
@@ -186,37 +184,25 @@ public:
     int m_changesSinceJumptableWritten = 0;
     bool m_flushScheduled = false;
 
-    // rollback info
-    int m_firstUncommittedLeaf = 0;
-    int m_firstUncommittedBucket = 0;
-    std::unordered_map<int, UnspentOutput> m_deletedLeafs;
-    std::unordered_map<uint32_t, uint32_t> m_deletedBuckets; // shorthash to position-in-file
-    std::unordered_map<int, Bucket> m_changedBuckets; // bucketId to bucket-copy
-    std::unordered_map<int, uint32_t> m_committedJumptable; // when we load (and change) a bucket we need to remember where on disk the previous one was
-
-#ifdef ENABLE_BENCHMARKS
-    mutable std::atomic<long> m_findWait;
-    mutable std::atomic<long> m_findCount;
-    std::atomic<long> m_insertReadWait;
-    std::atomic<long> m_insertWriteWait;
-    std::atomic<long> m_insertCount;
-    std::atomic<long> m_insertWriteHeld;
-    std::atomic<long> m_removeReadWait;
-    std::atomic<long> m_removeWriteWait;
-    std::atomic<long> m_removeCount;
-    std::atomic<long> m_removeWriteHeld;
-    std::atomic<long> m_commitWait;
-    std::atomic<long> m_flushReadWait;
-    std::atomic<long> m_flushWriteWait;
-    std::atomic<long> m_flushWriteHeld;
-#endif
+    // --- rollback info ---
+    std::list<UnspentOutput> m_leafsBackup; //< contains leafs deleted and never saved
+    /// contains leaf-ids deleted related to a certain bucketId (so they can be re-added to bucket
+    std::list<OutputRef> m_leafIdsBackup;
+    /// buckets that were in memory when we committed last and have since been modified. We refuse to save them (for now).
+    /// all values should have MEMBIT set
+    std::set<uint32_t> m_bucketsToNotSave;
+    /// buckets that have a good state on disk, have been loaded into memory to add
+    /// or remove something and thus the jumptable forgot where on disk the original was.
+    /// shorthash -> position on disk
+    std::unordered_map<uint32_t, uint32_t> m_committedBucketLocations;
+    uint32_t m_lastCommittedBucketIndex = 0;
+    uint32_t m_lastCommittedLeafIndex = 0;
 };
 
 class UODBPrivate
 {
 public:
     UODBPrivate(boost::asio::io_service &service,  const boost::filesystem::path &basedir);
-    ~UODBPrivate();
 
     // find existing DataFiles
     void init();
