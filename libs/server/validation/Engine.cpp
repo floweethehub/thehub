@@ -160,8 +160,6 @@ void Validation::Engine::setBlockchain(CChain *chain)
 
     if (chain->Height() > 1)
         d->tipFlags.updateForBlock(chain->Tip(), chain->Tip()->GetBlockHash());
-
-    d->strand.post(std::bind(&ValidationEnginePrivate::findMoreJobs, d));
 }
 
 bool Validation::Engine::isRecentlyRejectedTransaction(const uint256 &txHash) const
@@ -233,4 +231,9 @@ void Validation::Engine::shutdown()
     WaitUntilFinishedHelper helper(std::bind(&ValidationEnginePrivate::cleanup, d), &d->strand);
     d.reset();
     helper.run();
+}
+
+void Validation::Engine::start()
+{
+    d->strand.post(std::bind(&ValidationEnginePrivate::findMoreJobs, d));
 }

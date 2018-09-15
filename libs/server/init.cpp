@@ -1259,6 +1259,7 @@ bool AppInit2(boost::thread_group& threadGroup, CScheduler& scheduler)
         while (!fRequestShutdown && chainActive.Tip() == nullptr)
             MilliSleep(10);
     }
+    Application::instance()->validation()->start();
 
     // ********************************************************* Step 11: start node
 
