@@ -103,7 +103,7 @@ public:
     InfoFile parseInfoFile(int index) const;
     boost::filesystem::path filenameFor(int index) const;
 
-    void writeInfoFile(DataFile *source);
+    std::string writeInfoFile(DataFile *source);
     bool load(const InfoFile &info, DataFile *target);
 
     std::list<InfoFile> m_validInfoFiles;
@@ -140,7 +140,7 @@ public:
 
     // writing to disk. Return if there are still unsaved items left
     bool flushSomeNodesToDisk(ForceBool force);
-    void flushAll();
+    std::string flushAll();
     int32_t saveLeaf(const UnspentOutput &uo);
 
     // session management.
@@ -212,6 +212,7 @@ public:
     boost::asio::io_service& ioService;
 
     bool memOnly = false; //< if true, we never flush to disk.
+    bool doPrune = false;
 
     const boost::filesystem::path basedir;
 

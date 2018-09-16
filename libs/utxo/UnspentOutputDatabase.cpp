@@ -15,6 +15,7 @@
  * You should have received a copy of the GNU General Public License
  * along with this program.  If not, see <http://www.gnu.org/licenses/>.
  */
+#include "Pruner_p.h"
 #include "UnspentOutputDatabase.h"
 #include "UnspentOutputDatabase_p.h"
 #include <streaming/MessageBuilder.h>
@@ -189,6 +190,7 @@ void UnspentOutputDatabase::insert(const uint256 &txid, int outIndex, int blockH
         std::lock_guard<std::mutex> lock(d->lock);
         df = d->dataFiles.back();
         if (df->m_fileFull) {
+            d->doPrune = true;
             DEBUGUTXO << "Creating a new DataFile" << d->dataFiles.size();
             d->dataFiles.push_back(DataFile::createDatafile(d->filepathForIndex(static_cast<int>(d->dataFiles.size() + 1)),
                     df->m_lastBlockHeight, df->m_lastBlockHash));
@@ -262,11 +264,37 @@ void UnspentOutputDatabase::blockFinished(int blockheight, const uint256 &blockI
     }
 
     if (totalChanges > 5000000) { // every 5 million inserts/deletes, auto-flush jumptables
+        std::vector<std::string> infoFilenames;
         for (auto df : d->dataFiles) {
             std::lock_guard<std::recursive_mutex> saveLock(df->m_saveLock);
             std::lock_guard<std::recursive_mutex> lock2(df->m_lock);
-            df->flushAll();
+            infoFilenames.push_back(df->flushAll());
             df->m_changesSinceJumptableWritten = 0;
+        }
+
+        if (d->doPrune && d->dataFiles.size() > 1) { // prune the DB files.
+            d->doPrune = false;
+            logCritical() << "Pruning the UTXO";
+            int db = d->dataFiles.size() - 2; // we skip the last DB file
+            int jump = 1; // we don't do all DBs every time, this creates a nice sequence.
+            do {
+                auto dbFilename = d->dataFiles.at(db)->m_path;
+                Pruner pruner(dbFilename.string() + ".db", infoFilenames.at(db));
+                delete d->dataFiles.at(db);
+                try {
+                    pruner.prune();
+                    DataFileCache cache(dbFilename.string());
+                    for (int i = 0; i < 10; ++i)
+                        boost::filesystem::remove(cache.filenameFor(i));
+                    pruner.commit();
+                } catch (const std::runtime_error &pruneFailure) {
+                    logCritical() << "Skipping pruning of db file" << db << "reason:" << pruneFailure;
+                    pruner.cleanup();
+                }
+                d->dataFiles[db] = new DataFile(dbFilename);
+                db -= ++jump;
+            } while (db >= 0);
+            fflush(nullptr);
         }
     }
 }
@@ -339,6 +367,8 @@ UODBPrivate::UODBPrivate(boost::asio::io_service &service, const boost::filesyst
             }
         }
     }
+    if (dataFiles.size() > 1)
+        doPrune = dataFiles.at(dataFiles.size() - 2)->m_file.size() == 2147483600; // the original 2GiB
 }
 
 boost::filesystem::path UODBPrivate::filepathForIndex(int fileIndex)
@@ -927,14 +957,14 @@ bool DataFile::flushSomeNodesToDisk(ForceBool force)
     m_changeCount = 0;
 
     m_jumptableNeedsSave = true;
-    if (!m_fileFull && m_writeBuffer.offset() > 1100000000) // 1.1GB
+    if (!m_fileFull && m_writeBuffer.offset() > 1800000000) // 1.8GB
         m_fileFull = true;
     m_changesSinceJumptableWritten += flushedToDiskCount;
 
     return !m_leafs.empty() || !m_buckets.empty();
 }
 
-void DataFile::flushAll()
+std::string DataFile::flushAll()
 {
     // mutex already locked by caller.
     // save all, the UnspentOutputDatabase has a lock that makes this a stop-the-world event
@@ -955,8 +985,9 @@ void DataFile::flushAll()
     commit();
 
     DataFileCache cache(m_path);
-    cache.writeInfoFile(this);
+    auto infoFilename = cache.writeInfoFile(this);
     m_jumptableNeedsSave = false;
+    return infoFilename;
 }
 
 int32_t DataFile::saveLeaf(const UnspentOutput &uo)
@@ -1268,7 +1299,7 @@ DataFileCache::InfoFile DataFileCache::parseInfoFile(int index) const
     return answer;
 }
 
-void DataFileCache::writeInfoFile(DataFile *source)
+std::string DataFileCache::writeInfoFile(DataFile *source)
 {
     // if number of m_validInfoFiles are more than 4
     // delete the one with the lowest / oldest 'lastBlockHeight'
@@ -1304,7 +1335,8 @@ void DataFileCache::writeInfoFile(DataFile *source)
     assert(newIndex < 10);
 
     boost::filesystem::remove(filenameFor(newIndex));
-    std::ofstream out(filenameFor(newIndex).string(), std::ios::binary | std::ios::out | std::ios::trunc);
+    std::string outFile = filenameFor(newIndex).string();
+    std::ofstream out(outFile, std::ios::binary | std::ios::out | std::ios::trunc);
     if (!out.is_open())
         throw std::runtime_error("Failed to open info file for writing");
 
@@ -1323,6 +1355,8 @@ void DataFileCache::writeInfoFile(DataFile *source)
     out.write(header.constData(), header.size());
     out.write(reinterpret_cast<const char*>(source->m_jumptables), sizeof(source->m_jumptables));
     out.flush();
+
+    return outFile;
 }
 
 bool DataFileCache::load(const DataFileCache::InfoFile &info, DataFile *target)

@@ -30,6 +30,9 @@ public:
     // if all went well, rename new files over originals
     void commit();
 
+    // remove tmp files
+    void cleanup();
+
 private:
     const std::string m_dbFile;
     const std::string m_infoFile;

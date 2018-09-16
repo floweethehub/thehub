@@ -100,8 +100,15 @@ void Pruner::commit()
     boost::filesystem::rename(m_infoFile + m_tmpExtension, m_infoFile);
 }
 
+void Pruner::cleanup()
+{
+    boost::filesystem::remove(m_dbFile + m_tmpExtension);
+    boost::filesystem::remove(m_infoFile + m_tmpExtension);
+}
+
 void Pruner::prune()
 {
+    logCritical() << "Pruning" << m_dbFile;
     logInfo() << "Starting pruning. Counting buckets...";
     std::ifstream in(m_infoFile, std::ios::binary | std::ios::in);
     if (!in.is_open())
