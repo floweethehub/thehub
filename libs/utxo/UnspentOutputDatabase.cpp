@@ -91,7 +91,7 @@ UnspentOutput::UnspentOutput(Streaming::BufferPool &pool, const uint256 &txid, i
       m_offsetInBlock(offsetInBlock),
       m_blockHeight(blockHeight)
 {
-    pool.reserve(80);
+    pool.reserve(55);
     Streaming::MessageBuilder builder(pool);
     builder.add(UODB::TXID, txid);
     if (outIndex != 0)
