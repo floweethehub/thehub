@@ -43,7 +43,7 @@ private:
     void insertTransactions(UnspentOutputDatabase &db, int number);
     uint256 insertedTxId(int index);
     boost::filesystem::path m_testPath;
-    const char *templateTxId = "0x12345%02x17444b051c44dfd2720e88f314ff94f3dd6d56d40ef65854fcd7fff6b";
+    const char *templateTxId = "0x1234517444b051c44dfd2720e88f314ff94f3dd6d56d40ef65854fcfd7ff6b%02x";
 };
 
 #endif

@@ -269,6 +269,48 @@ void TestUtxo::commit()
         QVERIFY(db.find(txid4, 6).isValid());
         QVERIFY(!db.find(txid4, 7).isValid());
     }
+
+    // new usecase; deleting from an in-memory bucket.
+    // A bucket was saved to disk, retrieved and stored in memory because I inserted
+    // a new item and then I remove an old item.
+    // We need to make sure that the on-disk bucket is the one we get after rollback()
+    sprintf(buf, templateTxId, 127);
+    uint256 txid5 = uint256S(buf);
+    {
+        UnspentOutputDatabase db(ioService, m_testPath);
+        db.insert(txid5, 10, 40, 40);
+        db.insert(txid5, 11, 40, 40);
+        db.insert(txid5, 13, 40, 40);
+        db.blockFinished(5, uint256());
+    }
+    {
+        UnspentOutputDatabase db(ioService, m_testPath);
+        db.insert(txid5, 20, 40, 40); // loads from disk, adds item
+        // rollback now should revert to the on-disk version.
+    }
+    {
+        UnspentOutputDatabase db(ioService, m_testPath);
+        QVERIFY(db.find(txid4, 6).isValid());
+        QVERIFY(!db.find(txid5, 20).isValid());
+        QVERIFY(db.find(txid5, 10).isValid());
+        QVERIFY(db.find(txid5, 11).isValid());
+        QVERIFY(db.find(txid5, 13).isValid());
+    }
+    {
+        UnspentOutputDatabase db(ioService, m_testPath);
+        db.insert(txid5, 20, 40, 40); // loads from disk, adds item
+        SpentOutput rmData = db.remove(txid5, 11); // removes from mem-bucket
+        QVERIFY(rmData.isValid());
+        // rollback now should revert to the on-disk version.
+    }
+    {
+        UnspentOutputDatabase db(ioService, m_testPath);
+        QVERIFY(db.find(txid4, 6).isValid());
+        QVERIFY(!db.find(txid5, 20).isValid());
+        QVERIFY(db.find(txid5, 10).isValid());
+        QVERIFY(db.find(txid5, 11).isValid());
+        QVERIFY(db.find(txid5, 13).isValid());
+    }
 }
 
 QTEST_MAIN(TestUtxo)

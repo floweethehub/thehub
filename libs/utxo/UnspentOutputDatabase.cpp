@@ -470,12 +470,13 @@ void DataFile::insert(const UODBPrivate *priv, const uint256 &txid, int outIndex
         Bucket *bucket = nullptr;
         if (bucketId == 0) {
             bucketId = static_cast<uint32_t>(m_nextBucketIndex++);
-            DEBUGUTXO << "  + new BucketId:" << bucketId;
+            DEBUGUTXO << "Insert leaf"  << txid << outIndex << "creates new bucket id:" << bucketId;
             auto iterator = m_buckets.insert(std::make_pair(bucketId, Bucket())).first;
             bucket = &iterator->second;
             m_jumptables[shortHash] = bucketId + MEMBIT;
         } else if (bucketId & MEMBIT) { // highest bit is set. Bucket is in memory.
             bucket = &m_buckets.at(bucketId & MEMMASK);
+            DEBUGUTXO << "Insert leaf"  << txid << outIndex << "into mem-bucket:" << (bucketId & MEMMASK);
 
             if ((bucketId & MEMMASK) <= m_lastCommittedBucketIndex)
                 m_bucketsToNotSave.insert(bucketId);
@@ -511,6 +512,7 @@ void DataFile::insert(const UODBPrivate *priv, const uint256 &txid, int outIndex
     if ((bucketId & MEMBIT) || bucketId == 0) // it got loaded into mem in parallel to our attempt
         return insert(priv, txid, outIndex, blockHeight, offsetInBlock);
 
+    m_committedBucketLocations.insert(std::make_pair(shortHash, bucketId));
     const auto iterator = m_buckets.insert(std::make_pair(m_nextBucketIndex, std::move(memBucket))).first;
     m_jumptables[shortHash] = static_cast<uint32_t>(m_nextBucketIndex) + MEMBIT;
     const std::int32_t leafPos = m_nextLeafIndex++;
@@ -626,7 +628,7 @@ SpentOutput DataFile::remove(const UODBPrivate *priv, const uint256 &txid, int i
             auto bucketIter = m_buckets.find(bucketId & MEMMASK);
             assert(bucketIter != m_buckets.end());
             Bucket *bucket = &bucketIter->second;
-            DEBUGUTXO << "remove" << txid << index << "from memory. BucketId:" << (bucketId & MEMMASK);
+            DEBUGUTXO << "remove" << txid << index << "from bucket in memory. shortHash:" <<Log::Hex << shortHash;
 
             // first check the in-memory items if there is a hit.
             for (auto ref : bucket->unspentOutputs) {
@@ -635,6 +637,7 @@ SpentOutput DataFile::remove(const UODBPrivate *priv, const uint256 &txid, int i
                     assert(leafIter != m_leafs.end());
                     UnspentOutput *output = &(leafIter->second);
                     if (ref.leafPos == leafHint || matchesOutput(output->data(), txid, index)) { // found it!
+                        DEBUGUTXO << " +r " << txid << index << "removed, was in-mem leaf" << (ref.leafPos & MEMMASK);
                         if ((ref.leafPos & MEMMASK) <= m_lastCommittedLeafIndex) {
                             // make backup of a leaf that has been committed but not yet saved
                             m_leafsBackup.push_back(leafIter->second);
@@ -694,6 +697,8 @@ SpentOutput DataFile::remove(const UODBPrivate *priv, const uint256 &txid, int i
             const OutputRef ref(cheapHash, pos);
             const uint32_t newBucketId = m_jumptables[shortHash];
             if (newBucketId & MEMBIT) {
+                DEBUGUTXO << "remove" << txid << index << "from (now) in-mem bucket, id:" << (newBucketId & MEMMASK)
+                        << "leaf disk-pos:" << pos << "shortHash:" << Log::Hex << shortHash;
                 auto bucketIter = m_buckets.find(newBucketId & MEMMASK);
                 assert(bucketIter != m_buckets.end());
                 Bucket *bucket = &bucketIter->second;
@@ -712,6 +717,7 @@ SpentOutput DataFile::remove(const UODBPrivate *priv, const uint256 &txid, int i
             }
             else { // bucket not in memory (now). So it has to come from disk.
                 if (newBucketId != bucketId && (bucketId & MEMBIT)) {
+                    DEBUGUTXO << "  +r reload bucket from disk";
                     // ugh, it got saved and maybe changed. Load it again :(
                     memBucket.fillFromDisk(Streaming::ConstBuffer(m_buffer, m_buffer.get() + newBucketId,
                                                                   m_buffer.get() + m_file.size()),
@@ -731,8 +737,10 @@ SpentOutput DataFile::remove(const UODBPrivate *priv, const uint256 &txid, int i
 
                 // We just loaded it from disk, should we insert the bucket into m_buckets?
                 if (memBucket.unspentOutputs.empty()) { // no, just delete from jumptable
+                    DEBUGUTXO << " +r bucket now empty, zero'd jumptable. Shorthash:" << Log::Hex <<shortHash;
                     m_jumptables[shortHash] = 0;
                 } else {
+                    DEBUGUTXO << " +r store bucket in mem. Bucket index:" << m_nextBucketIndex;
                     // Store in m_buckets (for saving) the now smaller bucket.
                     // Remember the unsaved on-disk position of the bucket for rollback()
                     m_buckets.insert(std::make_pair(m_nextBucketIndex, memBucket));
@@ -995,7 +1003,7 @@ void DataFile::rollback()
         assert (!iter->second.unspentOutputs.empty());
         const uint32_t shortHash = createShortHash(iter->second.unspentOutputs.front().cheapHash);
 #ifndef NDEBUG
-        DEBUGUTXO << "Rolling back adding a bucket" << iter->first << "shortHash" << shortHash;
+        DEBUGUTXO << "Rolling back adding a bucket" << iter->first << "shortHash" << Log::Hex <<shortHash;
         for (const OutputRef &outRef: iter->second.unspentOutputs) {
             assert(createShortHash(outRef.cheapHash) == shortHash);
             if (outRef.leafPos > MEMBIT) {
@@ -1017,7 +1025,7 @@ void DataFile::rollback()
         assert(newBucketPos >= 0);
         assert(newBucketPos < MEMBIT);
         if (newBucketPos > 0)
-            DEBUGUTXO << " + Restoring old buckets disk pos" << newBucketPos << "shortHash" << shortHash;
+            DEBUGUTXO << " + Restoring old buckets disk pos" << newBucketPos << "shortHash" << Log::Hex <<shortHash;
         m_jumptables[shortHash] = newBucketPos;
         assert(iter->first >= 0);
         iter = m_buckets.erase(iter);
@@ -1043,12 +1051,19 @@ void DataFile::rollback()
     }
 #endif
 
+   for (auto jti = m_committedBucketLocations.begin(); jti != m_committedBucketLocations.end(); ++jti) {
+       if (m_jumptables[jti->first] == 0) {
+           DEBUGUTXO << "Restoring jumptable to on-disk bucket" << jti->first << jti->second;
+           m_jumptables[jti->first] = jti->second;
+       }
+   }
+
     for (auto iter = m_leafs.begin(); iter != m_leafs.end();) {
         if (iter->first > m_lastCommittedLeafIndex) {
             // also remove reference from bucket to this leaf
             const uint64_t cheapHash = iter->second.prevTxId().GetCheapHash();
             const uint32_t shortHash = createShortHash(cheapHash);
-            DEBUGUTXO << "Rolling back adding a leaf:" << iter->first << iter->second.prevTxId() << iter->second.outIndex() << "shortHash" << shortHash;
+            DEBUGUTXO << "Rolling back adding a leaf:" << iter->first << iter->second.prevTxId() << iter->second.outIndex() << Log::Hex <<"shortHash" << shortHash;
             uint32_t bucketId = m_jumptables[shortHash];
             if (bucketId >= MEMBIT) {
                 DEBUGUTXO << " + also removing from in-memory bucket";
@@ -1067,7 +1082,7 @@ void DataFile::rollback()
         const uint32_t shortHash = createShortHash(txid);
         const std::int32_t leafPos = m_nextLeafIndex++;
         m_leafs.insert(std::make_pair(leafPos, leaf));
-        DEBUGUTXO << "Rolling back removing a leaf:" << txid << leaf.outIndex() << "ShortHash:" << shortHash;
+        DEBUGUTXO << "Rolling back removing a leaf:" << txid << leaf.outIndex() << "ShortHash:" << Log::Hex <<shortHash;
 
         // if the bucket exists, we add it. Otherwise we create a new bucket for this leaf.
         uint32_t bucketId = m_jumptables[shortHash];
@@ -1092,7 +1107,7 @@ void DataFile::rollback()
 
     for (auto outRef : m_leafIdsBackup) { // reinsert deleted leafs-ids (pos-on-disk
         const uint32_t shortHash = createShortHash(outRef.cheapHash);
-        DEBUGUTXO << "Rolling back removing a leaf (from disk). pos:" << outRef.leafPos << "ShortHash:" << shortHash;
+        DEBUGUTXO << "Rolling back removing a leaf (from disk). pos:" << outRef.leafPos << "ShortHash:" << Log::Hex <<shortHash;
 
         // if the bucket exists, we add it. Otherwise we create a new bucket for this leaf.
         uint32_t bucketId = m_jumptables[shortHash];

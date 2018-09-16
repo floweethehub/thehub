@@ -186,7 +186,7 @@ public:
 
     // --- rollback info ---
     std::list<UnspentOutput> m_leafsBackup; //< contains leafs deleted and never saved
-    /// contains leaf-ids deleted related to a certain bucketId (so they can be re-added to bucket
+    /// contains leaf-ids deleted related to a certain bucketId (so they can be re-added to bucket)
     std::list<OutputRef> m_leafIdsBackup;
     /// buckets that were in memory when we committed last and have since been modified. We refuse to save them (for now).
     /// all values should have MEMBIT set
