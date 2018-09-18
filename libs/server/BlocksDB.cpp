@@ -77,7 +77,7 @@ bool LoadExternalBlockFile(const CDiskBlockPos &pos)
     const int blockHeaderMessage = *reinterpret_cast<const int*>(Params().MessageStart());
     const char *buf = dataFile.begin();
     while (buf < dataFile.end() && !Application::closingDown()) {
-        buf = reinterpret_cast<const char*>(memchr(buf, blockHeaderMessage, (dataFile.end() - buf) / sizeof(int)));
+        buf = reinterpret_cast<const char*>(memchr(buf, blockHeaderMessage, dataFile.end() - buf));
         if (buf == nullptr) {
             // no valid block header found; don't complain
             break;
