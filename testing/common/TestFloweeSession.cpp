@@ -18,6 +18,7 @@
  */
 
 #include "TestFloweeSession.h"
+#include "script/sigcache.h"
 #include "MockApplication.h"
 #include <Application.h>
 #include <main.h>
@@ -32,6 +33,7 @@ CClientUIInterface uiInterface; // Declared but not defined in UiInterface.h
 
 TestFloweeSession::TestFloweeSession(const std::string& chainName) : TestFloweeEnvPlusNet(chainName)
 {
+    InitSignatureCache();
     if (chainName == CBaseChainParams::REGTEST)
         Application::setUahfChainState(Application::UAHFActive);
 
