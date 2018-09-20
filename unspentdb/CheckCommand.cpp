@@ -86,14 +86,14 @@ Flowee::ReturnCodes CheckCommand::run()
                 continue;
             int32_t bucketOffsetInFile = static_cast<int>(jumptables[shorthash]);
             Streaming::ConstBuffer buf(buffer, buffer.get() + bucketOffsetInFile, buffer.get() + file.size());
-            std::vector<int> leafPositions = readBucket(buf, bucketOffsetInFile);
-            for (auto leafPos : leafPositions) {
-                if (leafPos > checkpoint.positionInFile) {
+            std::vector<LeafRef> leafRefs = readBucket(buf, bucketOffsetInFile);
+            for (auto leafRef : leafRefs) {
+                if (leafRef.pos > checkpoint.positionInFile) {
                     err << "Leaf after checkpoint pos" << endl;
                     continue;
                 }
-                Streaming::ConstBuffer leafBuf(buffer, buffer.get() + leafPos, buffer.get() + file.size());
-                Leaf leaf = readLeaf(leafBuf);
+                Streaming::ConstBuffer leafBuf(buffer, buffer.get() + leafRef.pos, buffer.get() + file.size());
+                Leaf leaf = readLeaf(leafBuf, leafRef.cheapHash);
                 const uint64_t cheapHash = leaf.txid.GetCheapHash();
                 const uint32_t leafShorthash = createShortHash(cheapHash);
                 if (shorthash != leafShorthash)
@@ -107,15 +107,17 @@ Flowee::ReturnCodes CheckCommand::run()
                     err << "Leaf belongs to a block before this db file" << leaf.blockHeight << endl;
             }
 
-            for (size_t n = 0; n < leafPositions.size(); ++n) {
-                const int leafPos = leafPositions[n];
+            for (size_t n = 0; n < leafRefs.size(); ++n) {
+                const int leafPos = leafRefs.at(n).pos;
                 if (leafPos > checkpoint.positionInFile)  continue;
                 Streaming::ConstBuffer leafBuf(buffer, buffer.get() + leafPos, buffer.get() + file.size());
-                Leaf leaf = readLeaf(leafBuf);
-                for (size_t m = n + 1; m < leafPositions.size(); ++m) {
-                    const int leafPos2 = leafPositions[m];
+                Leaf leaf = readLeaf(leafBuf, leafRefs.at(n).cheapHash);
+                if (leaf.txid == uint256())
+                    continue;
+                for (size_t m = n + 1; m < leafRefs.size(); ++m) {
+                    const int leafPos2 = leafRefs.at(m).pos;
                     Streaming::ConstBuffer leafBuf2(buffer, buffer.get() + leafPos2, buffer.get() + file.size());
-                    Leaf leaf2 = readLeaf(leafBuf2);
+                    Leaf leaf2 = readLeaf(leafBuf2, leafRefs.at(m).cheapHash);
                     if (leaf.outIndex == leaf2.outIndex && leaf.txid == leaf2.txid) {
                         err << "One utxo-entry is duplicated. " << QString::fromStdString(leaf.txid.GetHex())
                             << " | " << leaf.outIndex;

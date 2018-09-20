@@ -91,6 +91,10 @@ Flowee::ReturnCodes PruneCommand::run()
         pruner.prune();
 
         out << "Finishing up" << endl;
+        // backup original files.
+        QFile::rename(dbInfo.absoluteFilePath(), dbInfo.absoluteFilePath() + "~");
+        QFile::rename(info.absoluteFilePath(), info.absoluteFilePath() + "~");
+
         // remove all old info files (they can no longer work) and rename the db file
         // and the info file over the original ones
         DataFileCache cache(dbInfo.dir().filePath(dbInfo.baseName()).toStdString());

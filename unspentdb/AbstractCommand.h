@@ -130,9 +130,14 @@ protected:
         uint256 txid;
     };
 
-    Leaf readLeaf(Streaming::ConstBuffer buf, bool *failed = nullptr);
+    Leaf readLeaf(Streaming::ConstBuffer buf, quint64 cheapHash, bool *failed = nullptr);
 
-    std::vector<int> readBucket(Streaming::ConstBuffer buf, int bucketOffsetInFile, bool *failed = nullptr);
+    struct LeafRef {
+        quint64 cheapHash;
+        int pos;
+    };
+
+    std::vector<LeafRef> readBucket(Streaming::ConstBuffer buf, int bucketOffsetInFile, bool *failed = nullptr);
 
 private:
     QCommandLineParser m_parser;

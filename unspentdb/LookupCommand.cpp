@@ -113,9 +113,9 @@ Flowee::ReturnCodes LookupCommand::run()
         std::shared_ptr<char> buffer = std::shared_ptr<char>(const_cast<char*>(file.const_data()), nothing);
 
         const int32_t bucketOffsetInFile = static_cast<int>(jumptables[shortHash]);
-        std::vector<int> leafs;
+        std::vector<LeafRef> leafs;
         if (filePos >= 0) {
-            leafs.push_back(filePos);
+            leafs.push_back({0, filePos});
         }
         else if (bucketOffsetInFile) {
             if (debug)
@@ -124,11 +124,11 @@ Flowee::ReturnCodes LookupCommand::run()
             leafs = readBucket(buf, bucketOffsetInFile);
         }
         bool foundOne = false;
-        for (auto pos : leafs) {
-            Streaming::ConstBuffer leafBuf(buffer, buffer.get() + pos, buffer.get() + file.size());
+        for (auto leafRef : leafs) {
+            Streaming::ConstBuffer leafBuf(buffer, buffer.get() + leafRef.pos, buffer.get() + file.size());
             if (debug)
-                out << " + checking leaf at filepos: " << pos << endl;
-            Leaf leaf = readLeaf(leafBuf);
+                out << " + checking leaf at filepos: " << leafRef.pos << endl;
+            Leaf leaf = readLeaf(leafBuf, leafRef.cheapHash);
             if (leaf.txid == hash && (outindex == -1 || outindex == leaf.outIndex)) {
                 if (!foundOne) {
                     out << "In UTXO up to block height: " << checkpoint.lastBlockHeight << " (" <<
@@ -141,7 +141,7 @@ Flowee::ReturnCodes LookupCommand::run()
                     << leaf.outIndex << endl;
                 if (debug) {
                     out << "  tx is in block " << leaf.blockHeight << ", tx is at bytepos in block: " << leaf.offsetInBlock << endl;
-                    out << "  Leaf file offset: " << pos << endl;
+                    out << "  Leaf file offset: " << leafRef.pos << endl;
                 }
             }
             if (foundOne)

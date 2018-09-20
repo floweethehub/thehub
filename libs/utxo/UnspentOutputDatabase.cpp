@@ -63,23 +63,28 @@ static bool matchesOutput(const Streaming::ConstBuffer &buffer, const uint256 &t
 {
     bool txidMatched = false, indexMatched = false;
     Streaming::MessageParser parser(buffer);
+    bool separatorHit = false;
     while (!(indexMatched && txidMatched) && parser.next() == Streaming::FoundTag) {
         if (!txidMatched && parser.tag() == UODB::TXID) {
-            if (txid == parser.uint256Data())
+            if (parser.dataLength() == 32 && txid == parser.uint256Data())
                 txidMatched = true;
+            else if (parser.dataLength() == 24)
+                txidMatched = memcmp(txid.begin() + 8, parser.bytesDataBuffer().begin(), 24) == 0;
             else
                 return false;
         }
-        else if (!indexMatched && parser.tag() == UODB::OutIndex) {
+        else if (!indexMatched && !separatorHit && parser.tag() == UODB::OutIndex) {
             if (index == parser.intData())
                 indexMatched = true;
             else
                 return false;
         }
-        else if (!indexMatched && parser.tag() == UODB::BlockHeight)
-            // if there is no OutIndex in the stream, it was zero
+        else if (!indexMatched && parser.tag() == UODB::Separator) {
             indexMatched = 0 == index;
-        else if (!indexMatched && parser.tag() == UODB::Separator)
+            separatorHit = true;
+        }
+
+        if (separatorHit && txidMatched)
             break;
     }
     return indexMatched && txidMatched;
@@ -94,30 +99,37 @@ UnspentOutput::UnspentOutput(Streaming::BufferPool &pool, const uint256 &txid, i
 {
     pool.reserve(55);
     Streaming::MessageBuilder builder(pool);
+    builder.add(UODB::BlockHeight, blockHeight);
+    builder.add(UODB::OffsetInBlock, offsetInBlock);
     builder.add(UODB::TXID, txid);
     if (outIndex != 0)
         builder.add(UODB::OutIndex, outIndex);
-    builder.add(UODB::BlockHeight, blockHeight);
-    builder.add(UODB::OffsetInBlock, offsetInBlock);
     builder.add(UODB::Separator, true);
     m_data = pool.commit();
 }
 
-UnspentOutput::UnspentOutput(const Streaming::ConstBuffer &buffer)
+UnspentOutput::UnspentOutput(uint64_t cheapHash, const Streaming::ConstBuffer &buffer)
     : m_data(buffer),
       m_outIndex(0),
       m_offsetInBlock(-1),
-      m_blockHeight(-1)
+      m_blockHeight(-1),
+      m_cheapHash(cheapHash)
 {
+    bool hitSeparator = false, foundUtxo = false;
     Streaming::MessageParser parser(m_data);
     while (parser.next() == Streaming::FoundTag) {
         if (parser.tag() == UODB::BlockHeight)
             m_blockHeight = parser.intData();
         else if (parser.tag() == UODB::OffsetInBlock)
             m_offsetInBlock = parser.intData();
-        else if (parser.tag() == UODB::OutIndex)
+        else if (!hitSeparator && parser.tag() == UODB::OutIndex)
             m_outIndex = parser.intData();
+        else if (parser.tag() == UODB::TXID)
+            foundUtxo = true;
         else if (parser.tag() == UODB::Separator)
+            hitSeparator = true;
+
+        if (hitSeparator && foundUtxo)
             break;
     }
     if (parser.next() == Streaming::Error)
@@ -129,10 +141,18 @@ uint256 UnspentOutput::prevTxId() const
 {
     Streaming::MessageParser parser(m_data);
     while (parser.next() == Streaming::FoundTag) {
-        if (parser.tag() == UODB::TXID)
-            return parser.uint256Data();
-        else if (parser.tag() == UODB::Separator)
-            break;
+        if (parser.tag() == UODB::TXID) {
+            if (parser.dataLength() == 32)
+                return parser.uint256Data();
+            else if (parser.dataLength() != 24)
+                throw std::runtime_error("TXID of wrong length");
+            else { // pruned style, shorter hash, combine with our m_shortHash.
+                char fullHash[32];
+                WriteLE64(reinterpret_cast<unsigned char*>(fullHash), m_cheapHash);
+                memcpy(fullHash + 8, parser.bytesData().data(), 24);
+                return uint256(fullHash);
+            }
+        }
     }
     throw std::runtime_error("No txid in UnspentOutput buffer found");
 }
@@ -159,6 +179,7 @@ UnspentOutputDatabase::~UnspentOutputDatabase()
 {
     {   std::lock_guard<std::mutex> lock(d->lock);
         if (!d->memOnly) {
+            logCritical() << "Flushing UTXO cashes to disk...";
             for (auto df : d->dataFiles) {
                 std::lock_guard<std::recursive_mutex> saveLock(df->m_saveLock);
                 std::lock_guard<std::recursive_mutex> lock2(df->m_lock);
@@ -279,7 +300,8 @@ void UnspentOutputDatabase::blockFinished(int blockheight, const uint256 &blockI
             int jump = 1; // we don't do all DBs every time, this creates a nice sequence.
             do {
                 auto dbFilename = d->dataFiles.at(db)->m_path;
-                Pruner pruner(dbFilename.string() + ".db", infoFilenames.at(db));
+                Pruner pruner(dbFilename.string() + ".db", infoFilenames.at(db),
+                              jump == 1 ? Pruner::MostActiveDB : Pruner::OlderDB);
                 delete d->dataFiles.at(db);
                 try {
                     pruner.prune();
@@ -367,8 +389,12 @@ UODBPrivate::UODBPrivate(boost::asio::io_service &service, const boost::filesyst
             }
         }
     }
-    if (dataFiles.size() > 1)
-        doPrune = dataFiles.at(dataFiles.size() - 2)->m_file.size() == 2147483600; // the original 2GiB
+    if (dataFiles.size() > 1) {
+        auto lastFull = dataFiles.at(dataFiles.size() - 2);
+        doPrune = lastFull->m_file.size() == 2147483600; // the original 2GiB
+        if (doPrune)
+            lastFull->m_changesSinceJumptableWritten = 5000000; // prune it sooner
+    }
 }
 
 boost::filesystem::path UODBPrivate::filepathForIndex(int fileIndex)
@@ -407,6 +433,18 @@ void Bucket::fillFromDisk(const Streaming::ConstBuffer &buffer, const int32_t bu
         else if (parser.tag() == UODB::LeafPosition) {
             unspentOutputs.push_back( {cheaphash, static_cast<std::uint32_t>(parser.intData())} );
         }
+        else if (parser.tag() == UODB::LeafPosOn512MB) {
+            unspentOutputs.push_back( {cheaphash, static_cast<std::uint32_t>(512 * 1024 * 1024 + parser.intData())} );
+        }
+        else if (parser.tag() == UODB::LeafPosFromPrevLeaf) {
+            if (unspentOutputs.empty())
+                throw std::runtime_error("Bucket referred to prev leaf while its the first");
+            const int prevLeafPos = static_cast<int>(unspentOutputs.back().leafPos);
+            const int newLeafPos = prevLeafPos - parser.intData();
+            if (newLeafPos < 0)
+                throw std::runtime_error("Invalid leaf pos due to LeafPosFroMPrevLeaf");
+            unspentOutputs.push_back( {cheaphash, static_cast<std::uint32_t>(newLeafPos)} );
+        }
         else if (parser.tag() == UODB::Separator) {
             return;
         }
@@ -414,12 +452,13 @@ void Bucket::fillFromDisk(const Streaming::ConstBuffer &buffer, const int32_t bu
     throw std::runtime_error("Failed to parse bucket");
 }
 
-int32_t Bucket::saveToDisk(Streaming::BufferPool &pool)
+int32_t Bucket::saveToDisk(Streaming::BufferPool &pool) const
 {
     const int32_t offset = pool.offset();
 
     Streaming::MessageBuilder builder(pool);
     uint64_t prevCH = 0;
+    int prevPos = -1;
     for (auto item : unspentOutputs) {
         if (prevCH != item.cheapHash) {
             builder.add(UODB::CheapHash, item.cheapHash);
@@ -427,22 +466,43 @@ int32_t Bucket::saveToDisk(Streaming::BufferPool &pool)
         }
 
         /*
-         * Maybe use LeafPositionRelativeBucket tag
-         * to have smaller numbers and we save the one that occupies the lowest amount of bytes
+         * Figure out which tag to use.
+         * To have smaller numbers and we save the one that occupies the lowest amount of bytes
          */
         assert(offset >= 0);
         assert((item.leafPos & MEMBIT) == 0);
         assert(item.leafPos < static_cast<std::uint32_t>(offset));
-        int byteCount = Streaming::serialisedIntSize(static_cast<int>(item.leafPos));
-        const int offsetFromBucketSize = Streaming::serialisedIntSize(offset - static_cast<int>(item.leafPos));
+        const int leafPos = static_cast<int>(item.leafPos);
         UODB::MessageTags tagToUse = UODB::LeafPosition;
-        if (offsetFromBucketSize < byteCount)
-            tagToUse = UODB::LeafPosRelToBucket;
+        int pos = leafPos;
+        int byteCount = Streaming::serialisedIntSize(pos);
 
-        if (tagToUse == UODB::LeafPosRelToBucket)
-            builder.add(tagToUse, offset - static_cast<int>(item.leafPos));
-        else
-            builder.add(tagToUse, static_cast<int>(item.leafPos));
+        // for values between 256MB and 768MB this moves 1 bit to the tag and avoids
+        // the value from going from 4 bytes to 5 bytes.
+        // notice that the negative sign is also strored outside the value bytes
+        int m512TagSize = 20;
+        if (leafPos >= 256 * 1024 * 1024)
+            m512TagSize = Streaming::serialisedIntSize(leafPos - 512 * 1024 * 1024);
+        if (m512TagSize < byteCount) {
+            // store the distance to the 512MB file offset instead of from the start of file.
+            tagToUse = UODB::LeafPosOn512MB;
+            byteCount = m512TagSize;
+            pos = leafPos - 512 * 1024 * 1024;
+        }
+        const int offsetFromBucketSize = Streaming::serialisedIntSize(offset - leafPos);
+        if (offsetFromBucketSize < byteCount) {
+            tagToUse = UODB::LeafPosRelToBucket;
+            byteCount = offsetFromBucketSize;
+            pos = offset - leafPos;
+        }
+        if (prevPos >= 0) {
+            if (Streaming::serialisedIntSize(prevPos - leafPos) < byteCount) {
+                tagToUse = UODB::LeafPosFromPrevLeaf;
+                pos = prevPos - leafPos;
+            }
+        }
+        builder.add(tagToUse, pos);
+        prevPos = leafPos;
     }
     builder.add(UODB::Separator, true);
     pool.commit();
@@ -611,7 +671,7 @@ UnspentOutput DataFile::find(const uint256 &txid, int index) const
         // m_buffer is immutable.
         Streaming::ConstBuffer buf(m_buffer, m_buffer.get() + pos, m_buffer.get() + m_file.size());
         if (matchesOutput(buf, txid, index)) { // found it!
-            UnspentOutput answer(buf);
+            UnspentOutput answer(cheapHash, buf);
             answer.setRmHint(pos);
             return answer;
         }
@@ -777,7 +837,7 @@ SpentOutput DataFile::remove(const UODBPrivate *priv, const uint256 &txid, int i
                     m_jumptables[shortHash] = static_cast<std::uint32_t>(m_nextBucketIndex++) + MEMBIT;
                 }
             }
-            UnspentOutput uo(buf);
+            UnspentOutput uo(cheapHash, buf);
             answer.blockHeight = uo.blockHeight();
             answer.offsetInBlock = uo.offsetInBlock();
             assert(answer.isValid());

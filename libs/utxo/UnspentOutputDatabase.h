@@ -39,7 +39,7 @@ class UnspentOutput {
 public:
     UnspentOutput() = default;
     UnspentOutput(Streaming::BufferPool &pool, const uint256 &txid, int outIndex, int blockHeight, int offsetInBlock);
-    UnspentOutput(const Streaming::ConstBuffer &buffer);
+    UnspentOutput(uint64_t cheapHash, const Streaming::ConstBuffer &buffer);
 
     inline bool isValid() const {
         return m_data.size() >= 33;
@@ -80,6 +80,7 @@ private:
     int m_outIndex = 0;
     int m_offsetInBlock = 0; // in bytes. 2GB blocks is enough for a while.
     int m_blockHeight = 0;
+    uint64_t m_cheapHash = 0;
     uint64_t m_privData = 0; // used by the database for cache
 };
 

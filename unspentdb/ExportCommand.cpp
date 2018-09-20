@@ -115,10 +115,10 @@ Flowee::ReturnCodes ExportCommand::run()
             continue;
         int32_t bucketOffsetInFile = static_cast<int>(jumptables[shorthash]);
         Streaming::ConstBuffer buf(buffer, buffer.get() + bucketOffsetInFile, buffer.get() + file.size());
-        std::vector<int> leafPositions = readBucket(buf, bucketOffsetInFile);
-        for (auto leafPos : leafPositions) {
-            Streaming::ConstBuffer leafBuf(buffer, buffer.get() + leafPos, buffer.get() + file.size());
-            write(readLeaf(leafBuf));
+        std::vector<LeafRef> leafPositions = readBucket(buf, bucketOffsetInFile);
+        for (auto leaf : leafPositions) {
+            Streaming::ConstBuffer leafBuf(buffer, buffer.get() + leaf.pos, buffer.get() + file.size());
+            write(readLeaf(leafBuf, leaf.cheapHash));
         }
     }
     return Flowee::Ok;

@@ -23,7 +23,11 @@
 
 class Pruner {
 public:
-    Pruner(const std::string &dbFile, const std::string &infoFile);
+    enum DBType {
+        MostActiveDB,
+        OlderDB
+    };
+    Pruner(const std::string &dbFile, const std::string &infoFile, DBType dbType = OlderDB);
 
     // copies pruned data into new files.
     void prune();
@@ -37,6 +41,7 @@ private:
     const std::string m_dbFile;
     const std::string m_infoFile;
     std::string m_tmpExtension;
+    DBType m_dbType;
 };
 
 #endif

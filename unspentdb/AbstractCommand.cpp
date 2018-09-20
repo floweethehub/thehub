@@ -270,12 +270,13 @@ AbstractCommand::CheckPoint AbstractCommand::readInfoFile(const QString &filepat
     return checkpoint;
 }
 
-AbstractCommand::Leaf AbstractCommand::readLeaf(Streaming::ConstBuffer buf, bool *failed)
+AbstractCommand::Leaf AbstractCommand::readLeaf(Streaming::ConstBuffer buf, quint64 cheapHash, bool *failed)
 {
     Leaf answer;
     if (failed) *failed = false;
     Streaming::MessageParser parser(buf);
     Streaming::ParsedType type = parser.next();
+    bool hitSeparator = false;
     while (type == Streaming::FoundTag) {
         if (parser.tag() == UODB::BlockHeight) {
             if (!parser.isInt()) {
@@ -292,7 +293,7 @@ AbstractCommand::Leaf AbstractCommand::readLeaf(Streaming::ConstBuffer buf, bool
                 break;
             }
             answer.offsetInBlock = parser.intData();
-        } else if (parser.tag() == UODB::OutIndex) {
+        } else if (!hitSeparator && parser.tag() == UODB::OutIndex) {
             if (!parser.isInt()) {
                 if (failed) *failed = true;
                 else err << "Tag mismatch, outIndex should be an int" << endl;
@@ -302,39 +303,61 @@ AbstractCommand::Leaf AbstractCommand::readLeaf(Streaming::ConstBuffer buf, bool
             if (!failed && answer.outIndex == 0)
                 err << "Warn; outindex saved while zero" << endl;
         } else if (parser.tag() == UODB::TXID) {
-            if (!parser.isByteArray() || parser.dataLength() != 32) {
+            if (!parser.isByteArray() || (parser.dataLength() != 32 && parser.dataLength() != 24)) {
                 if (failed) *failed = true;
-                else err << "Tag mismatch, txid should be a 32 byte bytearray" << endl;
+                else err << "Tag mismatch, txid should be a 32 or a 24 byte bytearray" << endl;
                 break;
             }
-            answer.txid = parser.uint256Data();
+            if (parser.dataLength() == 32)
+                answer.txid = parser.uint256Data();
+            else {
+                char fullHash[32];
+                WriteLE64(reinterpret_cast<unsigned char*>(fullHash), cheapHash);
+                memcpy(fullHash + 8, parser.bytesData().data(), 24);
+                answer.txid = uint256(fullHash);
+            }
         } else if (parser.tag() == UODB::Separator)
+            hitSeparator = true;
+        if (hitSeparator && !answer.txid.IsNull())
             break;
         type = parser.next();
     }
     if (type == Streaming::Error) {
         if (failed) *failed = true;
-        else err << "CMF Parse error in reading bucket" << endl;
+        else err << "CMF Parse error in reading leaf" << endl;
     }
     return answer;
 }
 
-std::vector<int> AbstractCommand::readBucket(Streaming::ConstBuffer buf, int bucketOffsetInFile, bool *failed)
+std::vector<AbstractCommand::LeafRef> AbstractCommand::readBucket(Streaming::ConstBuffer buf, int bucketOffsetInFile, bool *failed)
 {
-    std::vector<int> answer;
+    std::vector<LeafRef> answer;
     Streaming::MessageParser parser(buf);
+    quint64 cheapHash = 0;
     while (parser.next() == Streaming::FoundTag) {
-        if (parser.tag() == UODB::LeafPosRelToBucket) {
+        if (parser.tag() == UODB::CheapHash)
+            cheapHash = parser.longData();
+        else if (parser.tag() == UODB::LeafPosRelToBucket) {
             int offset = parser.intData();
             if (offset > bucketOffsetInFile) {
                 if (failed) *failed = true;
                 else err << "Error found. Offset to bucket leads to negative file position." << endl;
             }
             else
-                answer.push_back(bucketOffsetInFile - offset);
+                answer.push_back({cheapHash, bucketOffsetInFile - offset});
         }
         else if (parser.tag() == UODB::LeafPosition) {
-            answer.push_back(parser.intData());
+            answer.push_back({cheapHash, parser.intData()});
+        } else if (parser.tag() == UODB::LeafPosOn512MB) {
+            answer.push_back({cheapHash, 512 * 1024 * 1024 + parser.intData()});
+        } else if (parser.tag() == UODB::LeafPosFromPrevLeaf) {
+            if (answer.empty()) {
+                if (failed) *failed = true;
+                else err << "Error found. LeafPosFroMPrevLeaf used for first leaf in bucket." << endl;
+            }
+            else {
+                answer.push_back({cheapHash, answer.back().pos - parser.intData()});
+            }
         } else if (parser.tag() == UODB::Separator) {
             break;
         }

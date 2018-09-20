@@ -62,7 +62,7 @@ struct Bucket {
     short saveAttempt = 0;
 
     void fillFromDisk(const Streaming::ConstBuffer &buffer, const int32_t bucketOffsetInFile);
-    int32_t saveToDisk(Streaming::BufferPool &pool);
+    int32_t saveToDisk(Streaming::BufferPool &pool) const;
 };
 
 namespace UODB {
@@ -85,7 +85,12 @@ namespace UODB {
         FirstBlockHeight,
         LastBlockHeight,
         JumpTableHash,
-        PositionInFile
+        PositionInFile,
+
+        // Additional bucket-positioning tags
+        LeafPosOn512MB,
+        LeafPosFromPrevLeaf
+
     };
 }
 
