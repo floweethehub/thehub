@@ -574,9 +574,6 @@ void ValidationEnginePrivate::processNewBlock(std::shared_ptr<BlockValidationSta
                         fatal("Failed to write transaction index");
                 }
 
-#ifdef ENABLE_BENCHMARKS
-                int64_t end, start = GetTimeMicros();
-#endif
                 Streaming::BufferPool pool;
                 UndoBlockBuilder undoBlock(hash, &pool);
                 for (auto chunk : state->m_undoItems) {
@@ -584,7 +581,15 @@ void ValidationEnginePrivate::processNewBlock(std::shared_ptr<BlockValidationSta
                 }
                 Blocks::DB::instance()->writeUndoBlock(undoBlock, index->nFile, &index->nUndoPos);
                 index->nStatus |= BLOCK_HAVE_UNDO;
+#ifdef ENABLE_BENCHMARKS
+                int64_t end, start = GetTimeMicros();
+#endif
                 mempool->utxo()->blockFinished(index->nHeight, hash);
+#ifdef ENABLE_BENCHMARKS
+                end = GetTimeMicros();
+                m_utxoTime.fetch_add(end - start);
+                start = end;
+#endif
 
                 std::list<CTransaction> txConflicted;
                 // TODO don't use orphanBlocSize below, instead check the height of the headers vs the height of the main chain
@@ -598,7 +603,7 @@ void ValidationEnginePrivate::processNewBlock(std::shared_ptr<BlockValidationSta
                 cvBlockChange.notify_all();
 #ifdef ENABLE_BENCHMARKS
                 end = GetTimeMicros();
-                m_utxoTime.fetch_add(end - start);
+                m_mempoolTime.fetch_add(end - start);
                 start = end;
 #endif
                 {
@@ -1407,6 +1412,7 @@ void BlockValidationState::checkSignaturesChunk(CheckType type)
 {
 #ifdef ENABLE_BENCHMARKS
     int64_t start = GetTimeMicros();
+    int64_t utxoStart, utxoDuration = 0;
 #endif
     auto parent_ = m_parent.lock();
     if (!parent_)
@@ -1490,7 +1496,13 @@ void BlockValidationState::checkSignaturesChunk(CheckType type)
                         }
                     }
                     if (!found) { // should come from UnspentOutputDB (utxo)
+#ifdef ENABLE_BENCHMARKS
+                        utxoStart = GetTimeMicros();
+#endif
                         UnspentOutput unspentOutput = utxo->find(input.txid, input.index);
+#ifdef ENABLE_BENCHMARKS
+                        utxoDuration += GetTimeMicros() - utxoStart;
+#endif
                         if (!unspentOutput.isValid()) {
                             logCritical() << "Rejecting block" << m_block.createHash() << "due to missing inputs";
                             logInfo() << " |  txid:" << tx.createHash();
@@ -1522,7 +1534,13 @@ void BlockValidationState::checkSignaturesChunk(CheckType type)
                                 m_spentMap.insert(std::make_pair(input.txid, spentIndex));
                             }
                         } else {
+#ifdef ENABLE_BENCHMARKS
+                            utxoStart = GetTimeMicros();
+#endif
                             SpentOutput removed = utxo->remove(input.txid, input.index, unspentOutput.rmHint());
+#ifdef ENABLE_BENCHMARKS
+                            utxoDuration += GetTimeMicros() - utxoStart;
+#endif
                             assert(removed.isValid());
                             undoItems->push_back(FastUndoBlock::Item(input.txid, input.index,
                                                                        removed.blockHeight, removed.offsetInBlock));
@@ -1555,7 +1573,13 @@ void BlockValidationState::checkSignaturesChunk(CheckType type)
                         if (content == Tx::OutputValue) {
                             if (txIter.longData() == 0)
                                 logDebug() << "Output with zero value";
+#ifdef ENABLE_BENCHMARKS
+                            utxoStart = GetTimeMicros();
+#endif
                             utxo->insert(hash, outputCount, m_blockIndex->nHeight, offsetInBlock);
+#ifdef ENABLE_BENCHMARKS
+                            utxoDuration += GetTimeMicros() - utxoStart;
+#endif
                             undoItems->push_back(FastUndoBlock::Item(hash, outputCount, m_blockIndex->nHeight, offsetInBlock));
                             outputCount++;
                         }
@@ -1582,8 +1606,10 @@ void BlockValidationState::checkSignaturesChunk(CheckType type)
 
 #ifdef ENABLE_BENCHMARKS
     int64_t end = GetTimeMicros();
-    if (blockValid)
-        parent_->m_validationTime.fetch_add(end - start);
+    if (blockValid) {
+        parent_->m_validationTime.fetch_add(end - start - utxoDuration);
+        parent_->m_utxoTime.fetch_add(utxoDuration);
+    }
     logDebug(Log::BlockValidation) << "batch:" << chunkToStart << '/' << chunks << (end - start)/1000. << "ms" << "success so far:" << blockValid;
 #endif
 
