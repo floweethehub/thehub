@@ -77,7 +77,7 @@ bool LoadExternalBlockFile(const CDiskBlockPos &pos)
     const int blockHeaderMessage = *reinterpret_cast<const int*>(Params().MessageStart());
     const char *buf = dataFile.begin();
     while (buf < dataFile.end() && !Application::closingDown()) {
-        buf = reinterpret_cast<const char*>(memchr(buf, blockHeaderMessage, (dataFile.end() - buf) / sizeof(int)));
+        buf = reinterpret_cast<const char*>(memchr(buf, blockHeaderMessage, dataFile.end() - buf));
         if (buf == nullptr) {
             // no valid block header found; don't complain
             break;
@@ -105,7 +105,7 @@ bool LoadExternalBlockFile(const CDiskBlockPos &pos)
 void reimportBlockFiles()
 {
     const CChainParams& chainparams = Params();
-    RenameThread("bitcoin-loadblk");
+    RenameThread("flowee-loadblk");
     if (Blocks::DB::instance()->reindexing() == Blocks::ScanningFiles) {
         int nFile = 0;
         for (size_t indexedFiles = 0; indexedFiles < vinfoBlockFile.size(); ++indexedFiles) {
@@ -124,7 +124,8 @@ void reimportBlockFiles()
         Blocks::DB::instance()->setReindexing(Blocks::ParsingBlocks);
     }
     Application::instance()->validation()->waitValidationFinished();
-    Blocks::DB::instance()->setReindexing(Blocks::NoReindex);
+    if (!Application::closingDown()) // waitValidationFinished may not have finished then
+        Blocks::DB::instance()->setReindexing(Blocks::NoReindex);
     FlushStateToDisk();
     logCritical(Log::Bitcoin) << "Reindexing finished";
     // To avoid ending up in a situation without genesis block, re-try initializing (no-op if reindexing worked):

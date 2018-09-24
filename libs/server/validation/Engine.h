@@ -157,6 +157,14 @@ public:
      */
     void shutdown();
 
+    /**
+     * A fully initialized validation engine is idling until something
+     * is added.
+     * If a backlog of blocks to check was left last shutdown, calling start
+     * will start processing those.
+     */
+    void start();
+
     /// \internal
     std::weak_ptr<ValidationEnginePrivate> priv();
 

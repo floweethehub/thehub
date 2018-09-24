@@ -35,6 +35,8 @@ const char *TestFloweeBase::currentTestName()
     const char * classname = metaObject()->className();
     size_t len1 = strlen(classname);
     const char * testName = QTest::currentTestFunction();
+    if (!testName)
+        return nullptr;
     const size_t len2 = strlen(testName);
     const size_t total = len1 + len2 + 2;
     size_t offset = total >= sizeof(m_currentTestname) ? total - sizeof(m_currentTestname) : 0;

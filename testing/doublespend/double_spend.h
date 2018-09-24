@@ -23,12 +23,8 @@
 class TestDoubleSpend : public TestFloweeSession
 {
     Q_OBJECT
-public:
-    // TestDoubleSpend();
-
-public slots:
+private slots:
     void test();
 };
 
 #endif
-

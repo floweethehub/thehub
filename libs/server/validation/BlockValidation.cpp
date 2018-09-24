@@ -276,10 +276,16 @@ void ValidationEnginePrivate::blockHeaderValidated(std::shared_ptr<BlockValidati
         }
     }
 
-    CBlockIndex *tip = Blocks::DB::instance()->headerChain().Tip();
-    assert(tip);
-    if (currentHeaderTip != tip)
-        logCritical(Log::BlockValidation).nospace() << "new best header=" << *tip->phashBlock << " height=" << tip->nHeight << " orphans=" << orphanBlocks.size();
+    CBlockIndex *prevTip = Blocks::DB::instance()->headerChain().Tip();
+    assert(prevTip);
+    if (currentHeaderTip != prevTip) {
+        const CBlockIndex *chainTip = tip;
+        const bool farBehind = chainTip && chainTip->nHeight - 1008 < prevTip->nHeight;
+        if (!farBehind || previousPrintedHeaderHeight + 1000 < prevTip->nHeight) {
+            logCritical(Log::BlockValidation).nospace() << "new best header=" << *prevTip->phashBlock << " height=" << prevTip->nHeight << " orphans=" << orphanBlocks.size();
+            previousPrintedHeaderHeight = prevTip->nHeight;
+        }
+    }
 
     if (currentHeaderTip && !Blocks::DB::instance()->headerChain().Contains(currentHeaderTip)) { // re-org happened in headers.
         logInfo(Log::BlockValidation) << "Header-reorg detected. Old-tip" << *currentHeaderTip->phashBlock << "@" << currentHeaderTip->nHeight;
@@ -696,7 +702,8 @@ void ValidationEnginePrivate::processNewBlock(std::shared_ptr<BlockValidationSta
     if (!FlushStateToDisk(val, FLUSH_STATE_IF_NEEDED))
         fatal(val.GetRejectReason().c_str());
 
-    logCritical(Log::BlockValidation).nospace() << "new best=" << hash << " height=" << index->nHeight
+    if (state->flags.enableValidation || index->nHeight > 250000 || index->nHeight % 1000 == 0)
+        logCritical(Log::BlockValidation).nospace() << "new best=" << hash << " height=" << index->nHeight
             << " tx=" << blockchain->Tip()->nChainTx
             << " date=" << DateTimeStrFormat("%Y-%m-%d %H:%M:%S", index->GetBlockTime()).c_str()
             << Log::Fixed << Log::precision(1);
@@ -901,7 +908,7 @@ void ValidationEnginePrivate::findMoreJobs()
         try {
             state->load();
             if (state->m_block.size() <= 90)
-                throw std::runtime_error("Excpected full block");
+                throw std::runtime_error("Expected full block");
         } catch (const std::runtime_error &e) {
             logWarning(Log::BlockValidation) << "Failed to load block" << state->m_blockPos << "got exception:" << e;
             index->nStatus ^= BLOCK_HAVE_DATA; // obviously not...
@@ -1187,7 +1194,8 @@ void BlockValidationState::checks1NoContext()
         if (m_block.size() == 0)
             load();
     } catch (const std::exception &e) {
-        logInfo() << "BlockValidationState: Failed to load block, ignoring. Error:" << e.what();
+        logInfo() << "BlockValidationState: Failed to load block, ignoring. Error:" << e.what()
+                  << "File idx:" << m_blockPos.nFile << "pos:" << m_blockPos.nPos;
         return;
     }
 #ifdef ENABLE_BENCHMARKS

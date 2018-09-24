@@ -223,7 +223,7 @@ std::vector<FastBlock> MockBlockValidation::appendChain(int blocks, CKey &coinba
         assert(tip);
         auto block = createBlock(tip, scriptPubKey);
         answer.push_back(block);
-        auto future = addBlock(block, Validation::SaveGoodToDisk, 0);
+        auto future = addBlock(block, Validation::SaveGoodToDisk, nullptr);
         future.setCheckPoW(allowFullChecks);
         future.setCheckMerkleRoot(allowFullChecks);
         future.start();

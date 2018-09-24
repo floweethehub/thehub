@@ -18,6 +18,7 @@
  */
 
 #include "TestFloweeSession.h"
+#include "script/sigcache.h"
 #include "MockApplication.h"
 #include <Application.h>
 #include <utxo/UnspentOutputDatabase.h>
@@ -35,6 +36,7 @@ UnspentOutputDatabase *g_utxo = nullptr;
 
 TestFloweeSession::TestFloweeSession(const std::string& chainName) : TestFloweeEnvPlusNet(chainName)
 {
+    InitSignatureCache();
     if (chainName == CBaseChainParams::REGTEST)
         Application::setUahfChainState(Application::UAHFActive);
 

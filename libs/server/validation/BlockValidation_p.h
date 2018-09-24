@@ -271,6 +271,7 @@ public:
 
 private:
     int lastFullBlockScheduled;
+    int previousPrintedHeaderHeight = 0;
 #ifdef ENABLE_BENCHMARKS
 
 public:

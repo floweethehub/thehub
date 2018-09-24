@@ -536,11 +536,6 @@ bool AppInit2(boost::thread_group& threadGroup, CScheduler& scheduler)
 
     // also see: InitParameterInteraction()
 
-    const std::string chainChoice = boost::to_lower_copy(GetArg("-chain", "bch"));
-    if (chainChoice != "btc" && chainChoice != "bch") {
-        return InitError("Unknown value passed to 'chain' param");
-    }
-
     // if using block pruning, then disable txindex
     if (GetArg("-prune", 0)) {
         if (GetBoolArg("-txindex", Settings::DefaultTxIndex))
@@ -1227,6 +1222,7 @@ bool AppInit2(boost::thread_group& threadGroup, CScheduler& scheduler)
         while (!fRequestShutdown && chainActive.Tip() == nullptr)
             MilliSleep(10);
     }
+    Application::instance()->validation()->start();
 
     // ********************************************************* Step 11: start node
 

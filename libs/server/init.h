@@ -42,7 +42,5 @@ void InitLogging();
 //!Parameter interaction: change current parameters depending on various rules
 void InitParameterInteraction();
 bool AppInit2(boost::thread_group& threadGroup, CScheduler& scheduler);
-void StartShutdown();
-bool ShutdownRequested();
 
 #endif

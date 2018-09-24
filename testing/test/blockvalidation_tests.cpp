@@ -21,6 +21,8 @@
 
 #include <validation/BlockValidation_p.h>
 #include <server/BlocksDB.h>
+#include <server/script/interpreter.h>
+#include <primitives/transaction.h>
 #include <chainparams.h>
 #include <key.h>
 #include <consensus/merkle.h>
@@ -45,7 +47,7 @@ BOOST_AUTO_TEST_CASE(reorderblocks)
     // in the Blocks::DB, so I can test reorgs.
     CKey coinbaseKey;
     coinbaseKey.MakeNewKey(true);
-    CScript scriptPubKey = CScript() <<  ToByteVector(coinbaseKey.GetPubKey()) << OP_CHECKSIG;
+    CScript scriptPubKey = CScript() << ToByteVector(coinbaseKey.GetPubKey()) << OP_CHECKSIG;
     FastBlock b4 = bv.createBlock(oldBlock3, scriptPubKey);
     // printf("B4: %s\n", b4.createHash().ToString().c_str());
     BOOST_CHECK(b4.previousBlockId() == *oldBlock3->phashBlock);
@@ -95,7 +97,7 @@ BOOST_AUTO_TEST_CASE(reorderblocks)
 
     BOOST_CHECK_EQUAL(bv.blockchain()->Height(), 3);
     BOOST_CHECK_EQUAL((*bv.blockchain())[3], oldBlock3); // unchanged.
-    CBlockIndex *null = 0;
+    CBlockIndex *null = nullptr;
     BOOST_CHECK_EQUAL((*bv.blockchain())[4], null);
 
     bv.shutdown(); // avoid our validation-states being deleted here causing issues.
@@ -111,7 +113,7 @@ BOOST_AUTO_TEST_CASE(reorderblocks2)
     std::vector<FastBlock> blocks = bv.createChain(oldBlock11, 10);
     BOOST_CHECK_EQUAL(blocks.size(), (size_t) 10);
     for (const FastBlock &block : blocks) {
-        bv.addBlock(block, Validation::SaveGoodToDisk, 0);
+        bv.addBlock(block, Validation::SaveGoodToDisk, nullptr);
     }
     bv.waitValidationFinished();
     BOOST_CHECK_EQUAL(bv.blockchain()->Height(), 21);
@@ -125,7 +127,7 @@ BOOST_AUTO_TEST_CASE(detectOrder)
     std::vector<FastBlock> blocks = bv.createChain(bv.blockchain()->Tip(), 20);
     // add them all, in reverse order, in order to test if the code is capable of finding the proper ordering of the blocks
     BOOST_REVERSE_FOREACH (const FastBlock &block, blocks) {
-        bv.addBlock(block, Validation::SaveGoodToDisk, 0);
+        bv.addBlock(block, Validation::SaveGoodToDisk, nullptr);
     }
     bv.waitValidationFinished();
     BOOST_CHECK_EQUAL(bv.blockchain()->Height(), 20);
@@ -146,11 +148,11 @@ BOOST_AUTO_TEST_CASE(detectOrder2)
     FastBlock header = createHeader(full);
     blocks[8] = header;
     for (const FastBlock &block : blocks) {
-        bv.addBlock(block, Validation::SaveGoodToDisk, 0);
+        bv.addBlock(block, Validation::SaveGoodToDisk, nullptr);
     }
     bv.waitValidationFinished();
     BOOST_CHECK_EQUAL(bv.blockchain()->Height(), 8); // it stopped at the header, not processing the last block because of that.
-    bv.addBlock(full, Validation::SaveGoodToDisk, 0);
+    bv.addBlock(full, Validation::SaveGoodToDisk, nullptr);
     bv.waitValidationFinished();
     CBlockIndex *dummy = new CBlockIndex();
     uint256 dummySha;
@@ -163,11 +165,11 @@ BOOST_AUTO_TEST_CASE(detectOrder2)
     // now again, but with a bigger gap than 1
     blocks = bv.createChain(bv.blockchain()->Tip(), 10);
     std::vector<FastBlock> copy(blocks);
-    for (int i = 3; i < 7; ++i) {
+    for (size_t i = 3; i < 7; ++i) {
         blocks[i] = createHeader(blocks[i]);
     }
     for (const FastBlock &block : blocks) {
-        bv.addBlock(block, Validation::SaveGoodToDisk, 0);
+        bv.addBlock(block, Validation::SaveGoodToDisk, nullptr);
     }
     bv.waitValidationFinished();
     BOOST_CHECK_EQUAL(bv.blockchain()->Height(), 13);
@@ -175,12 +177,53 @@ BOOST_AUTO_TEST_CASE(detectOrder2)
     logDebug() << "again";
     // add them again, in reverse order, in order to test if the code is capable of finding the proper ordering of the blocks
     BOOST_REVERSE_FOREACH (const FastBlock &block, copy) {
-        bv.addBlock(block, Validation::SaveGoodToDisk, 0);
+        bv.addBlock(block, Validation::SaveGoodToDisk, nullptr);
     }
     bv.waitValidationFinished();
     bv.invalidateBlock(dummy); // this is quite irrelevant to the feature we test, except that we know this syncs on the strand
     bv.waitValidationFinished();
     BOOST_CHECK_EQUAL(bv.blockchain()->Height(), 20);
+}
+
+BOOST_AUTO_TEST_CASE(duplicateInput)
+{
+    CKey coinbaseKey;
+    coinbaseKey.MakeNewKey(true);
+    // create a chain of 101 blocks.
+    std::vector<FastBlock> blocks = bv.appendChain(101, coinbaseKey);
+    assert(blocks.size() == 101);
+    CMutableTransaction newTx;
+    newTx.vout.resize(1);
+    newTx.vout[0].nValue = 11 * CENT;
+    CScript scriptPubKey = CScript() <<  ToByteVector(coinbaseKey.GetPubKey()) << OP_CHECKSIG;
+    newTx.vout[0].scriptPubKey = scriptPubKey;
+    CTxIn input;
+    input.prevout.n = 0;
+    input.prevout.hash = blocks.front().createHash();
+    newTx.vin.push_back(input);
+    newTx.vin.push_back(input); // duplicate input
+
+    // Sign
+    std::vector<unsigned char> vchSig;
+    uint256 hash = SignatureHash(scriptPubKey, newTx, 0, 50 * COIN, SIGHASH_ALL | SIGHASH_FORKID, SCRIPT_ENABLE_SIGHASH_FORKID);
+    BOOST_CHECK(coinbaseKey.Sign(hash, vchSig));
+    vchSig.push_back((unsigned char)SIGHASH_ALL + SIGHASH_FORKID);
+    newTx.vin[0].scriptSig << vchSig;
+    newTx.vin[1].scriptSig << vchSig;
+
+    FastBlock newBlock = bv.createBlock(bv.blockchain()->Tip());
+    {
+        CBlock block = newBlock.createOldBlock();
+        block.vtx.push_back(newTx);
+        newBlock = FastBlock::fromOldBlock(block);
+        BOOST_CHECK_EQUAL(block.vtx.size(), 2);
+    }
+    auto future = bv.addBlock(newBlock, Validation::SaveGoodToDisk);
+    future.setCheckPoW(false);
+    future.setCheckMerkleRoot(false);
+    future.start();
+    future.waitUntilFinished();
+    BOOST_CHECK_EQUAL(future.error(), std::string("bad-txns-inputs-duplicate"));
 }
 
 BOOST_AUTO_TEST_SUITE_END()

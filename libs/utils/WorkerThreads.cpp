@@ -54,12 +54,14 @@ WorkerThreads::~WorkerThreads()
 void WorkerThreads::stopThreads()
 {
     m_work.reset();
-    m_ioservice->stop();
+    if (m_ioservice.get()) // it gets reset() by joinAll
+        m_ioservice->stop();
 }
 
 void WorkerThreads::joinAll()
 {
     m_threads.join_all();
+    m_ioservice.reset(); // tasks don't get garbage-collected until the destructor is ran
 }
 
 boost::asio::io_service& WorkerThreads::ioService()

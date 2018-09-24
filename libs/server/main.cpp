@@ -2303,14 +2303,11 @@ bool static ProcessMessage(CNode* pfrom, std::string strCommand, CDataStream& vR
     {
         // Stop processing the transaction early if
         // We are in blocks only mode and peer is either not whitelisted or whitelistrelay is off
-        if (GetBoolArg("-blocksonly", Settings::DefaultBlocksOnly) && (!pfrom->fWhitelisted || !GetBoolArg("-whitelistrelay", Settings::DefaultWhitelistRelay)))
-        {
+        if (GetBoolArg("-blocksonly", Settings::DefaultBlocksOnly) && (!pfrom->fWhitelisted || !GetBoolArg("-whitelistrelay", Settings::DefaultWhitelistRelay))) {
             LogPrint("net", "transaction sent in violation of protocol peer=%d\n", pfrom->id);
             return true;
         }
 
-        std::vector<uint256> vWorkQueue;
-        std::vector<uint256> vEraseQueue;
         CTransaction tx;
         vRecv >> tx;
 

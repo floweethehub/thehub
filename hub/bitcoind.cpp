@@ -166,11 +166,13 @@ bool AppInit(int argc, char* argv[])
         InitParameterInteraction();
         fRet = AppInit2(threadGroup, scheduler);
 
-        apiServer.reset(new Api::Server(Application::instance()->ioService()));
-        addressMonitorService.reset(new AddressMonitorService());
-        extern CTxMemPool mempool;
-        addressMonitorService->setMempool(&mempool);
-        apiServer->addService(addressMonitorService.get());
+        if (fRet) {
+            apiServer.reset(new Api::Server(Application::instance()->ioService()));
+            addressMonitorService.reset(new AddressMonitorService());
+            extern CTxMemPool mempool;
+            addressMonitorService->setMempool(&mempool);
+            apiServer->addService(addressMonitorService.get());
+        }
     }
     catch (const std::exception& e) {
         PrintExceptionContinue(&e, "AppInit()");
@@ -187,6 +189,8 @@ bool AppInit(int argc, char* argv[])
     } else {
         WaitForShutdown(&threadGroup);
     }
+    addressMonitorService.reset();
+    apiServer.reset();
     Shutdown();
 
     return fRet;
