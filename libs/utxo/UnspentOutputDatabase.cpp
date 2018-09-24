@@ -1421,7 +1421,7 @@ std::string DataFileCache::writeInfoFile(DataFile *source)
 
 bool DataFileCache::load(const DataFileCache::InfoFile &info, DataFile *target)
 {
-    logCritical(Log::UTXO) << "Loading" << filenameFor(info.index).string();
+    logInfo(Log::UTXO) << "Loading" << filenameFor(info.index).string();
     assert(info.index >= 0);
     std::ifstream in(filenameFor(info.index).string(), std::ios::binary | std::ios::in);
     if (!in.is_open())
