@@ -311,7 +311,7 @@ void Pruner::prune()
                 assert(!bucket.unspentOutputs.empty());
                 int32_t newPos = bucket.saveToDisk(outBuf);
                 assert(newPos >= 0);
-                jumptable[createShortHash(bucket.unspentOutputs.front().cheapHash)] = newPos;
+                jumptable[createShortHash(bucket.unspentOutputs.front().cheapHash)] = static_cast<uint32_t>(newPos);
             }
         }
         outFileSize = outBuf.offset();

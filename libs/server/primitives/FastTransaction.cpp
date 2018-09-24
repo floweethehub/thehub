@@ -37,7 +37,7 @@ Tx::Tx(const Streaming::ConstBuffer &rawTransaction)
 
 uint32_t Tx::txVersion() const
 {
-    return static_cast<int32_t>(le32toh(*((uint32_t*)m_data.begin())));
+    return static_cast<uint32_t>(le32toh(*((uint32_t*)m_data.begin())));
 }
 
 uint256 Tx::createHash() const
@@ -54,7 +54,7 @@ CTransaction Tx::createOldTransaction() const
     CTransaction answer;
     CDataStream buf(m_data.begin(), m_data.end(), 0 , 0);
     answer.Unserialize(buf, 0, 0);
-    return std::move(answer);
+    return answer;
 }
 
 int64_t Tx::offsetInBlock(const FastBlock &block) const
@@ -306,7 +306,7 @@ Tx Tx::Iterator::prevTx() const
 
 Streaming::ConstBuffer Tx::Iterator::byteData() const
 {
-    return std::move(Streaming::ConstBuffer(d->m_data.internal_buffer(), d->m_currentTokenStart, d->m_currentTokenEnd));
+    return Streaming::ConstBuffer(d->m_data.internal_buffer(), d->m_currentTokenStart, d->m_currentTokenEnd);
 }
 
 int32_t Tx::Iterator::intData() const
@@ -339,7 +339,7 @@ uint256 Tx::Iterator::uint256Data() const
 {
     assert (d->m_currentTokenEnd - d->m_currentTokenStart >= 32);
     uint256 answer(d->m_currentTokenStart);
-    return std::move(answer);
+    return answer;
 }
 
 bool operator==(const Tx::Input &a, const Tx::Input &b)
