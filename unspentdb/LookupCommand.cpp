@@ -17,10 +17,56 @@
  */
 #include "LookupCommand.h"
 
-// private header for createShortHas()
+// private header for createShortHash()
 #include <utxo/UnspentOutputDatabase_p.h>
 
+#include <primitives/FastTransaction.h>
+#include <server/dbwrapper.h>
+
+#include <QDir>
+#include <QFileInfo>
+#include <chain.h>
+
+
 static void nothing(const char *){}
+
+namespace {
+static const char DB_BLOCK_INDEX = 'b';
+class BlocksDB : public CDBWrapper
+{
+public:
+    BlocksDB(const boost::filesystem::path& path)
+        : CDBWrapper(path / "blocks" / "index", 1000, false, false)
+    {
+    }
+
+    bool findBlock(int blockHeight, int &rFile, int &rPos)
+    {
+        boost::scoped_ptr<CDBIterator> pcursor(NewIterator());
+        pcursor->Seek(std::make_pair(DB_BLOCK_INDEX, uint256()));
+        while (pcursor->Valid()) {
+            std::pair<char, uint256> key;
+            if (pcursor->GetKey(key) && key.first == DB_BLOCK_INDEX) {
+                CDiskBlockIndex diskindex;
+                if (pcursor->GetValue(diskindex)) {
+                    if (diskindex.nHeight == blockHeight && (diskindex.nStatus & BLOCK_FAILED_MASK) == 0) {
+                        rFile = diskindex.nFile;
+                        rPos = diskindex.nDataPos;
+                        return true;
+                    }
+                    pcursor->Next();
+                } else {
+                    return false;
+                }
+            } else {
+                break;
+            }
+        }
+        return false;
+    }
+};
+}
+
 
 LookupCommand::LookupCommand()
     : m_printDebug(QStringList() << "v" << "debug", "Print internal DB details"),
@@ -41,6 +87,56 @@ void LookupCommand::addArguments(QCommandLineParser &commandLineParser)
     commandLineParser.addOption(m_printDebug);
     commandLineParser.addOption(m_all);
     commandLineParser.addOption(m_filepos);
+}
+
+void LookupCommand::findTransaction(const AbstractCommand::Leaf &leaf)
+{
+    QFileInfo info(dbDataFile().filepath());
+    QDir dir = info.absoluteDir();
+    dir.cdUp();
+    BlocksDB db(dir.absolutePath().toStdString());
+    int fileno, blockPos;
+    if (db.findBlock(leaf.blockHeight, fileno, blockPos)) {
+        dir.cd("blocks");
+        QFile file(dir.filePath(QString("blk%1.dat").arg(QString::number(fileno), 5, QLatin1Char('0'))));
+        if (!file.open(QIODevice::ReadOnly)) {
+            err << "Failed to open block file" << file.fileName() << endl;
+            return;
+        }
+        if (!file.seek(blockPos - 4)) {
+            err << "Block file too small" << endl;
+            return;
+        }
+        QByteArray blockSizeBytes = file.read(4);
+        uint32_t blockSize = le32toh(*(reinterpret_cast<const std::uint32_t*>(blockSizeBytes.data())));
+        if (leaf.offsetInBlock >= blockSize) {
+            err << "Block smaller than offset of transaction" << endl;
+            return;
+        }
+        if (!file.seek(blockPos + leaf.offsetInBlock)) {
+            err << "Seek failed to move to transaction pos" << endl;
+            return;
+        }
+        const int size = blockSize - leaf.offsetInBlock;
+        Streaming::BufferPool pool(size);
+        file.read(pool.begin(), size);
+        Tx tx(pool.commit(size));
+        Tx::Output output = tx.output(leaf.outIndex);
+        if (output.outputScript.size() == 0) {
+            err << "Could not find the output";
+            return;
+        }
+        out << " +- Value: " << output.outputValue << " sat" << endl;
+        out << " +- Script: 0x";
+        for (int i = 0; i < output.outputScript.size(); ++i) {
+            QString hex = QString::number(output.outputScript[i], 16);
+            if (hex.length() < 2)
+                out << "0";
+            out << hex;
+        }
+        out << endl;
+        out << endl;
+    }
 }
 
 Flowee::ReturnCodes LookupCommand::run()
@@ -143,6 +239,8 @@ Flowee::ReturnCodes LookupCommand::run()
                     out << "  tx is in block " << leaf.blockHeight << ", tx is at bytepos in block: " << leaf.offsetInBlock << endl;
                     out << "  Leaf file offset: " << leafRef.pos << endl;
                 }
+
+                findTransaction(leaf);
             }
             if (foundOne)
                 return Flowee::Ok;

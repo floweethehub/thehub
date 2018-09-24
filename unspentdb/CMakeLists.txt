@@ -38,7 +38,9 @@ add_executable(unspent-db
 target_link_libraries(unspent-db
     flowee_utils
     flowee_utxo
+    flowee_server
 
+    ${LEVELDB_LIBRARY}
     ${OPENSSL_LIBRARIES}
     ${Boost_LIBRARIES}
     ${BOOST_THREAD_LIBRARY}

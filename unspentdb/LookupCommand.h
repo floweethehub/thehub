@@ -34,6 +34,7 @@ protected:
     void addArguments(QCommandLineParser &commandLineParser);
 
 private:
+    void findTransaction(const Leaf &leaf);
     QCommandLineOption m_printDebug;
     QCommandLineOption m_all;
     QCommandLineOption m_filepos;
