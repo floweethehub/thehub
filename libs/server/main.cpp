@@ -1541,7 +1541,8 @@ bool LoadBlockIndexDB()
     logCritical(Log::Bitcoin) << "LoadBlockIndexDB: hashBestChain:" << tip->GetBlockHash()
                                  << "height:" << chainActive.Height()
                                  << "date:" << DateTimeStrFormat("%Y-%m-%d %H:%M:%S", tip->GetBlockTime())
-                                 << "progress:" <<  Checkpoints::GuessVerificationProgress(chainparams.Checkpoints(), tip);
+                                 << "progress:" <<  Checkpoints::GuessVerificationProgress(chainparams.Checkpoints(), tip)
+                                 << "header height:" << Blocks::DB::instance()->headerChain().Height();
 
     pindexBestHeader = chainActive.Tip();
     return true;

@@ -702,7 +702,7 @@ void ValidationEnginePrivate::processNewBlock(std::shared_ptr<BlockValidationSta
     if (!FlushStateToDisk(val, FLUSH_STATE_IF_NEEDED))
         fatal(val.GetRejectReason().c_str());
 
-    if (state->flags.enableValidation || index->nHeight > 250000 || index->nHeight % 1000 == 0)
+    if (state->flags.enableValidation || index->nHeight % 500 == 0)
         logCritical(Log::BlockValidation).nospace() << "new best=" << hash << " height=" << index->nHeight
             << " tx=" << blockchain->Tip()->nChainTx
             << " date=" << DateTimeStrFormat("%Y-%m-%d %H:%M:%S", index->GetBlockTime()).c_str()
