@@ -609,8 +609,21 @@ int main(int argc, char *argv[])
     // User language is set up: pick a data directory
     Intro::pickDataDirectory();
 
-    /// 6. Determine availability of data directory and parse bitcoin.conf
-    /// - Do not call GetDataDir(true) before this step finishes
+    // 6. Determine network (and switch to network specific options)
+    // - Do not call Params() before this step
+    // - QSettings() will use the new application name after this, resulting in network-specific settings
+    // - Needs to be done before createOptionsModel
+    // - Do not call GetDataDir(true) before this step finishes
+
+    // Check for -testnet or -regtest parameter (Params() calls are only valid after this clause)
+    try {
+        SelectParams(ChainNameFromCommandLine());
+    } catch(std::exception &e) {
+        QMessageBox::critical(0, QObject::tr("Flowee"), QObject::tr("Error: %1").arg(e.what()));
+        return 1;
+    }
+
+    // 7. Determine availability of data directory and parse flowee.conf
     std::string dd = GetArg("-datadir", "");
     if (!dd.empty()) {
         auto path = boost::filesystem::system_complete(dd);
@@ -632,19 +645,6 @@ int main(int argc, char *argv[])
     // UI per-platform customization
     app.createPlatformStyle();
 
-    /// 7. Determine network (and switch to network specific options)
-    // - Do not call Params() before this step
-    // - Do this after parsing the configuration file, as the network can be switched there
-    // - QSettings() will use the new application name after this, resulting in network-specific settings
-    // - Needs to be done before createOptionsModel
-
-    // Check for -testnet or -regtest parameter (Params() calls are only valid after this clause)
-    try {
-        SelectParams(ChainNameFromCommandLine());
-    } catch(std::exception &e) {
-        QMessageBox::critical(0, QObject::tr("Flowee"), QObject::tr("Error: %1").arg(e.what()));
-        return 1;
-    }
 #ifdef ENABLE_WALLET
     // Parse URIs on command line
     PaymentServer::ipcParseCommandLine(argc, argv);

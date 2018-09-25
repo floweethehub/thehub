@@ -380,13 +380,14 @@ boost::filesystem::path GetConfigFile(const std::string &filename)
 
 #if defined(WIN32) || defined(MAC_OSX)
     // Windows and Mac
-    return GetDataDir(false) / pathConfigFile;
+    return GetDataDir(true) / pathConfigFile;
 #else
-    // Unix
-    fs::path pathLegacyConfigFile = GetDataDir(false) / pathConfigFile;
-    if (fs::exists(pathLegacyConfigFile))
-        return pathLegacyConfigFile;
+    // Unix. First check datadir
+    fs::path pathConfInDatadir = GetDataDir(true) / pathConfigFile;
+    if (fs::exists(pathConfInDatadir))
+        return pathConfInDatadir;
 
+    // then check user-specific config dir
     fs::path pathConfigHome;
     char* pszConfigHome = getenv("XDG_CONFIG_HOME");
     if (pszConfigHome == nullptr || strlen(pszConfigHome) == 0) {
@@ -403,7 +404,7 @@ boost::filesystem::path GetConfigFile(const std::string &filename)
         pathConfigHome = fs::path(pszConfigHome);
     }
 
-    return pathConfigHome / "flowee" / pathConfigFile;
+    return pathConfigHome / "flowee" / BaseParams().DataDir() / pathConfigFile;
 #endif
 }
 
@@ -579,7 +580,7 @@ void AllocateFileRange(FILE *file, unsigned int offset, unsigned int length) {
 void ShrinkDebugFile()
 {
     // Scroll debug.log if it's getting too big
-    boost::filesystem::path pathLog = GetDataDir() / "debug.log";
+    boost::filesystem::path pathLog = GetDataDir() / "hub.log";
     FILE* file = fopen(pathLog.string().c_str(), "r");
     if (file && boost::filesystem::file_size(pathLog) > 10 * 1000000)
     {
