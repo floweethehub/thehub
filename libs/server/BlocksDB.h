@@ -37,6 +37,7 @@ class CChainParams;
 class uint256;
 class FastBlock;
 class CChain;
+class CScheduler;
 
 namespace Blocks {
 
@@ -63,7 +64,7 @@ public:
      * @param[in] fWipe       If true, remove all existing data.
      * @see instance()
      */
-    static void createInstance(size_t nCacheSize, bool fWipe);
+    static void createInstance(size_t nCacheSize, bool fWipe, CScheduler *scheduler = nullptr);
     /// Deletes old singleton and creates a new one for unit testing.
     static void createTestInstance(size_t nCacheSize);
     static void shutdown();

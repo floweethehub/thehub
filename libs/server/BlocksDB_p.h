@@ -31,6 +31,7 @@
 #include <boost/iostreams/device/mapped_file.hpp>
 
 class CBlockIndex;
+class CScheduler;
 
 namespace Blocks {
 
@@ -44,6 +45,14 @@ struct DataFile {
 enum BlockType {
     ForwardBlock,
     RevertBlock
+};
+
+struct FileHistoryEntry {
+    FileHistoryEntry(const std::shared_ptr<char> &dataFile, int64_t lastAccessed)
+        : dataFile(dataFile), lastAccessed(lastAccessed) {}
+
+    std::shared_ptr<char> dataFile;
+    int64_t lastAccessed = 0;
 };
 
 class DBPrivate  : public std::enable_shared_from_this<DBPrivate> {
@@ -66,6 +75,10 @@ public:
     void fileHasGrown(int fileIndex);
     void revertFileHasGrown(int fileIndex);
 
+    // close files from filehistory that have been unused for some time.
+    void setScheduler(CScheduler *scheduler);
+    void closeFiles();
+
     CChain headersChain;
     std::list<CBlockIndex*> headerChainTips;
 
@@ -74,7 +87,7 @@ public:
     std::recursive_mutex lock;
     std::vector<DataFile*> datafiles;
     std::vector<DataFile*> revertDatafiles;
-    std::list<std::shared_ptr<char> > fileHistory; // keep the last 10 to avoid opening and closing files all the time.
+    std::list<FileHistoryEntry> fileHistory; // keep the last 10 to avoid opening and closing files all the time.
 
     std::mutex blockIndexLock;
 

@@ -27,6 +27,7 @@
 #include <validation/Engine.h>
 
 #include "chain.h"
+#include "scheduler.h"
 #include "main.h"
 #include "uint256.h"
 #include <SettingsDefaults.h>
@@ -146,10 +147,12 @@ Blocks::DB *Blocks::DB::instance()
     return Blocks::DB::s_instance;
 }
 
-void Blocks::DB::createInstance(size_t nCacheSize, bool fWipe)
+void Blocks::DB::createInstance(size_t nCacheSize, bool fWipe, CScheduler *scheduler)
 {
     delete Blocks::DB::s_instance;
     Blocks::DB::s_instance = new Blocks::DB(nCacheSize, false, fWipe);
+    if (scheduler)
+        Blocks::DB::s_instance->priv()->setScheduler(scheduler);
 }
 
 void Blocks::DB::createTestInstance(size_t nCacheSize)
@@ -814,11 +817,18 @@ std::shared_ptr<char> Blocks::DBPrivate::mapFile(int fileIndex, Blocks::BlockTyp
             if (size_out) *size_out = 0;
             return std::shared_ptr<char>();
         }
-        // keep the last 10 used referenced to avoid closing and opening files all the time
-        fileHistory.push_back(buf);
-        if (fileHistory.size() > 10)
-            fileHistory.erase(fileHistory.begin());
     }
+    bool found = false;
+    for (auto iter = fileHistory.begin(); iter != fileHistory.end(); ++iter) {
+        if (iter->dataFile.get() == buf.get()) {
+            iter->lastAccessed = GetTime();
+            found = true;
+            break;
+        }
+    }
+    if (!found)
+        fileHistory.push_back(FileHistoryEntry(buf, GetTime()));
+
     if (size_out) *size_out = df->filesize;
     if (isWritable)
         *isWritable = df->file.flags() == boost::iostreams::mapped_file::readwrite;
@@ -845,4 +855,24 @@ void Blocks::DBPrivate::revertFileHasGrown(int fileIndex)
     // extant shard_ptr buffers.  When they get deleted, ptr will also.
     // (see cleanupLambda in mapFile() above)
     revertDatafiles[static_cast<size_t>(fileIndex)] = nullptr;
+}
+
+void Blocks::DBPrivate::setScheduler(CScheduler *scheduler)
+{
+    scheduler->scheduleEvery(std::bind(&Blocks::DBPrivate::closeFiles, this), 20);
+}
+
+void Blocks::DBPrivate::closeFiles()
+{
+    std::lock_guard<std::recursive_mutex> lock_(lock);
+    size_t count = fileHistory.size();
+    const int64_t halfAMinuteAgo = GetTime() - 30;
+    for (auto iter = fileHistory.begin(); iter != fileHistory.end();) {
+        if (iter->lastAccessed < halfAMinuteAgo)
+            iter = fileHistory.erase(iter);
+        else
+            ++iter;
+    }
+    if (count != fileHistory.size())
+        logInfo(Log::DB).nospace() << "Close block files unmapped " << (count - fileHistory.size()) << "/" << count << " files";
 }

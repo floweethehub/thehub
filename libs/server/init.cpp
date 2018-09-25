@@ -815,7 +815,7 @@ bool AppInit2(boost::thread_group& threadGroup, CScheduler& scheduler)
                 UnloadBlockIndex();
                 delete g_utxo;
                 g_utxo = nullptr;
-                Blocks::DB::createInstance(nBlockTreeDBCache, fReindex);
+                Blocks::DB::createInstance(nBlockTreeDBCache, fReindex, &scheduler);
                 const auto utxoDir = GetDataDir() / "unspent";
                 if (fReindex) {
                     boost::system::error_code error;
