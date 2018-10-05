@@ -859,16 +859,16 @@ void Blocks::DBPrivate::revertFileHasGrown(int fileIndex)
 
 void Blocks::DBPrivate::setScheduler(CScheduler *scheduler)
 {
-    scheduler->scheduleEvery(std::bind(&Blocks::DBPrivate::closeFiles, this), 20);
+    scheduler->scheduleEvery(std::bind(&Blocks::DBPrivate::closeFiles, this), 10);
 }
 
 void Blocks::DBPrivate::closeFiles()
 {
     std::lock_guard<std::recursive_mutex> lock_(lock);
     size_t count = fileHistory.size();
-    const int64_t halfAMinuteAgo = GetTime() - 30;
+    const int64_t timeOut = GetTime() - (count < 100 ? 30 : 10); // amount of seconds to keep files open
     for (auto iter = fileHistory.begin(); iter != fileHistory.end();) {
-        if (iter->lastAccessed < halfAMinuteAgo)
+        if (iter->lastAccessed < timeOut)
             iter = fileHistory.erase(iter);
         else
             ++iter;
