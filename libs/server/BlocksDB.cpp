@@ -679,14 +679,9 @@ Streaming::ConstBuffer Blocks::DBPrivate::writeBlock(const std::deque<Streaming:
         const auto path = getFilepathForIndex(pos.nFile, useBlk ? "blk" : "rev");
         logDebug(Log::DB) << "Starting new file" << path.string();
         std::lock_guard<std::recursive_mutex> lock_(lock);
-        int newFileSize = std::max(blockSize + 8, static_cast<int>(useBlk ? BLOCKFILE_CHUNK_SIZE : UNDOFILE_CHUNK_SIZE));
-#ifdef WIN32
-        // due to the fact that on Windows we can't re-map, we skip the growing steps.
-        newFileSize = MAX_BLOCKFILE_SIZE;
-#endif
         boost::filesystem::ofstream file(path);
         file.close();
-        boost::filesystem::resize_file(path, static_cast<size_t>(newFileSize));
+        boost::filesystem::resize_file(path, static_cast<size_t>(MAX_BLOCKFILE_SIZE));
     }
     size_t fileSize;
     bool writable;
@@ -700,27 +695,6 @@ Streaming::ConstBuffer Blocks::DBPrivate::writeBlock(const std::deque<Streaming:
         throw std::runtime_error("File is not writable");
     }
     uint32_t *posInFile = useBlk ? &info.nSize : &info.nUndoSize;
-#ifndef WIN32
-    while (*posInFile + static_cast<size_t>(blockSize) + 8 + (useBlk ? 0 : 32) >= fileSize) {
-        const auto path = getFilepathForIndex(pos.nFile, useBlk ? "blk" : "rev");
-        logDebug(Log::DB) << "File" << path.string() << "needs to be resized";
-        const size_t newFileSize = fileSize + (useBlk ? BLOCKFILE_CHUNK_SIZE : UNDOFILE_CHUNK_SIZE);
-        { // scope the lock
-            std::lock_guard<std::recursive_mutex> lock_(lock);
-            useBlk ? fileHasGrown(pos.nFile) : revertFileHasGrown(pos.nFile);
-            boost::filesystem::resize_file(path, newFileSize);
-        }
-        buf = mapFile(pos.nFile, type, &fileSize, &writable);
-        if (buf.get() == nullptr) {
-            logFatal(Log::DB) << "Failed resize";
-            throw std::runtime_error("Failed to open resized file");
-        }
-        if (!writable) {
-            logFatal(Log::DB) << "Resized file no longer readable";
-            throw std::runtime_error("Resized file no longer readable");
-        }
-    }
-#endif
     pos.nPos = *posInFile + 8;
     char *data = buf.get() + *posInFile;
     memcpy(data, Params().MessageStart(), 4);

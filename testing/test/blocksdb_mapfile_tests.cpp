@@ -166,58 +166,6 @@ BOOST_AUTO_TEST_CASE(mapFile_write)
         BOOST_CHECK_EQUAL(block4.blockVersion(), 0x4030201);
         BOOST_CHECK(block4.data().begin()[119] == 120);
     }
-
-    pool.reserve(1E6);
-    FastBlock big = pool.commit(1E6);
-
-    int remapLeft = BLOCKFILE_CHUNK_SIZE - 120 - 100;
-    while (remapLeft > 0) {
-        // at one point we will be auto-extending the file.
-        db->writeBlock(big, pos);
-        remapLeft -= big.size();
-    }
-
-    {
-        FastBlock newBlock = db->writeBlock(block2, pos);
-        BOOST_CHECK_EQUAL(newBlock.size(), 120);
-        BOOST_CHECK_EQUAL(newBlock.blockVersion(), 0x4030201);
-    }
-}
-
-BOOST_AUTO_TEST_CASE(mapFile_writeUndo)
-{
-    /*
-    BOOST_CHECK_EQUAL(vinfoBlockFile.size(), 1);
-    vinfoBlockFile[0].nSize = MAX_BLOCKFILE_SIZE - 107;
-
-    Blocks::DB *db = Blocks::DB::instance();
-    Streaming::BufferPool pool;
-
-    CBlockUndo undoBlock;
-    CTxInUndo in = { { 10, CScript() }, false, 10, 3 };
-    CTxUndo tx;
-    tx.vprevout.push_back(in);
-    undoBlock.vtxundo.push_back(tx);
-
-    FastUndoBlock block = FastUndoBlock::fromOldBlock(undoBlock);
-
-    uint256 random("0x3102389012829081203809128324729384712931203892379023802183017083");
-    BOOST_CHECK_EQUAL(block.size(), 6);
-    {
-        uint32_t pos;
-        FastUndoBlock newBlock = db->writeUndoBlock(block, random, 0, &pos);
-        BOOST_CHECK_EQUAL(newBlock.size(), 6);
-        BOOST_CHECK_EQUAL(pos, 8);
-    }
-    {
-        FastUndoBlock newBlock = db->loadUndoBlock(CDiskBlockPos(0, 8), random);
-        BOOST_CHECK_EQUAL(newBlock.size(), 6);
-        CBlockUndo block2 = newBlock.createOldBlock();
-        BOOST_CHECK_EQUAL(block2.vtxundo.size(), 1);
-        BOOST_CHECK_EQUAL(block2.vtxundo[0].vprevout.size(), 1);
-        BOOST_CHECK_EQUAL(block2.vtxundo[0].vprevout[0].nVersion, 3);
-    }
-    */
 }
 
 BOOST_AUTO_TEST_SUITE_END()
