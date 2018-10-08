@@ -177,18 +177,19 @@ UnspentOutputDatabase::UnspentOutputDatabase(UODBPrivate *priv)
 
 UnspentOutputDatabase::~UnspentOutputDatabase()
 {
-    {   std::lock_guard<std::mutex> lock(d->lock);
+    {
         if (!d->memOnly) {
             logCritical() << "Flushing UTXO cashes to disk...";
-            for (auto df : d->dataFiles) {
+            for (int i = 0; i < d->dataFiles.size(); ++i) {
+                auto df = d->dataFiles.at(i);
                 std::lock_guard<std::recursive_mutex> saveLock(df->m_saveLock);
                 std::lock_guard<std::recursive_mutex> lock2(df->m_lock);
                 df->rollback();
                 df->flushAll();
             }
         }
-        for (auto df : d->dataFiles) {
-            delete df;
+        for (int i = 0; i < d->dataFiles.size(); ++i) {
+            delete d->dataFiles.at(i);
         }
         d->dataFiles.clear();
     }
@@ -206,34 +207,16 @@ UnspentOutputDatabase *UnspentOutputDatabase::createMemOnlyDB(const boost::files
 
 void UnspentOutputDatabase::insert(const uint256 &txid, int outIndex, int blockHeight, int offsetInBlock)
 {
-    DataFile *df;
-    {
-        std::lock_guard<std::mutex> lock(d->lock);
-        df = d->dataFiles.back();
-        if (df->m_fileFull) {
-            d->doPrune = true;
-            DEBUGUTXO << "Creating a new DataFile" << d->dataFiles.size();
-            d->dataFiles.push_back(DataFile::createDatafile(d->filepathForIndex(static_cast<int>(d->dataFiles.size() + 1)),
-                    df->m_lastBlockHeight, df->m_lastBlockHash));
-            df = d->dataFiles.back();
-        }
-    }
-
-    df->insert(d, txid, outIndex, blockHeight, offsetInBlock);
+    d->dataFiles.last()->insert(d, txid, outIndex, blockHeight, offsetInBlock);
 }
 
 UnspentOutput UnspentOutputDatabase::find(const uint256 &txid, int index) const
 {
-    std::vector<DataFile*> dataFiles;
-    {
-        std::lock_guard<std::mutex> lock(d->lock);
-        dataFiles = d->dataFiles;
-    }
-
-    for (size_t i = dataFiles.size(); i > 0; --i) {
-        auto answer = dataFiles[i - 1]->find(txid, index);
+    COWList<DataFile*> dataFiles(d->dataFiles);
+    for (int i = dataFiles.size(); i > 0; --i) {
+        auto answer = dataFiles.at(i - 1)->find(txid, index);
         if (answer.isValid()) {
-            answer.m_privData += (i << 32);
+            answer.m_privData += (static_cast<uint64_t>(i) << 32);
             return answer;
         }
     }
@@ -246,26 +229,18 @@ SpentOutput UnspentOutputDatabase::remove(const uint256 &txid, int index, uint64
     const size_t dbHint = (rmHint >> 32) & 0xFFFFFF;
     const uint32_t leafHint = rmHint & 0xFFFFFFFF;
     if (dbHint == 0) { // we don't know which one holds the data, which means we'll have to try all until we got a hit.
-        std::vector<DataFile*> dataFiles;
-        {
-            std::lock_guard<std::mutex> lock(d->lock);
-            dataFiles = d->dataFiles;
-        }
-        for (size_t i = dataFiles.size(); i > 0; --i) {
-            done  = dataFiles[i - 1]->remove(d, txid, index, leafHint);
+        COWList<DataFile*> dataFiles(d->dataFiles);
+        for (int i = dataFiles.size(); i > 0; --i) {
+            done  = dataFiles.at(i - 1)->remove(d, txid, index, leafHint);
             if (done.isValid())
                 break;
         }
     }
     else {
         assert(dbHint > 0);
-        DataFile *df;
-        {
-            if (dbHint > d->dataFiles.size())
-                throw std::runtime_error("dbHint out of range");
-            std::lock_guard<std::mutex> lock(d->lock);
-            df = d->dataFiles.at(dbHint - 1);
-        }
+        if (dbHint > d->dataFiles.size())
+            throw std::runtime_error("dbHint out of range");
+        DataFile *df = d->dataFiles.at(dbHint - 1);
         done  = df->remove(d, txid, index, leafHint);
     }
     return done;
@@ -274,19 +249,28 @@ SpentOutput UnspentOutputDatabase::remove(const uint256 &txid, int index, uint64
 void UnspentOutputDatabase::blockFinished(int blockheight, const uint256 &blockId)
 {
     DEBUGUTXO << blockheight << blockId;
-    std::lock_guard<std::mutex> lock(d->lock);
     int totalChanges = 0;
-    for (auto df : d->dataFiles) {
-        std::lock_guard<std::recursive_mutex> lock2(df->m_lock);
+    for (int i = 0; i < d->dataFiles.size(); ++i) {
+        DataFile* df = d->dataFiles.at(i);
+        std::lock_guard<std::recursive_mutex> lock(df->m_lock);
         df->m_lastBlockHash = blockId;
         df->m_lastBlockHeight = blockheight;
         totalChanges += df->m_changesSinceJumptableWritten;
         df->commit();
     }
 
+    if (d->dataFiles.last()->m_fileFull) {
+        d->doPrune = true;
+        DEBUGUTXO << "Creating a new DataFile" << d->dataFiles.size();
+        auto df = d->dataFiles.last();
+        d->dataFiles.append(DataFile::createDatafile(d->filepathForIndex(d->dataFiles.size() + 1),
+                df->m_lastBlockHeight, df->m_lastBlockHash));
+    }
+
     if (totalChanges > 5000000) { // every 5 million inserts/deletes, auto-flush jumptables
         std::vector<std::string> infoFilenames;
-        for (auto df : d->dataFiles) {
+        for (int i = 0; i < d->dataFiles.size(); ++i) {
+            DataFile *df = d->dataFiles.at(i);
             std::lock_guard<std::recursive_mutex> saveLock(df->m_saveLock);
             std::lock_guard<std::recursive_mutex> lock2(df->m_lock);
             infoFilenames.push_back(df->flushAll());
@@ -323,22 +307,20 @@ void UnspentOutputDatabase::blockFinished(int blockheight, const uint256 &blockI
 
 void UnspentOutputDatabase::rollback()
 {
-    std::lock_guard<std::mutex> lock(d->lock);
-    for (auto df : d->dataFiles) {
-        df->rollback();
+    COWList<DataFile*> dataFiles(d->dataFiles);
+    for (int i = 0; i < dataFiles.size(); ++i) {
+        dataFiles.at(i)->rollback();
     }
 }
 
 int UnspentOutputDatabase::blockheight() const
 {
-    std::lock_guard<std::mutex> lock(d->lock);
-    return d->dataFiles.back()->m_lastBlockHeight;
+    return d->dataFiles.last()->m_lastBlockHeight;
 }
 
 uint256 UnspentOutputDatabase::blockId() const
 {
-    std::lock_guard<std::mutex> lock(d->lock);
-    return d->dataFiles.back()->m_lastBlockHash;
+    return d->dataFiles.last()->m_lastBlockHash;
 }
 
 
@@ -373,7 +355,8 @@ UODBPrivate::UODBPrivate(boost::asio::io_service &service, const boost::filesyst
                 throw std::runtime_error("Can't find a usable UTXO state");
             }
             int lastBlock = -1;
-            for (auto df : dataFiles) {
+            for (int i = 0; i < dataFiles.size(); ++i) {
+                DataFile *df = dataFiles.at(i);
                 if (lastBlock == -1) {
                     lastBlock = df->m_lastBlockHeight;
                 } else if (lastBlock != df->m_lastBlockHeight) {
@@ -381,7 +364,8 @@ UODBPrivate::UODBPrivate(boost::asio::io_service &service, const boost::filesyst
                     logCritical(Log::UTXO) << "Need to roll back to an older state:" << df->m_lastBlockHeight
                                            << "Where the first knew:" << lastBlock;
                     int oldestHeight = std::min(lastBlock, df->m_lastBlockHeight);
-                    for (auto dataFile : dataFiles) {
+                    for (int i = 0; i < dataFiles.size(); ++i) {
+                        DataFile *dataFile = dataFiles.at(i);
                         dataFile->openInfo(oldestHeight);
                     }
                     break;
@@ -515,7 +499,8 @@ int32_t Bucket::saveToDisk(Streaming::BufferPool &pool) const
 static void nothing(const char *){}
 
 DataFile::DataFile(const boost::filesystem::path &filename)
-    :  m_memBuffers(100000),
+    :  m_fileFull(0),
+      m_memBuffers(100000),
       m_path(filename)
 {
     memset(m_jumptables, 0, sizeof(m_jumptables));
@@ -1017,8 +1002,9 @@ bool DataFile::flushSomeNodesToDisk(ForceBool force)
     m_changeCount = 0;
 
     m_jumptableNeedsSave = true;
-    if (!m_fileFull && m_writeBuffer.offset() > 1800000000) // 1.8GB
+    if (!m_fileFull && m_writeBuffer.offset() > 1800000000) { // 1.8GB
         m_fileFull = true;
+    }
     m_changesSinceJumptableWritten += flushedToDiskCount;
 
     return !m_leafs.empty() || !m_buckets.empty();

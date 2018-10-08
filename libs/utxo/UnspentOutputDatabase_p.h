@@ -19,6 +19,7 @@
 #define UNSPENTOUTPUTDATABASEPRIVATE_H
 
 #include "UnspentOutputDatabase.h"
+#include "FloweeCOWList.h"
 #include <streaming/BufferPool.h>
 
 #include <boost/iostreams/device/mapped_file.hpp>
@@ -134,7 +135,7 @@ class DataFile {
    *
    * Buckets have lists of OutputRefs. The first 64 bits of the prev-txid are used here as a shorthash,
    * we follow up with a leaf-pos which is again a pointer in the file, to UnspentOutput this time, or unsaved
-   * ones in leafs.
+   * ones in m_leafs.
    */
 public:
     DataFile(const boost::filesystem::path &filename);
@@ -221,10 +222,7 @@ public:
 
     const boost::filesystem::path basedir;
 
-    // on-disk-data
-    std::vector<DataFile*> dataFiles;
-
-    mutable std::mutex lock;
+    COWList<DataFile*> dataFiles;
 };
 
 #endif

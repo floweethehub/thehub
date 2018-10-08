@@ -59,7 +59,7 @@ public:
 
     bool isCoinbase() const;
 
-    inline Streaming::ConstBuffer data() const {
+    inline const Streaming::ConstBuffer &data() const {
         return m_data;
     }
 
