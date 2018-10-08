@@ -712,7 +712,7 @@ void ValidationEnginePrivate::processNewBlock(std::shared_ptr<BlockValidationSta
         logCritical(Log::Bench) << "Times. Header:" << m_headerCheckTime
                                 << "Structure:" << m_basicValidityChecks
                                 << "Context:" << m_contextCheckTime
-                                << "UTOX:" << m_utxoTime
+                                << "UTXO:" << m_utxoTime
                                 << "validation:" << m_validationTime
                                 << "loading:" << m_loadingTime
                                 << "mempool:" << m_mempoolTime

@@ -139,7 +139,8 @@ public:
 
     /**
      * @brief calculateTxCheckChunks returns the amount of 'chunks' we split the transaction pool into for parallel validation.
-     * @return the chunk-count.
+     * @param[out] chunks the chunk-count.
+     * @param[out] itemsPerChunk the number of transactions to be processed in a single chunk
      */
     inline void calculateTxCheckChunks(int &chunks, int &itemsPerChunk) const {
         size_t txCount = m_block.transactions().size();
