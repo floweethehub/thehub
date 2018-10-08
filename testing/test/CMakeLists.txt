@@ -84,7 +84,6 @@ set (TEST_SOURCES
     skiplist_tests.cpp
     streams_tests.cpp
     test_bitcoin.cpp
-    TestBuffers.cpp
     TestConnections.cpp
     thinblock_tests.cpp
     timedata_tests.cpp

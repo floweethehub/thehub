@@ -22,34 +22,33 @@
 #include <cassert>
 #include <util.h>
 
-namespace {
-    int serialize(char *data, uint64_t value)
-    {
-        int pos = 0;
-        while (true) {
-            data[pos] = (value & 0x7F) | (pos ? 0x80 : 0x00);
-            if (value <= 0x7F)
-                break;
-            value = (value >> 7) - 1;
-            pos++;
-        }
-
-        // reverse
-        for (int i = pos / 2; i >= 0; --i) {
-            uint8_t tmp = data[i]; // swap
-            data[i] = data[pos - i];
-            data[pos-i] = tmp;
-        }
-        return pos + 1;
+int Streaming::Private::serialize(char *data, uint64_t value)
+{
+    int pos = 0;
+    while (true) {
+        data[pos] = (value & 0x7F) | (pos ? 0x80 : 0x00);
+        if (value <= 0x7F)
+            break;
+        value = (value >> 7) - 1;
+        pos++;
     }
 
+    // reverse
+    for (int i = pos / 2; i >= 0; --i) {
+        uint8_t tmp = data[i]; // swap
+        data[i] = data[pos - i];
+        data[pos-i] = tmp;
+    }
+    return pos + 1;
+}
 
+namespace {
     int write(char *data, uint32_t tag, Streaming::ValueType type) {
         // assert(type < 8); // clang complains about this like its impossible to pass in an incorrect into to an enum parameter... Oh, well.
         if (tag >= 31) { // use more than 1 byte
             uint8_t byte = type | 0xF8; // set the 'tag' to all 1s
             data[0] = byte;
-            return serialize(data +1, tag) + 1;
+            return Streaming::Private::serialize(data +1, tag) + 1;
         }
         else {
             assert(tag < 32);
@@ -96,7 +95,7 @@ void Streaming::MessageBuilder::add(uint32_t tag, uint64_t value)
     }
     int tagSize = write(m_buffer->data(), tag, PositiveNumber);
     m_buffer->markUsed(tagSize);
-    tagSize = serialize(m_buffer->data(), value);
+    tagSize = Private::serialize(m_buffer->data(), value);
     m_buffer->markUsed(tagSize);
 }
 
@@ -108,7 +107,7 @@ void Streaming::MessageBuilder::add(uint32_t tag, const std::string &value)
     }
     int tagSize = write(m_buffer->data(), tag, String);
     const unsigned int size = value.size();
-    tagSize += serialize(m_buffer->data() + tagSize, size);
+    tagSize += Private::serialize(m_buffer->data() + tagSize, size);
     m_buffer->markUsed(tagSize);
     memcpy(m_buffer->data(), value.c_str(), value.size());
     m_buffer->markUsed(value.size());
@@ -126,7 +125,7 @@ void Streaming::MessageBuilder::addByteArray(uint32_t tag, const void *data, int
         m_beforeHeader=false;
     }
     int tagSize = write(m_buffer->data(), tag, ByteArray);
-    tagSize += serialize(m_buffer->data() + tagSize, bytes);
+    tagSize += Private::serialize(m_buffer->data() + tagSize, bytes);
     m_buffer->markUsed(tagSize);
     memcpy(m_buffer->data(), data, bytes);
     m_buffer->markUsed(bytes);
@@ -139,7 +138,7 @@ void Streaming::MessageBuilder::add(uint32_t tag, const Streaming::ConstBuffer &
         m_beforeHeader=false;
     }
     int tagSize = write(m_buffer->data(), tag, ByteArray);
-    tagSize += serialize(m_buffer->data() + tagSize, data.size());
+    tagSize += Private::serialize(m_buffer->data() + tagSize, data.size());
     m_buffer->markUsed(tagSize);
     memcpy(m_buffer->data(), data.begin(), data.size());
     m_buffer->markUsed(data.size());
@@ -173,7 +172,7 @@ void Streaming::MessageBuilder::add(uint32_t tag, int32_t value_)
     assert(value <= 0xFFFFFFFF);
     int tagSize = write(m_buffer->data(), tag, type);
     m_buffer->markUsed(tagSize);
-    tagSize = serialize(m_buffer->data(), value);
+    tagSize = Private::serialize(m_buffer->data(), value);
     m_buffer->markUsed(tagSize);
 }
 
@@ -198,7 +197,7 @@ void Streaming::MessageBuilder::add(uint32_t tag, const unsigned char *data, uns
         m_beforeHeader=false;
     }
     int tagSize = write(m_buffer->data(), tag, ByteArray);
-    tagSize += serialize(m_buffer->data() + tagSize, length);
+    tagSize += Private::serialize(m_buffer->data() + tagSize, length);
     m_buffer->markUsed(tagSize);
     memcpy(m_buffer->data(), data, length);
     m_buffer->markUsed(length);
@@ -248,12 +247,12 @@ Message Streaming::MessageBuilder::message(int serviceId, int messageId)
 int Streaming::serialisedUIntSize(uint64_t unsignedInteger)
 {
     char dummy[11];
-    return serialize(dummy, unsignedInteger);
+    return Private::serialize(dummy, unsignedInteger);
 }
 
 int Streaming::serialisedIntSize(int32_t signedInteger)
 {
     char dummy[11];
     uint64_t data = signedInteger < 0 ? ((int64_t) signedInteger * -1) : signedInteger;
-    return serialize(dummy, data);
+    return Private::serialize(dummy, data);
 }

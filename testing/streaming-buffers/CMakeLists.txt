@@ -14,27 +14,19 @@
 # You should have received a copy of the GNU General Public License
 # along with this program.  If not, see <http://www.gnu.org/licenses/>.
 
-enable_testing()
+project (streaming-buffers)
+include (testlib)
 
-add_subdirectory(test)
-add_subdirectory(blackbox)
-if (${Qt5Core_FOUND})
-    find_package(Qt5Test)
-    if (${Qt5Test_FOUND})
-        add_subdirectory(common)
-        add_subdirectory(prevector)
-        add_subdirectory(utxo)
-        add_subdirectory(doublespend)
-        add_subdirectory(streaming-buffers)
+add_executable(test_streaming-buffers TestBuffers.cpp)
+target_link_libraries(test_streaming-buffers
+    flowee_testlib
+    flowee_server
 
-        add_custom_target(check COMMAND ${CMAKE_CTEST_COMMAND} DEPENDS
-            test_utxo
-            test_doublespend
-            test_prevector
-            test_hub
-            test-streaming-buffers
-        )
-    else ()
-        message("Missing qt5 (test) library, not building some tests")
-    endif ()
-endif()
+    ${LEVELDB_LIBRARY}
+    ${SECP256K1_LIBRARY}
+    ${OPENSSL_LIBRARIES}
+    ${Boost_LIBRARIES}
+    ${BERKELEY_DB_LIBRARIES}
+    ${MINIUPNP_LIBRARY}
+)
+add_test(NAME HUB_test_streaming-buffers COMMAND test_streaming-buffers)

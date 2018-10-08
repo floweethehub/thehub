@@ -24,25 +24,23 @@
 
 #include <util.h>
 
-namespace {
-    bool unserialize(const char *data, int dataSize, int &position, uint64_t &result)
-    {
-        assert(data);
-        assert(result == 0);
-        assert(position >= 0);
-        int pos = position;
-        while (pos - position < 10 && pos < dataSize) {
-            unsigned char byte = data[pos++];
-            result = (result << 7) | (byte & 0x7F);
-            if (byte & 0x80)
-                result++;
-            else {
-                position = pos;
-                return true;
-            }
+bool Streaming::Private::unserialize(const char *data, int dataSize, int &position, uint64_t &result)
+{
+    assert(data);
+    assert(result == 0);
+    assert(position >= 0);
+    int pos = position;
+    while (pos - position < 10 && pos < dataSize) {
+        unsigned char byte = data[pos++];
+        result = (result << 7) | (byte & 0x7F);
+        if (byte & 0x80)
+            result++;
+        else {
+            position = pos;
+            return true;
         }
-        return false;
     }
+    return false;
 }
 
 Streaming::MessageParser::MessageParser(const Streaming::ConstBuffer &buffer)
@@ -69,7 +67,7 @@ Streaming::ParsedType Streaming::MessageParser::next()
     m_tag = byte >> 3;
     if (m_tag == 31) { // the tag is stored in the next byte(s)
         uint64_t tag = 0;
-        bool ok = unserialize(m_privData, m_length, ++m_position, tag);
+        bool ok = Private::unserialize(m_privData, m_length, ++m_position, tag);
         if (!ok || tag > 0xFFFFFFFF) {
             --m_position;
             return Error;
@@ -82,7 +80,7 @@ Streaming::ParsedType Streaming::MessageParser::next()
     switch (type) {
     case PositiveNumber:
     case NegativeNumber: {
-        bool ok = unserialize(m_privData, m_length, ++m_position, value);
+        bool ok = Private::unserialize(m_privData, m_length, ++m_position, value);
         if (!ok) {
             --m_position;
             return Error;
@@ -98,7 +96,7 @@ Streaming::ParsedType Streaming::MessageParser::next()
     case ByteArray:
     case String: {
         int newPos = m_position + 1;
-        bool ok = unserialize(m_privData, m_length, newPos, value);
+        bool ok = Private::unserialize(m_privData, m_length, newPos, value);
         if (!ok)
             return Error;
         if (newPos + value > (unsigned int) m_length) // need more bytes
@@ -143,7 +141,7 @@ uint32_t Streaming::MessageParser::peekNext(bool *success) const
     uint32_t answer = byte >> 3;
     if (answer == 31) { // the tag is stored in the next byte(s)
         uint64_t tag = 0;
-        bool ok = unserialize(m_privData, m_length, ++pos, tag);
+        bool ok = Private::unserialize(m_privData, m_length, ++pos, tag);
         if (!ok || tag > 0xFFFFFFFF) {
             if (success) (*success) = false;
             return 0;

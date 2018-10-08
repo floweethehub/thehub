@@ -18,6 +18,8 @@
 #ifndef MESSAGEBUILDER_P_H
 #define MESSAGEBUILDER_P_H
 
+#include <inttypes.h>
+
 namespace Streaming {
 enum ValueType {
     PositiveNumber = 0, // var-int-encoded (between 1 and 9 bytes in length)
@@ -29,6 +31,10 @@ enum ValueType {
     Double = 6          // followed with 8 bytes
 };
 
+namespace Private {
+int serialize(char *data, uint64_t value);
+bool unserialize(const char *data, int dataSize, int &position, uint64_t &result);
+}
 }
 
 #endif
