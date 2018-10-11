@@ -428,7 +428,8 @@ static void addRpcServerOptions(AllowedArgs& allowedArgs)
 static void addApiServerOptions(AllowedArgs& allowedArgs)
 {
     allowedArgs
-        .addHeader("Api server options: (Experimental!)")
+        .addHeader("Api server options:")
+        .addArg("api", optionalBool, _("Accept API connections (default true)"))
         .addArg("apicookiefile=<loc>", requiredStr, "Location of the apiserver auth cookie (default: data dir)")
         .addArg("apilisten=<addr>", requiredStr, strprintf("Bind to given address to listen for api server connections. Use [host]:port notation for IPv6. This option can be specified multiple times (default 127.0.0.1:%s and [::1]:%s)", BaseParams(CBaseChainParams::MAIN).ApiServerPort(), BaseParams(CBaseChainParams::MAIN).ApiServerPort()));
         ;

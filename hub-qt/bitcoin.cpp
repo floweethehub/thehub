@@ -290,11 +290,13 @@ void BitcoinCore::initialize()
         int rv = AppInit2(threadGroup, scheduler);
         Q_EMIT initializeResult(rv);
 
-        apiServer.reset(new Api::Server(Application::instance()->ioService()));
-        addressMonitorService.reset(new AddressMonitorService());
-        extern CTxMemPool mempool;
-        addressMonitorService->setMempool(&mempool);
-        apiServer->addService(addressMonitorService.get());
+        if (GetBoolArg("-api", true)) {
+            apiServer.reset(new Api::Server(Application::instance()->ioService()));
+            addressMonitorService.reset(new AddressMonitorService());
+            extern CTxMemPool mempool;
+            addressMonitorService->setMempool(&mempool);
+            apiServer->addService(addressMonitorService.get());
+        }
     } catch (const std::exception& e) {
         handleRunawayException(&e);
     } catch (...) {

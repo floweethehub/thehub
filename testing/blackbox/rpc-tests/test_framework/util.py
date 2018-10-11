@@ -128,6 +128,7 @@ def initialize_datadir(dirname, n):
         f.write("port="+str(p2p_port(n))+"\n")
         f.write("rpcport="+str(rpc_port(n))+"\n")
         f.write("listenonion=0\n")
+        f.write("api=false\n")
 
     with open(os.path.join(datadir, "logs.conf"), 'w') as f:
         f.write("channel file\noption timestamp time\n0 debug\n1000 debug\n2000 debug\n3000 quiet\n3001 info\n4000 debug\n5000 debug\n6000 debug\n7000 debug\n8000 debug\n")
