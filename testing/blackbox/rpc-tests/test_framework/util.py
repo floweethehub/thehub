@@ -117,18 +117,21 @@ def sync_mempools(rpc_connections, wait=1, timeout=60):
 bitcoind_processes = {}
 
 def initialize_datadir(dirname, n):
-    datadir = os.path.join(dirname, "node"+str(n))
+    datadir = os.path.join(dirname, "node"+str(n), "regtest")
     print "init %s" % datadir
     if not os.path.isdir(datadir):
         os.makedirs(datadir)
     with open(os.path.join(datadir, "flowee.conf"), 'w') as f:
-        f.write("regtest=1\n")
         f.write("rpcuser=rt\n")
         f.write("rpcpassword=rt\n")
         f.write("port="+str(p2p_port(n))+"\n")
         f.write("rpcport="+str(rpc_port(n))+"\n")
         f.write("listenonion=0\n")
         f.write("api=false\n")
+        f.write("keypool=1\n")
+        f.write("server=true\n")
+        f.write("upnp=false\n")
+        f.write("discover=false\n")
 
     with open(os.path.join(datadir, "logs.conf"), 'w') as f:
         f.write("channel file\noption timestamp time\n0 debug\n1000 debug\n2000 debug\n3000 quiet\n3001 info\n4000 debug\n5000 debug\n6000 debug\n7000 debug\n8000 debug\n")
@@ -155,7 +158,7 @@ def initialize_chain(test_dir):
         # Create cache directories, run hubs:
         for i in range(4):
             datadir=initialize_datadir("cache", i)
-            args = [ os.getenv("BITCOIND", "hub"), "-server", "-keypool=1", "-datadir="+datadir, "-discover=0" ]
+            args = [ os.getenv("BITCOIND", "hub"), "-regtest", "-datadir="+datadir ]
             if i > 0:
                 args.append("-connect=127.0.0.1:"+str(p2p_port(0)))
             bitcoind_processes[i] = subprocess.Popen(args)
@@ -163,7 +166,7 @@ def initialize_chain(test_dir):
             if os.getenv("PYTHON_DEBUG", ""):
                 print "initialize_chain: hub started, calling hub-cli -rpcwait getblockcount"
             subprocess.check_call([ os.getenv("BITCOINCLI", "hub-cli"), "-datadir="+datadir,
-                                    "-rpcwait", "getblockcount"], stdout=devnull)
+                                    "-rpcwait", "-regtest", "getblockcount"], stdout=devnull)
             if os.getenv("PYTHON_DEBUG", ""):
                 print "initialize_chain: hub-cli -rpcwait getblockcount completed"
         devnull.close()
@@ -243,7 +246,7 @@ def start_node(i, dirname, extra_args=None, rpchost=None, timewait=None, binary=
     datadir = os.path.join(dirname, "node"+str(i))
     if binary is None:
         binary = os.getenv("BITCOIND", "hub")
-    args = [ binary, "-datadir="+datadir, "-server", "-keypool=1", "-discover=0", "-rest" ]
+    args = [ binary, "-datadir="+datadir, "-rest", "-regtest" ]
     if extra_args is not None: args.extend(extra_args)
     try:
         # my test; (throws if i not present)
@@ -263,9 +266,9 @@ def start_node(i, dirname, extra_args=None, rpchost=None, timewait=None, binary=
             print args
     devnull = open(os.devnull, "w")
     print "CLI: ", os.getenv("BITCOINCLI", "hub-cli")
-    subprocess.check_call([ os.getenv("BITCOINCLI", "hub-cli"), "-datadir="+datadir] +
-                          _rpchost_to_args(rpchost)  +
-                          ["-rpcwait", "getblockcount"], stdout=devnull)
+    subprocess.check_call([ os.getenv("BITCOINCLI", "hub-cli"),
+                         "-datadir="+datadir] + _rpchost_to_args(rpchost) +
+                          ["-rpcwait", "-regtest", "getblockcount"], stdout=devnull)
     if os.getenv("PYTHON_DEBUG", ""):
         print "start_node: calling hub-cli -rpcwait getblockcount returned"
     devnull.close()
