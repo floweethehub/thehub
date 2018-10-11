@@ -698,9 +698,8 @@ bool CWallet::AddToWallet(const CWalletTx& wtxIn, bool fFromLoadWallet, CWalletD
                     wtx.nTimeSmart = std::max(latestEntry, std::min(blocktime, latestNow));
                 }
                 else
-                    LogPrintf("AddToWallet(): found %s in block %s not in index\n",
-                             wtxIn.GetHash().ToString(),
-                             wtxIn.hashBlock.ToString());
+                    logCritical(Log::Wallet) << "AddToWallet(): found" << wtxIn.GetHash()
+                        << "in block" << wtxIn.hashBlock << "not in index";
             }
             AddToSpends(hash);
         }
@@ -732,8 +731,8 @@ bool CWallet::AddToWallet(const CWalletTx& wtxIn, bool fFromLoadWallet, CWalletD
             }
         }
 
-        //// debug print
-        LogPrintf("AddToWallet %s  %s%s\n", wtxIn.GetHash().ToString(), (fInsertedNew ? "new" : ""), (fUpdated ? "update" : ""));
+        logInfo(Log::Wallet) << "AddToWallet" << wtxIn.GetHash()
+            << (fInsertedNew ? "new" : "") << (fUpdated ? "update" : "");
 
         // Write to disk
         if (fInsertedNew || fUpdated)
@@ -1518,7 +1517,7 @@ bool CWalletTx::RelayWalletTransaction()
     if (!IsCoinBase())
     {
         if (GetDepthInMainChain() == 0 && !isAbandoned()) {
-            LogPrintf("Relaying wtx %s\n", GetHash().ToString());
+            logInfo(Log::Wallet) << "Relaying wtx" << GetHash();
             RelayTransaction((CTransaction)*this);
             return true;
         }
