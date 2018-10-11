@@ -134,7 +134,7 @@ def initialize_datadir(dirname, n):
         f.write("discover=false\n")
 
     with open(os.path.join(datadir, "logs.conf"), 'w') as f:
-        f.write("channel file\noption timestamp time\n0 debug\n1000 debug\n2000 debug\n3000 quiet\n3001 info\n4000 debug\n5000 debug\n6000 debug\n7000 debug\n8000 debug\n")
+        f.write("channel file\noption timestamp time\nALL debug\n2101 quiet\n#3000 quiet\n#3001 info\n")
     return datadir
 
 def initialize_chain(test_dir):
