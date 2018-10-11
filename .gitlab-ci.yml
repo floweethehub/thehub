@@ -1,4 +1,4 @@
-image: registry.gitlab.com/floweethehub/buildenvironments/builder-debian:stable
+image: flowee/buildenv:debian
 
 stages:
 - build
@@ -57,7 +57,7 @@ test_doublespend.deb:
 #####  Static build (Linux)
 
 build-static:
-  image: registry.gitlab.com/floweethehub/buildenvironments/builder-static:stable
+  image: flowee/buildenv:static
   stage: build
   script: build_static
   artifacts:
@@ -94,7 +94,7 @@ createHubDocker:
   dependencies:
     - build-static
   only:
-    - master@gitlab-org/FloweeTheHub
+    - master
   allow_failure: true
 
 ##### Build as standard as it gets.
