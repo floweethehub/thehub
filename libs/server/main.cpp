@@ -2074,7 +2074,7 @@ bool static ProcessMessage(CNode* pfrom, std::string strCommand, CDataStream& vR
             // this means we are not just in initial block download, we are in a state
             // where filling the mempool or getting the latest block just doesn't make any sense.
             // This avoids us banning CASH nodes before we follow the UAHF rules.
-            if (Params().GetConsensus().uahfForkBlockHeight > chainActive.Height())
+            if (chainparams.GetConsensus().uahfForkBlockHeight > chainActive.Height())
                 return true;
         }
         std::vector<CInv> vInv;
@@ -2621,7 +2621,7 @@ bool static ProcessMessage(CNode* pfrom, std::string strCommand, CDataStream& vR
             return false;
         }
         CBlock block;
-        const Consensus::Params& consensusParams = Params().GetConsensus();
+        const Consensus::Params& consensusParams = chainparams.GetConsensus();
         LOCK(cs_main);
         if (!ReadBlockFromDisk(block, index, consensusParams)) {
             LogPrintf("Internal error, file missing datafile %d (block: %d)\n", index->nFile, index->nHeight);
@@ -2990,7 +2990,7 @@ bool ProcessMessages(CNode* pfrom)
         // Scan for message start
         if (pfrom->nVersion == 0) { // uninitialized.
             if (!pfrom->fInbound // we already set isCashNode bool to right value.
-                    && memcmp(msg.hdr.pchMessageStart, Params().magic(), MESSAGE_START_SIZE) != 0) {
+                    && memcmp(msg.hdr.pchMessageStart, chainparams.magic(), MESSAGE_START_SIZE) != 0) {
                 addrman.increaseUselessness(pfrom->addr);
                 fOk = false;
                 break;
