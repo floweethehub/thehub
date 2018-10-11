@@ -839,7 +839,7 @@ bool AppInit2(boost::thread_group& threadGroup, CScheduler& scheduler)
                     strLoadError = _("Error loading block database");
                     break;
                 }
-                if (!fReindex && g_utxo->blockheight() == 0 && Blocks::Index::size() > 0) {
+                if (!fReindex && g_utxo->blockheight() == 0 && Blocks::Index::size() > 1) {
                     // We have block-indexes, but we have no UTXO. This means we need to reindex.
                     fRequestShutdown = true;
                     logFatal(Log::Bitcoin) << "This version uses a new UTXO format, you need to restart with -reindex";
