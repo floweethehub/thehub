@@ -6,7 +6,8 @@ stages:
 - deploy
 
 variables:
-  HUB_IMG: flowee/hub:${CI_COMMIT_REF_NAME}
+  HUB_IMG: flowee/hub:latest
+  HUB_TEST_IMG: flowee/hub:${CI_COMMIT_REF_NAME}
 
 #####  Debian stable
 
@@ -93,7 +94,7 @@ createHubDocker:
   dependencies:
     - build-static
   only:
-    - branches@gitlab-org/FloweeTheHub
+    - master@gitlab-org/FloweeTheHub
   allow_failure: true
 
 ##### Build as standard as it gets.
