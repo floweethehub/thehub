@@ -50,8 +50,7 @@ public:
     {
     }
 
-    COWList(const COWList &other) // copy constructor
-    {
+    COWList(const COWList &other) { // copy constructor
         if (other.d) {
             ++other.d->ref;
             d = other.d;
@@ -60,16 +59,16 @@ public:
 
     COWList &operator=(const COWList &other) {
         ++other.d->ref;
-        if (!--d->ref)
+        if (d && !--d->ref)
             delete d;
         d = other.d;
+        return *this;
     }
 
     ~COWList() {
         if (d && !--d->ref)
             delete d;
     }
-    // decrease the refcounter, and delete if zero
     enum { _DataSize = sizeof(T) };
 
     void append(const T &t) {
