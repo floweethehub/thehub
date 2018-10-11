@@ -640,16 +640,16 @@ void RPCConsole::on_sldGraphRange_valueChanged(int value)
 
 QString RPCConsole::FormatBytes(quint64 bytes)
 {
-    if(bytes < 1024)
+    if(bytes < 1000)
         return QString(tr("%1 B")).arg(bytes);
-    if(bytes < 1024 * 1024)
-        return QString(tr("%1 KB")).arg(bytes / 1024);
-    if(bytes < 1024 * 1024 * 1024)
-        return QString(tr("%1 MB")).arg(bytes / 1024 / 1024);
+    if(bytes < 1000 * 1000)
+        return QString(tr("%1 KB")).arg(bytes / 1000);
+    if(bytes < 1000 * 1000 * 1000)
+        return QString(tr("%1 MB")).arg(bytes / 1000 / 1000);
 
-    quint64 rest = bytes % (1024 * 1024 * 1024);
-    return QString(tr("%1.%2 GB")).arg(bytes / 1024 / 1024 / 1024)
-            .arg(QString::number(rest / 1024 / 1024).left(2));
+    quint64 rest = bytes % (1000 * 1000 * 1000);
+    return QString(tr("%1.%2 GB")).arg(bytes / 1000 / 1000 / 1000)
+            .arg(QString::number(rest / 1000 / 1000).left(2));
 }
 
 void RPCConsole::setTrafficGraphRange(int mins)
