@@ -53,6 +53,7 @@ TestFloweeSession::TestFloweeSession(const std::string& chainName) : TestFloweeE
 
     bv.initSingletons();
     bv.appendGenesis();
+    bv.waitValidationFinished();
     MockApplication::setValidationEngine(&bv);
 
 #ifdef ENABLE_WALLET

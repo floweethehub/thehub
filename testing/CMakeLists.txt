@@ -32,7 +32,7 @@ if (${Qt5Core_FOUND})
             test_doublespend
             test_prevector
             test_hub
-            test-streaming-buffers
+            test_streaming-buffers
         )
     else ()
         message("Missing qt5 (test) library, not building some tests")
