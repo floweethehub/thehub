@@ -296,7 +296,7 @@ void ValidationEnginePrivate::blockHeaderValidated(std::shared_ptr<BlockValidati
     }
 
     const int diff = index->nHeight - blockchain->Height();
-    if (diff < blocksInFlightLimit()) { // if block is recent, then continue immediately.
+    if (diff <= blocksInFlightLimit()) { // if block is recent, then continue immediately.
         bool forward = false;
         bool first = true;
         // adoptees are sorted
