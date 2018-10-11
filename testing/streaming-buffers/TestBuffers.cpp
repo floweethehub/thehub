@@ -215,14 +215,14 @@ void TestBuffers::testCMFBasic()
     ConstBuffer buf = builder.buffer();
     const char * data = buf.begin();
     QCOMPARE(buf.size(), 3);
-    QCOMPARE(data[0], 120);
-    QCOMPARE(static_cast<unsigned char>(data[1]), 177);
-    QCOMPARE(data[2], 112);
+    QCOMPARE(data[0], (char) 120);
+    QCOMPARE((unsigned char)data[1], (unsigned char) 177);
+    QCOMPARE(data[2], (char) 112);
 
     MessageParser parser(buf);
     ParsedType type = parser.next();
     QCOMPARE(type, FoundTag);
-    QCOMPARE(parser.tag(), 15);
+    QCOMPARE(parser.tag(), (uint32_t) 15);
     QCOMPARE(parser.intData(), 6512);
     type = parser.next();
     QCOMPARE(type, EndOfDocument);
@@ -234,16 +234,16 @@ void TestBuffers::testCMFBasic2()
     builder.add(129, 6512);
     ConstBuffer buf = builder.buffer();
     QCOMPARE(buf.size(), 5);
-    QCOMPARE(static_cast<unsigned char>(buf[0]), 248);
-    QCOMPARE(static_cast<unsigned char>(buf[1]), 128);
-    QCOMPARE(buf[2], 1);
-    QCOMPARE(static_cast<unsigned char>(buf[3]), 177);
-    QCOMPARE(buf[4], 112);
+    QCOMPARE((unsigned char)buf[0], (unsigned char) 248);
+    QCOMPARE((unsigned char)buf[1], (unsigned char) 128);
+    QCOMPARE(buf[2], (char) 1);
+    QCOMPARE((unsigned char)buf[3], (unsigned char) 177);
+    QCOMPARE(buf[4], (char) 112);
 
     MessageParser parser(buf);
     ParsedType type = parser.next();
     QCOMPARE(type, FoundTag);
-    QCOMPARE(parser.tag(), 129);
+    QCOMPARE(parser.tag(), (uint32_t) 129);
     QCOMPARE(parser.intData(), 6512);
     type = parser.next();
     QCOMPARE(type, EndOfDocument);
@@ -264,29 +264,29 @@ void TestBuffers::testCMFTypes()
     QCOMPARE(buf.size(), 17);
 
     // string '1'
-    QCOMPARE(static_cast<unsigned char>(buf[0]), 10);
-    QCOMPARE(static_cast<unsigned char>(buf[1]), 4); // serialized string length
-    QCOMPARE(static_cast<unsigned char>(buf[2]), 70);
-    QCOMPARE(static_cast<unsigned char>(buf[3]), 195);
-    QCOMPARE(static_cast<unsigned char>(buf[4]), 182);
-    QCOMPARE(static_cast<unsigned char>(buf[5]), 111);
+    QCOMPARE((uint8_t)buf[0], (uint8_t)10);
+    QCOMPARE((uint8_t)buf[1], (uint8_t)4); // serialized string length
+    QCOMPARE((uint8_t)buf[2], (uint8_t)70);
+    QCOMPARE((uint8_t)buf[3], (uint8_t)195);
+    QCOMPARE((uint8_t)buf[4], (uint8_t)182);
+    QCOMPARE((uint8_t)buf[5], (uint8_t)111);
 
     // blob '200'
-    QCOMPARE(static_cast<unsigned char>(buf[6]), 251);
-    QCOMPARE(static_cast<unsigned char>(buf[7]), 128);
-    QCOMPARE(static_cast<unsigned char>(buf[8]), 72);
-    QCOMPARE(static_cast<unsigned char>(buf[9]), 4); // length of bytearray
-    QCOMPARE(static_cast<unsigned char>(buf[10]), 104);  //'h'
-    QCOMPARE(static_cast<unsigned char>(buf[11]), 105);  //'i'
-    QCOMPARE(static_cast<unsigned char>(buf[12]), 104);  //'h'
-    QCOMPARE(static_cast<unsigned char>(buf[13]), 105);  //'i'
+    QCOMPARE((uint8_t)buf[6], (uint8_t) 251);
+    QCOMPARE((uint8_t)buf[7], (uint8_t) 128);
+    QCOMPARE((uint8_t)buf[8], (uint8_t)72);
+    QCOMPARE((uint8_t)buf[9], (uint8_t)4); // length of bytearray
+    QCOMPARE((uint8_t)buf[10], (uint8_t)104);  //'h'
+    QCOMPARE((uint8_t)buf[11], (uint8_t)105);  //'i'
+    QCOMPARE((uint8_t)buf[12], (uint8_t)104);  //'h'
+    QCOMPARE((uint8_t)buf[13], (uint8_t)105);  //'i'
 
     // bool-true '3'
-    QVERIFY(static_cast<unsigned char>(buf[14]) == 28);
+    QVERIFY((unsigned char)buf[14] == 28);
 
     // bool-false '40'
-    QVERIFY(static_cast<unsigned char>(buf[15]) == 253);
-    QVERIFY(static_cast<unsigned char>(buf[16]) == 40);
+    QVERIFY((uint8_t)buf[15] == (unsigned char)253);
+    QVERIFY((uint8_t)buf[16] == 40);
 
     MessageParser parser(buf);
     QCOMPARE(parser.next(), FoundTag);
@@ -321,91 +321,90 @@ void TestBuffers::testParsers()
     ConstBuffer buf = builder.buffer();
     QCOMPARE(buf.size(), 33);
 
-    QCOMPARE(static_cast<unsigned char>(buf[0]), 8);
-    QCOMPARE(static_cast<unsigned char>(buf[1]), 1);
+    QCOMPARE((uint8_t)buf[0], (uint8_t)8);
+    QCOMPARE((uint8_t)buf[1], (uint8_t)1);
 
     MessageParser parser(buf);
     auto type = parser.next();
     QCOMPARE(type, FoundTag);
-    QCOMPARE(parser.tag(), 1);
+    QCOMPARE(parser.tag(), (uint32_t) 1);
     QCOMPARE(parser.isInt(), true);
     QCOMPARE(parser.isLong(), true);
     QCOMPARE(parser.intData(), 1);
-    QCOMPARE(parser.longData(), 1);
+    QCOMPARE(parser.longData(), (uint64_t) 1);
 
-    QCOMPARE(static_cast<unsigned char>(buf[2]), 17);
-    QCOMPARE(static_cast<unsigned char>(buf[3]), 1);
+    QCOMPARE((uint8_t)buf[2], (uint8_t)17);
+    QCOMPARE((uint8_t)buf[3], (uint8_t)1);
 
     type = parser.next();
     QCOMPARE(type, FoundTag);
-    QCOMPARE(parser.tag(), 2);
+    QCOMPARE(parser.tag(), (uint32_t) 2);
     QCOMPARE(parser.isInt(), true);
     QCOMPARE(parser.isLong(), true);
     QCOMPARE(parser.intData(), -1);
-    QCOMPARE(parser.longData(), -1);
+    QCOMPARE(parser.longData(), (uint64_t)-1);
 
-    QCOMPARE(static_cast<unsigned char>(buf[4]), 24);
-    QCOMPARE(static_cast<unsigned char>(buf[5]), 0);
+    QCOMPARE((uint8_t)buf[4], (uint8_t)24);
+    QCOMPARE((uint8_t)buf[5], (uint8_t)0);
 
     type = parser.next();
     QCOMPARE(type, FoundTag);
-    QCOMPARE(parser.tag(), 3);
+    QCOMPARE(parser.tag(), (uint32_t) 3);
     QCOMPARE(parser.isInt(), true);
     QCOMPARE(parser.isLong(), true);
     QCOMPARE(parser.intData(), 0);
-    QCOMPARE(parser.longData(), 0);
+    QCOMPARE(parser.longData(), (uint64_t) 0);
 
-    QCOMPARE(static_cast<unsigned char>(buf[6]), 32);
-    QCOMPARE(static_cast<unsigned char>(buf[7]), 0xfe);
-    QCOMPARE(static_cast<unsigned char>(buf[8]), 0xfe);
-    QCOMPARE(static_cast<unsigned char>(buf[9]), 0xfe);
-    QCOMPARE(static_cast<unsigned char>(buf[10]), 0xfe);
-    QCOMPARE(static_cast<unsigned char>(buf[11]), 0xfe);
-    QCOMPARE(static_cast<unsigned char>(buf[12]), 0xfe);
-    QCOMPARE(static_cast<unsigned char>(buf[13]), 0xfe);
-    QCOMPARE(static_cast<unsigned char>(buf[14]), 0xfe);
-    QCOMPARE(static_cast<unsigned char>(buf[15]), 0x7f);
+    QCOMPARE((uint8_t)buf[6], (uint8_t)32);
+    QCOMPARE((uint8_t)buf[7], (uint8_t)0xfe);
+    QCOMPARE((uint8_t)buf[8], (uint8_t)0xfe);
+    QCOMPARE((uint8_t)buf[9], (uint8_t)0xfe);
+    QCOMPARE((uint8_t)buf[10], (uint8_t)0xfe);
+    QCOMPARE((uint8_t)buf[11], (uint8_t)0xfe);
+    QCOMPARE((uint8_t)buf[12], (uint8_t)0xfe);
+    QCOMPARE((uint8_t)buf[13], (uint8_t)0xfe);
+    QCOMPARE((uint8_t)buf[14], (uint8_t)0xfe);
+    QCOMPARE((uint8_t)buf[15], (uint8_t)0x7f);
 
     type = parser.next();
     QCOMPARE(type, FoundTag);
-    QCOMPARE(parser.tag(), 4);
+    QCOMPARE(parser.tag(), (uint32_t) 4);
     QCOMPARE(parser.isInt(), false);
     QCOMPARE(parser.isLong(), true);
-    QCOMPARE(parser.longData(), LONG_LONG_MAX);
+    QCOMPARE(parser.longData(), (uint64_t) LONG_LONG_MAX);
 
-    QCOMPARE(static_cast<unsigned char>(buf[16]), 41);
-    QCOMPARE(static_cast<unsigned char>(buf[17]), 0x86);
-    QCOMPARE(static_cast<unsigned char>(buf[18]), 0xfe);
-    QCOMPARE(static_cast<unsigned char>(buf[19]), 0xfe);
-    QCOMPARE(static_cast<unsigned char>(buf[20]), 0xff);
-    QCOMPARE(static_cast<unsigned char>(buf[21]), 0x0);
+    QCOMPARE((uint8_t)buf[16], (uint8_t)41);
+    QCOMPARE((uint8_t)buf[17], (uint8_t)0x86);
+    QCOMPARE((uint8_t)buf[18], (uint8_t)0xfe);
+    QCOMPARE((uint8_t)buf[19], (uint8_t)0xfe);
+    QCOMPARE((uint8_t)buf[20], (uint8_t)0xff);
+    QCOMPARE((uint8_t)buf[21], (uint8_t)0);
 
     type = parser.next();
     QCOMPARE(type, FoundTag);
-    QCOMPARE(parser.tag(), 5);
+    QCOMPARE(parser.tag(), (uint32_t) 5);
     QCOMPARE(parser.isInt(), true);
     QCOMPARE(parser.isLong(), true);
     QCOMPARE(parser.intData(), INT_MIN);
 
-
-    QCOMPARE(static_cast<unsigned char>(buf[22]), 48);
-    QCOMPARE(static_cast<unsigned char>(buf[23]), 0x80);
-    QCOMPARE(static_cast<unsigned char>(buf[24]), 0xfe);
-    QCOMPARE(static_cast<unsigned char>(buf[25]), 0xfe);
-    QCOMPARE(static_cast<unsigned char>(buf[26]), 0xfe);
-    QCOMPARE(static_cast<unsigned char>(buf[27]), 0xfe);
-    QCOMPARE(static_cast<unsigned char>(buf[28]), 0xfe);
-    QCOMPARE(static_cast<unsigned char>(buf[29]), 0xfe);
-    QCOMPARE(static_cast<unsigned char>(buf[30]), 0xfe);
-    QCOMPARE(static_cast<unsigned char>(buf[31]), 0xfe);
-    QCOMPARE(static_cast<unsigned char>(buf[32]), 0x7f);
+    QCOMPARE((uint8_t)buf[22], (uint8_t)48);
+    QCOMPARE((uint8_t)buf[23], (uint8_t)0x80);
+    QCOMPARE((uint8_t)buf[24], (uint8_t)0xfe);
+    QCOMPARE((uint8_t)buf[25], (uint8_t)0xfe);
+    QCOMPARE((uint8_t)buf[26], (uint8_t)0xfe);
+    QCOMPARE((uint8_t)buf[27], (uint8_t)0xfe);
+    QCOMPARE((uint8_t)buf[28], (uint8_t)0xfe);
+    QCOMPARE((uint8_t)buf[29], (uint8_t)0xfe);
+    QCOMPARE((uint8_t)buf[30], (uint8_t)0xfe);
+    QCOMPARE((uint8_t)buf[31], (uint8_t)0xfe);
+    QCOMPARE((uint8_t)buf[32], (uint8_t)0x7f);
 
     type = parser.next();
     QCOMPARE(type, FoundTag);
-    QCOMPARE(parser.tag(), 6);
+    QCOMPARE(parser.tag(), (uint32_t) 6);
     QCOMPARE(parser.isInt(), false);
     QCOMPARE(parser.isLong(), true);
-    QCOMPARE(parser.longData(), ULONG_LONG_MAX);
+    QCOMPARE(parser.longData(), (uint64_t) ULONG_LONG_MAX);
 
     type = parser.next();
     QCOMPARE(type, EndOfDocument);
