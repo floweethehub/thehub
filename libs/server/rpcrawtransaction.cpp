@@ -629,6 +629,7 @@ UniValue signrawtransaction(const UniValue& params, bool fHelp)
                 throw JSONRPCError(RPC_DESERIALIZATION_ERROR, "vout must be positive");
 
             Tx::Output output;
+            output.outputValue = 0;
             const UniValue &amountObj = find_value(prevOut, "amount");
             if (amountObj.isNum())
                 output.outputValue = AmountFromValue(amountObj);
