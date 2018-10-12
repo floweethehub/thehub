@@ -117,11 +117,12 @@ def sync_mempools(rpc_connections, wait=1, timeout=60):
 bitcoind_processes = {}
 
 def initialize_datadir(dirname, n):
-    datadir = os.path.join(dirname, "node"+str(n), "regtest")
+    datadir = os.path.join(dirname, "node"+str(n))
+    regtestDir = os.path.join(datadir, "regtest")
     print "init %s" % datadir
-    if not os.path.isdir(datadir):
-        os.makedirs(datadir)
-    with open(os.path.join(datadir, "flowee.conf"), 'w') as f:
+    if not os.path.isdir(regtestDir):
+        os.makedirs(regtestDir)
+    with open(os.path.join(regtestDir, "flowee.conf"), 'w') as f:
         f.write("rpcuser=rt\n")
         f.write("rpcpassword=rt\n")
         f.write("port="+str(p2p_port(n))+"\n")
@@ -133,7 +134,7 @@ def initialize_datadir(dirname, n):
         f.write("upnp=false\n")
         f.write("discover=false\n")
 
-    with open(os.path.join(datadir, "logs.conf"), 'w') as f:
+    with open(os.path.join(regtestDir, "logs.conf"), 'w') as f:
         f.write("channel file\noption timestamp time\nALL debug\n2101 quiet\n#3000 quiet\n#3001 info\n")
     return datadir
 
