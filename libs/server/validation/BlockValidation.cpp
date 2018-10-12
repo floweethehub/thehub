@@ -1549,7 +1549,12 @@ void BlockValidationState::checkSignaturesChunk(CheckType type)
 #ifdef ENABLE_BENCHMARKS
                             utxoDuration += GetTimeMicros() - utxoStart;
 #endif
-                            assert(removed.isValid());
+                            if (!removed.isValid()) {
+                                logCritical() << "Rejecting block" << m_block.createHash() << "due to deleted input";
+                                logInfo() << " |  txid:" << tx.createHash();
+                                logInfo() << " + input:" << input.txid << input.index;
+                                throw Exception("missing-inputs", 0);
+                            }
                             undoItems->push_back(FastUndoBlock::Item(input.txid, input.index,
                                                                        removed.blockHeight, removed.offsetInBlock));
                         }
