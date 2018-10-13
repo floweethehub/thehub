@@ -2,7 +2,7 @@
  * This file is part of the Flowee project
  * Copyright (C) 2009-2010 Satoshi Nakamoto
  * Copyright (C) 2009-2015 The Bitcoin Core developers
- * Copyright (C) 2017 Tom Zander <tomz@freedommail.ch>
+ * Copyright (C) 2017-2018 Tom Zander <tomz@freedommail.ch>
  *
  * This program is free software: you can redistribute it and/or modify
  * it under the terms of the GNU General Public License as published by
@@ -736,6 +736,10 @@ void WaitUntilFinishedHelper::run()
 }
 
 void WaitUntilFinishedHelper::handle() {
-    d->target();
+    try {
+        d->target();
+    } catch (const std::exception &e) {
+        logFatal(Log::Bitcoin) << "Unhandled exception caught by WaitUntilFinishedHelper" << e;
+    }
     d->mutex.unlock();
 }
