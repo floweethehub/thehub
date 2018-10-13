@@ -455,8 +455,9 @@ void TxValidationState::checkTransaction()
         parent->recentTxRejects.insert(txid);
     } catch (const std::runtime_error &ex) {
         raii.result = std::string(ex.what());
-        logFatal(Log::TxValidation) << ex;
+        logFatal(Log::TxValidation) << "TxValidation got exception;" << ex;
         assert(false);
+        throw;
     }
 }
 

@@ -1555,6 +1555,9 @@ void BlockValidationState::checkSignaturesChunk(CheckType type)
                                 logInfo() << " + input:" << input.txid << input.index;
                                 throw Exception("missing-inputs", 0);
                             }
+                            assert(input.index >= 0);
+                            assert(removed.blockHeight > 0);
+                            assert(removed.offsetInBlock > 80);
                             undoItems->push_back(FastUndoBlock::Item(input.txid, input.index,
                                                                        removed.blockHeight, removed.offsetInBlock));
                         }

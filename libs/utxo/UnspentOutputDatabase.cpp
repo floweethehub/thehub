@@ -97,6 +97,9 @@ UnspentOutput::UnspentOutput(Streaming::BufferPool &pool, const uint256 &txid, i
       m_offsetInBlock(offsetInBlock),
       m_blockHeight(blockHeight)
 {
+    assert(outIndex >= 0);
+    assert(blockHeight > 0);
+    assert(offsetInBlock > 80);
     pool.reserve(55);
     Streaming::MessageBuilder builder(pool);
     builder.add(UODB::BlockHeight, blockHeight);
@@ -531,6 +534,10 @@ DataFile::DataFile(const boost::filesystem::path &filename)
 
 void DataFile::insert(const UODBPrivate *priv, const uint256 &txid, int outIndex, int blockHeight, int offsetInBlock)
 {
+    assert(offsetInBlock > 80);
+    assert(blockHeight > 0);
+    assert(outIndex >= 0);
+    assert(!txid.IsNull());
     const uint32_t shortHash = createShortHash(txid);
     uint32_t bucketId;
     {

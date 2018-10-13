@@ -68,7 +68,7 @@ FastUndoBlock::Item FastUndoBlock::nextItem()
             answer.blockHeight = m_parser.intData();
             break;
         case InsOffsetInBlock:
-            answer.blockHeight = m_parser.intData();
+            answer.offsetInBlock = m_parser.intData();
             return answer;
         default:
             assert(false);

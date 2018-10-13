@@ -29,6 +29,7 @@ UnspentOutputData::UnspentOutputData(const UnspentOutput &uo)
 {
     if (!uo.isValid())
         return;
+    assert(uo.offsetInBlock() > 80);
 
     Blocks::DB *blockDb = Blocks::DB::instance();
     auto blockIndex = blockDb->headerChain()[uo.blockHeight()];

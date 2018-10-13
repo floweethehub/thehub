@@ -250,7 +250,7 @@ void TestUtxo::commit()
     uint256 txid4 = uint256S(buf);
     {
         UnspentOutputDatabase db(ioService, m_testPath);
-        db.insert(txid4, 5, 40, 40);
+        db.insert(txid4, 5, 40, 81);
     }
     {
         UnspentOutputDatabase db(ioService, m_testPath);
@@ -259,9 +259,9 @@ void TestUtxo::commit()
     // now separate the saving of the bucket and the leafs.
     {
         UnspentOutputDatabase db(ioService, m_testPath);
-        db.insert(txid4, 6, 40, 40);
+        db.insert(txid4, 6, 40, 81);
         db.blockFinished(4, uint256());
-        db.insert(txid4, 7, 40, 40);
+        db.insert(txid4, 7, 40, 81);
     }
     {
         UnspentOutputDatabase db(ioService, m_testPath);
@@ -278,14 +278,14 @@ void TestUtxo::commit()
     uint256 txid5 = uint256S(buf);
     {
         UnspentOutputDatabase db(ioService, m_testPath);
-        db.insert(txid5, 10, 40, 40);
-        db.insert(txid5, 11, 40, 40);
-        db.insert(txid5, 13, 40, 40);
+        db.insert(txid5, 10, 40, 90);
+        db.insert(txid5, 11, 40, 90);
+        db.insert(txid5, 13, 40, 90);
         db.blockFinished(5, uint256());
     }
     {
         UnspentOutputDatabase db(ioService, m_testPath);
-        db.insert(txid5, 20, 40, 40); // loads from disk, adds item
+        db.insert(txid5, 20, 40, 81); // loads from disk, adds item
         // rollback now should revert to the on-disk version.
     }
     {
@@ -298,7 +298,7 @@ void TestUtxo::commit()
     }
     {
         UnspentOutputDatabase db(ioService, m_testPath);
-        db.insert(txid5, 20, 40, 40); // loads from disk, adds item
+        db.insert(txid5, 20, 40, 81); // loads from disk, adds item
         SpentOutput rmData = db.remove(txid5, 11); // removes from mem-bucket
         QVERIFY(rmData.isValid());
         // rollback now should revert to the on-disk version.
