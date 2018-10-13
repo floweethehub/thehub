@@ -803,7 +803,7 @@ void ValidationEnginePrivate::prepareChain()
     LOCK(mempool->cs);
     while (!Blocks::DB::instance()->headerChain().Contains(blockchain->Tip())) {
         CBlockIndex *index = blockchain->Tip();
-        DEBUGBV << "Removing (rollback) chain tip at" << index->nHeight << index->GetBlockHash();
+        logInfo(Log::BlockValidation) << "Removing (rollback) chain tip at" << index->nHeight << index->GetBlockHash();
         FastBlock block;
         try {
             block = Blocks::DB::instance()->loadBlock(index->GetBlockPos());
@@ -1445,7 +1445,7 @@ void BlockValidationState::checkSignaturesChunk(CheckType type)
     const int txMax = std::min(txIndex + itemsPerChunk, totalTxCount);
     uint32_t chunkSigops = 0;
     CAmount chunkFees = 0;
-    std::deque<FastUndoBlock::Item> *undoItems = new std::deque<FastUndoBlock::Item>();
+    std::unique_ptr<std::deque<FastUndoBlock::Item> >undoItems(new std::deque<FastUndoBlock::Item>());
     std::deque<Output> newOutputs; // for when processing ordered items
 
     // If \a type == CheckOrdered we have transactions spending outputs that may come from this block.
@@ -1618,7 +1618,7 @@ void BlockValidationState::checkSignaturesChunk(CheckType type)
     }
     m_blockFees.fetch_add(chunkFees);
     m_sigOpsCounted.fetch_add(chunkSigops);
-    m_undoItems[static_cast<size_t>(chunkToStart)] = undoItems;
+    m_undoItems[static_cast<size_t>(chunkToStart)] = undoItems.release();
 
 #ifdef ENABLE_BENCHMARKS
     int64_t end = GetTimeMicros();
