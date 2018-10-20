@@ -117,7 +117,6 @@ private:
     const boost::filesystem::path m_baseFilename;
 };
 
-
 // represents one storage-DB file.
 class DataFile {
   /*
@@ -203,6 +202,23 @@ public:
     std::unordered_map<uint32_t, uint32_t> m_committedBucketLocations;
     uint32_t m_lastCommittedBucketIndex = 0;
     uint32_t m_lastCommittedLeafIndex = 0;
+
+    mutable std::atomic_int m_usageCount;
+
+    struct LockGuard {
+        LockGuard(const DataFile *parent) : parent(parent) {
+            assert(parent);
+            ++parent->m_usageCount;
+        }
+        ~LockGuard() {
+            if (!--parent->m_usageCount)
+                delete parent;
+        }
+        void deleteLater() {
+            --parent->m_usageCount;
+        }
+        const DataFile *parent = nullptr;
+    };
 };
 
 class UODBPrivate

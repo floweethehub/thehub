@@ -180,22 +180,24 @@ UnspentOutputDatabase::UnspentOutputDatabase(UODBPrivate *priv)
 
 UnspentOutputDatabase::~UnspentOutputDatabase()
 {
-    {
-        if (!d->memOnly) {
-            logCritical() << "Flushing UTXO cashes to disk...";
-            for (int i = 0; i < d->dataFiles.size(); ++i) {
-                auto df = d->dataFiles.at(i);
-                std::lock_guard<std::recursive_mutex> saveLock(df->m_saveLock);
-                std::lock_guard<std::recursive_mutex> lock2(df->m_lock);
-                df->rollback();
-                df->flushAll();
-            }
-        }
+    if (d->memOnly) {
         for (int i = 0; i < d->dataFiles.size(); ++i) {
             delete d->dataFiles.at(i);
         }
-        d->dataFiles.clear();
     }
+    else {
+        logCritical() << "Flushing UTXO cashes to disk...";
+        for (int i = 0; i < d->dataFiles.size(); ++i) {
+            auto df = d->dataFiles.at(i);
+            DataFile::LockGuard deleteLock(df);
+            deleteLock.deleteLater();
+            std::lock_guard<std::recursive_mutex> saveLock(df->m_saveLock);
+            std::lock_guard<std::recursive_mutex> lock2(df->m_lock);
+            df->rollback();
+            df->flushAll();
+        }
+    }
+    d->dataFiles.clear();
     fflush(nullptr);
     delete d;
 }
@@ -289,18 +291,21 @@ void UnspentOutputDatabase::blockFinished(int blockheight, const uint256 &blockI
                 auto dbFilename = d->dataFiles.at(db)->m_path;
                 Pruner pruner(dbFilename.string() + ".db", infoFilenames.at(db),
                               jump == 1 ? Pruner::MostActiveDB : Pruner::OlderDB);
-                delete d->dataFiles.at(db);
                 try {
                     pruner.prune();
                     DataFileCache cache(dbFilename.string());
                     for (int i = 0; i < 10; ++i)
                         boost::filesystem::remove(cache.filenameFor(i));
+
+                    DataFile::LockGuard lock(d->dataFiles.at(db));
+                    lock.deleteLater();
                     pruner.commit();
+                    d->dataFiles[db] = new DataFile(dbFilename);
                 } catch (const std::runtime_error &pruneFailure) {
                     logCritical() << "Skipping pruning of db file" << db << "reason:" << pruneFailure;
                     pruner.cleanup();
                 }
-                d->dataFiles[db] = new DataFile(dbFilename);
+
                 db -= ++jump;
             } while (db >= 0);
             fflush(nullptr);
@@ -504,7 +509,8 @@ static void nothing(const char *){}
 DataFile::DataFile(const boost::filesystem::path &filename)
     :  m_fileFull(0),
       m_memBuffers(100000),
-      m_path(filename)
+      m_path(filename),
+      m_usageCount(1)
 {
     memset(m_jumptables, 0, sizeof(m_jumptables));
 
@@ -538,6 +544,7 @@ void DataFile::insert(const UODBPrivate *priv, const uint256 &txid, int outIndex
     assert(blockHeight > 0);
     assert(outIndex >= 0);
     assert(!txid.IsNull());
+    LockGuard lock(this);
     const uint32_t shortHash = createShortHash(txid);
     uint32_t bucketId;
     {
@@ -588,7 +595,7 @@ void DataFile::insert(const UODBPrivate *priv, const uint256 &txid, int outIndex
                          static_cast<int>(bucketId));
 
     // after Disk-IO, acquire lock again.
-    std::lock_guard<std::recursive_mutex> lock(m_lock);
+    std::lock_guard<std::recursive_mutex> mutex_lock(m_lock);
     // re-fetch in case we had an AbA race
     bucketId = m_jumptables[shortHash];
     if ((bucketId & MEMBIT) || bucketId == 0) // it got loaded into mem in parallel to our attempt
@@ -612,6 +619,7 @@ void DataFile::insert(const UODBPrivate *priv, const uint256 &txid, int outIndex
 
 UnspentOutput DataFile::find(const uint256 &txid, int index) const
 {
+    LockGuard lock(this);
     const uint32_t shortHash = createShortHash(txid);
     const auto cheapHash = txid.GetCheapHash();
     uint32_t bucketId;
@@ -689,6 +697,7 @@ SpentOutput DataFile::remove(const UODBPrivate *priv, const uint256 &txid, int i
      * As soon as we find the actual leafId to delete we can lock again and
      * re-fetch the bucket from the internal data and then delete the actual item.
      */
+    LockGuard lock(this);
     SpentOutput answer;
     const auto cheapHash = txid.GetCheapHash();
     const uint32_t shortHash = createShortHash(cheapHash);
@@ -844,6 +853,7 @@ SpentOutput DataFile::remove(const UODBPrivate *priv, const uint256 &txid, int i
 
 bool DataFile::flushSomeNodesToDisk(ForceBool force)
 {
+    LockGuard lock(this);
     // in the rare case of flushAll() this may cause this method to be called from two
     // threads simultaniously. The below lock avoids this being an issue.
     std::lock_guard<std::recursive_mutex> saveLock(m_saveLock);
@@ -940,7 +950,7 @@ bool DataFile::flushSomeNodesToDisk(ForceBool force)
     while (end != unsavedOutputs.end());
 
     // lock again and update inner structures as fast as possible
-    std::lock_guard<std::recursive_mutex> lock(m_lock);
+    std::lock_guard<std::recursive_mutex> mutex_lock(m_lock);
     DEBUGUTXO << " +~ Leafs in mem:" << m_leafs.size() << "buckets in mem:" << m_buckets.size();
     begin = unsavedOutputs.begin();
     end = nextBucket(unsavedOutputs, begin);
@@ -1019,6 +1029,7 @@ bool DataFile::flushSomeNodesToDisk(ForceBool force)
 
 std::string DataFile::flushAll()
 {
+    LockGuard lock(this);
     // mutex already locked by caller.
     // save all, the UnspentOutputDatabase has a lock that makes this a stop-the-world event
     while (flushSomeNodesToDisk(ForceSave));
@@ -1065,7 +1076,8 @@ void DataFile::commit()
 
 void DataFile::rollback()
 {
-    std::lock_guard<std::recursive_mutex> lock(m_lock);
+    LockGuard lock(this);
+    std::lock_guard<std::recursive_mutex> mutex_lock(m_lock);
     DEBUGUTXO << "Rollback" << m_path.string();
     // inserted new stuff is mostly irrelevant for rollback, we haven't been saving them,
     // all we need to do is remove them from memory.
