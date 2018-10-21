@@ -401,13 +401,14 @@ bool Blocks::DB::appendHeader(CBlockIndex *block)
     while (validPrev->nStatus & BLOCK_FAILED_MASK) {
         validPrev = validPrev->pprev;
     }
+    // try to simply append
     for (auto i = d->headerChainTips.begin(); i != d->headerChainTips.end(); ++i) {
         CBlockIndex *tip = *i;
         CBlockIndex *parent = block->GetAncestor(tip->nHeight);
-        if (parent == tip) {
+        if (parent == tip) { // chain-tip is my ancestor
             d->headerChainTips.erase(i);
             d->headerChainTips.push_back(validPrev);
-            if (tip == d->headersChain.Tip()) {
+            if (tip == d->headersChain.Tip()) { // main chain
                 d->headersChain.SetTip(validPrev);
                 pindexBestHeader = validPrev;
                 return true;
@@ -418,9 +419,9 @@ bool Blocks::DB::appendHeader(CBlockIndex *block)
     }
 
     bool modifyingMainChain = false;
-    if (!found) {
+    if (!found) { // we could not extend an existing find if part of existing one
         bool modified = false;
-        bool alreadyContains = false; // true if a second chain already contains our new validPrev
+        bool alreadyContains = false; // true if a secondairy chain already contains our new validPrev
         auto i = d->headerChainTips.begin();
         while (i != d->headerChainTips.end()) {
             if ((*i)->GetAncestor(block->nHeight) == block) { // known in this chain.
@@ -458,11 +459,13 @@ bool Blocks::DB::appendHeader(CBlockIndex *block)
     }
     assert(d->headersChain.Tip());
     assert(validPrev);
-    if (d->headersChain.Tip()->nChainWork < validPrev->nChainWork) {
-        // we changed what is to be considered the main-chain. Update the CChain instance.
-        d->headersChain.SetTip(validPrev);
-        pindexBestHeader = block;
-        modifyingMainChain = true;
+    for (auto tip : d->headerChainTips) { // find the longest chain
+        if (d->headersChain.Tip()->nChainWork < tip->nChainWork) {
+            // we changed what is to be considered the main-chain. Update the CChain instance.
+            d->headersChain.SetTip(tip);
+            pindexBestHeader = tip;
+            modifyingMainChain = true;
+        }
     }
     return modifyingMainChain;
 }

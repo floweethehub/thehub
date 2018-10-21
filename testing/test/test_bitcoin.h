@@ -40,6 +40,10 @@ struct BasicTestingSetup {
 
     BasicTestingSetup(const std::string& chainName = CBaseChainParams::MAIN);
     ~BasicTestingSetup();
+
+    const char *currentTestName() {
+        return "test";
+    }
 };
 
 class MockBlockValidation : public Validation::Engine {

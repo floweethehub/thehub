@@ -44,6 +44,7 @@ extern void noui_connect();
 
 BasicTestingSetup::BasicTestingSetup(const std::string& chainName)
 {
+    Log::Manager::instance()->loadDefaultTestSetup(std::bind(&BasicTestingSetup::currentTestName, this));
     ECC_Start();
     SetupEnvironment();
     SetupNetworking();
@@ -54,6 +55,8 @@ BasicTestingSetup::BasicTestingSetup(const std::string& chainName)
     MockApplication::doStartThreads();
     MockApplication::doInit();
 }
+
+
 
 BasicTestingSetup::~BasicTestingSetup()
 {

@@ -1,6 +1,6 @@
 /*
  * This file is part of the Flowee project
- * Copyright (C) 2017 Tom Zander <tomz@freedommail.ch>
+ * Copyright (C) 2017-2018 Tom Zander <tomz@freedommail.ch>
  *
  * This program is free software: you can redistribute it and/or modify
  * it under the terms of the GNU General Public License as published by
@@ -243,8 +243,7 @@ BOOST_AUTO_TEST_CASE(invalidate)
     // split the chain so we have two header-chain-tips
     CBlockIndex *b18 = Blocks::Index::get(blocks.at(18).createHash());
     auto block = bv.createBlock(b18);
-    auto future = bv.addBlock(block, 0).start();
-    future.waitUntilFinished();
+    bv.addBlock(block, 0).start().waitUntilFinished();
     BOOST_CHECK_EQUAL(Blocks::DB::instance()->headerChainTips().size(), 2);
 
     // then invalidate a block in the common history of both chains
@@ -263,7 +262,6 @@ BOOST_AUTO_TEST_CASE(invalidate)
 
 BOOST_AUTO_TEST_CASE(invalidate2)
 {
-
     /*
      * x b8 b9
      *   \
@@ -279,26 +277,65 @@ BOOST_AUTO_TEST_CASE(invalidate2)
 
     CBlockIndex *b8 = Blocks::Index::get(blocks.at(8).createHash());
     auto block = bv.createBlock(b8);
-    auto future = bv.addBlock(block, 0).start();
-    future.waitUntilFinished();
+    bv.addBlock(block, 0).start().waitUntilFinished();
     BOOST_CHECK_EQUAL(Blocks::DB::instance()->headerChainTips().size(), 2);
 
     CBlockIndex *b9b = Blocks::Index::get(block.createHash());
     block = bv.createBlock(b9b); // new chain-tip
-    future = bv.addBlock(block, 0).start();
-    future.waitUntilFinished();
+    bv.addBlock(block, 0).start().waitUntilFinished();
     BOOST_CHECK_EQUAL(Blocks::DB::instance()->headerChainTips().size(), 2);
 
     CBlockIndex *b10b = Blocks::Index::get(block.createHash());
     BOOST_CHECK_EQUAL(Blocks::DB::instance()->headerChain().Tip(), b10b);
 
-    // then invalidate block b9b (y from the ascii art)
+    // then invalidate block b9b
     b9b->nStatus |= BLOCK_FAILED_VALID;
     bool changed = Blocks::DB::instance()->appendHeader(b9b);
     BOOST_CHECK(changed);
     BOOST_CHECK_EQUAL(Blocks::DB::instance()->headerChain().Tip(), b9);
     BOOST_CHECK_EQUAL(Blocks::DB::instance()->headerChainTips().size(), 1);
 }
+
+BOOST_AUTO_TEST_CASE(invalidate3)
+{
+    /*
+     * b6 b7 b8  b9
+     *  \
+     *   b7` b8` b9` b10`
+     *
+     * Create competing chain until reorg.
+     * Then invalidate b8` and check if we go back to b9
+     */
+
+    std::vector<FastBlock> blocks = bv.appendChain(10);
+    // split the chain so we have two header-chain-tips
+    const CBlockIndex *b9 = Blocks::Index::get(blocks.at(9).createHash()); // chain-tip
+    BOOST_CHECK_EQUAL(Blocks::DB::instance()->headerChain().Tip(), b9);
+
+    CBlockIndex *b6 = Blocks::Index::get(blocks.at(6).createHash());
+    CBlockIndex *b8b = nullptr;
+    CBlockIndex *parent = b6;
+    for (int i = 0; i < 4; ++i) {
+        auto block = bv.createBlock(parent);
+        bv.addBlock(block, 0).start().waitUntilFinished();
+        parent = Blocks::Index::get(block.createHash());
+        if (parent->nHeight == 9)
+            b8b = parent;
+        BOOST_CHECK_EQUAL(Blocks::DB::instance()->headerChainTips().size(), 2);
+    }
+    BOOST_CHECK_EQUAL(parent->nHeight, 11);
+    BOOST_CHECK_EQUAL(Blocks::DB::instance()->headerChain().Tip(), parent);
+    assert(b8b);
+    BOOST_CHECK_EQUAL(b8b->nHeight, 9);
+    BOOST_CHECK_EQUAL(b8b->pprev->pprev, b6);
+
+    b8b->nStatus |= BLOCK_FAILED_VALID;
+    bool changed = Blocks::DB::instance()->appendHeader(b8b);
+    BOOST_CHECK(changed);
+    BOOST_CHECK_EQUAL(Blocks::DB::instance()->headerChain().Tip(), b9);
+    BOOST_CHECK_EQUAL(Blocks::DB::instance()->headerChainTips().size(), 2);
+}
+
 
 BOOST_AUTO_TEST_CASE(addImpliedInvalid)
 {
