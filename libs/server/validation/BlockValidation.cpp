@@ -882,7 +882,7 @@ void ValidationEnginePrivate::findMoreJobs()
     if (shuttingDown || engineType == Validation::SkipAutoBlockProcessing)
         return;
     if (lastFullBlockScheduled == -1)
-        lastFullBlockScheduled = std::max(1, blockchain->Height());
+        lastFullBlockScheduled = std::max(0, blockchain->Height());
     while (true) {
         CBlockIndex *index = Blocks::DB::instance()->headerChain()[lastFullBlockScheduled + 1];
         DEBUGBV << "  next:" << index;

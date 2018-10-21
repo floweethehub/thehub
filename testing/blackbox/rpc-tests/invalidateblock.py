@@ -43,6 +43,7 @@ class InvalidateTest(BitcoinTestFramework):
 
         print "Invalidate block 2 on node 0 and verify we reorg to node 0's original chain"
         self.nodes[0].invalidateblock(badhash)
+        time.sleep(5)
         newheight = self.nodes[0].getblockcount()
         newhash = self.nodes[0].getbestblockhash()
         if (newheight != 4 or newhash != besthash):
@@ -52,20 +53,17 @@ class InvalidateTest(BitcoinTestFramework):
         connect_nodes_bi(self.nodes,1,2)
         print "Sync node 2 to node 1 so both have 6 blocks"
         sync_blocks(self.nodes[1:3])
+        time.sleep(5)
         assert(self.nodes[2].getblockcount() == 6)
         print "Invalidate block 5 on node 1 so its tip is now at 4"
         self.nodes[1].invalidateblock(self.nodes[1].getblockhash(5))
+        time.sleep(5)
         assert(self.nodes[1].getblockcount() == 4)
-        print "Invalidate block 3 on node 2, so its tip is now 2"
-        self.nodes[2].invalidateblock(self.nodes[2].getblockhash(3))
-        assert(self.nodes[2].getblockcount() == 2)
-        print "..and then mine a block"
-        self.nodes[2].wallet.generate(1)
         print "Verify all nodes are at the right height"
         time.sleep(5)
         for i in xrange(3):
             print i,self.nodes[i].getblockcount()
-        assert(self.nodes[2].getblockcount() == 3)
+        assert(self.nodes[2].getblockcount() == 6)
         assert(self.nodes[0].getblockcount() == 4)
         node1height = self.nodes[1].getblockcount()
         if node1height < 4:

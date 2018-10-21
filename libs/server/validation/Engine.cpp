@@ -202,8 +202,15 @@ void Validation::Engine::invalidateBlock(CBlockIndex *index)
     index->nStatus |= BLOCK_FAILED_VALID;
     MarkIndexUnsaved(index);
     Blocks::DB::instance()->appendHeader(index);
-    WaitUntilFinishedHelper helper(std::bind(&ValidationEnginePrivate::prepareChain, d), &d->strand);
+    WaitUntilFinishedHelper helper(std::bind(&ValidationEnginePrivate::prepareChain_priv, d), &d->strand);
     helper.run();
+}
+
+void ValidationEnginePrivate::prepareChain_priv()
+{
+    prepareChain();
+    lastFullBlockScheduled = -1;
+    findMoreJobs();
 }
 
 bool Validation::Engine::disconnectTip(const FastBlock &tip, CBlockIndex *index, bool *userClean)

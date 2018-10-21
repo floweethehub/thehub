@@ -206,6 +206,7 @@ public:
     void processNewBlock(std::shared_ptr<BlockValidationState> state);
     void startOrphanWithParent(std::list<std::shared_ptr<BlockValidationState> > &adoptees, const std::shared_ptr<BlockValidationState> &state);
     void prepareChain();
+    void prepareChain_priv();
     void createBlockIndexFor(const std::shared_ptr<BlockValidationState> &state);
     /// called (from strand) to speed up shutdown
     void cleanup();
