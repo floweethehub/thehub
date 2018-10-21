@@ -41,6 +41,8 @@
 # define DEBUGUTXO BTC_NO_DEBUG_MACRO()
 #endif
 
+Limits UODBPrivate::limits = Limits();
+
 static std::uint32_t createShortHash(const uint256 &hash)
 {
     auto txid = hash.begin();
@@ -208,6 +210,12 @@ UnspentOutputDatabase *UnspentOutputDatabase::createMemOnlyDB(const boost::files
     auto d = new UODBPrivate(ioService, basedir);
     d->memOnly = true;
     return new UnspentOutputDatabase(d);
+}
+
+void UnspentOutputDatabase::setSmallLimits()
+{
+    UODBPrivate::limits.DBFileSize = 50000000;
+    UODBPrivate::limits.FileFull = 30000000;
 }
 
 void UnspentOutputDatabase::insert(const uint256 &txid, int outIndex, int blockHeight, int offsetInBlock)
@@ -383,7 +391,7 @@ UODBPrivate::UODBPrivate(boost::asio::io_service &service, const boost::filesyst
     }
     if (dataFiles.size() > 1) {
         auto lastFull = dataFiles.at(dataFiles.size() - 2);
-        doPrune = lastFull->m_file.size() == 2147483600; // the original 2GiB
+        doPrune = lastFull->m_file.size() == limits.DBFileSize; // the original size
         if (doPrune)
             lastFull->m_changesSinceJumptableWritten = 5000000; // prune it sooner
     }
@@ -1019,7 +1027,7 @@ bool DataFile::flushSomeNodesToDisk(ForceBool force)
     m_changeCount = 0;
 
     m_jumptableNeedsSave = true;
-    if (!m_fileFull && m_writeBuffer.offset() > 1800000000) { // 1.8GB
+    if (!m_fileFull && m_writeBuffer.offset() > UODBPrivate::limits.FileFull) {
         m_fileFull = true;
     }
     m_changesSinceJumptableWritten += flushedToDiskCount;
@@ -1315,7 +1323,7 @@ DataFile *DataFile::createDatafile(const boost::filesystem::path &filename, int 
         boost::filesystem::create_directories(filename.parent_path());
         boost::filesystem::ofstream file(dbFile);
         file.close();
-        boost::filesystem::resize_file(dbFile, 2147483600); // ~2GB
+        boost::filesystem::resize_file(dbFile, UODBPrivate::limits.DBFileSize);
     }
 
     DataFile *df = new DataFile(filename);

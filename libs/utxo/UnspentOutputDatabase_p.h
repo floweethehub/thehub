@@ -221,6 +221,13 @@ public:
     };
 };
 
+struct Limits
+{
+    uint32_t DBFileSize = 2147483600; // 2GiB
+    uint32_t FileFull = 1800000000; // 1.8GB
+    uint32_t AutoFlush = 5000000; // every 5 million inserts/deletes, auto-flush jumptables
+};
+
 class UODBPrivate
 {
 public:
@@ -239,6 +246,8 @@ public:
     const boost::filesystem::path basedir;
 
     COWList<DataFile*> dataFiles;
+
+    static Limits limits;
 };
 
 #endif

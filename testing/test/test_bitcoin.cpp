@@ -75,6 +75,7 @@ TestingSetup::TestingSetup(const std::string& chainName) : BasicTestingSetup(cha
     boost::filesystem::create_directories(pathTemp / "blocks/index");
     mapArgs["-datadir"] = pathTemp.string();
     Blocks::DB::createTestInstance(1<<20);
+    UnspentOutputDatabase::setSmallLimits();
     g_utxo = new UnspentOutputDatabase(Application::instance()->ioService(), GetDataDir(true) / "unspent");
 
     bv.initSingletons();

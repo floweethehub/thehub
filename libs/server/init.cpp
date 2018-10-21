@@ -694,6 +694,10 @@ bool AppInit2(boost::thread_group& threadGroup, CScheduler& scheduler)
         }
     }
 
+    if (Params().NetworkIDString() == "regtest") { // setup for testing to not use so much disk space.
+        UnspentOutputDatabase::setSmallLimits();
+    }
+
     // ********************************************************* Step 4: application initialization: dir lock, daemonize, pidfile, debug log
 
     // Initialize elliptic curve code

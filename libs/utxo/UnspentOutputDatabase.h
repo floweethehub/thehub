@@ -102,6 +102,9 @@ public:
 
     static UnspentOutputDatabase *createMemOnlyDB(const boost::filesystem::path &basedir);
 
+    /// Change limits to be smaller, for instance for regtest setups
+    static void setSmallLimits();
+
     /**
      * @brief insert a new spendable output.
      * @param txid the (prev) transaction id.
