@@ -187,6 +187,7 @@ public:
     // in this map to detect double-spends.
     typedef boost::unordered_map<uint256, std::deque<int>, Blocks::BlockHashShortener> SpentMap;
     SpentMap m_spentMap;
+    std::mutex m_spendMapLock;
 };
 
 struct MapHashShortener

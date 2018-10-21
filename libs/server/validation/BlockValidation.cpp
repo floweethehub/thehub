@@ -1530,6 +1530,7 @@ void BlockValidationState::checkSignaturesChunk(CheckType type)
                             // we just checked the UTXO, but when this bool is true
                             // the output is not removed from the UTXO, and as such we need a bit of extra code
                             // to detect double-spends.
+                            std::lock_guard<std::mutex> lock(m_spendMapLock);
                             auto ti = m_spentMap.find(input.txid);
                             if (ti != m_spentMap.end()) {
                                 for (int index : ti->second) {
