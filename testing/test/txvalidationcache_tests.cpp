@@ -75,11 +75,14 @@ public:
         return block.createOldBlock();
     }
 
-    bool ToMemPool(CMutableTransaction& tx)
+    void ToMemPool(CMutableTransaction& tx, bool expectPass)
     {
         auto future = bv.addTransaction(Tx::fromOldTransaction(tx));
         std::string result = future.get();
-        return result.empty();
+        if (expectPass != result.empty()) {
+            logCritical() << "ToMemPool" << result;
+            throw std::runtime_error(expectPass ? result : "ToMemPool gave no error");
+        }
     }
 
 
@@ -125,7 +128,7 @@ BOOST_FIXTURE_TEST_CASE(tx_mempool_block_doublespend, TestChain100Setup)
     std::vector<CMutableTransaction> oneSpend;
     oneSpend.push_back(spends[0]);
     bv.mp.clear();
-    BOOST_CHECK(ToMemPool(spends[1]));
+    ToMemPool(spends[1], /* expectPass = */ true);
     block = createAndProcessBlock(oneSpend, scriptPubKey);
     BOOST_CHECK(chainActive.Tip()->GetBlockHash() == block.GetHash());
     // spends[1] should have been removed from the mempool when the

@@ -28,6 +28,23 @@
 #include <consensus/merkle.h>
 #include <main.h>
 
+namespace {
+void nothing(){
+    logDebug() << "nothing";
+}
+// as we know that headers and final block validation happen in the strand, this
+// helper method may ensure we wait long enough to allow various actions to happen.
+// it typically is Ok to have a higher count than required for internal details in the BV code.
+void waitForStrand(MockBlockValidation &bv, int count = 10) {
+    for (int i = 0; i < count; ++i) {
+        auto d = bv.priv().lock();
+        WaitUntilFinishedHelper helper(std::bind(&nothing), &d->strand);
+        helper.run();
+    }
+    bv.waitValidationFinished();
+}
+}
+
 BOOST_FIXTURE_TEST_SUITE(blockvalidation, TestingSetup)
 
 BOOST_AUTO_TEST_CASE(reorderblocks)
@@ -92,9 +109,9 @@ BOOST_AUTO_TEST_CASE(reorderblocks)
 
     // We should now get a simple removal of block 4 from the original chain because our
     // new chain has more POW.
-
-    bv.priv().lock()->prepareChain();
-
+    auto d = bv.priv().lock(); // (make sure to call prepareChain in the strand, and avoid an assert)
+    WaitUntilFinishedHelper helper(std::bind(&ValidationEnginePrivate::prepareChain, d), &d->strand);
+    helper.run();
     BOOST_CHECK_EQUAL(bv.blockchain()->Height(), 3);
     BOOST_CHECK_EQUAL((*bv.blockchain())[3], oldBlock3); // unchanged.
     CBlockIndex *null = nullptr;
@@ -152,14 +169,9 @@ BOOST_AUTO_TEST_CASE(detectOrder2)
     }
     bv.waitValidationFinished();
     BOOST_CHECK_EQUAL(bv.blockchain()->Height(), 8); // it stopped at the header, not processing the last block because of that.
-    bv.addBlock(full, Validation::SaveGoodToDisk, nullptr);
-    bv.waitValidationFinished();
-    CBlockIndex *dummy = new CBlockIndex();
-    uint256 dummySha;
-    dummy->phashBlock = &dummySha;
-    dummy->pprev = bv.blockchain()->Tip();
-    bv.invalidateBlock(dummy); // this is quite irrelevant to the feature we test, except that we know this syncs on the strand
-    bv.waitValidationFinished();
+    bv.addBlock(full, Validation::SaveGoodToDisk, nullptr).start().waitUntilFinished();
+    // now we have processed 8, it will continue to process 9 in a different thread.
+    waitForStrand(bv);
     BOOST_CHECK_EQUAL(bv.blockchain()->Height(), 10);
 
     // now again, but with a bigger gap than 1
@@ -180,7 +192,7 @@ BOOST_AUTO_TEST_CASE(detectOrder2)
         bv.addBlock(block, Validation::SaveGoodToDisk, nullptr);
     }
     bv.waitValidationFinished();
-    bv.invalidateBlock(dummy); // this is quite irrelevant to the feature we test, except that we know this syncs on the strand
+    waitForStrand(bv);
     bv.waitValidationFinished();
     BOOST_CHECK_EQUAL(bv.blockchain()->Height(), 20);
 }

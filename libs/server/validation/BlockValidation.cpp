@@ -528,8 +528,6 @@ void ValidationEnginePrivate::processNewBlock(std::shared_ptr<BlockValidationSta
 
     assert(blockchain->Height() == -1 || index->nChainWork >= blockchain->Tip()->nChainWork); // the new block has more POW.
 
-
-
     const bool blockValid = (state->m_validationStatus.load() & BlockValidationState::BlockInvalid) == 0;
     if (!blockValid)
         mempool->utxo()->rollback();
@@ -938,6 +936,7 @@ bool ValidationEnginePrivate::disconnectTip(const FastBlock &tip, CBlockIndex *i
     assert(index->pprev);
     assert(tip.createHash() == mempool->utxo()->blockId());
     assert(tip.transactions().size() > 0); // make sure we called findTransactions elsewhere
+    assert(strand.running_in_this_thread());
 
     CDiskBlockPos pos = index->GetUndoPos();
     if (pos.IsNull()) {
@@ -1143,10 +1142,8 @@ void BlockValidationState::blockFailed(int punishment, const std::string &error,
     isCorruptionPossible = corruptionPossible;
     m_validationStatus.fetch_or(BlockInvalid);
     auto validationSettings = m_settings.lock();
-    if (validationSettings) {
+    if (validationSettings)
         validationSettings->error = error;
-        validationSettings->markFinished();
-    }
 }
 
 void BlockValidationState::signalChildren() const
