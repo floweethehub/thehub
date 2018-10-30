@@ -21,8 +21,6 @@ competition.
 
 # Installation
 
-Flowee is still being developed and is usage in production will cause you pain.
-
 The fastest way to try Flowee is by installing docker. See more details [here](support/docker/hub).
 
 To compile and install Flowee on Ubuntu, install the dependencies

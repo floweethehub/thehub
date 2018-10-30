@@ -106,15 +106,15 @@ std::string Application::userAgent()
 
     std::ostringstream ss;
     ss << "/";
-    ss << clientName() << ":"
-       << CLIENT_VERSION_MAJOR << "."
-       << CLIENT_VERSION_MINOR;
+    ss << clientName() << ":" << HUB_SERIES;
     if (!comments.empty()) {
         auto it(comments.begin());
         ss << "(" << *it;
         for (++it; it != comments.end(); ++it)
             ss << "; " << *it;
         ss << ")";
+    } else {
+        ss << " (" << CLIENT_VERSION_MAJOR << "-" << CLIENT_VERSION_MINOR << ")";
     }
     ss << "/";
     std::string answer = ss.str();

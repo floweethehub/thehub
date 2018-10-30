@@ -18,7 +18,7 @@ SUFFIX=""
 LAST_COMMIT_DATE=""
 if [ -e "$(which git 2>/dev/null)" -a "$(git rev-parse --is-inside-work-tree 2>/dev/null)" = "true" ]; then
     # clean 'dirty' status of touched files that haven't been modified
-    git diff >/dev/null 2>/dev/null 
+    git diff >/dev/null 2>/dev/null
 
     # if latest commit is tagged and not dirty, then override using the tag name
     RAWDESC=$(git describe --abbrev=0 2>/dev/null)
@@ -27,8 +27,8 @@ if [ -e "$(which git 2>/dev/null)" -a "$(git rev-parse --is-inside-work-tree 2>/
     fi
 
     # otherwise generate suffix from git, i.e. string like "59887e8-dirty"
-    SUFFIX=$(git rev-parse --short HEAD)
-    git diff-index --quiet HEAD -- || SUFFIX="$SUFFIX-dirty"
+    GIT_COMMIT=$(git rev-parse --short HEAD)
+    git diff-index --quiet HEAD -- || SUFFIX="$GIT_COMMIT-dirty"
 
     # get a string like "2012-04-10 16:27:19 +0200"
     LAST_COMMIT_DATE="$(git log -n 1 --format="%ci")"
@@ -45,6 +45,9 @@ fi
 # only update build.h if necessary
 if [ "$INFO" != "$NEWINFO" ]; then
     echo "$NEWINFO" >"$FILE"
+    if [ -n "$GIT_COMMIT" ]; then
+        echo "#define GIT_COMMIT_ID \"$GIT_COMMIT\"" >> "$FILE"
+    fi
     if [ -n "$LAST_COMMIT_DATE" ]; then
         echo "#define BUILD_DATE \"$LAST_COMMIT_DATE\"" >> "$FILE"
     fi
