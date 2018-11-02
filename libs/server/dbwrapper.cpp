@@ -58,7 +58,7 @@ static leveldb::Options GetOptions(size_t nCacheSize)
     return options;
 }
 
-CDBWrapper::CDBWrapper(const boost::filesystem::path& path, size_t nCacheSize, bool fMemory, bool fWipe, bool obfuscate)
+CDBWrapper::CDBWrapper(const boost::filesystem::path& path, size_t nCacheSize, bool fMemory, bool fWipe)
 {
     penv = NULL;
     readoptions.verify_checksums = true;
@@ -82,16 +82,6 @@ CDBWrapper::CDBWrapper(const boost::filesystem::path& path, size_t nCacheSize, b
     leveldb::Status status = leveldb::DB::Open(options, path.string(), &pdb);
     HandleError(status);
     logInfo(Log::DB) << "Opened LevelDB successfully";
-
-    // The base-case obfuscation key, which is a noop.
-    obfuscate_key = std::vector<unsigned char>(OBFUSCATE_KEY_NUM_BYTES, '\000');
-
-    bool key_exists = Read(OBFUSCATE_KEY_KEY, obfuscate_key);
-
-    if (!key_exists && obfuscate && IsEmpty()) {
-        assert(false); // we don't support obfuscating a new DB.
-    }
-    logInfo(Log::DB) << "Using obfuscation key for" << path.string() << ":" << GetObfuscateKeyHex();
 }
 
 CDBWrapper::~CDBWrapper()
@@ -113,41 +103,11 @@ bool CDBWrapper::WriteBatch(CDBBatch& batch, bool fSync) throw(dbwrapper_error)
     return true;
 }
 
-// Prefixed with null character to avoid collisions with other keys
-//
-// We must use a string constructor which specifies length so that we copy
-// past the null-terminator.
-const std::string CDBWrapper::OBFUSCATE_KEY_KEY("\000obfuscate_key", 14);
-
-const unsigned int CDBWrapper::OBFUSCATE_KEY_NUM_BYTES = 8;
-
-/**
- * Returns a string (consisting of 8 random bytes) suitable for use as an
- * obfuscating XOR key.
- */
-std::vector<unsigned char> CDBWrapper::CreateObfuscateKey() const
-{
-    unsigned char buff[OBFUSCATE_KEY_NUM_BYTES];
-    GetRandBytes(buff, OBFUSCATE_KEY_NUM_BYTES);
-    return std::vector<unsigned char>(&buff[0], &buff[OBFUSCATE_KEY_NUM_BYTES]);
-
-}
-
 bool CDBWrapper::IsEmpty()
 {
     boost::scoped_ptr<CDBIterator> it(NewIterator());
     it->SeekToFirst();
     return !(it->Valid());
-}
-
-const std::vector<unsigned char>& CDBWrapper::GetObfuscateKey() const
-{
-    return obfuscate_key;
-}
-
-std::string CDBWrapper::GetObfuscateKeyHex() const
-{
-    return HexStr(obfuscate_key);
 }
 
 CDBIterator::~CDBIterator() { delete piter; }

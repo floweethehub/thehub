@@ -41,7 +41,7 @@ BOOST_FIXTURE_TEST_SUITE(dbwrapper_tests, BasicTestingSetup)
 BOOST_AUTO_TEST_CASE(dbwrapper)
 {
     path ph = temp_directory_path() / unique_path();
-    CDBWrapper dbw(ph, (1 << 20), true, false, false);
+    CDBWrapper dbw(ph, (1 << 20), true, false);
     char key = 'k';
     uint256 in = GetRandHash();
     uint256 res;
@@ -65,7 +65,7 @@ BOOST_AUTO_TEST_CASE(dbwrapper_batch)
     uint256 in3 = GetRandHash();
 
     uint256 res;
-    CDBBatch batch(&dbw.GetObfuscateKey());
+    CDBBatch batch;
 
     batch.Write(key, in);
     batch.Write(key2, in2);
@@ -120,47 +120,6 @@ BOOST_AUTO_TEST_CASE(dbwrapper_iterator)
 
     it->Next();
     BOOST_CHECK_EQUAL(it->Valid(), false);
-}
-
-// Test that we do not obfuscation if there is existing data.
-BOOST_AUTO_TEST_CASE(existing_data_no_obfuscate)
-{
-    // We're going to share this path between two wrappers
-    path ph = temp_directory_path() / unique_path();
-    create_directories(ph);
-
-    // Set up a non-obfuscated wrapper to write some initial data.
-    CDBWrapper* dbw = new CDBWrapper(ph, (1 << 10), false, false, false);
-    char key = 'k';
-    uint256 in = GetRandHash();
-    uint256 res;
-
-    BOOST_CHECK(dbw->Write(key, in));
-    BOOST_CHECK(dbw->Read(key, res));
-    BOOST_CHECK_EQUAL(res.ToString(), in.ToString());
-
-    // Call the destructor to free leveldb LOCK
-    delete dbw;
-
-    // Now, set up another wrapper that wants to obfuscate the same directory
-    CDBWrapper odbw(ph, (1 << 10), false, false, true);
-
-    // Check that the key/val we wrote with unobfuscated wrapper exists and 
-    // is readable.
-    uint256 res2;
-    BOOST_CHECK(odbw.Read(key, res2));
-    BOOST_CHECK_EQUAL(res2.ToString(), in.ToString());
-
-    BOOST_CHECK(!odbw.IsEmpty()); // There should be existing data
-    BOOST_CHECK(is_null_key(odbw.GetObfuscateKey())); // The key should be an empty string
-
-    uint256 in2 = GetRandHash();
-    uint256 res3;
- 
-    // Check that we can write successfully
-    BOOST_CHECK(odbw.Write(key, in2));
-    BOOST_CHECK(odbw.Read(key, res3));
-    BOOST_CHECK_EQUAL(res3.ToString(), in2.ToString());
 }
                         
 BOOST_AUTO_TEST_SUITE_END()
