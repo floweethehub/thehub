@@ -1534,8 +1534,8 @@ bool LoadBlockIndexDB()
     chainActive.SetTip(tip);
     if (tip == nullptr)
         return true;
-    auto uahfBlock = tip->GetAncestor(chainparams.GetConsensus().uahfForkBlockHeight);
-    if (uahfBlock && uahfBlock->GetBlockHash() == chainparams.GetConsensus().uahfForkBlockId)
+    auto uahfBlock = tip->GetAncestor(chainparams.GetConsensus().hf201708Height);
+    if (uahfBlock && uahfBlock->GetBlockHash() == chainparams.GetConsensus().hf201708BlockId)
         Application::instance()->setUahfChainState(Application::UAHFActive);
 
     logCritical(Log::Bitcoin) << "LoadBlockIndexDB: hashBestChain:" << tip->GetBlockHash()
@@ -2074,7 +2074,7 @@ bool static ProcessMessage(CNode* pfrom, std::string strCommand, CDataStream& vR
             // this means we are not just in initial block download, we are in a state
             // where filling the mempool or getting the latest block just doesn't make any sense.
             // This avoids us banning CASH nodes before we follow the UAHF rules.
-            if (chainparams.GetConsensus().uahfForkBlockHeight > chainActive.Height())
+            if (chainparams.GetConsensus().hf201708Height > chainActive.Height())
                 return true;
         }
         std::vector<CInv> vInv;

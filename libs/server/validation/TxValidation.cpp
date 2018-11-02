@@ -70,7 +70,7 @@ void ValidationPrivate::validateTransactionInputs(CTransaction &tx, const std::v
         throw Exception("bad-txns-fee-outofrange");
 
 
-    if (flags.uahfRules) {
+    if (flags.hf201708Active) {
         // reject in memory pool transactions that use the OP_RETURN anti-replay ID.
         // Remove this code after the sunset height has been reached.
         const auto consensusParams = Params().GetConsensus();

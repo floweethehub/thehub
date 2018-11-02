@@ -686,10 +686,10 @@ void ValidationEnginePrivate::processNewBlock(std::shared_ptr<BlockValidationSta
         }
     }
 
-    if (state->flags.uahfRules && Application::uahfChainState() == Application::UAHFWaiting) {
+    if (state->flags.hf201708Active && Application::uahfChainState() == Application::UAHFWaiting) {
         Application::setUahfChainState(Application::UAHFRulesActive);
         // next block is the big, fork-block.
-    } else if (state->flags.uahfRules && Application::uahfChainState() == Application::UAHFRulesActive) {
+    } else if (state->flags.hf201708Active && Application::uahfChainState() == Application::UAHFRulesActive) {
         logInfo(8002) << "UAHF block found that activates the chain" << state->m_block.createHash();
         // enable UAHF (aka BCC) on first block after the calculated timestamp
         Application::setUahfChainState(Application::UAHFActive);
@@ -987,7 +987,8 @@ ValidationFlags::ValidationFlags()
     scriptVerifyLockTimeVerify(false),
     scriptVerifySequenceVerify(false),
     nLocktimeVerifySequence(false),
-    uahfRules(false)
+    hf201708Active(false),
+    hf201805Active(false)
 {
 }
 
@@ -1000,7 +1001,7 @@ uint32_t ValidationFlags::scriptValidationFlags() const
         flags |= SCRIPT_VERIFY_CHECKLOCKTIMEVERIFY;
     if (scriptVerifySequenceVerify)
         flags |= SCRIPT_VERIFY_CHECKSEQUENCEVERIFY;
-    if (uahfRules) {
+    if (hf201708Active) {
         flags |= SCRIPT_VERIFY_STRICTENC;
         flags |= SCRIPT_ENABLE_SIGHASH_FORKID;
     }
@@ -1069,12 +1070,15 @@ void ValidationFlags::updateForBlock(CBlockIndex *index, const uint256 &blkHash)
         }
     }
 
-    if (uahfRules
+    if (hf201708Active
             || ((Application::uahfChainState() == Application::UAHFWaiting
                  && index->GetMedianTimePast() >= Application::uahfStartTime())
                 || Application::uahfChainState() >= Application::UAHFRulesActive)) {
-        uahfRules = true;
+        hf201708Active = true;
     }
+
+    if (!hf201805Active && index->nHeight >= chainparams.GetConsensus().hf201805Height)
+        hf201805Active = true;
 }
 
 /* TODO Expire orphans.

@@ -171,8 +171,10 @@ public:
         fMineBlocksOnDemand = false;
         fTestnetToBeDeprecatedFieldRPC = false;
 
-        consensus.uahfForkBlockHeight = 478559;
-        consensus.uahfForkBlockId = uint256S("0x000000000000000000651ef99cb9fcbe0dadde1d424bd9f15ff20136191a5eec");
+        consensus.hf201708Height = 478559;
+        consensus.hf201708BlockId = uint256S("0x000000000000000000651ef99cb9fcbe0dadde1d424bd9f15ff20136191a5eec");
+        consensus.hf201711Height = 504032;
+        consensus.hf201805Height = 530356;
 
         checkpointData = CCheckpointData {
             boost::assign::map_list_of
@@ -278,8 +280,10 @@ public:
         fMineBlocksOnDemand = false;
         fTestnetToBeDeprecatedFieldRPC = true;
 
-        consensus.uahfForkBlockHeight = 1155876;
-        consensus.uahfForkBlockId = uint256S("0x00000000000e38fef93ed9582a7df43815d5c2ba9fd37ef70c9a0ea4a285b8f5");
+        consensus.hf201708Height = 1155876;
+        consensus.hf201708BlockId = uint256S("0x00000000000e38fef93ed9582a7df43815d5c2ba9fd37ef70c9a0ea4a285b8f5");
+        consensus.hf201711Height = 1;
+        consensus.hf201805Height = 1;
 
         checkpointData = CCheckpointData {
             boost::assign::map_list_of
@@ -353,8 +357,10 @@ public:
         fMineBlocksOnDemand = true;
         fTestnetToBeDeprecatedFieldRPC = false;
 
-        consensus.uahfForkBlockHeight = 0;
-        consensus.uahfForkBlockId = consensus.hashGenesisBlock;
+        consensus.hf201708Height = 0;
+        consensus.hf201708BlockId = consensus.hashGenesisBlock;
+        consensus.hf201711Height = 1;
+        consensus.hf201805Height = 1;
 
         checkpointData = CCheckpointData {
             boost::assign::map_list_of

@@ -78,9 +78,11 @@ struct Params {
     int64_t nPowTargetSpacing;
     int64_t nPowTargetTimespan;
     int64_t DifficultyAdjustmentInterval() const { return nPowTargetTimespan / nPowTargetSpacing; }
+    int hf201708Height;
+    uint256 hf201708BlockId;
+    int hf201711Height; // daa3 got enabled here
     int64_t daa3ActivationTime; // difficulty adjustment algo 3, the one that removed the broken EDA.
-    int uahfForkBlockHeight;
-    uint256 uahfForkBlockId;
+    int hf201805Height;
 };
 } // namespace Consensus
 

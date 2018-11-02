@@ -46,7 +46,8 @@ struct ValidationFlags {
     bool scriptVerifyLockTimeVerify;
     bool scriptVerifySequenceVerify;
     bool nLocktimeVerifySequence;
-    bool uahfRules;
+    bool hf201708Active;
+    bool hf201805Active;
 
     uint32_t scriptValidationFlags() const;
 
