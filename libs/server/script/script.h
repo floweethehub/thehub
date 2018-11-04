@@ -186,6 +186,11 @@ enum opcodetype
     OP_NOP9 = 0xb8,
     OP_NOP10 = 0xb9,
 
+    // Hard fork expansion starts here.
+
+    // New since 2018-11
+    OP_CHECKDATASIG = 0xba,
+    OP_CHECKDATASIGVERIFY = 0xbb,
 
     // template matching params
     OP_SMALLINTEGER = 0xfa,
