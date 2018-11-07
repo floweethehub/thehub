@@ -54,6 +54,7 @@ set (TEST_SOURCES
     blockvalidation_tests.cpp
     bloom_tests.cpp
     bswap_tests.cpp
+    checkdatasig_tests.cpp
     Checkpoints_tests.cpp
     compress_tests.cpp
     crypto_tests.cpp
