@@ -1423,11 +1423,11 @@ void BlockValidationState::checkSignaturesChunk(CheckType type)
     int64_t start = GetTimeMicros();
     int64_t utxoStart, utxoDuration = 0;
 #endif
-    auto parent_ = m_parent.lock();
-    if (!parent_)
+    auto parent = m_parent.lock();
+    if (!parent)
         return;
-    assert(parent_->mempool);
-    UnspentOutputDatabase *utxo = parent_->mempool->utxo();
+    assert(parent->mempool);
+    UnspentOutputDatabase *utxo = parent->mempool->utxo();
     assert(utxo);
     const int totalTxCount = static_cast<int>(m_block.transactions().size());
 
