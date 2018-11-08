@@ -175,6 +175,7 @@ public:
         consensus.hf201708BlockId = uint256S("0x000000000000000000651ef99cb9fcbe0dadde1d424bd9f15ff20136191a5eec");
         consensus.hf201711Height = 504032;
         consensus.hf201805Height = 530356;
+        consensus.hf201811Height = 666666;
 
         checkpointData = CCheckpointData {
             boost::assign::map_list_of
@@ -284,6 +285,7 @@ public:
         consensus.hf201708BlockId = uint256S("0x00000000000e38fef93ed9582a7df43815d5c2ba9fd37ef70c9a0ea4a285b8f5");
         consensus.hf201711Height = 1;
         consensus.hf201805Height = 1;
+        consensus.hf201811Height = 1;
 
         checkpointData = CCheckpointData {
             boost::assign::map_list_of
@@ -361,6 +363,7 @@ public:
         consensus.hf201708BlockId = consensus.hashGenesisBlock;
         consensus.hf201711Height = 1;
         consensus.hf201805Height = 1;
+        consensus.hf201811Height = 9999999; // avoid doing stupid stuff like 100 bytes min tx size
 
         checkpointData = CCheckpointData {
             boost::assign::map_list_of

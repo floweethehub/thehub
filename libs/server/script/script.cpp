@@ -3,6 +3,7 @@
  * Copyright (C) 2009-2010 Satoshi Nakamoto
  * Copyright (C) 2009-2015 The Bitcoin Core developers
  * Copyright (C) 2018 Jason B. Cox <contact@jasonbcox.com>
+ * Copyright (C) 2018 Tom Zander <tomz@freedommail.ch>
  *
  * This program is free software: you can redistribute it and/or modify
  * it under the terms of the GNU General Public License as published by
@@ -175,15 +176,16 @@ unsigned int CScript::GetSigOpCount(bool fAccurate) const
     unsigned int n = 0;
     const_iterator pc = begin();
     opcodetype lastOpcode = OP_INVALIDOPCODE;
-    while (pc < end())
-    {
+    while (pc < end()) {
         opcodetype opcode;
         if (!GetOp(pc, opcode))
             break;
-        if (opcode == OP_CHECKSIG || opcode == OP_CHECKSIGVERIFY)
+
+        if (opcode == OP_CHECKSIG || opcode == OP_CHECKSIGVERIFY
+                || opcode == OP_CHECKDATASIG || opcode == OP_CHECKDATASIGVERIFY) {
             n++;
-        else if (opcode == OP_CHECKMULTISIG || opcode == OP_CHECKMULTISIGVERIFY)
-        {
+        }
+        else if (opcode == OP_CHECKMULTISIG || opcode ==  OP_CHECKMULTISIGVERIFY) {
             if (fAccurate && lastOpcode >= OP_1 && lastOpcode <= OP_16)
                 n += DecodeOP_N(lastOpcode);
             else

@@ -988,7 +988,8 @@ ValidationFlags::ValidationFlags()
     scriptVerifySequenceVerify(false),
     nLocktimeVerifySequence(false),
     hf201708Active(false),
-    hf201805Active(false)
+    hf201805Active(false),
+    hf201811Active(false)
 {
 }
 
@@ -1004,6 +1005,11 @@ uint32_t ValidationFlags::scriptValidationFlags() const
     if (hf201708Active) {
         flags |= SCRIPT_VERIFY_STRICTENC;
         flags |= SCRIPT_ENABLE_SIGHASH_FORKID;
+    }
+    if (hf201811Active) {
+        flags |= SCRIPT_ENABLE_CHECKDATASIG;
+        flags |= SCRIPT_VERIFY_SIGPUSHONLY;
+        flags |= SCRIPT_VERIFY_CLEANSTACK;
     }
     return flags;
 }
@@ -1079,6 +1085,8 @@ void ValidationFlags::updateForBlock(CBlockIndex *index, const uint256 &blkHash)
 
     if (!hf201805Active && index->nHeight >= chainparams.GetConsensus().hf201805Height)
         hf201805Active = true;
+    if (!hf201811Active && index->nHeight >= chainparams.GetConsensus().hf201811Height)
+        hf201811Active = true;
 }
 
 /* TODO Expire orphans.
