@@ -1024,7 +1024,7 @@ bool DataFile::flushSomeNodesToDisk(ForceBool force)
     logInfo(Log::UTXO) << "Flushed" << flushedToDiskCount << "to disk. Filesize now:" << m_writeBuffer.offset();
     logInfo(Log::UTXO) << " +- Leafs in mem:" << m_leafs.size() << "Buckets in mem:" << m_buckets.size();
     m_flushScheduled = false;
-    m_changeCount = 0;
+    m_changeCount = m_leafs.size();
 
     m_jumptableNeedsSave = true;
     if (!m_fileFull && m_writeBuffer.offset() > UODBPrivate::limits.FileFull) {
@@ -1287,7 +1287,6 @@ void DataFile::addChange(const UODBPrivate *priv)
         m_flushScheduled = true;
         priv->ioService.post(std::bind(&DataFile::flushSomeNodesToDisk, this, NormalSave));
     }
-
 }
 
 bool DataFile::openInfo(int targetHeight)
