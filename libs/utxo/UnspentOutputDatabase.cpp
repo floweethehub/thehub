@@ -329,6 +329,21 @@ void UnspentOutputDatabase::rollback()
     }
 }
 
+void UnspentOutputDatabase::saveCaches()
+{
+    if (d->memOnly) return;
+
+    auto dfs(d->dataFiles);
+    for (int i = 0; i < dfs.size(); ++i) {
+        DataFile *df = dfs.at(i);
+        std::lock_guard<std::recursive_mutex> lock(df->m_lock);
+        if (df->m_flushScheduled)
+            continue;
+        df->m_flushScheduled = true;
+        d->ioService.post(std::bind(&DataFile::flushSomeNodesToDisk, df, NormalSave));
+    }
+}
+
 int UnspentOutputDatabase::blockheight() const
 {
     return d->dataFiles.last()->m_lastBlockHeight;

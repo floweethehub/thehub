@@ -148,6 +148,14 @@ public:
      */
     void rollback();
 
+    /**
+     * Save (some) caches to disk.
+     * The DB triggers saving of caches to disk based on how many changes
+     * have been made, which means that if nothing happens then we won't save.
+     * This method can be called periodically to use a time-based saving.
+     */
+    void saveCaches();
+
     int blockheight() const;
     uint256 blockId() const;
 

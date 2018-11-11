@@ -850,6 +850,7 @@ bool AppInit2(boost::thread_group& threadGroup, CScheduler& scheduler)
                     break;
                 }
                 Application::instance()->validation()->setBlockchain(&chainActive);
+                scheduler.scheduleEvery(std::bind(&UnspentOutputDatabase::saveCaches, g_utxo), 5 * 60);
 
                 // Check whether we need to continue reindexing
                 fReindex = fReindex || Blocks::DB::instance()->reindexing() != Blocks::NoReindex;
