@@ -221,8 +221,12 @@ std::vector<FastBlock> MockBlockValidation::appendChain(int blocks, CKey &coinba
     answer.reserve(blocks);
     coinbaseKey.MakeNewKey(true);
     CScript scriptPubKey;
-    if (out == StandardOutScript)
-        scriptPubKey <<  ToByteVector(coinbaseKey.GetPubKey()) << OP_CHECKSIG;
+    if (out == StandardOutScript) {
+        scriptPubKey << ToByteVector(coinbaseKey.GetPubKey()) << OP_CHECKSIG;
+    } else if (out == FullOutScript) {
+        scriptPubKey << OP_DUP << OP_HASH160 << ToByteVector(coinbaseKey.GetPubKey().GetID())
+                     << OP_EQUALVERIFY << OP_CHECKSIG;
+    }
     waitValidationFinished();
     const bool allowFullChecks = Params().NetworkIDString() == "regtest";
     for (int i = 0; i < blocks; i++)

@@ -22,6 +22,7 @@
 #include <validation/BlockValidation_p.h>
 #include <server/BlocksDB.h>
 #include <server/script/interpreter.h>
+#include <server/script/standard.h>
 #include <primitives/transaction.h>
 #include <chainparams.h>
 #include <key.h>
@@ -200,7 +201,6 @@ BOOST_AUTO_TEST_CASE(detectOrder2)
 BOOST_AUTO_TEST_CASE(duplicateInput)
 {
     CKey coinbaseKey;
-    coinbaseKey.MakeNewKey(true);
     // create a chain of 101 blocks.
     std::vector<FastBlock> blocks = bv.appendChain(101, coinbaseKey);
     assert(blocks.size() == 101);
@@ -237,5 +237,95 @@ BOOST_AUTO_TEST_CASE(duplicateInput)
     future.waitUntilFinished();
     BOOST_CHECK_EQUAL(future.error(), std::string("bad-txns-inputs-duplicate"));
 }
+
+// this only works if the input is a p2pkh script!
+CTransaction splitCoins(const Tx &inTx, int inIndex, const CKey &from, const CKey &to, int outputCount)
+{
+    assert(outputCount > 0);
+    assert(inIndex >= 0);
+logInfo() << inTx.createHash();
+
+    Tx::Output prevOut = inTx.output(inIndex);
+    assert(prevOut.outputValue > 0);
+    const uint64_t outAmount = prevOut.outputValue / outputCount;
+    assert(outAmount > 5);
+
+    CMutableTransaction newTx;
+    CTxIn input;
+    input.prevout.n = inIndex;
+    input.prevout.hash = inTx.createHash();
+    newTx.vin.push_back(input);
+
+    const CScript scriptPubKey = CScript() << OP_DUP << OP_HASH160 << ToByteVector(to.GetPubKey().GetID())
+                                     << OP_EQUALVERIFY << OP_CHECKSIG;
+    newTx.vout.resize(outputCount);
+    for (int i = 0; i < outputCount; ++i) {
+        newTx.vout[i].nValue = outAmount;
+        newTx.vout[i].scriptPubKey = scriptPubKey;
+    }
+
+    // Sign
+    const int nHashType = SIGHASH_ALL | SIGHASH_FORKID;
+    const uint256 sigHash = SignatureHash(prevOut.outputScript, newTx, inIndex, prevOut.outputValue, nHashType,  SCRIPT_ENABLE_SIGHASH_FORKID);
+    std::vector<unsigned char> vchSig;
+    bool ok = from.Sign(sigHash, vchSig);
+    assert(ok);
+    vchSig.push_back((unsigned char)nHashType);
+    newTx.vin[0].scriptSig << vchSig;
+    newTx.vin[0].scriptSig << ToByteVector(from.GetPubKey());
+
+    return newTx;
+}
+
+bool sortTxByTxId(const CTransaction &tx1, const CTransaction &tx2)
+{
+    return tx1.GetHash().Compare(tx2.GetHash()) <= 0;
+}
+
+BOOST_AUTO_TEST_CASE(CTOR)
+{
+    auto priv = bv.priv().lock();
+    priv->tipFlags.hf201811Active = true;
+
+    CKey myKey;
+    // create a chain of 101 blocks.
+    std::vector<FastBlock> blocks = bv.appendChain(110, myKey, MockBlockValidation::FullOutScript);
+    assert(blocks.size() == 110);
+
+    FastBlock block1 = blocks.at(1);
+    block1.findTransactions();
+    const int OUTPUT_COUNT = 100;
+    std::vector<CTransaction> txs;
+    CTransaction root = splitCoins(block1.transactions().at(0),
+                                   0, myKey, myKey, OUTPUT_COUNT);
+    txs.push_back(root);
+    for (int i = 1; i < 5; ++i) {
+        txs.push_back(splitCoins(Tx::fromOldTransaction(root), i, myKey, myKey, 10));
+    }
+    for (size_t i = 0; i < txs.size(); ++i) {
+        // logDebug() << "tx" << i << txs.at(i).GetHash() << "in" << txs.at(i).vin.size()
+        //  << "out" << txs.at(i).vout.size();
+    }
+
+    CKey coinbaseKey;
+    coinbaseKey.MakeNewKey(true);
+    CScript scriptPubKey;
+    scriptPubKey << ToByteVector(coinbaseKey.GetPubKey()) << OP_CHECKSIG;
+    FastBlock unsortedBlock = bv.createBlock(bv.blockchain()->Tip(),  scriptPubKey, txs);
+
+    auto future = bv.addBlock(unsortedBlock, Validation::SaveGoodToDisk).start();
+    future.waitUntilFinished();
+    BOOST_CHECK_EQUAL("tx-ordering-not-CTOR", future.error());
+
+    // sort the transactions and then mine it again.
+    std::sort(txs.begin(), txs.end(), &sortTxByTxId);
+    FastBlock sortedBlock = bv.createBlock(bv.blockchain()->Tip(),  scriptPubKey, txs);
+    future = bv.addBlock(sortedBlock, Validation::SaveGoodToDisk).start();
+    future.waitUntilFinished();
+    // I intended the actual validation to go fully Ok, but I get some signature failures.
+    BOOST_CHECK("tx-ordering-not-CTOR" != future.error());
+    BOOST_CHECK("missing-inputs" != future.error());
+}
+
 
 BOOST_AUTO_TEST_SUITE_END()

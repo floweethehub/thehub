@@ -1010,6 +1010,7 @@ uint32_t ValidationFlags::scriptValidationFlags() const
         flags |= SCRIPT_ENABLE_CHECKDATASIG;
         flags |= SCRIPT_VERIFY_SIGPUSHONLY;
         flags |= SCRIPT_VERIFY_CLEANSTACK;
+        flags |= SCRIPT_VERIFY_P2SH; // implied requirement by CLEANSTACK (normally present, but not in unit tests)
     }
     return flags;
 }
