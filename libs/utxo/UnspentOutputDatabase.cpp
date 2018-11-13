@@ -218,6 +218,11 @@ void UnspentOutputDatabase::setSmallLimits()
     UODBPrivate::limits.FileFull = 30000000;
 }
 
+void UnspentOutputDatabase::insertAll(const UnspentOutputDatabase::BlockData &data)
+{
+    d->dataFiles.last()->insertAll(d, data);
+}
+
 void UnspentOutputDatabase::insert(const uint256 &txid, int outIndex, int blockHeight, int offsetInBlock)
 {
     d->dataFiles.last()->insert(d, txid, outIndex, blockHeight, offsetInBlock);
@@ -623,6 +628,14 @@ void DataFile::insert(const UODBPrivate *priv, const uint256 &txid, int outIndex
     bucket->saveAttempt = 0;
 
     addChange(priv);
+}
+
+void DataFile::insertAll(const UODBPrivate *priv, const UnspentOutputDatabase::BlockData &data)
+{
+    std::lock_guard<std::recursive_mutex> lock(m_lock);
+    for (auto d : data.outputs) {
+        insert(priv, d.txid, d.index, data.blockHeight, d.offsetInBlock);
+    }
 }
 
 UnspentOutput DataFile::find(const uint256 &txid, int index) const

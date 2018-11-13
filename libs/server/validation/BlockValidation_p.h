@@ -69,6 +69,7 @@ void validateTransactionInputs(CTransaction &tx, const std::vector<UnspentOutput
 }
 
 struct Output {
+    Output(int index, int offsetInBlock) : index(index), offsetInBlock(offsetInBlock) {}
     uint256 txid;
     int index = -1;
     int offsetInBlock = 0;
@@ -136,9 +137,6 @@ public:
     /// When the previous block's transactions are added to the UTXO, we start our validation.
     void updateUtxoAndStartValidation();
 
-    // this throws on double-spend detection (in-block)
-    void findOrderedTransactions();
-
     /**
      * @brief calculateTxCheckChunks returns the amount of 'chunks' we split the transaction pool into for parallel validation.
      * @param[out] chunks the chunk-count.
@@ -151,7 +149,6 @@ public:
     }
 
     FastBlock m_block;
-    std::set<int> m_orderedTransactions; // filled with the transactions indexes that have to be processed 'in-order' because they depend on each other.
     CDiskBlockPos m_blockPos;
     CBlockIndex *m_blockIndex;
 
