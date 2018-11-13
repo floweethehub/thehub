@@ -1360,11 +1360,13 @@ void BlockValidationState::checks2HaveParentHeaders()
         assert(m_sigOpsCounted == 0);
         m_sigOpsCounted = sigOpsCounted;
 
-        for (auto tx : m_block.transactions()) {
-            // Impose a minimum transaction size of 100 bytes after the Nov, 15 2018 HF
-            // this is stated to be done to avoid a leaf node weakness in bitcoin's merkle tree design
-            if (tx.size() < 100)
-                throw Exception("bad-txns-undersize");
+        if (flags.hf201811Active) {
+            for (auto tx : m_block.transactions()) {
+                // Impose a minimum transaction size of 100 bytes after the Nov, 15 2018 HF
+                // this is stated to be done to avoid a leaf node weakness in bitcoin's merkle tree design
+                if (tx.size() < 100)
+                    throw Exception("bad-txns-undersize");
+            }
         }
     } catch (const Exception &e) {
         blockFailed(e.punishment(), e.what(), e.rejectCode(), e.corruptionPossible());
