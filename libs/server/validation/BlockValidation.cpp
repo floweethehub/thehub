@@ -578,6 +578,7 @@ void ValidationEnginePrivate::processNewBlock(std::shared_ptr<BlockValidationSta
                         fatal("Failed to write transaction index");
                 }
 
+                assert(index->nFile >= 0); // we need the block to have been saved
                 Streaming::BufferPool pool;
                 UndoBlockBuilder undoBlock(hash, &pool);
                 for (auto chunk : state->m_undoItems) {
