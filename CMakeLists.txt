@@ -55,8 +55,6 @@ endif ()
 option(enable_wallet "Compile the legacy wallet" OFF)
 if (enable_wallet)
     add_definitions(-DENABLE_WALLET)
-    # remove warnings from berkley-db
-    set(CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS} -Wno-deprecated ")
 endif ()
 
 option(dev_setup "Enable developer build, not safe for real-life usage!" OFF)
@@ -284,7 +282,8 @@ execute_process(
 )
 add_definitions(-DHAVE_CONFIG_H -DHAVE_BUILD_INFO)
 
-set(CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS} -Wvla -pthread")
+# no-deprecated is needed for dbwrapper (leveldb)
+set(CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS} -Wvla -pthread -Wno-deprecated ")
 
 add_subdirectory(libs)
 add_subdirectory(hub)

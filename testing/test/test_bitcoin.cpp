@@ -29,6 +29,8 @@
 #include <interfaces/validationinterface.h>
 #include <utxo/UnspentOutputDatabase.h>
 #include <script/sigcache.h>
+#include <utils/util.h>
+#include <BlocksDB.h>
 #ifdef ENABLE_WALLET
 # include <wallet/wallet.h>
 CWallet* pwalletMain;
