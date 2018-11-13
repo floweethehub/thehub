@@ -310,7 +310,7 @@ void CExtKey::Decode(const unsigned char code[74]) {
 
 bool ECC_InitSanityCheck() {
     CKey key;
-    key.MakeNewKey(true);
+    key.MakeNewKey();
     CPubKey pubkey = key.GetPubKey();
     return key.VerifyPubKey(pubkey);
 }

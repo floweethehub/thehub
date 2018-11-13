@@ -424,7 +424,7 @@ UniValue createaddress(const UniValue& params, bool fHelp)
         );
 
     CKey key;
-    key.MakeNewKey(true);
+    key.MakeNewKey();
 
     // return all useful descriptions of key
     UniValue ret(UniValue::VOBJ);

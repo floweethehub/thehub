@@ -38,7 +38,7 @@ class TestChain100Setup : public TestingSetup {
 public:
     TestChain100Setup() {
         // Generate a 100-block chain:
-        coinbaseKey.MakeNewKey(true);
+        coinbaseKey.MakeNewKey();
         CScript scriptPubKey = CScript() <<  ToByteVector(coinbaseKey.GetPubKey()) << OP_CHECKSIG;
         CBlockIndex *parent = bv.blockchain()->Tip();
         CBlockIndex dummy;

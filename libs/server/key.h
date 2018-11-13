@@ -120,7 +120,7 @@ public:
     bool SetPrivKey(const CPrivKey& vchPrivKey, bool fCompressed);
 
     //! Generate a new private key using a cryptographic PRNG.
-    void MakeNewKey(bool fCompressed);
+    void MakeNewKey(bool fCompressed = true);
 
     /**
      * Convert the private key to a CPrivKey (serialized OpenSSL private key data).

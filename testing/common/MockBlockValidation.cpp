@@ -77,7 +77,7 @@ FastBlock MockBlockValidation::createBlock(CBlockIndex *parent, const CScript& s
 FastBlock MockBlockValidation::createBlock(CBlockIndex *parent)
 {
     CKey coinbaseKey;
-    coinbaseKey.MakeNewKey(true);
+    coinbaseKey.MakeNewKey();
     CScript scriptPubKey;
     scriptPubKey <<  ToByteVector(coinbaseKey.GetPubKey()) << OP_CHECKSIG;
     return createBlock(parent, scriptPubKey);
@@ -93,7 +93,7 @@ std::vector<FastBlock> MockBlockValidation::appendChain(int blocks, CKey &coinba
 {
     std::vector<FastBlock> answer;
     answer.reserve(blocks);
-    coinbaseKey.MakeNewKey(true);
+    coinbaseKey.MakeNewKey();
     CScript scriptPubKey;
     if (out == StandardOutScript)
         scriptPubKey <<  ToByteVector(coinbaseKey.GetPubKey()) << OP_CHECKSIG;
@@ -117,7 +117,7 @@ std::vector<FastBlock> MockBlockValidation::appendChain(int blocks, CKey &coinba
 std::vector<FastBlock> MockBlockValidation::createChain(CBlockIndex *parent, int blocks) const
 {
     CKey coinbaseKey;
-    coinbaseKey.MakeNewKey(true);
+    coinbaseKey.MakeNewKey();
     CScript scriptPubKey = CScript() <<  ToByteVector(coinbaseKey.GetPubKey()) << OP_CHECKSIG;
     CBlockIndex dummy;
     dummy.nTime = parent->nTime;
