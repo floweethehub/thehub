@@ -1314,9 +1314,20 @@ uint256 GetOutputsHash(const CTransaction &txTo)
 
 } // anon namespace
 
-// Signature hash returns a hash of a certain subset of the transaction's content
-// allowing the private-key owner to sign that and proof he owns the public key and
-// at the same time lock in all the content he signs.
+/**
+ * SignatureHash is a helper method to hash a certin subset of the /a txTo transactions content
+ * which is then used to pass to the signing function of a CKey private key, a process used to
+ * prove that he owns the public key and at the same time lock in all the content signed.
+ *
+ * As we sign each input separately, this method takes an \a nIn index to the input we intend to sign.
+ *
+ * \param scriptCode the script from the previous transaction, the one the input is trying to spend.
+ * \param txTo the transactoin that the input we sign is part of.
+ * \param nIn the input index
+ * \param amount the amount of satoshis that the input contains
+ * \param nHashType is a binary flags field indicating  what kind of payment this is. See SIGHASH_SINGLE and others.
+ * \param flags a binary flags field indicating the state of the (bitcoin) macro system.
+ */
 uint256 SignatureHash(const CScript& scriptCode, const CTransaction& txTo, unsigned int nIn, CAmount amount, int nHashType, uint32_t flags)
 {
     static const uint256 one(uint256S("0000000000000000000000000000000000000000000000000000000000000001"));
