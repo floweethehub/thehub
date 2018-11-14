@@ -90,6 +90,6 @@ private:
     std::list<ValidationInterface*> m_listeners;
 };
 
-ValidationInterfaceBroadcaster &ValidationNotifier() ;
+ValidationInterfaceBroadcaster &ValidationNotifier();
 
 #endif
