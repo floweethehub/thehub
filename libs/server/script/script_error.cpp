@@ -2,6 +2,8 @@
  * This file is part of the Flowee project
  * Copyright (C) 2009-2010 Satoshi Nakamoto
  * Copyright (C) 2009-2014 The Bitcoin Core developers
+ * Copyright (C) 2018 Awemany <awemany@protonmail.com>
+ * Copyright (C) 2018 Amaury Séchet <deadalnix@gmail.com>
  *
  * This program is free software: you can redistribute it and/or modify
  * it under the terms of the GNU General Public License as published by
@@ -35,6 +37,8 @@ const char* ScriptErrorString(const ScriptError serror)
             return "Script failed an OP_CHECKMULTISIGVERIFY operation";
         case SCRIPT_ERR_CHECKSIGVERIFY:
             return "Script failed an OP_CHECKSIGVERIFY operation";
+        case SCRIPT_ERR_CHECKDATASIGVERIFY:
+            return "Script failed an OP_CHECKDATASIGVERIFY operation";
         case SCRIPT_ERR_NUMEQUALVERIFY:
             return "Script failed an OP_NUMEQUALVERIFY operation";
         case SCRIPT_ERR_SCRIPT_SIZE:

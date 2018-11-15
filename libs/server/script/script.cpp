@@ -3,6 +3,7 @@
  * Copyright (C) 2009-2010 Satoshi Nakamoto
  * Copyright (C) 2009-2015 The Bitcoin Core developers
  * Copyright (C) 2018 Jason B. Cox <contact@jasonbcox.com>
+ * Copyright (C) 2018 Tom Zander <tomz@freedommail.ch>
  *
  * This program is free software: you can redistribute it and/or modify
  * it under the terms of the GNU General Public License as published by
@@ -142,7 +143,7 @@ const char* GetOpName(opcodetype opcode)
     case OP_CHECKMULTISIG          : return "OP_CHECKMULTISIG";
     case OP_CHECKMULTISIGVERIFY    : return "OP_CHECKMULTISIGVERIFY";
 
-    // expanson
+    // soft-forkable expansion
     case OP_NOP1                   : return "OP_NOP1";
     case OP_CHECKLOCKTIMEVERIFY    : return "OP_CHECKLOCKTIMEVERIFY";
     case OP_NOP3                   : return "OP_NOP3";
@@ -153,6 +154,10 @@ const char* GetOpName(opcodetype opcode)
     case OP_NOP8                   : return "OP_NOP8";
     case OP_NOP9                   : return "OP_NOP9";
     case OP_NOP10                  : return "OP_NOP10";
+
+    // new opcodes hard-forked in.
+    case OP_CHECKDATASIG: return "OP_CHECKDATASIG";
+    case OP_CHECKDATASIGVERIFY: return "OP_CHECKDATASIGVERIFY";
 
     case OP_INVALIDOPCODE          : return "OP_INVALIDOPCODE";
 
@@ -171,15 +176,16 @@ unsigned int CScript::GetSigOpCount(bool fAccurate) const
     unsigned int n = 0;
     const_iterator pc = begin();
     opcodetype lastOpcode = OP_INVALIDOPCODE;
-    while (pc < end())
-    {
+    while (pc < end()) {
         opcodetype opcode;
         if (!GetOp(pc, opcode))
             break;
-        if (opcode == OP_CHECKSIG || opcode == OP_CHECKSIGVERIFY)
+
+        if (opcode == OP_CHECKSIG || opcode == OP_CHECKSIGVERIFY
+                || opcode == OP_CHECKDATASIG || opcode == OP_CHECKDATASIGVERIFY) {
             n++;
-        else if (opcode == OP_CHECKMULTISIG || opcode == OP_CHECKMULTISIGVERIFY)
-        {
+        }
+        else if (opcode == OP_CHECKMULTISIG || opcode ==  OP_CHECKMULTISIGVERIFY) {
             if (fAccurate && lastOpcode >= OP_1 && lastOpcode <= OP_16)
                 n += DecodeOP_N(lastOpcode);
             else

@@ -83,6 +83,7 @@ struct Params {
     int hf201711Height; // daa3 got enabled here
     int64_t daa3ActivationTime; // difficulty adjustment algo 3, the one that removed the broken EDA.
     int hf201805Height;
+    int hf201811Height;
 };
 } // namespace Consensus
 

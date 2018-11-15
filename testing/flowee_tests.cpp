@@ -28,7 +28,7 @@ using boost::unit_test::test_suite;
 test_suite* init_unit_test_suite(int, char* [])
 {
     SelectParams("main");
-    setupBacktraceCatcher();
+    // setupBacktraceCatcher();
 
     return BOOST_TEST_SUITE("Flowee generic test suite");
 }

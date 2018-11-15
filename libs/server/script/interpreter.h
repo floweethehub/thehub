@@ -105,9 +105,19 @@ enum
     // Do we accept signature using SIGHASH_FORKID
     //
     SCRIPT_ENABLE_SIGHASH_FORKID = (1U << 16),
+
+    // If OP_CHECKDATASIG* are allowed.
+    SCRIPT_ENABLE_CHECKDATASIG = (1U << 17),
 };
 
 bool CheckSignatureEncoding(const std::vector<unsigned char> &vchSig, unsigned int flags, ScriptError* serror);
+
+/**
+ * Check that the signature provided on some data is properly encoded.
+ * Signatures passed to OP_CHECKDATASIG and its verify variant must be checked
+ * using this function.
+ */
+bool CheckDataSignatureEncoding(const std::vector<uint8_t> &vchSig, uint32_t flags, ScriptError *serror);
 
 uint256 SignatureHash(const CScript &scriptCode, const CTransaction& txTo, unsigned int nIn, CAmount amount, int nHashType, uint32_t flags = SCRIPT_ENABLE_SIGHASH_FORKID);
 

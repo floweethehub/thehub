@@ -199,6 +199,9 @@ void TxValidationState::checkTransaction()
     };
     RAII raii(&m_promise);
 
+    if (flags.hf201811Active && m_tx.size() < 100)
+        throw Exception("bad-txns-undersize", 2);
+
     const uint256 txid = m_tx.createHash();
     DEBUGTX << "checkTransaction peer:" << m_originatingNodeId << txid;
     auto tx = m_tx.createOldTransaction();

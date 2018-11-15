@@ -329,6 +329,11 @@ CBlockTemplate* Mining::CreateNewBlock(Validation::Engine &validationEngine) con
         // Compute final coinbase transaction.
         txNew.vout[0].nValue = nFees + GetBlockSubsidy(nHeight, Params().GetConsensus());
         txNew.vin[0].scriptSig = CScript() << nHeight << OP_0 << m_coinbaseComment;
+
+        // Make sure the coinbase is big enough. (since 20181115 HF we require a min 100bytes tx size)
+        const uint32_t coinbaseSize = ::GetSerializeSize(txNew, SER_NETWORK, PROTOCOL_VERSION);
+        if (coinbaseSize < 100)
+            txNew.vin[0].scriptSig << std::vector<uint8_t>(100 - coinbaseSize - 1);
         pblock->vtx[0] = txNew;
         pblocktemplate->vTxFees[0] = -nFees;
 

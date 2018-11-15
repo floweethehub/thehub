@@ -175,6 +175,10 @@ FastBlock MockBlockValidation::createBlock(CBlockIndex *parent, const CScript& s
     coinbase.vin[0].scriptSig = CScript() << (parent->nHeight + 1) << OP_0;
     coinbase.vout[0].nValue = 50 * COIN;
     coinbase.vout[0].scriptPubKey = scriptPubKey;
+    // Make sure the coinbase is big enough. (since 20181115 HF we require a min 100bytes tx size)
+    const uint32_t coinbaseSize = ::GetSerializeSize(coinbase, SER_NETWORK, PROTOCOL_VERSION);
+    if (coinbaseSize < 100)
+        coinbase.vin[0].scriptSig << std::vector<uint8_t>(100 - coinbaseSize - 1);
 
     CBlock block;
     block.vtx.push_back(coinbase);
@@ -219,8 +223,12 @@ std::vector<FastBlock> MockBlockValidation::appendChain(int blocks, CKey &coinba
     answer.reserve(blocks);
     coinbaseKey.MakeNewKey();
     CScript scriptPubKey;
-    if (out == StandardOutScript)
-        scriptPubKey <<  ToByteVector(coinbaseKey.GetPubKey()) << OP_CHECKSIG;
+    if (out == StandardOutScript) {
+        scriptPubKey << ToByteVector(coinbaseKey.GetPubKey()) << OP_CHECKSIG;
+    } else if (out == FullOutScript) {
+        scriptPubKey << OP_DUP << OP_HASH160 << ToByteVector(coinbaseKey.GetPubKey().GetID())
+                     << OP_EQUALVERIFY << OP_CHECKSIG;
+    }
     waitValidationFinished();
     const bool allowFullChecks = Params().NetworkIDString() == "regtest";
     for (int i = 0; i < blocks; i++)

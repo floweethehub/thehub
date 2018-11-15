@@ -989,7 +989,8 @@ ValidationFlags::ValidationFlags()
     scriptVerifySequenceVerify(false),
     nLocktimeVerifySequence(false),
     hf201708Active(false),
-    hf201805Active(false)
+    hf201805Active(false),
+    hf201811Active(false)
 {
 }
 
@@ -1005,6 +1006,12 @@ uint32_t ValidationFlags::scriptValidationFlags() const
     if (hf201708Active) {
         flags |= SCRIPT_VERIFY_STRICTENC;
         flags |= SCRIPT_ENABLE_SIGHASH_FORKID;
+    }
+    if (hf201811Active) {
+        flags |= SCRIPT_ENABLE_CHECKDATASIG;
+        flags |= SCRIPT_VERIFY_SIGPUSHONLY;
+        flags |= SCRIPT_VERIFY_CLEANSTACK;
+        flags |= SCRIPT_VERIFY_P2SH; // implied requirement by CLEANSTACK (normally present, but not in unit tests)
     }
     return flags;
 }
@@ -1080,6 +1087,8 @@ void ValidationFlags::updateForBlock(CBlockIndex *index, const uint256 &blkHash)
 
     if (!hf201805Active && index->nHeight >= chainparams.GetConsensus().hf201805Height)
         hf201805Active = true;
+    if (!hf201811Active && index->nHeight >= chainparams.GetConsensus().hf201811Height)
+        hf201811Active = true;
 }
 
 /* TODO Expire orphans.
@@ -1352,7 +1361,14 @@ void BlockValidationState::checks2HaveParentHeaders()
         assert(m_sigOpsCounted == 0);
         m_sigOpsCounted = sigOpsCounted;
 
-        findOrderedTransactions();
+        if (flags.hf201811Active) {
+            for (auto tx : m_block.transactions()) {
+                // Impose a minimum transaction size of 100 bytes after the Nov, 15 2018 HF
+                // this is stated to be done to avoid a leaf node weakness in bitcoin's merkle tree design
+                if (tx.size() < 100)
+                    throw Exception("bad-txns-undersize");
+            }
+        }
     } catch (const Exception &e) {
         blockFailed(e.punishment(), e.what(), e.rejectCode(), e.corruptionPossible());
         finishUp();
@@ -1392,6 +1408,9 @@ void BlockValidationState::updateUtxoAndStartValidation()
 {
     DEBUGBV << m_block.createHash();
     assert(m_txChunkLeftToStart.load() < 0); // this method should get called only once
+    auto parent = m_parent.lock();
+    if (!parent)
+        return;
 
     if (m_blockIndex->pprev == nullptr) { // genesis
         finishUp();
@@ -1401,13 +1420,61 @@ void BlockValidationState::updateUtxoAndStartValidation()
     try {
         int chunks, itemsPerChunk;
         calculateTxCheckChunks(chunks, itemsPerChunk);
-        m_txChunkLeftToFinish.store(chunks + (m_orderedTransactions.empty() ? 0 : 1));
+        m_txChunkLeftToFinish.store(chunks);
         m_txChunkLeftToStart.store(chunks);
         m_undoItems.resize(static_cast<size_t>(chunks + 1));
-        for (int i = 0; i < chunks; ++i)
-            Application::instance()->ioService().post(std::bind(&BlockValidationState::checkSignaturesChunk, shared_from_this(), CheckUnordered));
-        if (!m_orderedTransactions.empty())
-            checkSignaturesChunk(CheckOrdered);
+
+        assert (m_block.transactions().size() > 0);
+        // inserting all outputs that are created in this block first.
+        // we do this in a single thread since inserting massively parallel will just cause a huge overhead
+        // and we'd end up being no faster while competing for the scarce resources that are the UTXO DB
+        UnspentOutputDatabase::BlockData data;
+        data.blockHeight = m_blockIndex->nHeight;
+        data.outputs.reserve(m_block.transactions().size());
+        Tx::Iterator iter = Tx::Iterator(m_block);
+        iter.next();
+        int outputCount = 0;
+        uint256 prevTxHash;
+        while (true) {
+            if (iter.tag() == Tx::End) {
+                if (outputCount == 0) // double end: last tx in block
+                    break;
+                Tx tx = iter.prevTx();
+                const int offsetInBlock = tx.offsetInBlock(m_block);
+                assert(tx.isValid());
+                const uint256 txHash = tx.createHash();
+                if (flags.hf201811Active && offsetInBlock - tx.size() > 81 && txHash.Compare(prevTxHash) <= 0)
+                    throw Exception("tx-ordering-not-CTOR");
+                for (int i = outputCount; i > 0; --i) {
+                    UnspentOutputDatabase::BlockData::TxOutput &out = data.outputs[data.outputs.size() - i];
+                    out.txid = txHash;
+                    out.offsetInBlock = offsetInBlock;
+                }
+                outputCount = 0;
+                if (flags.hf201811Active)
+                    prevTxHash = txHash;
+            }
+            else if (iter.tag() == Tx::OutputValue) { // next output!
+                if (iter.longData() == 0)
+                    logDebug() << "Output with zero value";
+                data.outputs.push_back(UnspentOutputDatabase::BlockData::TxOutput(outputCount));
+                outputCount++;
+            }
+            iter.next();
+        }
+#ifdef ENABLE_BENCHMARKS
+        int64_t start = GetTimeMicros();
+#endif
+        parent->mempool->utxo()->insertAll(data);
+#ifdef ENABLE_BENCHMARKS
+        int64_t end = GetTimeMicros();
+        parent->m_utxoTime.fetch_add(end - start);
+#endif
+
+        for (int i = 0; i < chunks; ++i) {
+            Application::instance()->ioService().post(std::bind(&BlockValidationState::checkSignaturesChunk,
+                                                                shared_from_this(), CheckUnordered));
+        }
     } catch(const Exception &ex) {
         blockFailed(ex.punishment(), ex.what(), ex.rejectCode(), ex.corruptionPossible());
         finishUp();
@@ -1458,157 +1525,116 @@ void BlockValidationState::checkSignaturesChunk(CheckType type)
     try {
         for (;blockValid && txIndex < txMax; ++txIndex) {
             // ordered Tx are only checked when type == CheckOrdered
-            const bool isOrderedTx = m_orderedTransactions.find(txIndex) != m_orderedTransactions.end();
             // We only process ordered transactions when type is CheckOrdered
-            if ((type == CheckOrdered) == isOrderedTx) { // this is like an xor.
-                CAmount fees = 0;
-                uint32_t sigops = 0;
-                Tx tx = m_block.transactions().at(static_cast<size_t>(txIndex));
-                const uint256 hash = tx.createHash();
+            CAmount fees = 0;
+            uint32_t sigops = 0;
+            Tx tx = m_block.transactions().at(static_cast<size_t>(txIndex));
+            const uint256 hash = tx.createHash();
 
-                std::vector<ValidationPrivate::UnspentOutput> unspents; // list of prev outputs
-                auto txIter = Tx::Iterator(tx);
-                auto inputs = Tx::findInputs(txIter);
-                if (txIndex == 0)
-                    inputs.clear(); // skip inputs check for coinbase
-                std::vector<int> prevheights; // the height of each input
-                for (auto input : inputs) { // find inputs
-                    ValidationPrivate::UnspentOutput prevOut;
-                    bool found = false;
-                    if (type == CheckOrdered) {
-                        auto ti = txMap.find(input.txid);
-                        if (ti != txMap.end()) { // Comes from this block
-                            found = true;
-                            const int outIndex = ti->second;
-                            Tx prevTx = m_block.transactions().at(static_cast<size_t>(outIndex));
-                            assert(prevTx.isValid());
-                            Tx::Output out = prevTx.output(input.index);
-                            if (out.outputValue < 0) { // output not found
-                                logCritical() << "Rejecting block" << m_block.createHash() << "due to missing inputs (in-block)";
-                                throw Exception("missing-inputs", 0);
-                            }
-
-                            prevheights.push_back(m_blockIndex->nHeight);
-                            prevOut.amount = out.outputValue;
-                            prevOut.outputScript = out.outputScript;
-                            prevOut.blockheight = m_blockIndex->nHeight;
-                            unspents.push_back(prevOut);
-
-                            // remove the now-spent-output from the ones I should save.
-                            const auto offsetInBlock = prevTx.offsetInBlock(m_block);
-                            for (auto iter = newOutputs.begin(); iter != newOutputs.end(); ++iter) {
-                                if (iter->offsetInBlock == offsetInBlock && iter->index == outIndex) {
-                                    assert(iter->txid == prevTx.createHash());
-                                    newOutputs.erase(iter);
-                                    break;
-                                }
-                            }
-                        }
+            std::vector<ValidationPrivate::UnspentOutput> unspents; // list of prev outputs
+            auto txIter = Tx::Iterator(tx);
+            auto inputs = Tx::findInputs(txIter);
+            if (txIndex == 0)
+                inputs.clear(); // skip inputs check for coinbase
+            std::vector<int> prevheights; // the height of each input
+            for (auto input : inputs) { // find inputs
+                ValidationPrivate::UnspentOutput prevOut;
+                {
+#ifdef ENABLE_BENCHMARKS
+                    utxoStart = GetTimeMicros();
+#endif
+                    UnspentOutput unspentOutput = utxo->find(input.txid, input.index);
+#ifdef ENABLE_BENCHMARKS
+                    utxoDuration += GetTimeMicros() - utxoStart;
+#endif
+                    if (!unspentOutput.isValid()) {
+                        logCritical() << "Rejecting block" << m_block.createHash() << "due to missing inputs";
+                        logInfo() << " |  txid:" << tx.createHash();
+                        logInfo() << " + input:" << input.txid << input.index;
+                        throw Exception("missing-inputs", 0);
                     }
-                    if (!found) { // should come from UnspentOutputDB (utxo)
+                    prevheights.push_back(unspentOutput.blockHeight());
+                    if (flags.enableValidation) {
+                        UnspentOutputData data(unspentOutput);
+                        prevOut.amount = data.outputValue();
+                        prevOut.outputScript = data.outputScript();
+                        prevOut.blockheight = data.blockHeight();
+                        unspents.push_back(prevOut);
+                    }
+
+                    if (m_checkValidityOnly) {
+                        // we just checked the UTXO, but when this bool is true
+                        // the output is not removed from the UTXO, and as such we need a bit of extra code
+                        // to detect double-spends.
+                        std::lock_guard<std::mutex> lock(m_spendMapLock);
+                        auto ti = m_spentMap.find(input.txid);
+                        if (ti != m_spentMap.end()) {
+                            for (int index : ti->second) {
+                                if (index == input.index)
+                                    throw Exception("missing-inputs", 0);
+                            }
+                            ti->second.push_back(input.index);
+                        } else {
+                            std::deque<int> spentIndex = { input.index };
+                            m_spentMap.insert(std::make_pair(input.txid, spentIndex));
+                        }
+                    } else {
 #ifdef ENABLE_BENCHMARKS
                         utxoStart = GetTimeMicros();
 #endif
-                        UnspentOutput unspentOutput = utxo->find(input.txid, input.index);
+                        SpentOutput removed = utxo->remove(input.txid, input.index, unspentOutput.rmHint());
 #ifdef ENABLE_BENCHMARKS
                         utxoDuration += GetTimeMicros() - utxoStart;
 #endif
-                        if (!unspentOutput.isValid()) {
-                            logCritical() << "Rejecting block" << m_block.createHash() << "due to missing inputs";
+                        if (!removed.isValid()) {
+                            logCritical() << "Rejecting block" << m_block.createHash() << "due to deleted input";
                             logInfo() << " |  txid:" << tx.createHash();
                             logInfo() << " + input:" << input.txid << input.index;
                             throw Exception("missing-inputs", 0);
                         }
-                        prevheights.push_back(unspentOutput.blockHeight());
-                        if (flags.enableValidation) {
-                            UnspentOutputData data(unspentOutput);
-                            prevOut.amount = data.outputValue();
-                            prevOut.outputScript = data.outputScript();
-                            prevOut.blockheight = data.blockHeight();
-                            unspents.push_back(prevOut);
-                        }
-
-                        if (m_checkValidityOnly) {
-                            // we just checked the UTXO, but when this bool is true
-                            // the output is not removed from the UTXO, and as such we need a bit of extra code
-                            // to detect double-spends.
-                            std::lock_guard<std::mutex> lock(m_spendMapLock);
-                            auto ti = m_spentMap.find(input.txid);
-                            if (ti != m_spentMap.end()) {
-                                for (int index : ti->second) {
-                                    if (index == input.index)
-                                        throw Exception("missing-inputs", 0);
-                                }
-                                ti->second.push_back(input.index);
-                            } else {
-                                std::deque<int> spentIndex = { input.index };
-                                m_spentMap.insert(std::make_pair(input.txid, spentIndex));
-                            }
-                        } else {
-#ifdef ENABLE_BENCHMARKS
-                            utxoStart = GetTimeMicros();
-#endif
-                            SpentOutput removed = utxo->remove(input.txid, input.index, unspentOutput.rmHint());
-#ifdef ENABLE_BENCHMARKS
-                            utxoDuration += GetTimeMicros() - utxoStart;
-#endif
-                            if (!removed.isValid()) {
-                                logCritical() << "Rejecting block" << m_block.createHash() << "due to deleted input";
-                                logInfo() << " |  txid:" << tx.createHash();
-                                logInfo() << " + input:" << input.txid << input.index;
-                                throw Exception("missing-inputs", 0);
-                            }
-                            assert(input.index >= 0);
-                            assert(removed.blockHeight > 0);
-                            assert(removed.offsetInBlock > 80);
-                            undoItems->push_back(FastUndoBlock::Item(input.txid, input.index,
-                                                                       removed.blockHeight, removed.offsetInBlock));
-                        }
+                        assert(input.index >= 0);
+                        assert(removed.blockHeight > 0);
+                        assert(removed.offsetInBlock > 80);
+                        undoItems->push_back(FastUndoBlock::Item(input.txid, input.index,
+                                                                   removed.blockHeight, removed.offsetInBlock));
                     }
                 }
-
-                if (flags.enableValidation && txIndex > 0) {
-                    CTransaction old = tx.createOldTransaction();
-                    // Check that transaction is BIP68 final
-                    int nLockTimeFlags = 0;
-                    if (flags.nLocktimeVerifySequence)
-                        nLockTimeFlags |= LOCKTIME_VERIFY_SEQUENCE;
-                    if (!SequenceLocks(old, nLockTimeFlags, &prevheights, *m_blockIndex))
-                        throw Exception("bad-txns-nonfinal");
-
-                    bool spendsCoinBase;
-                    // TODO check for xthin style block and if the transaction was already checked or not. If so, then skip parts of the next method.
-                    ValidationPrivate::validateTransactionInputs(old, unspents, m_blockIndex->nHeight, flags, fees, sigops, spendsCoinBase);
-                    chunkSigops += sigops;
-                    chunkFees += fees;
-                }
-
-                if (!m_checkValidityOnly) {
-                    // Find the outputs to be added to the unspentOutputDB
-                    int outputCount = 0;
-                    const int offsetInBlock = static_cast<int>(tx.offsetInBlock(m_block));
-                    auto content = txIter.tag();
-                    while (content != Tx::End) {
-                        if (content == Tx::OutputValue) {
-                            if (txIter.longData() == 0)
-                                logDebug() << "Output with zero value";
-#ifdef ENABLE_BENCHMARKS
-                            utxoStart = GetTimeMicros();
-#endif
-                            utxo->insert(hash, outputCount, m_blockIndex->nHeight, offsetInBlock);
-#ifdef ENABLE_BENCHMARKS
-                            utxoDuration += GetTimeMicros() - utxoStart;
-#endif
-                            undoItems->push_back(FastUndoBlock::Item(hash, outputCount, m_blockIndex->nHeight, offsetInBlock));
-                            outputCount++;
-                        }
-                        content = txIter.next();
-                    }
-                }
-
-                if (type == CheckOrdered)
-                    txMap.insert(std::make_pair(hash, txIndex));
             }
+
+            if (flags.enableValidation && txIndex > 0) {
+                CTransaction old = tx.createOldTransaction();
+                // Check that transaction is BIP68 final
+                int nLockTimeFlags = 0;
+                if (flags.nLocktimeVerifySequence)
+                    nLockTimeFlags |= LOCKTIME_VERIFY_SEQUENCE;
+                if (!SequenceLocks(old, nLockTimeFlags, &prevheights, *m_blockIndex))
+                    throw Exception("bad-txns-nonfinal");
+
+                bool spendsCoinBase;
+                ValidationPrivate::validateTransactionInputs(old, unspents, m_blockIndex->nHeight, flags, fees, sigops, spendsCoinBase);
+                chunkSigops += sigops;
+                chunkFees += fees;
+            }
+
+            if (!m_checkValidityOnly) {
+                DEBUGBV << "add outputs from TX " << txIndex;
+                // Find the outputs to be added to the unspentOutputDB
+                int outputCount = 0;
+                const int offsetInBlock = static_cast<int>(tx.offsetInBlock(m_block));
+                auto content = txIter.tag();
+                while (content != Tx::End) {
+                    if (content == Tx::OutputValue) {
+                        if (txIter.longData() == 0)
+                            logDebug() << "Output with zero value";
+                        undoItems->push_back(FastUndoBlock::Item(hash, outputCount, m_blockIndex->nHeight, offsetInBlock));
+                        outputCount++;
+                    }
+                    content = txIter.next();
+                }
+            }
+
+            if (type == CheckOrdered)
+                txMap.insert(std::make_pair(hash, txIndex));
         }
     } catch (const Exception &e) {
         DEBUGBV << "Failed validation due to" << e.what();
@@ -1637,93 +1663,7 @@ void BlockValidationState::checkSignaturesChunk(CheckType type)
         finishUp();
 }
 
-/*
- * A block is pre-sorted. Transactions depend (spend) transactions that were created before them.
- * The majority will be depend on transactions created in older blocks, those can be processed
- * perfectly parallel.
- * Below we check inputs of all transactions to find those that spend transactions from this block.
- * Which means they depend on other transactions we still have to validate. Those inter-dependend ones
- * we put in the 'm_orderedTransactions' set and process in-sequence.
- */
-void BlockValidationState::findOrderedTransactions()
-{
-    if (m_block.transactions().size() <= 1)
-        return;
-#ifdef ENABLE_BENCHMARKS
-    int64_t start = GetTimeMicros();
-#endif
-    typedef boost::unordered_map<uint256, int, Blocks::BlockHashShortener> TXMap;
-    TXMap txMap;
-
-    typedef boost::unordered_map<uint256, std::vector<bool>, Blocks::BlockHashShortener> MiniUTXO;
-    MiniUTXO miniUTXO;
-
-    bool first = true;
-    int txNum = 1;
-    for (auto tx : m_block.transactions()) {
-        if (first) { // skip coinbase
-            first = false;
-            continue;
-        }
-        uint256 hash = tx.createHash();
-        bool ocd = false; // if true, tx requires order.
-
-        auto i = Tx::Iterator(tx);
-        auto inputs = Tx::findInputs(i);
-        for (auto input : inputs) {
-            auto ti = txMap.find(input.txid);
-            if (ti != txMap.end()) {
-                ocd = true;
-                /*
-                 * ok, so we spent a tx also in this block.
-                 * to make sure we don't hit a double-spend here I have to actually check the outputs of the prev-tx.
-                 *
-                 * At this time this isn't unit tested, as such you should assume it is broken.
-                 */
-                auto prevIter = miniUTXO.find(input.txid);
-                if (prevIter == miniUTXO.end()) {
-                    /*
-                     *  insert into the miniUTXO the prevtx outputs.
-                     * we **could** have done this at the more logical code-place for all transactions,
-                     * but since we expect less than 1% of the transactions to spend inside of the same block,
-                     * that would waste resources.
-                     */
-                    auto iter = Tx::Iterator(m_block.transactions().at(static_cast<size_t>(ti->second)));
-                    Tx::Component component;
-                    std::vector<bool> outputs;
-                    while (true) {
-                        component = iter.next(Tx::OutputValue);
-                        if (component == Tx::End)
-                            break;
-                        outputs.push_back(true);
-                    }
-
-                    prevIter = miniUTXO.insert(std::make_pair(input.txid, outputs)).first;
-
-                    m_orderedTransactions.insert(ti->second);
-                }
-                if (static_cast<int>(prevIter->second.size()) <= input.index)
-                    throw std::runtime_error("spending utxo output out of range");
-                if (prevIter->second[static_cast<size_t>(input.index)] == false)
-                    throw std::runtime_error("spending utxo in-block double-spend");
-                prevIter->second[static_cast<size_t>(input.index)] = false;
-            }
-        }
-
-        if (ocd)
-            m_orderedTransactions.insert(txNum);
-        txMap.insert(std::make_pair(hash, txNum++));
-    }
-#ifdef ENABLE_BENCHMARKS
-    int64_t end = GetTimeMicros();
-    auto parent = m_parent.lock();
-    if (parent)
-        parent->m_utxoTime.fetch_add(end - start);
-#endif
-}
-
 //---------------------------------------------------------
-
 
 int32_t WarningBitsConditionChecker::computeBlockVersion(const CBlockIndex* pindexPrev)
 {

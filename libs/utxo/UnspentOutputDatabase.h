@@ -105,6 +105,18 @@ public:
     /// Change limits to be smaller, for instance for regtest setups
     static void setSmallLimits();
 
+    struct BlockData {
+        struct TxOutput {
+            TxOutput(int i) : index(i) {}
+            uint256 txid;
+            int index = -1;
+            int offsetInBlock = 0;
+        };
+        int blockHeight = -1;
+        std::vector<TxOutput> outputs;
+    };
+    void insertAll(const BlockData &data);
+
     /**
      * @brief insert a new spendable output.
      * @param txid the (prev) transaction id.
