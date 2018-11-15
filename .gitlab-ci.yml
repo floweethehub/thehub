@@ -80,7 +80,7 @@ flowee-the-hub-linux.zip:
   - build-static
   only:
     - master
-    - "2018.01"
+    - "2018.02"
 
 createHubDocker:
   stage: deploy
@@ -89,13 +89,13 @@ createHubDocker:
     - mv bin support/docker/hub
     - docker build --tag=$HUB_IMG:${CI_COMMIT_REF_NAME} support/docker/hub
     - docker image push $HUB_IMG:${CI_COMMIT_REF_NAME}
+    - docker tag $HUB_IMG:${CI_COMMIT_REF_NAME} $HUB_IMG:latest
+    - docker push $HUB_IMG:latest
   image: docker:latest
   services:
     - docker:dind
   dependencies:
     - build-static
-  only:
-    - master
   allow_failure: true
 
 ##### Build as standard as it gets.
