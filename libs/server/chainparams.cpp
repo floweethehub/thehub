@@ -192,7 +192,9 @@ public:
             (250000, uint256S("0x000000000000003887df1f29024b06fc2200b55f8af8f35453d7be294df2d214"))
             (279000, uint256S("0x0000000000000001ae8c72a0b0c301f67e3afca10e819efa9041e458e9bd7e40"))
             (295000, uint256S("0x00000000000000004d9b4ef50f0f9d686fd69db2e03af35a100370c64632a983"))
-            (478558, uint256S("0x0000000000000000011865af4122fe3b144e2cbeea86142e8ff2fb4107352d43")),
+            (478558, uint256S("0x0000000000000000011865af4122fe3b144e2cbeea86142e8ff2fb4107352d43"))
+            (556767, uint256S("0000000000000000004626ff6e3b936941d341c5932ece4357eeccac44e6d56c"))
+            ,
             1501593400, // * UNIX timestamp of last checkpoint block
             243276768,   // * total number of transactions between genesis and last checkpoint
                         //   (the tx=... number in the processNewBlock debug.log lines)

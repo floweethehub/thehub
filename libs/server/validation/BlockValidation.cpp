@@ -246,13 +246,24 @@ void ValidationEnginePrivate::blockHeaderValidated(std::shared_ptr<BlockValidati
 
     CBlockIndex *currentHeaderTip = Blocks::DB::instance()->headerChain().Tip();
     adoptees.insert(adoptees.begin(), state);
+    const auto &cpMap = Params().Checkpoints().mapCheckpoints;
     for (auto item : adoptees) {
         if (item->m_checkValidityOnly)
             continue;
         item->m_ownsIndex = false; // the CBlockIndex is now owned by the Blocks::DB
         item->m_blockIndex->RaiseValidity(BLOCK_VALID_TREE);
-
         item->m_blockIndex->phashBlock = Blocks::Index::insert(item->m_block.createHash(), item->m_blockIndex);
+        // check checkpoints. If we have the right height but not the hash, fail block
+        for (auto iter = cpMap.begin(); iter != cpMap.end(); ++iter) {
+            if (iter->first == item->m_blockIndex->nHeight && iter->second != item->m_blockIndex->GetBlockHash()) {
+                logCritical(Log::BlockValidation) << "Failing block due to checkpoint" << item->m_blockIndex->nHeight
+                                                  << item->m_blockIndex->GetBlockHash();
+                item->m_blockIndex->nStatus |= BLOCK_FAILED_VALID;
+                raii.error = "Failed due to checkpoint";
+                break;
+            }
+        }
+
         MarkIndexUnsaved(item->m_blockIndex); // Save it to the DB.
         assert(item->m_blockIndex->pprev || item->m_blockIndex->nHeight == 0);
         Blocks::DB::instance()->appendHeader(item->m_blockIndex);
