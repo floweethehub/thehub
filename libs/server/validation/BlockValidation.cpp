@@ -1437,7 +1437,7 @@ void BlockValidationState::updateUtxoAndStartValidation()
         data.outputs.reserve(m_block.transactions().size());
         Tx::Iterator iter = Tx::Iterator(m_block);
         iter.next();
-        int outputCount = 0;
+        int outputCount = 0, txIndex = 0;
         uint256 prevTxHash;
         while (true) {
             if (iter.tag() == Tx::End) {
@@ -1447,7 +1447,7 @@ void BlockValidationState::updateUtxoAndStartValidation()
                 const int offsetInBlock = tx.offsetInBlock(m_block);
                 assert(tx.isValid());
                 const uint256 txHash = tx.createHash();
-                if (flags.hf201811Active && offsetInBlock - tx.size() > 81 && txHash.Compare(prevTxHash) <= 0)
+                if (flags.hf201811Active && txIndex > 1 && txHash.Compare(prevTxHash) <= 0)
                     throw Exception("tx-ordering-not-CTOR");
                 for (int i = outputCount; i > 0; --i) {
                     UnspentOutputDatabase::BlockData::TxOutput &out = data.outputs[data.outputs.size() - i];
@@ -1457,6 +1457,7 @@ void BlockValidationState::updateUtxoAndStartValidation()
                 outputCount = 0;
                 if (flags.hf201811Active)
                     prevTxHash = txHash;
+                ++txIndex;
             }
             else if (iter.tag() == Tx::OutputValue) { // next output!
                 if (iter.longData() == 0)
