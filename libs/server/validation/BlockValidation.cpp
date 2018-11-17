@@ -289,10 +289,14 @@ void ValidationEnginePrivate::blockHeaderValidated(std::shared_ptr<BlockValidati
 
     if (currentHeaderTip && !Blocks::DB::instance()->headerChain().Contains(currentHeaderTip)) { // re-org happened in headers.
         logInfo(Log::BlockValidation) << "Header-reorg detected. Old-tip" << *currentHeaderTip->phashBlock << "@" << currentHeaderTip->nHeight;
-        prepareChain();
-        lastFullBlockScheduled = -1;
-        findMoreJobs();
-        return;
+        if (currentHeaderTip->nHeight - Blocks::DB::instance()->headerChain().Height() > 6) {
+            logCritical(Log::BlockValidation) << "Reorg larger than 6 blocks detected, this needs manual intervention.";
+        } else {
+            prepareChain();
+            lastFullBlockScheduled = -1;
+            findMoreJobs();
+            return;
+        }
     }
 
     const int diff = index->nHeight - blockchain->Height();
