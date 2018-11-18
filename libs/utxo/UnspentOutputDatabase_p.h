@@ -146,6 +146,7 @@ public:
 
     // writing to disk. Return if there are still unsaved items left
     bool flushSomeNodesToDisk(ForceBool force);
+    void flushSomeNodesToDisk_callback(); // calls flush repeatedly, used as an asio callback
     std::string flushAll();
     int32_t saveLeaf(const UnspentOutput &uo);
 
@@ -186,7 +187,7 @@ public:
     uint256 m_lastBlockHash;
 
     // Amount of inserts/deletes since last flush
-    int m_changeCount = 0;
+    std::atomic_int m_changeCount;
     int m_changesSinceJumptableWritten = 0;
     bool m_flushScheduled = false;
 

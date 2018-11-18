@@ -345,7 +345,7 @@ void UnspentOutputDatabase::saveCaches()
         if (df->m_flushScheduled)
             continue;
         df->m_flushScheduled = true;
-        d->ioService.post(std::bind(&DataFile::flushSomeNodesToDisk, df, NormalSave));
+        d->ioService.post(std::bind(&DataFile::flushSomeNodesToDisk_callback, df));
     }
 }
 
@@ -538,7 +538,8 @@ DataFile::DataFile(const boost::filesystem::path &filename)
     :  m_fileFull(0),
       m_memBuffers(100000),
       m_path(filename),
-      m_usageCount(1)
+      m_usageCount(1),
+      m_changeCount(0)
 {
     memset(m_jumptables, 0, sizeof(m_jumptables));
 
@@ -576,12 +577,12 @@ void DataFile::insert(const UODBPrivate *priv, const uint256 &txid, int outIndex
     const uint32_t shortHash = createShortHash(txid);
     uint32_t bucketId;
     {
-        std::lock_guard<std::recursive_mutex> lock(m_lock);
         if (!priv->memOnly && m_changeCount > SAVE_CHUNK_SIZE * 2) {
             // Saving is too slow! We are more than an entire chunk-size behind.
             // forcefully slow down adding data into memory.
-            MilliSleep(m_changeCount / 1000);
+            MilliSleep(m_changeCount / 10000);
         }
+        std::lock_guard<std::recursive_mutex> lock(m_lock);
         bucketId = m_jumptables[shortHash];
 
         Bucket *bucket = nullptr;
@@ -741,16 +742,16 @@ SpentOutput DataFile::remove(const UODBPrivate *priv, const uint256 &txid, int i
     Bucket memBucket;
     uint32_t bucketId;
     {
+        if (!priv->memOnly && m_changeCount > SAVE_CHUNK_SIZE * 2) {
+            // Saving is too slow! We are more than an entire chunk-size behind.
+            // forcefully slow down adding data into memory.
+            MilliSleep(m_changeCount / 10000);
+        }
         std::lock_guard<std::recursive_mutex> lock(m_lock);
         bucketId = m_jumptables[shortHash];
         if (bucketId == 0) // not found
             return answer;
 
-        if (!priv->memOnly && m_changeCount > SAVE_CHUNK_SIZE * 2) {
-            // Saving is too slow! We are more than an entire chunk-size behind.
-            // forcefully slow down adding data into memory.
-            MilliSleep(m_changeCount / 1000);
-        }
         if (bucketId & MEMBIT) { // highest bit is set. Bucket is in memory.
             auto bucketIter = m_buckets.find(bucketId & MEMMASK);
             assert(bucketIter != m_buckets.end());
@@ -885,6 +886,18 @@ SpentOutput DataFile::remove(const UODBPrivate *priv, const uint256 &txid, int i
     }
 
     return answer;
+}
+
+void DataFile::flushSomeNodesToDisk_callback()
+{
+    // call this until we have saved enough.
+    // it is essential we don't return until we have saved enough as
+    // otherwise the throttling (millisleeps elsewhere) could end up
+    // causing problems on low-core setups which then never reach
+    // the event to flush again.
+    do {
+        flushSomeNodesToDisk(NormalSave);
+    } while (m_changeCount > SAVE_CHUNK_SIZE + SAVE_CHUNK_SIZE / 2);
 }
 
 bool DataFile::flushSomeNodesToDisk(ForceBool force)
@@ -1108,6 +1121,10 @@ void DataFile::commit()
     m_leafIdsBackup.clear();
     m_bucketsToNotSave.clear();
     m_committedBucketLocations.clear();
+    // if we saved in the mean time, the flush method may have noticed nothing was to be done and
+    // set changeCount to zero. Now we allow saving the changes from this block, update the changeCount
+    int zero = 0;
+    m_changeCount.compare_exchange_weak(zero, static_cast<int>(m_leafs.size()));
 }
 
 void DataFile::rollback()
@@ -1313,7 +1330,7 @@ void DataFile::addChange(const UODBPrivate *priv)
 {
     if (!m_flushScheduled && !priv->memOnly && ++m_changeCount > SAVE_CHUNK_SIZE) {
         m_flushScheduled = true;
-        priv->ioService.post(std::bind(&DataFile::flushSomeNodesToDisk, this, NormalSave));
+        priv->ioService.post(std::bind(&DataFile::flushSomeNodesToDisk_callback, this));
     }
 }
 

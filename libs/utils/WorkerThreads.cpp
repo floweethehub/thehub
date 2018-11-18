@@ -28,7 +28,7 @@ void WorkerThreads::startThreads()
 {
     m_ioservice = std::make_shared<boost::asio::io_service>();
     m_work.reset(new boost::asio::io_service::work(*m_ioservice));
-    for (int i = boost::thread::hardware_concurrency(); i > 0; --i) {
+    for (int i = boost::thread::hardware_concurrency() + 1; i > 0; --i) {
         auto ioservice(m_ioservice);
         m_threads.create_thread([ioservice] {
             RenameThread("Worker-threads");
