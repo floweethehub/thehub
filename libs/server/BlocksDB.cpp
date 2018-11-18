@@ -859,7 +859,7 @@ void Blocks::DBPrivate::closeFiles()
 {
     std::lock_guard<std::recursive_mutex> lock_(lock);
     size_t count = fileHistory.size();
-    const int64_t timeOut = GetTime() - (count < 100 ? 30 : 10); // amount of seconds to keep files open
+    const int64_t timeOut = GetTime() - (count < 100 ? 15 : 7); // amount of seconds to keep files open
     for (auto iter = fileHistory.begin(); iter != fileHistory.end();) {
         if (iter->lastAccessed < timeOut)
             iter = fileHistory.erase(iter);
