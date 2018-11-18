@@ -281,6 +281,22 @@ bool Blocks::DB::CacheAllBlockInfos()
         appendHeader(iter->second);
     }
 
+    for (CBlockIndex *tip : d->headerChainTips) {
+        CBlockIndex *block = tip;
+        // find oldest block that didn't calculate nChainwork yet
+        while (block->nHeight > 0 && block->nChainWork.GetLow64() == 0L) {
+            block = block->pprev;
+        }
+        while (block != tip) { // calculate nChainwork from block to tip
+            block= tip->GetAncestor(block->nHeight + 1);
+            block->nChainWork = tip->pprev->nChainWork + GetBlockProof(*block);
+        }
+        if (d->headersChain.Tip()->nChainWork < tip->nChainWork) {
+            d->headersChain.SetTip(tip);
+            pindexBestHeader = tip;
+        }
+    }
+
     return true;
 }
 
