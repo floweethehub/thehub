@@ -23,9 +23,7 @@
 #include <primitives/FastTransaction.h>
 
 UnspentOutputData::UnspentOutputData(const UnspentOutput &uo)
-    : m_uo(uo),
-    m_txVer(-1),
-    m_outputValue(-1)
+    : m_uo(uo)
 {
     if (!uo.isValid())
         return;

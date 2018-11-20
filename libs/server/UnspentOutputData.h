@@ -72,8 +72,8 @@ public:
 
 private:
     UnspentOutput m_uo;
-    int m_txVer;
-    std::int64_t m_outputValue;
+    int m_txVer = -1;
+    std::int64_t m_outputValue = -1;
     Streaming::ConstBuffer m_outputScript;
 };
 

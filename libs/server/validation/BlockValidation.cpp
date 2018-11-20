@@ -1440,52 +1440,53 @@ void BlockValidationState::updateUtxoAndStartValidation()
         m_undoItems.resize(static_cast<size_t>(chunks + 1));
 
         assert (m_block.transactions().size() > 0);
-        // inserting all outputs that are created in this block first.
-        // we do this in a single thread since inserting massively parallel will just cause a huge overhead
-        // and we'd end up being no faster while competing for the scarce resources that are the UTXO DB
-        UnspentOutputDatabase::BlockData data;
-        data.blockHeight = m_blockIndex->nHeight;
-        data.outputs.reserve(m_block.transactions().size());
-        Tx::Iterator iter = Tx::Iterator(m_block);
-        iter.next();
-        int outputCount = 0, txIndex = 0;
-        uint256 prevTxHash;
-        while (true) {
-            if (iter.tag() == Tx::End) {
-                if (outputCount == 0) // double end: last tx in block
-                    break;
-                Tx tx = iter.prevTx();
-                const int offsetInBlock = tx.offsetInBlock(m_block);
-                assert(tx.isValid());
-                const uint256 txHash = tx.createHash();
-                if (flags.hf201811Active && txIndex > 1 && txHash.Compare(prevTxHash) <= 0)
-                    throw Exception("tx-ordering-not-CTOR");
-                for (int i = outputCount; i > 0; --i) {
-                    UnspentOutputDatabase::BlockData::TxOutput &out = data.outputs[data.outputs.size() - i];
-                    out.txid = txHash;
-                    out.offsetInBlock = offsetInBlock;
+        if (!m_checkValidityOnly) {
+            // inserting all outputs that are created in this block first.
+            // we do this in a single thread since inserting massively parallel will just cause a huge overhead
+            // and we'd end up being no faster while competing for the scarce resources that are the UTXO DB
+            UnspentOutputDatabase::BlockData data;
+            data.blockHeight = m_blockIndex->nHeight;
+            data.outputs.reserve(m_block.transactions().size());
+            Tx::Iterator iter = Tx::Iterator(m_block);
+            int outputCount = 0, txIndex = 0;
+            uint256 prevTxHash;
+            while (true) {
+                const auto type = iter.next();
+                if (type == Tx::End) {
+                    Tx tx = iter.prevTx();
+                    const int offsetInBlock = tx.offsetInBlock(m_block);
+                    assert(tx.isValid());
+                    const uint256 txHash = tx.createHash();
+                    if (flags.hf201811Active && txIndex > 1 && txHash.Compare(prevTxHash) <= 0)
+                        throw Exception("tx-ordering-not-CTOR");
+                    for (int i = outputCount; i > 0; --i) {
+                        UnspentOutputDatabase::BlockData::TxOutput &out = data.outputs[data.outputs.size() - i];
+                        out.txid = txHash;
+                        out.offsetInBlock = offsetInBlock;
+                    }
+                    outputCount = 0;
+                    if (flags.hf201811Active)
+                        prevTxHash = txHash;
+                    ++txIndex;
+                    if (iter.next() == Tx::End) // double end: last tx in block
+                        break;
                 }
-                outputCount = 0;
-                if (flags.hf201811Active)
-                    prevTxHash = txHash;
-                ++txIndex;
+                else if (iter.tag() == Tx::OutputValue) { // next output!
+                    if (iter.longData() == 0)
+                        logDebug() << "Output with zero value";
+                    data.outputs.push_back(UnspentOutputDatabase::BlockData::TxOutput(outputCount));
+                    outputCount++;
+                }
             }
-            else if (iter.tag() == Tx::OutputValue) { // next output!
-                if (iter.longData() == 0)
-                    logDebug() << "Output with zero value";
-                data.outputs.push_back(UnspentOutputDatabase::BlockData::TxOutput(outputCount));
-                outputCount++;
-            }
-            iter.next();
+#ifdef ENABLE_BENCHMARKS
+            int64_t start = GetTimeMicros();
+#endif
+            parent->mempool->utxo()->insertAll(data);
+#ifdef ENABLE_BENCHMARKS
+            int64_t end = GetTimeMicros();
+            parent->m_utxoTime.fetch_add(end - start);
+#endif
         }
-#ifdef ENABLE_BENCHMARKS
-        int64_t start = GetTimeMicros();
-#endif
-        parent->mempool->utxo()->insertAll(data);
-#ifdef ENABLE_BENCHMARKS
-        int64_t end = GetTimeMicros();
-        parent->m_utxoTime.fetch_add(end - start);
-#endif
 
         for (int i = 0; i < chunks; ++i) {
             Application::instance()->ioService().post(std::bind(&BlockValidationState::checkSignaturesChunk,

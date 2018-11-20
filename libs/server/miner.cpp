@@ -2,7 +2,7 @@
  * This file is part of the Flowee project
  * Copyright (c) 2009-2010 Satoshi Nakamoto
  * Copyright (c) 2009-2015 The Bitcoin Core developers
- * Copyright (C) 2016 Tom Zander <tomz@freedommail.ch>
+ * Copyright (C) 2016, 2018 Tom Zander <tomz@freedommail.ch>
  *
  * This program is free software: you can redistribute it and/or modify
  * it under the terms of the GNU General Public License as published by
@@ -21,6 +21,7 @@
 #include "Application.h"
 #include <SettingsDefaults.h>
 #include <validation/Engine.h>
+#include <validation/BlockValidation_p.h>
 #include "primitives/FastBlock.h"
 #include "streaming/BufferPool.h"
 #include "serialize.h"
@@ -347,6 +348,10 @@ CBlockTemplate* Mining::CreateNewBlock(Validation::Engine &validationEngine) con
             sigops += out.scriptPubKey.GetSigOpCount(false);
         }
         pblocktemplate->vTxSigOps[0] = sigops;
+    }
+    if (validationEngine.priv().lock()->tipFlags.hf201811Active) {
+        // sort the to-be-mined block using CTOR rules
+        std::sort(++pblock->vtx.begin(), pblock->vtx.end(), &CTransaction::sortTxByTxId);
     }
     auto conf = validationEngine.addBlock(FastBlock::fromOldBlock(*pblock), 0);
     conf.setCheckMerkleRoot(false);

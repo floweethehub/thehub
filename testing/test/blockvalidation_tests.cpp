@@ -64,7 +64,7 @@ BOOST_AUTO_TEST_CASE(reorderblocks)
     // Now, build on top of block 3 a 2 block chain. But only register them at the headersChain
     // in the Blocks::DB, so I can test reorgs.
     CKey coinbaseKey;
-    coinbaseKey.MakeNewKey(true);
+    coinbaseKey.MakeNewKey();
     CScript scriptPubKey = CScript() << ToByteVector(coinbaseKey.GetPubKey()) << OP_CHECKSIG;
     FastBlock b4 = bv.createBlock(oldBlock3, scriptPubKey);
     // printf("B4: %s\n", b4.createHash().ToString().c_str());
@@ -277,11 +277,6 @@ logInfo() << inTx.createHash();
     return newTx;
 }
 
-bool sortTxByTxId(const CTransaction &tx1, const CTransaction &tx2)
-{
-    return tx1.GetHash().Compare(tx2.GetHash()) <= 0;
-}
-
 BOOST_AUTO_TEST_CASE(CTOR)
 {
     auto priv = bv.priv().lock();
@@ -308,7 +303,7 @@ BOOST_AUTO_TEST_CASE(CTOR)
     }
 
     CKey coinbaseKey;
-    coinbaseKey.MakeNewKey(true);
+    coinbaseKey.MakeNewKey();
     CScript scriptPubKey;
     scriptPubKey << ToByteVector(coinbaseKey.GetPubKey()) << OP_CHECKSIG;
     FastBlock unsortedBlock = bv.createBlock(bv.blockchain()->Tip(),  scriptPubKey, txs);
@@ -318,7 +313,7 @@ BOOST_AUTO_TEST_CASE(CTOR)
     BOOST_CHECK_EQUAL("tx-ordering-not-CTOR", future.error());
 
     // sort the transactions and then mine it again.
-    std::sort(txs.begin(), txs.end(), &sortTxByTxId);
+    std::sort(txs.begin(), txs.end(), &CTransaction::sortTxByTxId);
     FastBlock sortedBlock = bv.createBlock(bv.blockchain()->Tip(),  scriptPubKey, txs);
     future = bv.addBlock(sortedBlock, Validation::SaveGoodToDisk).start();
     future.waitUntilFinished();

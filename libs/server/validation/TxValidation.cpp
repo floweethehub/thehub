@@ -458,7 +458,8 @@ void TxValidationState::checkTransaction()
         parent->recentTxRejects.insert(txid);
     } catch (const std::runtime_error &ex) {
         raii.result = std::string(ex.what());
-        logFatal(Log::TxValidation) << "TxValidation got exception;" << ex;
+        logFatal(Log::TxValidation) << "TxValidation" << txid << "got exception:" << ex;
+        logFatal(Log::TxValidation) << "  size" << m_tx.size() << m_tx.createHash();
         assert(false);
         throw;
     }

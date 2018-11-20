@@ -2,7 +2,7 @@
  * This file is part of the Flowee project
  * Copyright (C) 2009-2010 Satoshi Nakamoto
  * Copyright (C) 2009-2015 The Bitcoin Core developers
- * Copyright (C) 2016-2017 Tom Zander <tomz@freedommail.ch>
+ * Copyright (C) 2016-2018 Tom Zander <tomz@freedommail.ch>
  *
  * This program is free software: you can redistribute it and/or modify
  * it under the terms of the GNU General Public License as published by
@@ -243,6 +243,11 @@ private:
     std::vector<char> txData;
 
 public:
+    // sorting helper method.
+    static bool sortTxByTxId(const CTransaction &tx1, const CTransaction &tx2) {
+        return tx1.GetHash().Compare(tx2.GetHash()) <= 0;
+    }
+
     // Default transaction version.
     static const int32_t CURRENT_VERSION=1;
 

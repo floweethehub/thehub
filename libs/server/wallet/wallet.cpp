@@ -2494,7 +2494,8 @@ void CWallet::CommitTransaction(CWalletTx& wtxNew, CReserveKey& reservekey)
         mapRequestCount[wtxNew.GetHash()] = 0;
 
         if (fBroadcastTransactions) {
-            Application::instance()->validation()->addTransaction(Tx::fromOldTransaction(wtxNew), Validation::RejectAbsurdFeeTx);
+            auto future = Application::instance()->validation()->addTransaction(Tx::fromOldTransaction(wtxNew), Validation::RejectAbsurdFeeTx);
+            future.get(); // wait until finished
             wtxNew.RelayWalletTransaction();
         }
     }
