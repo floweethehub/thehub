@@ -667,41 +667,6 @@ void ValidationEnginePrivate::processNewBlock(std::shared_ptr<BlockValidationSta
     if (!addToChain)
         return;
 
-    // Check the BIP9 activation options and generate possible warnings.
-    if (!IsInitialBlockDownload()) {
-        int nUpgraded = 0;
-        const CBlockIndex* pindex = index;
-        for (int bit = 0; bit < VERSIONBITS_NUM_BITS; bit++) {
-            WarningBitsConditionChecker checker(bit);
-            ThresholdState state = checker.GetStateFor(pindex, Params().GetConsensus(), warningcache[bit]);
-            if (state == THRESHOLD_ACTIVE) {
-                strMiscWarning = strprintf(_("Warning: unknown new rules activated (versionbit %i)"), bit);
-                if (!issuedWarningForVersion) {
-                    AlertNotify(strMiscWarning, true);
-                    issuedWarningForVersion = true;
-                }
-            } else if (state == THRESHOLD_LOCKED_IN) {
-                logInfo(Log::BlockValidation).nospace() << "unknown new rules are about to activate (versionbit " << bit << ")";
-            }
-        }
-        for (int i = 0; i < 100 && pindex != nullptr; i++) {
-            int32_t nExpectedVersion = WarningBitsConditionChecker::computeBlockVersion(pindex->pprev);
-            if (pindex->nVersion > VERSIONBITS_LAST_OLD_BLOCK_VERSION && (pindex->nVersion & ~nExpectedVersion) != 0)
-                ++nUpgraded;
-            pindex = pindex->pprev;
-        }
-        if (nUpgraded > 20)
-            logInfo(Log::BlockValidation) << nUpgraded << "of last 100 blocks have unexpected version";
-        if (nUpgraded > 100/2) {
-            // strMiscWarning is read by GetWarnings(), called by Qt and the JSON-RPC code to warn the user:
-            strMiscWarning = _("Warning: Unknown block versions being mined! It's possible unknown rules are in effect");
-            if (!issuedWarningForVersion) {
-                AlertNotify(strMiscWarning, true);
-                issuedWarningForVersion = true;
-            }
-        }
-    }
-
     if (state->flags.hf201708Active && Application::uahfChainState() == Application::UAHFWaiting) {
         Application::setUahfChainState(Application::UAHFRulesActive);
         // next block is the big, fork-block.
