@@ -255,7 +255,7 @@ bool AddLocal(const CService& addr, int nScore)
     if (IsLimited(addr))
         return false;
 
-    LogPrintf("AddLocal(%s,%i)\n", addr.ToString(), nScore);
+    logCritical(Log::Net) << "AddLocal" << addr << "with score:" << nScore;
 
     {
         LOCK(cs_mapLocalHost);
@@ -278,7 +278,7 @@ bool AddLocal(const CNetAddr &addr, int nScore)
 void RemoveLocal(const CService& addr)
 {
     LOCK(cs_mapLocalHost);
-    LogPrintf("RemoveLocal(%s)\n", addr.ToString());
+    logCritical(Log::Net) << "RemoveLocal" << addr;
     mapLocalHost.erase(addr);
 }
 
@@ -423,7 +423,7 @@ CNode* ConnectNode(CAddress addrConnect, const char *pszDest)
                   ConnectSocket(addrConnect, hSocket, nConnectTimeout, &proxyConnectionFailed))
     {
         if (!IsSelectableSocket(hSocket)) {
-            LogPrintf("Cannot create connection: non-selectable socket created (fd >= FD_SETSIZE ?)\n");
+            logCritical(Log::Net) << "Cannot create connection: non-selectable socket created (fd >= FD_SETSIZE ?)";
             CloseSocket(hSocket);
             return NULL;
         }
@@ -791,7 +791,7 @@ void SocketSendData(CNode *pnode)
                 int nErr = WSAGetLastError();
                 if (nErr != WSAEWOULDBLOCK && nErr != WSAEMSGSIZE && nErr != WSAEINTR && nErr != WSAEINPROGRESS)
                 {
-                    LogPrintf("socket send error %s\n", NetworkErrorString(nErr));
+                    logInfo(Log::Net) << "socket send error" << NetworkErrorString(nErr);
                     pnode->CloseSocketDisconnect();
                 }
             }
@@ -973,7 +973,7 @@ static void AcceptConnection(const ListenSocket& hListenSocket) {
 
     if (hSocket != INVALID_SOCKET)
         if (!addr.SetSockAddr((const struct sockaddr*)&sockaddr))
-            LogPrintf("Warning: Unknown socket family\n");
+            logCritical(Log::Net) << "Accept connection via unknown socket family";
 
     bool whitelisted = hListenSocket.whitelisted || CNode::IsWhitelistedRange(addr);
     {
@@ -983,17 +983,15 @@ static void AcceptConnection(const ListenSocket& hListenSocket) {
                 nInbound++;
     }
 
-    if (hSocket == INVALID_SOCKET)
-    {
+    if (hSocket == INVALID_SOCKET) {
         int nErr = WSAGetLastError();
         if (nErr != WSAEWOULDBLOCK)
-            LogPrintf("socket error accept failed: %s\n", NetworkErrorString(nErr));
+            logCritical(Log::Net) << "socket error accept failed:" << NetworkErrorString(nErr);
         return;
     }
 
-    if (!IsSelectableSocket(hSocket))
-    {
-        LogPrintf("connection from %s dropped: non-selectable socket\n", addr.ToString());
+    if (!IsSelectableSocket(hSocket)) {
+        logCritical(Log::Net) << "connection from" << addr << "dropped: non-selectable socket";
         CloseSocket(hSocket);
         return;
     }
@@ -1007,18 +1005,16 @@ static void AcceptConnection(const ListenSocket& hListenSocket) {
     setsockopt(hSocket, IPPROTO_TCP, TCP_NODELAY, (void*)&set, sizeof(int));
 #endif
 
-    if (CNode::IsBanned(addr) && !whitelisted)
-    {
-        LogPrintf("connection from %s dropped (banned)\n", addr.ToString());
+    if (CNode::IsBanned(addr) && !whitelisted) {
+        logInfo(Log::Net) << "connection from" << addr << "dropped (banned)";
         CloseSocket(hSocket);
         return;
     }
 
-    if (nInbound >= nMaxInbound)
-    {
+    if (nInbound >= nMaxInbound) {
         if (!AttemptToEvictConnection(whitelisted)) {
             // No connection to evict, disconnect the new connection
-            LogPrint("net", "failed to find an eviction candidate - connection dropped (full)\n");
+            logInfo(Log::Net) << "failed to find an eviction candidate - connection dropped (full)";
             CloseSocket(hSocket);
             return;
         }
@@ -1028,7 +1024,7 @@ static void AcceptConnection(const ListenSocket& hListenSocket) {
     pnode->AddRef();
     pnode->fWhitelisted = whitelisted;
 
-    LogPrint("net", "connection from %s accepted\n", addr.ToString());
+    logInfo(Log::Net) << "connection from" << addr << "accepted";
 
     {
         LOCK(cs_vNodes);
@@ -1184,7 +1180,7 @@ void ThreadSocketHandler()
             if (have_fds)
             {
                 int nErr = WSAGetLastError();
-                LogPrintf("socket select error %s\n", NetworkErrorString(nErr));
+                logDebug() << "socket select error" << NetworkErrorString(nErr);
                 for (unsigned int i = 0; i <= hSocketMax; i++)
                     FD_SET(i, &fdsetRecv);
             }
@@ -1444,7 +1440,7 @@ void ThreadDNSAddressSeed()
 
         LOCK(cs_vNodes);
         if (vNodes.size() >= 2) {
-            LogPrintf("P2P peers available. Skipped DNS seeding.\n");
+            logInfo(Log::Net) << "P2P peers available. Skipped DNS seeding.";
             return;
         }
     }
@@ -1452,7 +1448,7 @@ void ThreadDNSAddressSeed()
     const std::vector<CDNSSeedData> &vSeeds = Params().DNSSeeds();
     int found = 0;
 
-    LogPrintf("Loading addresses from DNS seeds (could take a while)\n");
+    logInfo(Log::Net) << "Loading addresses from DNS seeds (could take a while)";
 
     BOOST_FOREACH(const CDNSSeedData &seed, vSeeds) {
         if (HaveNameProxy()) {
@@ -1475,18 +1471,8 @@ void ThreadDNSAddressSeed()
         }
     }
 
-    LogPrintf("%d addresses found from DNS seeds\n", found);
+    logInfo(Log::Net) << found << "addresses found from DNS seeds";
 }
-
-
-
-
-
-
-
-
-
-
 
 
 void DumpAddresses()
@@ -1510,8 +1496,7 @@ void DumpAddresses()
     CAddrDB adb;
     adb.Write(addrman);
 
-    LogPrint("net", "Flushed %d addresses to peers.dat  %dms\n",
-           addrman.size(), GetTimeMillis() - nStart);
+    logInfo(Log::Net) << "Flushed" << addrman.size() << "addresses to peers.dat" << (GetTimeMillis() - nStart) << "ms";
 }
 
 void DumpData()
@@ -2079,7 +2064,7 @@ void StartNode(boost::thread_group& threadGroup, CScheduler& scheduler)
 
 bool StopNode()
 {
-    LogPrintf("StopNode()\n");
+    logCritical(Log::Net) << "StopNode()";
     MapPort(false);
     if (semOutbound)
         for (int i=0; i<MAX_OUTBOUND_CONNECTIONS; i++)
@@ -2108,7 +2093,7 @@ public:
         BOOST_FOREACH(ListenSocket& hListenSocket, vhListenSocket)
             if (hListenSocket.socket != INVALID_SOCKET)
                 if (!CloseSocket(hListenSocket.socket))
-                    LogPrintf("CloseSocket(hListenSocket) failed with error %s\n", NetworkErrorString(WSAGetLastError()));
+                    logCritical(Log::Net) << "CloseSocket(hListenSocket) failed with error" << NetworkErrorString(WSAGetLastError());
 
         // clean up some globals (to help leak detection)
         BOOST_FOREACH(CNode *pnode, vNodes)
@@ -2206,7 +2191,7 @@ void CNode::SetMaxOutboundTarget(uint64_t limit)
     nMaxOutboundLimit = limit;
 
     if (limit > 0 && limit < recommendedMinimum)
-        LogPrintf("Max outbound target is very small (%s bytes) and will be overshot. Recommended minimum is %s bytes.\n", nMaxOutboundLimit, recommendedMinimum);
+        logCritical(Log::Net).nospace() << "Max outbound target is very small (" << nMaxOutboundLimit << "bytes) and will be overshot. Recommended minimum is " << recommendedMinimum << "bytes.";
 }
 
 uint64_t CNode::GetMaxOutboundTarget()
@@ -2567,7 +2552,7 @@ void CNode::AbortMessage() UNLOCK_FUNCTION(cs_vSend)
 
     LEAVE_CRITICAL_SECTION(cs_vSend);
 
-    LogPrint("net", "(aborted)\n");
+    logDebug(Log::Net);
 }
 
 void CNode::EndMessage() UNLOCK_FUNCTION(cs_vSend)
@@ -2577,7 +2562,7 @@ void CNode::EndMessage() UNLOCK_FUNCTION(cs_vSend)
     // not intended for end-users.
     if (mapArgs.count("-dropmessagestest") && GetRand(GetArg("-dropmessagestest", 2)) == 0)
     {
-        LogPrint("net", "dropmessages DROPPING SEND MESSAGE\n");
+        logDebug(Log::Net) << "dropmessages DROPPING SEND MESSAGE";
         AbortMessage();
         return;
     }
@@ -2730,8 +2715,8 @@ void DumpBanlist()
     CNode::GetBanned(banmap);
     bandb.Write(banmap);
 
-    LogPrint("net", "Flushed %d banned node ips/subnets to banlist.dat  %dms\n",
-             banmap.size(), GetTimeMillis() - nStart);
+    logInfo(Log::Net) <<  "Flushed" << banmap.size() << "banned node ips/subnets to banlist.dat"
+        << (GetTimeMillis() - nStart) << "ms";
 }
 
 int64_t PoissonNextSend(int64_t nNow, int average_interval_seconds) {

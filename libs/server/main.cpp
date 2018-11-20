@@ -2162,7 +2162,8 @@ bool static ProcessMessage(CNode* pfrom, std::string strCommand, CDataStream& vR
                         }
                         // BUIP010 Xtreme Thinblocks: end section
                     }
-                    LogPrint("net", "getheaders (%d) %s to peer=%d\n", pindexBestHeader->nHeight, inv.hash.ToString(), pfrom->id);
+                    logDebug(Log::Net) << "getheaders" << pindexBestHeader->nHeight << inv.hash
+                                    << " to peer:" << pfrom->id;
                 }
             }
             else
@@ -2284,9 +2285,9 @@ bool static ProcessMessage(CNode* pfrom, std::string strCommand, CDataStream& vR
         // we must use CBlocks, as CBlockHeaders won't include the 0x00 nTx count at the end
         std::vector<CBlock> vHeaders;
         int nLimit = MAX_HEADERS_RESULTS;
-        LogPrint("net", "getheaders %d to %s from peer=%d\n", (pindex ? pindex->nHeight : -1), hashStop.ToString(), pfrom->id);
-        for (; pindex; pindex = chainActive.Next(pindex))
-        {
+        logDebug(Log::Net) << "getheaders" << (pindex ? pindex->nHeight : -1) << "to"
+                << hashStop << "from peer:" << pfrom->id;
+        for (; pindex; pindex = chainActive.Next(pindex)) {
             vHeaders.push_back(pindex->GetBlockHeader());
             if (--nLimit <= 0 || pindex->GetBlockHash() == hashStop)
                 break;
