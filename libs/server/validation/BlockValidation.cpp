@@ -1424,11 +1424,7 @@ void BlockValidationState::updateUtxoAndStartValidation()
                     const uint256 txHash = tx.createHash();
                     if (flags.hf201811Active && txIndex > 1 && txHash.Compare(prevTxHash) <= 0)
                         throw Exception("tx-ordering-not-CTOR");
-                    for (int i = outputCount; i > 0; --i) {
-                        UnspentOutputDatabase::BlockData::TxOutput &out = data.outputs[data.outputs.size() - i];
-                        out.txid = txHash;
-                        out.offsetInBlock = offsetInBlock;
-                    }
+                    data.outputs.push_back(UnspentOutputDatabase::BlockData::TxOutputs(txHash, offsetInBlock, 0, outputCount - 1));
                     outputCount = 0;
                     if (flags.hf201811Active)
                         prevTxHash = txHash;
@@ -1439,7 +1435,6 @@ void BlockValidationState::updateUtxoAndStartValidation()
                 else if (iter.tag() == Tx::OutputValue) { // next output!
                     if (iter.longData() == 0)
                         logDebug() << "Output with zero value";
-                    data.outputs.push_back(UnspentOutputDatabase::BlockData::TxOutput(outputCount));
                     outputCount++;
                 }
             }

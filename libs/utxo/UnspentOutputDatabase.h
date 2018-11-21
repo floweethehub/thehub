@@ -24,6 +24,7 @@
 #include <streaming/BufferPool.h>
 
 #include <boost/asio/io_service.hpp>
+#include <set>
 
 /**
  * @brief The UnspentOutput class is a mem-mappable "leaf" in the UnspentOutputDatabase.
@@ -106,14 +107,19 @@ public:
     static void setSmallLimits();
 
     struct BlockData {
-        struct TxOutput {
-            TxOutput(int i) : index(i) {}
+        struct TxOutputs { // can hold all the data for a single transaction
+            TxOutputs(const uint256 &id, int offsetInBlock, int firstOutput, int lastOutput = -1)
+                : txid(id),
+                  offsetInBlock(offsetInBlock),
+                  firstOutput(firstOutput),
+                  lastOutput(lastOutput < firstOutput ? firstOutput : lastOutput) {
+            }
             uint256 txid;
-            int index = -1;
+            int firstOutput = 0, lastOutput = 0;
             int offsetInBlock = 0;
         };
         int blockHeight = -1;
-        std::vector<TxOutput> outputs;
+        std::vector<TxOutputs> outputs;
     };
     void insertAll(const BlockData &data);
 

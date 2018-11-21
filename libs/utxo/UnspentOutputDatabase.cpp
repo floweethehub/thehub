@@ -225,7 +225,7 @@ void UnspentOutputDatabase::insertAll(const UnspentOutputDatabase::BlockData &da
 
 void UnspentOutputDatabase::insert(const uint256 &txid, int outIndex, int blockHeight, int offsetInBlock)
 {
-    d->dataFiles.last()->insert(d, txid, outIndex, blockHeight, offsetInBlock);
+    d->dataFiles.last()->insert(d, txid, outIndex, outIndex, blockHeight, offsetInBlock);
 }
 
 UnspentOutput UnspentOutputDatabase::find(const uint256 &txid, int index) const
@@ -567,11 +567,12 @@ DataFile::DataFile(const boost::filesystem::path &filename)
     }
 }
 
-void DataFile::insert(const UODBPrivate *priv, const uint256 &txid, int outIndex, int blockHeight, int offsetInBlock)
+void DataFile::insert(const UODBPrivate *priv, const uint256 &txid, int firstOutput, int lastOutput, int blockHeight, int offsetInBlock)
 {
     assert(offsetInBlock > 80);
     assert(blockHeight > 0);
-    assert(outIndex >= 0);
+    assert(firstOutput >= 0);
+    assert(lastOutput >= firstOutput);
     assert(!txid.IsNull());
     LockGuard lock(this);
     const uint32_t shortHash = createShortHash(txid);
@@ -588,24 +589,26 @@ void DataFile::insert(const UODBPrivate *priv, const uint256 &txid, int outIndex
         Bucket *bucket = nullptr;
         if (bucketId == 0) {
             bucketId = static_cast<uint32_t>(m_nextBucketIndex++);
-            DEBUGUTXO << "Insert leaf"  << txid << outIndex << "creates new bucket id:" << bucketId;
+            DEBUGUTXO << "Insert leafs"  << txid << firstOutput << "-" << lastOutput << "creates new bucket id:" << bucketId;
             auto iterator = m_buckets.insert(std::make_pair(bucketId, Bucket())).first;
             bucket = &iterator->second;
             m_jumptables[shortHash] = bucketId + MEMBIT;
         } else if (bucketId & MEMBIT) { // highest bit is set. Bucket is in memory.
             bucket = &m_buckets.at(bucketId & MEMMASK);
-            DEBUGUTXO << "Insert leaf"  << txid << outIndex << "into mem-bucket:" << (bucketId & MEMMASK);
+            DEBUGUTXO << "Insert leafs"  << txid << firstOutput << "-" << lastOutput << "into mem-bucket:" << (bucketId & MEMMASK);
 
             if ((bucketId & MEMMASK) <= m_lastCommittedBucketIndex)
                 m_bucketsToNotSave.insert(bucketId);
         }
         if (bucket) {
-            const std::int32_t leafPos = m_nextLeafIndex++;
-            DEBUGUTXO << "Insert leaf"  << (leafPos & MEMMASK) << "shortHash:" << Log::Hex << shortHash;
-            m_leafs.insert(std::make_pair(leafPos, UnspentOutput(m_memBuffers, txid, outIndex, blockHeight, offsetInBlock)));
-            bucket->unspentOutputs.push_back({txid.GetCheapHash(), static_cast<std::uint32_t>(leafPos) + MEMBIT});
+            for (int i = firstOutput; i <= lastOutput; ++i) {
+                const std::int32_t leafPos = m_nextLeafIndex++;
+                DEBUGUTXO << "Insert leaf"  << (leafPos & MEMMASK) << "shortHash:" << Log::Hex << shortHash;
+                m_leafs.insert(std::make_pair(leafPos, UnspentOutput(m_memBuffers, txid, i, blockHeight, offsetInBlock)));
+                bucket->unspentOutputs.push_back({txid.GetCheapHash(), static_cast<std::uint32_t>(leafPos) + MEMBIT});
+                addChange(priv);
+            }
             bucket->saveAttempt = 0;
-            addChange(priv);
             return;
         }
         if (bucketId >= m_file.size()) // data corruption
@@ -628,20 +631,23 @@ void DataFile::insert(const UODBPrivate *priv, const uint256 &txid, int outIndex
     // re-fetch in case we had an AbA race
     bucketId = m_jumptables[shortHash];
     if ((bucketId & MEMBIT) || bucketId == 0) // it got loaded into mem in parallel to our attempt
-        return insert(priv, txid, outIndex, blockHeight, offsetInBlock);
+        return insert(priv, txid, firstOutput, lastOutput, blockHeight, offsetInBlock);
 
     m_committedBucketLocations.insert(std::make_pair(shortHash, bucketId));
     const auto iterator = m_buckets.insert(std::make_pair(m_nextBucketIndex, std::move(memBucket))).first;
     m_jumptables[shortHash] = static_cast<uint32_t>(m_nextBucketIndex) + MEMBIT;
-    const std::int32_t leafPos = m_nextLeafIndex++;
-    DEBUGUTXO << "Insert leaf"  << (leafPos & MEMMASK) << "shortHash:" << Log::Hex << shortHash;
-    DEBUGUTXO << Log::Hex << "  + from disk, bucketId:" << m_nextBucketIndex;
-    m_nextBucketIndex++;
 
-    Bucket *bucket = &iterator->second;
-    m_leafs.insert(std::make_pair(leafPos, UnspentOutput(m_memBuffers, txid, outIndex, blockHeight, offsetInBlock)));
-    bucket->unspentOutputs.push_back({txid.GetCheapHash(), static_cast<std::uint32_t>(leafPos) + MEMBIT});
-    bucket->saveAttempt = 0;
+    for (int i = firstOutput; i <= lastOutput; ++i) {
+        const std::int32_t leafPos = m_nextLeafIndex++;
+        DEBUGUTXO << "Insert leaf"  << (leafPos & MEMMASK) << "shortHash:" << Log::Hex << shortHash;
+        DEBUGUTXO << Log::Hex << "  + from disk, bucketId:" << m_nextBucketIndex;
+
+        Bucket *bucket = &iterator->second;
+        m_leafs.insert(std::make_pair(leafPos, UnspentOutput(m_memBuffers, txid, i, blockHeight, offsetInBlock)));
+        bucket->unspentOutputs.push_back({txid.GetCheapHash(), static_cast<std::uint32_t>(leafPos) + MEMBIT});
+        bucket->saveAttempt = 0;
+    }
+    m_nextBucketIndex++;
 
     addChange(priv);
 }
@@ -649,8 +655,8 @@ void DataFile::insert(const UODBPrivate *priv, const uint256 &txid, int outIndex
 void DataFile::insertAll(const UODBPrivate *priv, const UnspentOutputDatabase::BlockData &data)
 {
     std::lock_guard<std::recursive_mutex> lock(m_lock);
-    for (auto d : data.outputs) {
-        insert(priv, d.txid, d.index, data.blockHeight, d.offsetInBlock);
+    for (auto o : data.outputs) {
+        insert(priv, o.txid, o.firstOutput, o.lastOutput, data.blockHeight, o.offsetInBlock);
     }
 }
 
