@@ -69,7 +69,7 @@ bool AppInit(int argc, char* argv[])
     //
     // Parameters
     //
-    // If Qt is used, parameters/bitcoin.conf are parsed in qt/bitcoin.cpp's main()
+    // If Qt is used, parameters/flowee.conf are parsed in qt/bitcoin.cpp's main()
     Settings::Bitcoind allowedArgs;
     try {
         ParseParameters(argc, argv, allowedArgs);

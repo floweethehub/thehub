@@ -119,7 +119,7 @@ void HandleBlockMessage(CNode *pfrom, const std::string &strCommand, const CBloc
 
 // TODO namespace the new methods?
 
-// Checks to see if the node is configured in bitcoin.conf to be an expedited block source and if so, request them.
+// Checks to see if the node is configured in flowee.conf to be an expedited block source and if so, request them.
 void CheckAndRequestExpeditedBlocks(CNode* pfrom);
 void SendExpeditedBlock(CXThinBlock& thinBlock, unsigned char hops, const CNode* skip = nullptr);
 void SendExpeditedBlock(const CBlock& block, const CNode* skip = nullptr);
