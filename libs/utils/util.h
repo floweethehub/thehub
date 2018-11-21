@@ -86,7 +86,7 @@ bool SetupNetworking();
  * of this macro-based construction (see tinyformat.h).
  */
 #define MAKE_ERROR_AND_LOG_FUNC(n)                                        \
-    /**   Print to debug.log if -debug=category switch is given OR category is NULL. */ \
+    /**   Print to hub.log if -debug=category switch is given OR category is NULL. */ \
     template<TINYFORMAT_ARGTYPES(n)> \
     static inline void LogPrint(const char* category, const char* format, TINYFORMAT_VARARGS(n)) { \
         Log::MessageLogger(nullptr, 0, nullptr).infoCompat(category, format, TINYFORMAT_PASSARGS(n)); \

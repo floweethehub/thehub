@@ -197,7 +197,7 @@ public:
             ,
             1501593400, // * UNIX timestamp of last checkpoint block
             243276768,   // * total number of transactions between genesis and last checkpoint
-                        //   (the tx=... number in the processNewBlock debug.log lines)
+                        //   (the tx=... number in the processNewBlock hub.log lines)
             250000.0     // * estimated number of transactions per day after checkpoint
         };
     }
@@ -296,7 +296,7 @@ public:
             (1012786, uint256S("0x000000000000038b4ff601f65433b54c72a7c0df7746102452623d3808ebba98")),
             1477526400, // * UNIX timestamp of last checkpoint block
             11844710,    // * total number of transactions between genesis and last checkpoint
-                        //   (the tx=... number in the SetBestChain debug.log lines)
+                        //   (the tx=... number in the SetBestChain hub.log lines)
             300         // * estimated number of transactions per day after checkpoint
         };
 

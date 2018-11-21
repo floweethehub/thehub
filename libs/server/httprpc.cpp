@@ -228,7 +228,7 @@ static bool InitRPCAuthentication()
         logCritical(Log::RPC) << "No rpcpassword set - using random cookie authentication";
         if (!GenerateAuthCookie(&strRPCUserColonPass)) {
             uiInterface.ThreadSafeMessageBox(
-                _("Error: A fatal internal error occurred, see debug.log for details"), // Same message as AbortNode
+                _("Error: A fatal internal error occurred, see hub.log for details"), // Same message as AbortNode
                 "", CClientUIInterface::MSG_ERROR);
             return false;
         }

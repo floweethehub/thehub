@@ -128,7 +128,7 @@ namespace GUIUtil
     // Determine whether a widget is hidden behind other windows
     bool isObscured(QWidget *w);
 
-    // Open debug.log
+    // Open hub.log
     void openDebugLogfile();
 
     // Replace invalid default fonts with known good ones

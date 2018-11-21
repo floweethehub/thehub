@@ -1050,7 +1050,7 @@ bool AbortNode(const std::string& strMessage, const std::string& userMessage="")
     strMiscWarning = strMessage;
     LogPrintf("*** %s\n", strMessage);
     uiInterface.ThreadSafeMessageBox(
-        userMessage.empty() ? _("Error: A fatal internal error occurred, see debug.log for details") : userMessage,
+        userMessage.empty() ? _("Error: A fatal internal error occurred, see hub.log for details") : userMessage,
         "", CClientUIInterface::MSG_ERROR);
     StartShutdown();
     return false;

@@ -417,9 +417,9 @@ bool isObscured(QWidget *w)
 
 void openDebugLogfile()
 {
-    boost::filesystem::path pathDebug = GetDataDir() / "debug.log";
+    boost::filesystem::path pathDebug = GetDataDir() / "hub.log";
 
-    /* Open debug.log with the associated application */
+    /* Open hub.log with the associated application */
     if (boost::filesystem::exists(pathDebug))
         QDesktopServices::openUrl(QUrl::fromLocalFile(boostPathToQString(pathDebug)));
 }

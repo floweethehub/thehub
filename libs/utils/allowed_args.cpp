@@ -366,12 +366,12 @@ static void addDebuggingOptions(AllowedArgs& allowedArgs, HelpMessageMode mode)
         .addDebugArg("limitfreerelay=<n>", optionalInt, strprintf("Continuously rate-limit free transactions to <n>*1000 bytes per minute (default: %u)", DefaultLimitFreeRelay))
         .addDebugArg("relaypriority", optionalBool, strprintf("Require high priority for relaying free or low-fee transactions (default: %u)", DefaultRelayPriority))
         .addDebugArg("maxsigcachesize=<n>", requiredInt, strprintf("Limit size of signature cache to <n> MiB (default: %u)", DefaultMaxSigCacheSize))
-        .addArg("printtoconsole", optionalBool, _("Send trace/debug info to console instead of debug.log file"))
+        .addArg("printtoconsole", optionalBool, _("Send trace/debug info to console as well as to hub.log file"))
         .addDebugArg("printpriority", optionalBool, strprintf("Log transaction priority and fee per kB when mining blocks (default: %u)", DefaultGeneratePriorityLogging))
 #ifdef ENABLE_WALLET
         .addDebugArg("privdb", optionalBool, strprintf("Sets the DB_PRIVATE flag in the wallet db environment (default: %u)", DefaultWalletPrivDb))
 #endif
-        .addArg("shrinkdebugfile", optionalBool, _("Shrink debug.log file on client startup (default: true when no -debug)"))
+        .addArg("shrinkdebugfile", optionalBool, _("Shrink hub.log file on client startup (default: true when no -debug)"))
         .addDebugArg("catch-crash", optionalBool, "Enable the crash-catcher which creates a backtrace file on segfault")
         ;
 }

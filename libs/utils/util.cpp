@@ -579,7 +579,7 @@ void AllocateFileRange(FILE *file, unsigned int offset, unsigned int length) {
 
 void ShrinkDebugFile()
 {
-    // Scroll debug.log if it's getting too big
+    // Scroll hub.log if it's getting too big
     boost::filesystem::path pathLog = GetDataDir() / "hub.log";
     FILE* file = fopen(pathLog.string().c_str(), "r");
     if (file && boost::filesystem::file_size(pathLog) > 10 * 1000000)

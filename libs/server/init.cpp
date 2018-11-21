@@ -517,7 +517,7 @@ bool AppInit2(boost::thread_group& threadGroup, CScheduler& scheduler)
     sigaction(SIGTERM, &sa, NULL);
     sigaction(SIGINT, &sa, NULL);
 
-    // Reopen debug.log on SIGHUP
+    // Reopen hub.log on SIGHUP
     struct sigaction sa_hup;
     sa_hup.sa_handler = HandleSIGHUP;
     sigemptyset(&sa_hup.sa_mask);
@@ -698,7 +698,7 @@ bool AppInit2(boost::thread_group& threadGroup, CScheduler& scheduler)
         UnspentOutputDatabase::setSmallLimits();
     }
 
-    // ********************************************************* Step 4: application initialization: dir lock, daemonize, pidfile, debug log
+    // ********************************************************* Step 4: application initialization: dir lock, daemonize, pidfile, hub log
 
     // Initialize elliptic curve code
     ECC_Start();
@@ -759,7 +759,7 @@ bool AppInit2(boost::thread_group& threadGroup, CScheduler& scheduler)
     {
         uiInterface.InitMessage.connect(SetRPCWarmupStatus);
         if (!AppInitServers())
-            return InitError(_("Unable to start HTTP server. See debug log for details."));
+            return InitError(_("Unable to start HTTP server. See hub log for details."));
     }
 
     Application::instance()->validation()->setMempool(&mempool);

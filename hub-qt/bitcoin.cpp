@@ -165,7 +165,7 @@ static void initTranslations(QTranslator &qtTranslatorBase, QTranslator &qtTrans
         QApplication::installTranslator(&translator);
 }
 
-/* qDebug() message handler --> debug.log */
+/* qDebug() message handler --> hub.log */
 #if QT_VERSION < 0x050000
 void DebugMessageHandler(QtMsgType type, const char *msg)
 {
@@ -670,14 +670,14 @@ int main(int argc, char *argv[])
     // Install global event filter that makes sure that long tooltips can be word-wrapped
     app.installEventFilter(new GUIUtil::ToolTipToRichTextFilter(TOOLTIP_WRAP_THRESHOLD, &app));
 #if QT_VERSION < 0x050000
-    // Install qDebug() message handler to route to debug.log
+    // Install qDebug() message handler to route to hub.log
     qInstallMsgHandler(DebugMessageHandler);
 #else
 #if defined(Q_OS_WIN)
     // Install global event filter for processing Windows session related Windows messages (WM_QUERYENDSESSION and WM_ENDSESSION)
     qApp->installNativeEventFilter(new WinShutdownMonitor());
 #endif
-    // Install qDebug() message handler to route to debug.log
+    // Install qDebug() message handler to route to hub.log
     qInstallMessageHandler(DebugMessageHandler);
 #endif
     // Allow parameter interaction before we create the options model

@@ -102,15 +102,15 @@ Development tips and tricks
 Run configure with the --enable-debug option, then make. Or run configure with
 CXXFLAGS="-g -ggdb -O0" or whatever debug flags you need.
 
-**debug.log**
+**hub.log**
 
-If the code is behaving strangely, take a look in the debug.log file in the data directory;
+If the code is behaving strangely, take a look in the hub.log file in the data directory;
 error and debugging messages are written there.
 
 The -debug=... command-line option controls debugging; running with just -debug or -debug=1 will turn
-on all categories (and give you a very large debug.log file).
+on all categories (and give you a very large hub.log file).
 
-The Qt code routes qDebug() output to debug.log under category "qt": run with -debug=qt
+The Qt code routes qDebug() output to hub.log under category "qt": run with -debug=qt
 to see it.
 
 **testnet and regtest modes**
@@ -127,7 +127,7 @@ that run in -regtest mode.
 Bitcoin Classic is a multithreaded application, and deadlocks or other multithreading bugs
 can be very difficult to track down. Compiling with -DDEBUG_LOCKORDER (configure
 CXXFLAGS="-DDEBUG_LOCKORDER -g") inserts run-time checks to keep track of which locks
-are held, and adds warnings to the debug.log file if inconsistencies are detected.
+are held, and adds warnings to the hub.log file if inconsistencies are detected.
 
 Locking/mutex usage notes
 -------------------------
@@ -143,7 +143,7 @@ Deadlocks due to inconsistent lock ordering (thread 1 locks cs_main
 and then cs_wallet, while thread 2 locks them in the opposite order:
 result, deadlock as each waits for the other to release its lock) are
 a problem. Compile with -DDEBUG_LOCKORDER to get lock order
-inconsistencies reported in the debug.log file.
+inconsistencies reported in the hub.log file.
 
 NOTE: order inconsistencies-checks are broken and assume all locks are global
 variables. Its best to ignore the warnings.
