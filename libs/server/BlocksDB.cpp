@@ -289,13 +289,20 @@ bool Blocks::DB::CacheAllBlockInfos()
         }
         while (block != tip) { // calculate nChainwork from block to tip
             block= tip->GetAncestor(block->nHeight + 1);
-            block->nChainWork = tip->pprev->nChainWork + GetBlockProof(*block);
+            block->nChainWork = block->pprev->nChainWork + GetBlockProof(*block);
         }
         if (d->headersChain.Tip()->nChainWork < tip->nChainWork) {
             d->headersChain.SetTip(tip);
             pindexBestHeader = tip;
         }
     }
+#ifndef NDEBUG
+    for (CBlockIndex *tip : d->headerChainTips) {
+        bool isMain = tip == d->headersChain.Tip();
+        logInfo(Log::DB) << "Chain-tips:" << tip->nHeight << tip->GetBlockHash() << ArithToUint256(tip->nChainWork)
+                          << (isMain ? "main" : "");
+    }
+#endif
 
     return true;
 }
