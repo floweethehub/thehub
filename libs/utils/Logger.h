@@ -490,4 +490,22 @@ inline Log::Item operator<<(Log::Item item, const QString &s) {
 }
 #endif
 
+#include <set>
+
+template<class V>
+inline Log::Item operator<<(Log::Item item, const std::set<V> &set) {
+    if (item.isEnabled()) {
+        const bool old = item.useSpace();
+        item.nospace() << '(';
+        bool first = true;
+        for (const V &v : set) { if (first) item << ','; first = false; item << v; }
+        item << ')';
+        if (old)
+            return item.space();
+    }
+    return item;
+}
+template<class V>
+inline Log::SilentItem operator<<(Log::SilentItem item, const std::set<V>&) { return item; }
+
 #endif
