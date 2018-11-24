@@ -913,14 +913,12 @@ bool DataFile::flushSomeNodesToDisk(ForceBool force)
     // threads simultaniously. The below lock avoids this being an issue.
     std::lock_guard<std::recursive_mutex> saveLock(m_saveLock);
 
-    logInfo(Log::UTXO) << "Flush nodes starting" << m_path.filename().string();
     std::list<OutputRef> unsavedOutputs;
     std::unordered_map<int, UnspentOutput> leafs;
     std::set<uint32_t> bucketsToSave;
     // first gather the stuff we want to save, we need the mutex as this is stored in various containers
     {
         std::lock_guard<std::recursive_mutex> lock(m_lock);
-        logInfo(Log::UTXO) << " += Leafs in mem:" << m_leafs.size() << "buckets in mem:" << m_buckets.size();
         leafs = m_leafs;
 
         // Collect buckets (at least their content) we are going to store to disk.
@@ -1068,8 +1066,8 @@ bool DataFile::flushSomeNodesToDisk(ForceBool force)
     }
     while (end != unsavedOutputs.end());
 
-    logInfo(Log::UTXO) << "Flushed" << flushedToDiskCount << "to disk. Filesize now:" << m_writeBuffer.offset();
-    logInfo(Log::UTXO) << " +- Leafs in mem:" << m_leafs.size() << "Buckets in mem:" << m_buckets.size();
+    logInfo(Log::UTXO) << "Flushed" << flushedToDiskCount << "to disk." << m_path.filename().string() << "Filesize now:" << m_writeBuffer.offset();
+    logDebug(Log::UTXO) << " +- Leafs in mem:" << m_leafs.size() << "Buckets in mem:" << m_buckets.size();
     m_flushScheduled = false;
     m_changeCount = m_leafs.size();
 
