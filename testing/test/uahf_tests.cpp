@@ -67,12 +67,6 @@ BOOST_AUTO_TEST_CASE(Test_isCommitment) {
     data.push_back(23);
     s = CScript() << OP_RETURN << data;
     BOOST_CHECK(!s.isCommitment(data));
-
-    // Check with the actual replay commitment we are going to use.
-    SelectParams(CBaseChainParams::MAIN);
-    const Consensus::Params &params = Params().GetConsensus();
-    s = CScript() << OP_RETURN << params.antiReplayOpReturnCommitment;
-    BOOST_CHECK(s.isCommitment(params.antiReplayOpReturnCommitment));
 }
 
 BOOST_AUTO_TEST_CASE(Test_transactionAcceptance)

@@ -1298,18 +1298,6 @@ bool ContextualCheckBlock(const CBlock& block, CValidationState& state, CBlockIn
                 if (blockSize < minBlockSize)
                      return state.DoS(100, false, REJECT_INVALID, "bad-blk-too-small", false, "size limits failed");
             }
-
-            if (nHeight <= consensusParams.antiReplayOpReturnSunsetHeight) {
-                for (const CTransaction &tx : block.vtx) {
-                    for (const CTxOut &o : tx.vout) {
-                        if (o.scriptPubKey.isCommitment(consensusParams.antiReplayOpReturnCommitment)) {
-                            logInfo(8002) << " + mined block includes the OP_RETURN forbidden string, rejecting";
-                            return state.DoS(10, false, REJECT_INVALID, "bad-txn-replay",
-                                             false, "non playable transaction");
-                        }
-                    }
-                }
-            }
         }
     }
     const std::uint32_t blockSizeAcceptLimit = Policy::blockSizeAcceptLimit();

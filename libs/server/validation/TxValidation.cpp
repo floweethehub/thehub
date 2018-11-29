@@ -69,19 +69,6 @@ void ValidationPrivate::validateTransactionInputs(CTransaction &tx, const std::v
     if (!MoneyRange(fees))
         throw Exception("bad-txns-fee-outofrange");
 
-
-    if (flags.hf201708Active) {
-        // reject in memory pool transactions that use the OP_RETURN anti-replay ID.
-        // Remove this code after the sunset height has been reached.
-        const auto consensusParams = Params().GetConsensus();
-        if (blockHeight <= consensusParams.antiReplayOpReturnSunsetHeight) {
-            for (const CTxOut &o : tx.vout) {
-                if (o.scriptPubKey.isCommitment(consensusParams.antiReplayOpReturnCommitment))
-                    throw Exception("auti-replay-opreturn-commitment");
-            }
-        }
-    }
-
     spendsCoinbase = false;
     const uint32_t scriptValidationFlags = flags.scriptValidationFlags();
     for (unsigned int i = 0; i < tx.vin.size(); i++) {

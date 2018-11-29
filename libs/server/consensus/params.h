@@ -59,10 +59,6 @@ struct Params {
     /** Block height and hash at which BIP34 becomes active */
     int BIP34Height;
     uint256 BIP34Hash;
-    /** Block height at which OP_RETURN replay protection stops */
-    int antiReplayOpReturnSunsetHeight;
-    /** Committed OP_RETURN value for replay protection */
-    std::vector<unsigned char> antiReplayOpReturnCommitment;
     /**
      * Minimum blocks including miner confirmation of the total of 2016 blocks in a retargetting period,
      * (nPowTargetTimespan / nPowTargetSpacing) which is also used for BIP9 deployments.
