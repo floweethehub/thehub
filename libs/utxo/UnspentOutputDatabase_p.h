@@ -90,7 +90,8 @@ namespace UODB {
 
         // Additional bucket-positioning tags
         LeafPosOn512MB,
-        LeafPosFromPrevLeaf
+        LeafPosFromPrevLeaf,
+        LeafPosRepeat
 
     };
 }

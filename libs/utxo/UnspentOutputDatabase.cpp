@@ -465,6 +465,12 @@ void Bucket::fillFromDisk(const Streaming::ConstBuffer &buffer, const int32_t bu
                 throw std::runtime_error("Invalid leaf pos due to LeafPosFroMPrevLeaf");
             unspentOutputs.push_back( {cheaphash, static_cast<std::uint32_t>(newLeafPos)} );
         }
+        else if (parser.tag() == UODB::LeafPosRepeat) {
+            if (unspentOutputs.empty())
+                throw std::runtime_error("Bucket referred to prev leaf while its the first");
+            const int leafPos = static_cast<int>(unspentOutputs.back().leafPos);
+            unspentOutputs.push_back( {cheaphash, static_cast<std::uint32_t>(leafPos)} );
+        }
         else if (parser.tag() == UODB::Separator) {
             return;
         }
@@ -521,7 +527,10 @@ int32_t Bucket::saveToDisk(Streaming::BufferPool &pool) const
                 pos = prevPos - leafPos;
             }
         }
-        builder.add(tagToUse, pos);
+        if (prevPos == leafPos) // This is often the case when multiple outputs are in a bucket
+            builder.add(UODB::LeafPosRepeat, false);
+        else
+            builder.add(tagToUse, pos);
         prevPos = leafPos;
     }
     builder.add(UODB::Separator, true);
