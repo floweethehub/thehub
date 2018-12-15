@@ -423,5 +423,3 @@ void TestBuffers::benchSerialize()
         // QCOMPARE(result, 992230948217398);
     }
 }
-
-QTEST_MAIN(TestBuffers)

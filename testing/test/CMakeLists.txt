@@ -79,11 +79,9 @@ set (TEST_SOURCES
     scriptnum_tests.cpp
     script_P2SH_tests.cpp
     script_tests.cpp
-    serialize_tests.cpp
     sighash_tests.cpp
     sigopcount_tests.cpp
     skiplist_tests.cpp
-    streams_tests.cpp
     test_bitcoin.cpp
     TestConnections.cpp
     thinblock_tests.cpp
