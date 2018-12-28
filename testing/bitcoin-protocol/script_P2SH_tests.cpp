@@ -1,6 +1,7 @@
 /*
  * This file is part of the Flowee project
  * Copyright (C) 2012-2015 The Bitcoin Core developers
+ * Copyright (C) 2018 Tom Zander <tomz@freedommail.ch>
  *
  * This program is free software: you can redistribute it and/or modify
  * it under the terms of the GNU General Public License as published by
@@ -16,19 +17,18 @@
  * along with this program.  If not, see <http://www.gnu.org/licenses/>.
  */
 
+#include <common/TestFloweeBase.h>
+#include "script_P2SH_tests.h"
 #include "keystore.h"
 #include "main.h"
 #include "policy/policy.h"
 #include "script/sign.h"
-#include "test/test_bitcoin.h"
 
 #include <utxo/UnspentOutputDatabase.h>
 
 #ifdef ENABLE_WALLET
 #include "wallet/wallet_ismine.h"
 #endif
-
-#include <boost/test/unit_test.hpp>
 
 // Helpers:
 static std::vector<unsigned char>
@@ -58,9 +58,7 @@ Verify(const CScript& scriptSig, const CScript& scriptPubKey, bool fStrict, Scri
 }
 
 
-BOOST_FIXTURE_TEST_SUITE(script_P2SH_tests, BasicTestingSetup)
-
-BOOST_AUTO_TEST_CASE(sign)
+void TestPaymentToScriptHash::sign()
 {
     LOCK(cs_main);
     // Pay-to-script-hash looks like this:
@@ -100,7 +98,7 @@ BOOST_AUTO_TEST_CASE(sign)
         txFrom.vout[i+4].scriptPubKey = standardScripts[i];
         txFrom.vout[i+4].nValue = COIN;
     }
-    BOOST_CHECK(IsStandardTx(txFrom, reason));
+    QVERIFY(IsStandardTx(txFrom, reason));
 
     CMutableTransaction txTo[8]; // Spending transactions
     for (int i = 0; i < 8; i++)
@@ -111,12 +109,12 @@ BOOST_AUTO_TEST_CASE(sign)
         txTo[i].vin[0].prevout.hash = txFrom.GetHash();
         txTo[i].vout[0].nValue = 1;
 #ifdef ENABLE_WALLET
-        BOOST_CHECK_MESSAGE(IsMine(keystore, txFrom.vout[i].scriptPubKey), strprintf("IsMine %d", i));
+        QVERIFY(IsMine(keystore, txFrom.vout[i].scriptPubKey));
 #endif
     }
     for (int i = 0; i < 8; i++)
     {
-        BOOST_CHECK_MESSAGE(SignSignature(keystore, txFrom, txTo[i], 0), strprintf("SignSignature %d", i));
+        QVERIFY(SignSignature(keystore, txFrom, txTo[i], 0));
     }
     // All of the above should be OK, and the txTos have valid signatures
     // Check to make sure signature verification fails if we use the wrong ScriptSig:
@@ -131,14 +129,14 @@ BOOST_AUTO_TEST_CASE(sign)
                         txTo[i], 0, SCRIPT_VERIFY_P2SH | SCRIPT_VERIFY_STRICTENC, false)();
 
             if (i == j)
-                BOOST_CHECK_MESSAGE(sigOK, strprintf("VerifySignature %d %d", i, j));
+                QVERIFY(sigOK);
             else
-                BOOST_CHECK_MESSAGE(!sigOK, strprintf("VerifySignature %d %d", i, j));
+                QVERIFY(!sigOK);
             txTo[i].vin[0].scriptSig = sigSave;
         }
 }
 
-BOOST_AUTO_TEST_CASE(norecurse)
+void TestPaymentToScriptHash::norecurse()
 {
     ScriptError err;
     // Make sure only the outer pay-to-script-hash does the
@@ -152,8 +150,8 @@ BOOST_AUTO_TEST_CASE(norecurse)
     scriptSig << Serialize(invalidAsScript);
 
     // Should not verify, because it will try to execute OP_INVALIDOPCODE
-    BOOST_CHECK(!Verify(scriptSig, p2sh, true, err));
-    BOOST_CHECK_MESSAGE(err == SCRIPT_ERR_BAD_OPCODE, ScriptErrorString(err));
+    QVERIFY(!Verify(scriptSig, p2sh, true, err));
+    QCOMPARE(err, SCRIPT_ERR_BAD_OPCODE);
 
     // Try to recur, and verification should succeed because
     // the inner HASH160 <> EQUAL should only check the hash:
@@ -161,11 +159,11 @@ BOOST_AUTO_TEST_CASE(norecurse)
     CScript scriptSig2;
     scriptSig2 << Serialize(invalidAsScript) << Serialize(p2sh);
 
-    BOOST_CHECK(Verify(scriptSig2, p2sh2, true, err));
-    BOOST_CHECK_MESSAGE(err == SCRIPT_ERR_OK, ScriptErrorString(err));
+    QVERIFY(Verify(scriptSig2, p2sh2, true, err));
+    QCOMPARE(err, SCRIPT_ERR_OK);
 }
 
-BOOST_AUTO_TEST_CASE(set)
+void TestPaymentToScriptHash::set()
 {
     LOCK(cs_main);
     // Test the CScript::Set* methods
@@ -200,7 +198,7 @@ BOOST_AUTO_TEST_CASE(set)
         txFrom.vout[i].scriptPubKey = outer[i];
         txFrom.vout[i].nValue = CENT;
     }
-    BOOST_CHECK(IsStandardTx(txFrom, reason));
+    QVERIFY(IsStandardTx(txFrom, reason));
 
     CMutableTransaction txTo[4]; // Spending transactions
     for (int i = 0; i < 4; i++)
@@ -212,48 +210,48 @@ BOOST_AUTO_TEST_CASE(set)
         txTo[i].vout[0].nValue = 1*CENT;
         txTo[i].vout[0].scriptPubKey = inner[i];
 #ifdef ENABLE_WALLET
-        BOOST_CHECK_MESSAGE(IsMine(keystore, txFrom.vout[i].scriptPubKey), strprintf("IsMine %d", i));
+        QVERIFY(IsMine(keystore, txFrom.vout[i].scriptPubKey));
 #endif
     }
     for (int i = 0; i < 4; i++)
     {
-        BOOST_CHECK_MESSAGE(SignSignature(keystore, txFrom, txTo[i], 0), strprintf("SignSignature %d", i));
-        BOOST_CHECK_MESSAGE(IsStandardTx(txTo[i], reason), strprintf("txTo[%d].IsStandard", i));
+        QVERIFY(SignSignature(keystore, txFrom, txTo[i], 0));
+        QVERIFY(IsStandardTx(txTo[i], reason));
     }
 }
 
-BOOST_AUTO_TEST_CASE(is)
+void TestPaymentToScriptHash::is()
 {
     // Test CScript::IsPayToScriptHash()
     uint160 dummy;
     CScript p2sh;
     p2sh << OP_HASH160 << ToByteVector(dummy) << OP_EQUAL;
-    BOOST_CHECK(p2sh.IsPayToScriptHash());
+    QVERIFY(p2sh.IsPayToScriptHash());
 
     // Not considered pay-to-script-hash if using one of the OP_PUSHDATA opcodes:
     static const unsigned char direct[] =    { OP_HASH160, 20, 0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0, OP_EQUAL };
-    BOOST_CHECK(CScript(direct, direct+sizeof(direct)).IsPayToScriptHash());
+    QVERIFY(CScript(direct, direct+sizeof(direct)).IsPayToScriptHash());
     static const unsigned char pushdata1[] = { OP_HASH160, OP_PUSHDATA1, 20, 0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0, OP_EQUAL };
-    BOOST_CHECK(!CScript(pushdata1, pushdata1+sizeof(pushdata1)).IsPayToScriptHash());
+    QVERIFY(!CScript(pushdata1, pushdata1+sizeof(pushdata1)).IsPayToScriptHash());
     static const unsigned char pushdata2[] = { OP_HASH160, OP_PUSHDATA2, 20,0, 0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0, OP_EQUAL };
-    BOOST_CHECK(!CScript(pushdata2, pushdata2+sizeof(pushdata2)).IsPayToScriptHash());
+    QVERIFY(!CScript(pushdata2, pushdata2+sizeof(pushdata2)).IsPayToScriptHash());
     static const unsigned char pushdata4[] = { OP_HASH160, OP_PUSHDATA4, 20,0,0,0, 0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0, OP_EQUAL };
-    BOOST_CHECK(!CScript(pushdata4, pushdata4+sizeof(pushdata4)).IsPayToScriptHash());
+    QVERIFY(!CScript(pushdata4, pushdata4+sizeof(pushdata4)).IsPayToScriptHash());
 
     CScript not_p2sh;
-    BOOST_CHECK(!not_p2sh.IsPayToScriptHash());
+    QVERIFY(!not_p2sh.IsPayToScriptHash());
 
     not_p2sh.clear(); not_p2sh << OP_HASH160 << ToByteVector(dummy) << ToByteVector(dummy) << OP_EQUAL;
-    BOOST_CHECK(!not_p2sh.IsPayToScriptHash());
+    QVERIFY(!not_p2sh.IsPayToScriptHash());
 
     not_p2sh.clear(); not_p2sh << OP_NOP << ToByteVector(dummy) << OP_EQUAL;
-    BOOST_CHECK(!not_p2sh.IsPayToScriptHash());
+    QVERIFY(!not_p2sh.IsPayToScriptHash());
 
     not_p2sh.clear(); not_p2sh << OP_HASH160 << ToByteVector(dummy) << OP_CHECKSIG;
-    BOOST_CHECK(!not_p2sh.IsPayToScriptHash());
+    QVERIFY(!not_p2sh.IsPayToScriptHash());
 }
 
-BOOST_AUTO_TEST_CASE(switchover)
+void TestPaymentToScriptHash::switchover()
 {
     // Test switch over code
     CScript notValid;
@@ -266,14 +264,14 @@ BOOST_AUTO_TEST_CASE(switchover)
 
 
     // Validation should succeed under old rules (hash is correct):
-    BOOST_CHECK(Verify(scriptSig, fund, false, err));
-    BOOST_CHECK_MESSAGE(err == SCRIPT_ERR_OK, ScriptErrorString(err));
+    QVERIFY(Verify(scriptSig, fund, false, err));
+    QCOMPARE(err, SCRIPT_ERR_OK);
     // Fail under new:
-    BOOST_CHECK(!Verify(scriptSig, fund, true, err));
-    BOOST_CHECK_MESSAGE(err == SCRIPT_ERR_EQUALVERIFY, ScriptErrorString(err));
+    QVERIFY(!Verify(scriptSig, fund, true, err));
+    QCOMPARE(err, SCRIPT_ERR_EQUALVERIFY);
 }
 
-BOOST_AUTO_TEST_CASE(AreInputsStandard)
+void TestPaymentToScriptHash::AreInputsStandard()
 {
     LOCK(cs_main);
     UnspentOutputDatabase *utxo = UnspentOutputDatabase::createMemOnlyDB("unspent");
@@ -343,9 +341,9 @@ BOOST_AUTO_TEST_CASE(AreInputsStandard)
         txTo.vin[i].prevout.n = i;
         txTo.vin[i].prevout.hash = txFrom.GetHash();
     }
-    BOOST_CHECK(SignSignature(keystore, txFrom, txTo, 0));
-    BOOST_CHECK(SignSignature(keystore, txFrom, txTo, 1));
-    BOOST_CHECK(SignSignature(keystore, txFrom, txTo, 2));
+    QVERIFY(SignSignature(keystore, txFrom, txTo, 0));
+    QVERIFY(SignSignature(keystore, txFrom, txTo, 1));
+    QVERIFY(SignSignature(keystore, txFrom, txTo, 2));
     // SignSignature doesn't know how to sign these. We're
     // not testing validating signatures, so just create
     // dummy signatures that DO include the correct P2SH scripts:
@@ -355,7 +353,7 @@ BOOST_AUTO_TEST_CASE(AreInputsStandard)
     for (size_t i = 0; i < txTo.vin.size(); ++i) {
         const auto in = txTo.vin.at(i);
         const auto prevOut = txFrom.vout.at(i);
-        BOOST_CHECK(Policy::isInputStandard(prevOut.scriptPubKey, in.scriptSig));
+        QVERIFY(Policy::isInputStandard(prevOut.scriptPubKey, in.scriptSig));
         // 22 P2SH sigops for all inputs (1 for vin[0], 6 for vin[3], 15 for vin[4]
         if (prevOut.scriptPubKey.IsPayToScriptHash()) {
             int expected = 0;
@@ -366,7 +364,7 @@ BOOST_AUTO_TEST_CASE(AreInputsStandard)
             case 4: expected = 15; break;
             }
             // an incredibly-expensive-to-validate block.
-            BOOST_CHECK_EQUAL(prevOut.scriptPubKey.GetSigOpCount(in.scriptSig), expected);
+            QCOMPARE(prevOut.scriptPubKey.GetSigOpCount(in.scriptSig), (uint) expected);
         }
     }
 
@@ -379,9 +377,9 @@ BOOST_AUTO_TEST_CASE(AreInputsStandard)
     txToNonStd1.vin[0].prevout.hash = txFrom.GetHash();
     txToNonStd1.vin[0].scriptSig << std::vector<unsigned char>(sixteenSigops.begin(), sixteenSigops.end());
 
-    BOOST_CHECK(!Policy::isInputStandard(txFrom.vout.at(0).scriptPubKey,
+    QVERIFY(!Policy::isInputStandard(txFrom.vout.at(0).scriptPubKey,
                                         txToNonStd1.vin.at(0).scriptSig));
-    BOOST_CHECK_EQUAL(txFrom.vout.at(5).scriptPubKey.GetSigOpCount(txToNonStd1.vin.at(0).scriptSig), 16);
+    QCOMPARE(txFrom.vout.at(5).scriptPubKey.GetSigOpCount(txToNonStd1.vin.at(0).scriptSig), (uint) 16);
 
     CMutableTransaction txToNonStd2;
     txToNonStd2.vout.resize(1);
@@ -392,9 +390,7 @@ BOOST_AUTO_TEST_CASE(AreInputsStandard)
     txToNonStd2.vin[0].prevout.hash = txFrom.GetHash();
     txToNonStd2.vin[0].scriptSig << std::vector<unsigned char>(twentySigops.begin(), twentySigops.end());
 
-    BOOST_CHECK(!Policy::isInputStandard(txFrom.vout.at(0).scriptPubKey,
+    QVERIFY(!Policy::isInputStandard(txFrom.vout.at(0).scriptPubKey,
                                         txToNonStd2.vin.at(0).scriptSig));
-    BOOST_CHECK_EQUAL(txFrom.vout.at(6).scriptPubKey.GetSigOpCount(txToNonStd2.vin.at(0).scriptSig), 20);
+    QCOMPARE(txFrom.vout.at(6).scriptPubKey.GetSigOpCount(txToNonStd2.vin.at(0).scriptSig), (uint) 20);
 }
-
-BOOST_AUTO_TEST_SUITE_END()

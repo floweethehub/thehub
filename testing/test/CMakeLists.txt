@@ -16,6 +16,34 @@
 
 project (test)
 
+# for some reason someone thought it was useful to compile the json files into the exe
+# instead of just reading them at runtime.
+# lets emulate that for now.
+find_program(HEXDUMP "hexdump")
+find_program(SED "sed")
+foreach (JSON_FILE
+    data/base58_keys_valid.json
+    data/base58_encode_decode.json
+    data/base58_keys_invalid.json
+    data/sighash.json)
+
+    # generate 'sighash' array from 'data/sighash.json'
+    get_filename_component(JSON_NAME ${JSON_FILE} NAME_WE)
+    if (EXISTS "${CMAKE_CURRENT_BINARY_DIR}/${JSON_FILE}.h")
+        continue()
+    endif ()
+    file(WRITE ${CMAKE_CURRENT_BINARY_DIR}/${JSON_FILE}.h "namespace json_tests{ static unsigned const char ${JSON_NAME}[] = {")
+    # generate a C++ compatible hex format of the input file.
+    execute_process(COMMAND ${HEXDUMP} -v -e "8/1 \"0x%02x, \"" -e "\"\n\"" ${CMAKE_CURRENT_SOURCE_DIR}/${JSON_FILE}
+        OUTPUT_FILE ${CMAKE_CURRENT_BINARY_DIR}/${JSON_FILE}.hex
+    )
+    execute_process(COMMAND ${SED} -e "s/0x  ,//g"
+        INPUT_FILE ${CMAKE_CURRENT_BINARY_DIR}/${JSON_FILE}.hex
+        OUTPUT_VARIABLE HEXDATA)
+    file(APPEND ${CMAKE_CURRENT_BINARY_DIR}/${JSON_FILE}.h "${HEXDATA}};};")
+endforeach ()
+
+
 include_directories(.. ${LIBS_INCLUDES} ${CMAKE_CURRENT_BINARY_DIR})
 
 set (TEST_LIBS
@@ -48,13 +76,11 @@ set (TEST_SOURCES
     base32_tests.cpp
     base58_tests.cpp
     base64_tests.cpp
-    bip32_tests.cpp
     blocksdb_mapfile_tests.cpp
     blocksdb_tests.cpp
     blockvalidation_tests.cpp
     bloom_tests.cpp
     bswap_tests.cpp
-    checkdatasig_tests.cpp
     Checkpoints_tests.cpp
     compress_tests.cpp
     crypto_tests.cpp
@@ -73,12 +99,8 @@ set (TEST_SOURCES
     netbase_tests.cpp
     pmt_tests.cpp
     policyestimator_tests.cpp
-    pow_tests.cpp
     rpc_tests.cpp
     sanity_tests.cpp
-    scriptnum_tests.cpp
-    script_P2SH_tests.cpp
-    script_tests.cpp
     sighash_tests.cpp
     sigopcount_tests.cpp
     skiplist_tests.cpp
@@ -86,7 +108,6 @@ set (TEST_SOURCES
     TestConnections.cpp
     thinblock_tests.cpp
     timedata_tests.cpp
-    transaction_tests.cpp
     transaction_utils.cpp
     txvalidationcache_tests.cpp
     uahf_tests.cpp
@@ -95,37 +116,6 @@ set (TEST_SOURCES
     util_tests.cpp
     versionbits_tests.cpp
 )
-
-# for some reason someone thought it was useful to compile the json files into the exe
-# instead of just reading them at runtime.
-# lets emulate that for now.
-find_program(HEXDUMP "hexdump")
-find_program(SED "sed")
-foreach (JSON_FILE
-    data/script_valid.json
-    data/base58_keys_valid.json
-    data/base58_encode_decode.json
-    data/base58_keys_invalid.json
-    data/script_invalid.json
-    data/tx_invalid.json
-    data/tx_valid.json
-    data/sighash.json)
-
-    # generate 'sighash' array from 'data/sighash.json'
-    get_filename_component(JSON_NAME ${JSON_FILE} NAME_WE)
-    if (EXISTS "${CMAKE_CURRENT_BINARY_DIR}/${JSON_FILE}.h")
-        continue()
-    endif ()
-    file(WRITE ${CMAKE_CURRENT_BINARY_DIR}/${JSON_FILE}.h "namespace json_tests{ static unsigned const char ${JSON_NAME}[] = {")
-    # generate a C++ compatible hex format of the input file.
-    execute_process(COMMAND ${HEXDUMP} -v -e "8/1 \"0x%02x, \"" -e "\"\n\"" ${CMAKE_CURRENT_SOURCE_DIR}/${JSON_FILE}
-        OUTPUT_FILE ${CMAKE_CURRENT_BINARY_DIR}/${JSON_FILE}.hex
-    )
-    execute_process(COMMAND ${SED} -e "s/0x  ,//g"
-        INPUT_FILE ${CMAKE_CURRENT_BINARY_DIR}/${JSON_FILE}.hex
-        OUTPUT_VARIABLE HEXDATA)
-    file(APPEND ${CMAKE_CURRENT_BINARY_DIR}/${JSON_FILE}.h "${HEXDATA}};};")
-endforeach ()
 
 if (enable_wallet)
     set (TEST_SOURCES_WALLET

@@ -26,11 +26,13 @@ if (${Qt5Core_FOUND})
         add_subdirectory(utxo)
         add_subdirectory(doublespend)
         add_subdirectory(streaming)
+        add_subdirectory(bitcoin-protocol)
 
         add_custom_target(check COMMAND ${CMAKE_CTEST_COMMAND} DEPENDS
             test_utxo
             test_doublespend
             test_prevector
+            bitcoin-protocol
             test_hub
             test_streaming
         )

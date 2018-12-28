@@ -16,7 +16,7 @@
  * along with this program.  If not, see <http://www.gnu.org/licenses/>.
  */
 
-#include <boost/test/unit_test.hpp>
+#include "bip32_tests.h"
 
 #include "base58.h"
 #include "key.h"
@@ -25,31 +25,6 @@
 #include "utilstrencodings.h"
 #include "test/test_bitcoin.h"
 #include <boost/foreach.hpp>
-
-#include <string>
-#include <vector>
-
-struct TestDerivation {
-    std::string pub;
-    std::string prv;
-    unsigned int nChild;
-};
-
-struct TestVector {
-    std::string strHexMaster;
-    std::vector<TestDerivation> vDerive;
-
-    TestVector(std::string strHexMasterIn) : strHexMaster(strHexMasterIn) {}
-
-    TestVector& operator()(std::string pub, std::string prv, unsigned int nChild) {
-        vDerive.push_back(TestDerivation());
-        TestDerivation &der = vDerive.back();
-        der.pub = pub;
-        der.prv = prv;
-        der.nChild = nChild;
-        return *this;
-    }
-};
 
 TestVector test1 =
   TestVector("000102030405060708090a0b0c0d0e0f")
@@ -93,7 +68,7 @@ TestVector test2 =
      "xprvA2nrNbFZABcdryreWet9Ea4LvTJcGsqrMzxHx98MMrotbir7yrKCEXw7nadnHM8Dq38EGfSh6dqA9QWTyefMLEcBYJUuekgW4BYPJcr9E7j",
      0);
 
-void RunTest(const TestVector &test) {
+void TestBip32::RunTest(const TestVector &test) {
     std::vector<unsigned char> seed = ParseHex(test.strHexMaster);
     CExtKey key;
     CExtPubKey pubkey;
@@ -106,43 +81,41 @@ void RunTest(const TestVector &test) {
 
         // Test private key
         CBitcoinExtKey b58key; b58key.SetKey(key);
-        BOOST_CHECK(b58key.ToString() == derive.prv);
+        QVERIFY(b58key.ToString() == derive.prv);
 
         CBitcoinExtKey b58keyDecodeCheck(derive.prv);
         CExtKey checkKey = b58keyDecodeCheck.GetKey();
-        BOOST_CHECK(checkKey == key); //ensure a base58 decoded key also matches
+        QVERIFY(checkKey == key); //ensure a base58 decoded key also matches
 
         // Test public key
         CBitcoinExtPubKey b58pubkey; b58pubkey.SetKey(pubkey);
-        BOOST_CHECK(b58pubkey.ToString() == derive.pub);
+        QVERIFY(b58pubkey.ToString() == derive.pub);
 
         CBitcoinExtPubKey b58PubkeyDecodeCheck(derive.pub);
         CExtPubKey checkPubKey = b58PubkeyDecodeCheck.GetKey();
-        BOOST_CHECK(checkPubKey == pubkey); //ensure a base58 decoded pubkey also matches
+        QVERIFY(checkPubKey == pubkey); //ensure a base58 decoded pubkey also matches
 
         // Derive new keys
         CExtKey keyNew;
-        BOOST_CHECK(key.Derive(keyNew, derive.nChild));
+        QVERIFY(key.Derive(keyNew, derive.nChild));
         CExtPubKey pubkeyNew = keyNew.Neuter();
         if (!(derive.nChild & 0x80000000)) {
             // Compare with public derivation
             CExtPubKey pubkeyNew2;
-            BOOST_CHECK(pubkey.Derive(pubkeyNew2, derive.nChild));
-            BOOST_CHECK(pubkeyNew == pubkeyNew2);
+            QVERIFY(pubkey.Derive(pubkeyNew2, derive.nChild));
+            QVERIFY(pubkeyNew == pubkeyNew2);
         }
         key = keyNew;
         pubkey = pubkeyNew;
     }
 }
 
-BOOST_FIXTURE_TEST_SUITE(bip32_tests, BasicTestingSetup)
-
-BOOST_AUTO_TEST_CASE(bip32_test1) {
+void TestBip32::bip32_test1()
+{
     RunTest(test1);
 }
 
-BOOST_AUTO_TEST_CASE(bip32_test2) {
+void TestBip32::bip32_test2()
+{
     RunTest(test2);
 }
-
-BOOST_AUTO_TEST_SUITE_END()

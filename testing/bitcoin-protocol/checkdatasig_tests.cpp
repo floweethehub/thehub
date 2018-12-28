@@ -17,40 +17,26 @@
  * along with this program.  If not, see <http://www.gnu.org/licenses/>.
  */
 
-#include "test/test_bitcoin.h"
-
+#include "checkdatasig_tests.h"
 #include "policy/policy.h"
 #include "script/interpreter.h"
 
-#include <boost/test/unit_test.hpp>
-
-#include <array>
-
 typedef std::vector<uint8_t> valtype;
 typedef std::vector<valtype> stacktype;
-
-BOOST_FIXTURE_TEST_SUITE(checkdatasig_tests, BasicTestingSetup)
 
 std::array<uint32_t, 3> flagset{{0, STANDARD_SCRIPT_VERIFY_FLAGS, MANDATORY_SCRIPT_VERIFY_FLAGS}};
 
 const uint8_t vchPrivkey[32] = {0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0,
                                 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 1};
 
-struct KeyData
-{
-    CKey privkey, privkeyC;
-    CPubKey pubkey, pubkeyC, pubkeyH;
-
-    KeyData()
-    {
-        privkey.Set(vchPrivkey, vchPrivkey + 32, false);
-        privkeyC.Set(vchPrivkey, vchPrivkey + 32, true);
-        pubkey = privkey.GetPubKey();
-        pubkeyH = privkey.GetPubKey();
-        pubkeyC = privkeyC.GetPubKey();
-        *const_cast<uint8_t *>(&pubkeyH[0]) = 0x06 | (pubkeyH[64] & 1);
-    }
-};
+KeyData::KeyData() {
+    privkey.Set(vchPrivkey, vchPrivkey + 32, false);
+    privkeyC.Set(vchPrivkey, vchPrivkey + 32, true);
+    pubkey = privkey.GetPubKey();
+    pubkeyH = privkey.GetPubKey();
+    pubkeyC = privkeyC.GetPubKey();
+    *const_cast<uint8_t *>(&pubkeyH[0]) = 0x06 | (pubkeyH[64] & 1);
+}
 
 static void CheckError(uint32_t flags, const stacktype &original_stack, const CScript &script, ScriptError expected)
 {
@@ -58,8 +44,8 @@ static void CheckError(uint32_t flags, const stacktype &original_stack, const CS
     ScriptError err = SCRIPT_ERR_OK;
     stacktype stack{original_stack};
     bool r = EvalScript(stack, script, flags, sigchecker, &err);
-    BOOST_CHECK(!r);
-    BOOST_CHECK_EQUAL(err, expected);
+    QVERIFY(!r);
+    QCOMPARE(err, expected);
 }
 
 static void CheckPass(uint32_t flags, const stacktype &original_stack, const CScript &script, const stacktype &expected)
@@ -68,9 +54,9 @@ static void CheckPass(uint32_t flags, const stacktype &original_stack, const CSc
     ScriptError err = SCRIPT_ERR_OK;
     stacktype stack{original_stack};
     bool r = EvalScript(stack, script, flags, sigchecker, &err);
-    BOOST_CHECK(r);
-    BOOST_CHECK_EQUAL(err, SCRIPT_ERR_OK);
-    BOOST_CHECK(stack == expected);
+    QVERIFY(r);
+    QCOMPARE(err, SCRIPT_ERR_OK);
+    QVERIFY(stack == expected);
 }
 
 /**
@@ -103,7 +89,7 @@ static void CheckErrorForAllFlags(const stacktype &original_stack, const CScript
     }
 }
 
-BOOST_AUTO_TEST_CASE(checkdatasig_test)
+void CheckDataSig::checkdatasig_test()
 {
     // Empty stack.
     CheckErrorForAllFlags({}, CScript() << OP_CHECKDATASIG, SCRIPT_ERR_INVALID_STACK_OPERATION);
@@ -225,9 +211,8 @@ BOOST_AUTO_TEST_CASE(checkdatasig_test)
     }
 }
 
-BOOST_AUTO_TEST_CASE(checkdatasig_opcode_formatting)
+void CheckDataSig::checkdatasig_opcode_formatting()
 {
-    BOOST_CHECK_EQUAL(GetOpName(OP_CHECKDATASIG), "OP_CHECKDATASIG");
-    BOOST_CHECK_EQUAL(GetOpName(OP_CHECKDATASIGVERIFY), "OP_CHECKDATASIGVERIFY");
+    QCOMPARE(GetOpName(OP_CHECKDATASIG), "OP_CHECKDATASIG");
+    QCOMPARE(GetOpName(OP_CHECKDATASIGVERIFY), "OP_CHECKDATASIGVERIFY");
 }
-BOOST_AUTO_TEST_SUITE_END()

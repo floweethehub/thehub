@@ -37,7 +37,6 @@ test_utxo.deb:
   stage: test
   script:
     - build/testing/utxo/test_utxo
-    - build/testing/streaming-buffers/test_streaming-buffers
   dependencies:
   - build-debian-stable
 
@@ -50,6 +49,18 @@ test_prevector.deb:
 test_doublespend.deb:
   stage: test
   script: build/testing/doublespend/test_doublespend
+  dependencies:
+  - build-debian-stable
+
+test_streaming.deb:
+  stage: test
+  script: build/testing/streaming/test_streaming
+  dependencies:
+  - build-debian-stable
+
+test_protocol.deb:
+  stage: test
+  script: build/testing/bitcoin-protocol/test_protocol
   dependencies:
   - build-debian-stable
 

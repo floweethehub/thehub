@@ -45,7 +45,8 @@ public:
 
     enum OutputType {
         EmptyOutScript,
-        StandardOutScript
+        StandardOutScript,
+        FullOutScript // full p2pkh output script
     };
 
     /**

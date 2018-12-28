@@ -17,6 +17,8 @@
  * along with this program.  If not, see <http://www.gnu.org/licenses/>.
  */
 
+#include "transaction_tests.h"
+
 #include "data/tx_invalid.json.h"
 #include "data/tx_valid.json.h"
 #include "test/test_bitcoin.h"
@@ -35,7 +37,6 @@
 #include <boost/algorithm/string/classification.hpp>
 #include <boost/algorithm/string/split.hpp>
 #include <boost/assign/list_of.hpp>
-#include <boost/test/unit_test.hpp>
 #include <boost/assign/list_of.hpp>
 
 #include <univalue.h>
@@ -59,7 +60,7 @@ static std::map<std::string, unsigned int> mapFlagNames = boost::assign::map_lis
     (std::string("CHECKSEQUENCEVERIFY"), (unsigned int)SCRIPT_VERIFY_CHECKSEQUENCEVERIFY)
     (std::string("SIGHASH_FORKID"), (unsigned int)SCRIPT_ENABLE_SIGHASH_FORKID);
 
-unsigned int ParseScriptFlags(std::string strFlags)
+unsigned int TransactionTests::parseScriptFlags(const std::string &strFlags)
 {
     if (strFlags.empty()) {
         return 0;
@@ -68,10 +69,8 @@ unsigned int ParseScriptFlags(std::string strFlags)
     std::vector<std::string> words;
     boost::algorithm::split(words, strFlags, boost::algorithm::is_any_of(","));
 
-    BOOST_FOREACH(std::string word, words)
-    {
-        if (!mapFlagNames.count(word))
-            BOOST_ERROR("Bad test: unknown verification flag '" << word << "'");
+    for (const std::string &word : words) {
+        Q_ASSERT(mapFlagNames.count(word)); // if fail; "unknown verification flag");
         flags |= mapFlagNames[word];
     }
 
@@ -80,9 +79,8 @@ unsigned int ParseScriptFlags(std::string strFlags)
 
 std::string FormatScriptFlags(unsigned int flags)
 {
-    if (flags == 0) {
-        return "";
-    }
+    if (flags == 0)
+        return std::string();
     std::string ret;
     std::map<std::string, unsigned int>::const_iterator it = mapFlagNames.begin();
     while (it != mapFlagNames.end()) {
@@ -94,9 +92,8 @@ std::string FormatScriptFlags(unsigned int flags)
     return ret.substr(0, ret.size() - 1);
 }
 
-BOOST_FIXTURE_TEST_SUITE(transaction_tests, BasicTestingSetup)
 
-BOOST_AUTO_TEST_CASE(tx_valid)
+void TransactionTests::tx_valid()
 {
     // Read tests from test/data/tx_valid.json
     // Format is an array of arrays
@@ -113,9 +110,9 @@ BOOST_AUTO_TEST_CASE(tx_valid)
         std::string strTest = test.write();
         if (test[0].isArray())
         {
-            if (test.size() != 3 || !test[1].isStr() || !test[2].isStr())
-            {
-                BOOST_ERROR("Bad test: " << strTest);
+            if (test.size() != 3 || !test[1].isStr() || !test[2].isStr()) {
+                qWarning(strTest.c_str());
+                QFAIL("Bad test");
                 continue;
             }
 
@@ -138,11 +135,7 @@ BOOST_AUTO_TEST_CASE(tx_valid)
 
                 mapprevOutScriptPubKeys[COutPoint(uint256S(vinput[0].get_str()), vinput[1].get_int())] = ParseScript(vinput[2].get_str());
             }
-            if (!fValid)
-            {
-                BOOST_ERROR("Bad test: " << strTest);
-                continue;
-            }
+            Q_ASSERT(fValid);
 
             std::string transaction = test[1].get_str();
             CDataStream stream(ParseHex(transaction), SER_NETWORK, PROTOCOL_VERSION);
@@ -150,29 +143,25 @@ BOOST_AUTO_TEST_CASE(tx_valid)
             stream >> tx;
 
             CValidationState state;
-            BOOST_CHECK_MESSAGE(CheckTransaction(tx, state), strTest);
-            BOOST_CHECK(state.IsValid());
+            QVERIFY(CheckTransaction(tx, state));
+            QVERIFY(state.IsValid());
 
             for (unsigned int i = 0; i < tx.vin.size(); i++)
             {
                 if (!mapprevOutScriptPubKeys.count(tx.vin[i].prevout))
-                {
-                    BOOST_ERROR("Bad test: " << strTest);
-                    break;
-                }
+                    QFAIL("Bad test");
 
                 CAmount amount = 0;
-                unsigned int verify_flags = ParseScriptFlags(test[2].get_str());
-                BOOST_CHECK_MESSAGE(VerifyScript(tx.vin[i].scriptSig, mapprevOutScriptPubKeys[tx.vin[i].prevout],
-                                                 verify_flags, TransactionSignatureChecker(&tx, i, amount), &err),
-                                    strTest);
-                BOOST_CHECK_MESSAGE(err == SCRIPT_ERR_OK, ScriptErrorString(err));
+                unsigned int verify_flags = parseScriptFlags(test[2].get_str());
+                QVERIFY(VerifyScript(tx.vin[i].scriptSig, mapprevOutScriptPubKeys[tx.vin[i].prevout],
+                                                 verify_flags, TransactionSignatureChecker(&tx, i, amount), &err));
+                QCOMPARE(ScriptErrorString(err), "No error");
             }
         }
     }
 }
 
-BOOST_AUTO_TEST_CASE(tx_invalid)
+void TransactionTests::tx_invalid()
 {
     // Read tests from test/data/tx_invalid.json
     // Format is an array of arrays
@@ -190,10 +179,7 @@ BOOST_AUTO_TEST_CASE(tx_invalid)
         if (test[0].isArray())
         {
             if (test.size() != 3 || !test[1].isStr() || !test[2].isStr())
-            {
-                BOOST_ERROR("Bad test: " << strTest);
-                continue;
-            }
+                QFAIL("Bad test");
 
             std::map<COutPoint, CScript> mapprevOutScriptPubKeys;
             UniValue inputs = test[0].get_array();
@@ -214,11 +200,7 @@ BOOST_AUTO_TEST_CASE(tx_invalid)
 
                 mapprevOutScriptPubKeys[COutPoint(uint256S(vinput[0].get_str()), vinput[1].get_int())] = ParseScript(vinput[2].get_str());
             }
-            if (!fValid)
-            {
-                BOOST_ERROR("Bad test: " << strTest);
-                continue;
-            }
+            Q_ASSERT(fValid);
 
             std::string transaction = test[1].get_str();
             CDataStream stream(ParseHex(transaction), SER_NETWORK, PROTOCOL_VERSION);
@@ -231,18 +213,15 @@ BOOST_AUTO_TEST_CASE(tx_invalid)
             for (unsigned int i = 0; i < tx.vin.size() && fValid; i++)
             {
                 if (!mapprevOutScriptPubKeys.count(tx.vin[i].prevout))
-                {
-                    BOOST_ERROR("Bad test: " << strTest);
-                    break;
-                }
+                    QFAIL("Bad test");
 
                 CAmount amount = 0;
-                unsigned int verify_flags = ParseScriptFlags(test[2].get_str());
+                unsigned int verify_flags = parseScriptFlags(test[2].get_str());
                 fValid = VerifyScript(tx.vin[i].scriptSig, mapprevOutScriptPubKeys[tx.vin[i].prevout],
                                       verify_flags, TransactionSignatureChecker(&tx, i, amount), &err);
             }
-            BOOST_CHECK_MESSAGE(!fValid, strTest);
-            BOOST_CHECK_MESSAGE(err != SCRIPT_ERR_OK, ScriptErrorString(err));
+            QVERIFY(!fValid);
+            QVERIFY(err != SCRIPT_ERR_OK);
         }
     }
 }
@@ -255,7 +234,7 @@ static std::vector<unsigned char> getTestTx()
     return vch;
 }
 
-BOOST_AUTO_TEST_CASE(basic_transaction_tests)
+void TransactionTests::basic_transaction_tests()
 {
 
     auto vch = getTestTx();
@@ -263,11 +242,11 @@ BOOST_AUTO_TEST_CASE(basic_transaction_tests)
     CMutableTransaction tx;
     stream >> tx;
     CValidationState state;
-    BOOST_CHECK_MESSAGE(CheckTransaction(tx, state) && state.IsValid(), "Simple deserialized transaction should be valid.");
+    QVERIFY(CheckTransaction(tx, state) && state.IsValid()); // Simple deserialized transaction should be valid.
 
     // Check that duplicate txins fail
     tx.vin.push_back(tx.vin[0]);
-    BOOST_CHECK_MESSAGE(!CheckTransaction(tx, state) || !state.IsValid(), "Transaction with duplicate txins should be invalid.");
+    QVERIFY(!CheckTransaction(tx, state) || !state.IsValid()); // Transaction with duplicate txins should be invalid.
 }
 
 //
@@ -276,8 +255,7 @@ BOOST_AUTO_TEST_CASE(basic_transaction_tests)
 // paid to a TX_PUBKEY, the second 21 and 22 CENT outputs
 // paid to a TX_PUBKEYHASH.
 //
-static std::vector<CMutableTransaction>
-SetupDummyInputs(CBasicKeyStore& keystoreRet)
+static std::vector<CMutableTransaction> SetupDummyInputs(CBasicKeyStore& keystoreRet)
 {
     std::vector<CMutableTransaction> dummyTransactions;
     dummyTransactions.resize(2);
@@ -306,7 +284,7 @@ SetupDummyInputs(CBasicKeyStore& keystoreRet)
     return dummyTransactions;
 }
 
-BOOST_AUTO_TEST_CASE(test_IsStandard)
+void TransactionTests::test_IsStandard()
 {
     LOCK(cs_main);
     CBasicKeyStore keystore;
@@ -324,82 +302,82 @@ BOOST_AUTO_TEST_CASE(test_IsStandard)
     t.vout[0].scriptPubKey = GetScriptForDestination(key.GetPubKey().GetID());
 
     std::string reason;
-    BOOST_CHECK(IsStandardTx(t, reason));
+    QVERIFY(IsStandardTx(t, reason));
 
     // Check dust with default relay fee:
     CAmount nDustThreshold = 182 * minRelayTxFee.GetFeePerK()/1000 * 3;
-    BOOST_CHECK_EQUAL(nDustThreshold, 546);
+    QCOMPARE(nDustThreshold, (CAmount) 546);
     // dust:
     t.vout[0].nValue = nDustThreshold - 1;
-    BOOST_CHECK(!IsStandardTx(t, reason));
+    QVERIFY(!IsStandardTx(t, reason));
     // not dust:
     t.vout[0].nValue = nDustThreshold;
-    BOOST_CHECK(IsStandardTx(t, reason));
+    QVERIFY(IsStandardTx(t, reason));
 
     // Check dust with odd relay fee to verify rounding:
     // nDustThreshold = 182 * 1234 / 1000 * 3
     minRelayTxFee = CFeeRate(1234);
     // dust:
     t.vout[0].nValue = 672 - 1;
-    BOOST_CHECK(!IsStandardTx(t, reason));
+    QVERIFY(!IsStandardTx(t, reason));
     // not dust:
     t.vout[0].nValue = 672;
-    BOOST_CHECK(IsStandardTx(t, reason));
+    QVERIFY(IsStandardTx(t, reason));
     minRelayTxFee = CFeeRate(Settings::DefaultMinRelayTxFee);
 
     t.vout[0].scriptPubKey = CScript() << OP_1;
-    BOOST_CHECK(!IsStandardTx(t, reason));
+    QVERIFY(!IsStandardTx(t, reason));
 
     // MAX_OP_RETURN_RELAY-byte TX_NULL_DATA (standard)
     t.vout[0].scriptPubKey = CScript() << OP_RETURN
         << ParseHex("04678afdb0fe5548271967f1a67130b7105cd6a828e03909a67962e0ea1f61deb649f6bc3f4cef3804678afdb0fe5548271967f1a67130b7105cd6a828e03909a67962e0ea1f61deb649f6bc3f4cef38"
                     "0000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000");
-    BOOST_CHECK_EQUAL(Settings::MaxOpReturnRelay, t.vout[0].scriptPubKey.size());
-    BOOST_CHECK(IsStandardTx(t, reason));
+    QCOMPARE(Settings::MaxOpReturnRelay, t.vout[0].scriptPubKey.size());
+    QVERIFY(IsStandardTx(t, reason));
 
     // MAX_OP_RETURN_RELAY+1-byte TX_NULL_DATA (non-standard)
     t.vout[0].scriptPubKey = CScript() << OP_RETURN
         << ParseHex("04678afdb0fe5548271967f1a67130b7105cd6a828e03909a67962e0ea1f61deb649f6bc3f4cef3804678afdb0fe5548271967f1a67130b7105cd6a828e03909a67962e0ea1f61deb649f6bc3f4cef3800"
                     "0000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000");
-    BOOST_CHECK_EQUAL(Settings::MaxOpReturnRelay + 1, t.vout[0].scriptPubKey.size());
-    BOOST_CHECK(!IsStandardTx(t, reason));
+    QCOMPARE(Settings::MaxOpReturnRelay + 1, t.vout[0].scriptPubKey.size());
+    QVERIFY(!IsStandardTx(t, reason));
 
     // Data payload can be encoded in any way...
     t.vout[0].scriptPubKey = CScript() << OP_RETURN << ParseHex("");
-    BOOST_CHECK(IsStandardTx(t, reason));
+    QVERIFY(IsStandardTx(t, reason));
     t.vout[0].scriptPubKey = CScript() << OP_RETURN << ParseHex("00") << ParseHex("01");
-    BOOST_CHECK(IsStandardTx(t, reason));
+    QVERIFY(IsStandardTx(t, reason));
     // OP_RESERVED *is* considered to be a PUSHDATA type opcode by IsPushOnly()!
     t.vout[0].scriptPubKey = CScript() << OP_RETURN << OP_RESERVED << -1 << 0 << ParseHex("01") << 2 << 3 << 4 << 5 << 6 << 7 << 8 << 9 << 10 << 11 << 12 << 13 << 14 << 15 << 16;
-    BOOST_CHECK(IsStandardTx(t, reason));
+    QVERIFY(IsStandardTx(t, reason));
     t.vout[0].scriptPubKey = CScript() << OP_RETURN << 0 << ParseHex("01") << 2 << ParseHex("ffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffff");
-    BOOST_CHECK(IsStandardTx(t, reason));
+    QVERIFY(IsStandardTx(t, reason));
 
     // ...so long as it only contains PUSHDATA's
     t.vout[0].scriptPubKey = CScript() << OP_RETURN << OP_RETURN;
-    BOOST_CHECK(!IsStandardTx(t, reason));
+    QVERIFY(!IsStandardTx(t, reason));
 
     // TX_NULL_DATA w/o PUSHDATA
     t.vout.resize(1);
     t.vout[0].scriptPubKey = CScript() << OP_RETURN;
-    BOOST_CHECK(IsStandardTx(t, reason));
+    QVERIFY(IsStandardTx(t, reason));
 
     // Only one TX_NULL_DATA permitted in all cases
     t.vout.resize(2);
     t.vout[0].scriptPubKey = CScript() << OP_RETURN << ParseHex("04678afdb0fe5548271967f1a67130b7105cd6a828e03909a67962e0ea1f61deb649f6bc3f4cef38");
     t.vout[1].scriptPubKey = CScript() << OP_RETURN << ParseHex("04678afdb0fe5548271967f1a67130b7105cd6a828e03909a67962e0ea1f61deb649f6bc3f4cef38");
-    BOOST_CHECK(!IsStandardTx(t, reason));
+    QVERIFY(!IsStandardTx(t, reason));
 
     t.vout[0].scriptPubKey = CScript() << OP_RETURN << ParseHex("04678afdb0fe5548271967f1a67130b7105cd6a828e03909a67962e0ea1f61deb649f6bc3f4cef38");
     t.vout[1].scriptPubKey = CScript() << OP_RETURN;
-    BOOST_CHECK(!IsStandardTx(t, reason));
+    QVERIFY(!IsStandardTx(t, reason));
 
     t.vout[0].scriptPubKey = CScript() << OP_RETURN;
     t.vout[1].scriptPubKey = CScript() << OP_RETURN;
-    BOOST_CHECK(!IsStandardTx(t, reason));
+    QVERIFY(!IsStandardTx(t, reason));
 }
 
-BOOST_AUTO_TEST_CASE(transactionIter)
+void TransactionTests::transactionIter()
 {
     auto vch = getTestTx();
 
@@ -409,87 +387,86 @@ BOOST_AUTO_TEST_CASE(transactionIter)
 
     auto iter = Tx::Iterator(tx);
     auto type = iter.next();
-    BOOST_CHECK_EQUAL(type, Tx::TxVersion);
-    BOOST_CHECK_EQUAL(iter.intData(), 1);
+    QCOMPARE(type, Tx::TxVersion);
+    QCOMPARE(iter.intData(), 1);
     type = iter.next();
-    BOOST_CHECK_EQUAL(type, Tx::PrevTxHash);
-    BOOST_CHECK_EQUAL(iter.byteData().size(), 32);
+    QCOMPARE(type, Tx::PrevTxHash);
+    QCOMPARE(iter.byteData().size(), 32);
     auto prev = iter.uint256Data();
-    BOOST_CHECK(prev == uint256S("0xb4749f017444b051c44dfd2720e88f314ff94f3dd6d56d40ef65854fcd7fff6b"));
+    QVERIFY(prev == uint256S("0xb4749f017444b051c44dfd2720e88f314ff94f3dd6d56d40ef65854fcd7fff6b"));
     type = iter.next();
-    BOOST_CHECK_EQUAL(type, Tx::PrevTxIndex);
-    BOOST_CHECK_EQUAL(iter.intData(), 0);
+    QCOMPARE(type, Tx::PrevTxIndex);
+    QCOMPARE(iter.intData(), 0);
     type = iter.next();
-    BOOST_CHECK_EQUAL(type, Tx::TxInScript);
-    BOOST_CHECK_EQUAL(iter.byteData().size(), 140);
+    QCOMPARE(type, Tx::TxInScript);
+    QCOMPARE(iter.byteData().size(), 140);
     type = iter.next();
-    BOOST_CHECK_EQUAL(type, Tx::Sequence);
-    BOOST_CHECK_EQUAL(iter.uintData(), 0xffffffff);
-    BOOST_CHECK_EQUAL(iter.longData(), 0xffffffff);
+    QCOMPARE(type, Tx::Sequence);
+    QCOMPARE(iter.uintData(), 0xffffffff);
+    QCOMPARE(iter.longData(), (uint64_t) 0xffffffff);
     type = iter.next();
-    BOOST_CHECK_EQUAL(type, Tx::OutputValue);
-    BOOST_CHECK_EQUAL(iter.longData(), 244623243);
+    QCOMPARE(type, Tx::OutputValue);
+    QCOMPARE(iter.longData(), (uint64_t) 244623243);
     type = iter.next();
-    BOOST_CHECK_EQUAL(type, Tx::OutputScript);
-    BOOST_CHECK_EQUAL(iter.byteData().size(), 25);
+    QCOMPARE(type, Tx::OutputScript);
+    QCOMPARE(iter.byteData().size(), 25);
     type = iter.next();
-    BOOST_CHECK_EQUAL(type, Tx::OutputValue);
-    BOOST_CHECK_EQUAL(iter.longData(), 44602432);
+    QCOMPARE(type, Tx::OutputValue);
+    QCOMPARE(iter.longData(), (uint64_t) 44602432);
     type = iter.next();
-    BOOST_CHECK_EQUAL(type, Tx::OutputScript);
-    BOOST_CHECK_EQUAL(iter.byteData().size(), 25);
+    QCOMPARE(type, Tx::OutputScript);
+    QCOMPARE(iter.byteData().size(), 25);
     type = iter.next();
-    BOOST_CHECK_EQUAL(type, Tx::LockTime);
+    QCOMPARE(type, Tx::LockTime);
     type = iter.next();
-    BOOST_CHECK_EQUAL(type, Tx::End);
+    QCOMPARE(type, Tx::End);
 }
 
-BOOST_AUTO_TEST_CASE(transactionIter2)
+void TransactionTests::transactionIter2()
 {
     // coinbase-tx
     const CBlock &gb = Params(CBaseChainParams::MAIN).GenesisBlock();
     FastBlock genesisBlock = FastBlock::fromOldBlock(Params(CBaseChainParams::MAIN).GenesisBlock());
     auto iter = Tx::Iterator(genesisBlock);
     auto type = iter.next();
-    BOOST_CHECK_EQUAL(type, Tx::TxVersion);
-    BOOST_CHECK_EQUAL(iter.intData(), 1);
+    QCOMPARE(type, Tx::TxVersion);
+    QCOMPARE(iter.intData(), 1);
     type = iter.next();
-    BOOST_CHECK_EQUAL(type, Tx::PrevTxHash);
-    BOOST_CHECK_EQUAL(iter.byteData().size(), 32);
+    QCOMPARE(type, Tx::PrevTxHash);
+    QCOMPARE(iter.byteData().size(), 32);
     auto prev = iter.uint256Data();
-    BOOST_CHECK(prev == uint256S("0x0000000000000000000000000000000000000000000000000000000000000000"));
+    QVERIFY(prev == uint256S("0x0000000000000000000000000000000000000000000000000000000000000000"));
     type = iter.next();
-    BOOST_CHECK_EQUAL(type, Tx::PrevTxIndex);
-    BOOST_CHECK_EQUAL(iter.intData(), -1);
+    QCOMPARE(type, Tx::PrevTxIndex);
+    QCOMPARE(iter.intData(), -1);
     type = iter.next();
-    BOOST_CHECK_EQUAL(type, Tx::TxInScript);
-    BOOST_CHECK_EQUAL(iter.byteData().size(), 77);
+    QCOMPARE(type, Tx::TxInScript);
+    QCOMPARE(iter.byteData().size(), 77);
     type = iter.next();
-    BOOST_CHECK_EQUAL(type, Tx::Sequence);
-    BOOST_CHECK_EQUAL(iter.uintData(), 0xffffffff);
-    BOOST_CHECK_EQUAL(iter.longData(), 0xffffffff);
+    QCOMPARE(type, Tx::Sequence);
+    QCOMPARE(iter.uintData(), 0xffffffff);
+    QCOMPARE(iter.longData(), (uint64_t) 0xffffffff);
     type = iter.next();
-    BOOST_CHECK_EQUAL(type, Tx::OutputValue);
-    BOOST_CHECK_EQUAL(iter.longData(), 50 * COIN);
+    QCOMPARE(type, Tx::OutputValue);
+    QCOMPARE(iter.longData(), (uint64_t) 50 * COIN);
     type = iter.next();
-    BOOST_CHECK_EQUAL(type, Tx::OutputScript);
-    BOOST_CHECK_EQUAL(iter.byteData().size(), 67);
+    QCOMPARE(type, Tx::OutputScript);
+    QCOMPARE(iter.byteData().size(), 67);
     type = iter.next();
-    BOOST_CHECK_EQUAL(type, Tx::LockTime);
-    BOOST_CHECK_EQUAL(iter.intData(), 0);
+    QCOMPARE(type, Tx::LockTime);
+    QCOMPARE(iter.intData(), 0);
     type = iter.next();
-    BOOST_CHECK_EQUAL(type, Tx::End);
+    QCOMPARE(type, Tx::End);
 
     Tx tx = iter.prevTx();
     Tx orig = Tx::fromOldTransaction(gb.vtx[0]);
-    BOOST_CHECK_EQUAL(tx.size(), orig.size());
-    BOOST_CHECK(tx.createHash() == orig.createHash());
+    QCOMPARE(tx.size(), orig.size());
+    QVERIFY(tx.createHash() == orig.createHash());
 
     genesisBlock.findTransactions();
-    BOOST_CHECK_EQUAL(genesisBlock.transactions().size(), 1);
-    BOOST_CHECK_EQUAL(genesisBlock.transactions().front().size(), orig.size());
-    BOOST_CHECK(genesisBlock.transactions().front().createHash() == orig.createHash());
-    BOOST_CHECK(genesisBlock.transactions().front().createHash() == gb.vtx[0].GetHash());
+    QCOMPARE(genesisBlock.transactions().size(), (size_t) 1);
+    QCOMPARE(genesisBlock.transactions().front().size(), orig.size());
+    QVERIFY(genesisBlock.transactions().front().createHash() == orig.createHash());
+    QVERIFY(genesisBlock.transactions().front().createHash() == gb.vtx[0].GetHash());
 }
 
-BOOST_AUTO_TEST_SUITE_END()
