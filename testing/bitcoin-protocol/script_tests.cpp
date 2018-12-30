@@ -28,14 +28,9 @@
 #include "core_io.h"
 #include "keystore.h"
 #include "script/script.h"
+#include <script/standard.h>
 #include "script/sign.h"
-#include "test/test_bitcoin.h"
-#include <policy/policy.h>
 #include <utilstrencodings.h>
-
-#include <boost/foreach.hpp>
-
-#include <base58.h>
 
 // Uncomment if you want to output updated JSON tests.
 // #define UPDATE_JSON_TESTS
@@ -600,7 +595,7 @@ void TestScript::script_build()
     std::string strGood;
     std::string strBad;
 
-    BOOST_FOREACH(TestBuilder& test, good) {
+    for (TestBuilder& test : good) {
         test.Test(true);
         std::string str = test.GetJSON().write();
 #ifndef UPDATE_JSON_TESTS
@@ -712,7 +707,6 @@ void TestScript::script_PushData()
     ScriptError err;
     std::vector<std::vector<unsigned char> > directStack;
     QVERIFY(EvalScript(directStack, CScript(&direct[0], &direct[sizeof(direct)]), SCRIPT_VERIFY_P2SH, BaseSignatureChecker(), &err));
-    // BOOST_CHECK_MESSAGE(err == SCRIPT_ERR_OK, ScriptErrorString(err));
     QCOMPARE(ScriptErrorString(err), "No error");
 
     std::vector<std::vector<unsigned char> > pushdata1Stack;
@@ -749,7 +743,8 @@ CScript TestScript::sign_multisig(CScript scriptPubKey, std::vector<CKey> keys, 
     for (const CKey &key : keys)
     {
         std::vector<unsigned char> vchSig;
-        Q_ASSERT(key.Sign(hash, vchSig));
+        bool ok = key.Sign(hash, vchSig);
+        Q_ASSERT(ok);
         vchSig.push_back((unsigned char)SIGHASH_ALL);
         result << vchSig;
     }
@@ -813,55 +808,64 @@ void TestScript::script_CHECKMULTISIG23()
     std::vector<CKey> keys;
     keys.push_back(key1); keys.push_back(key2);
     CScript goodsig1 = sign_multisig(scriptPubKey23, keys, txTo23);
-    QVERIFY(VerifyScript(goodsig1, scriptPubKey23, flags, MutableTransactionSignatureChecker(&txTo23, 0, txFrom23.vout[0].nValue), &err));
+    bool ok = VerifyScript(goodsig1, scriptPubKey23, flags, MutableTransactionSignatureChecker(&txTo23, 0, txFrom23.vout[0].nValue), &err);
     QCOMPARE(ScriptErrorString(err), "No error");
+    QVERIFY(ok);
 
     keys.clear();
     keys.push_back(key1); keys.push_back(key3);
     CScript goodsig2 = sign_multisig(scriptPubKey23, keys, txTo23);
-    QVERIFY(VerifyScript(goodsig2, scriptPubKey23, flags, MutableTransactionSignatureChecker(&txTo23, 0, txFrom23.vout[0].nValue), &err));
+    ok = VerifyScript(goodsig2, scriptPubKey23, flags, MutableTransactionSignatureChecker(&txTo23, 0, txFrom23.vout[0].nValue), &err);
     QCOMPARE(ScriptErrorString(err), "No error");
+    QVERIFY(ok);
 
     keys.clear();
     keys.push_back(key2); keys.push_back(key3);
     CScript goodsig3 = sign_multisig(scriptPubKey23, keys, txTo23);
-    QVERIFY(VerifyScript(goodsig3, scriptPubKey23, flags, MutableTransactionSignatureChecker(&txTo23, 0, txFrom23.vout[0].nValue), &err));
+    ok = VerifyScript(goodsig3, scriptPubKey23, flags, MutableTransactionSignatureChecker(&txTo23, 0, txFrom23.vout[0].nValue), &err);
     QCOMPARE(ScriptErrorString(err), "No error");
+    QVERIFY(ok);
 
     keys.clear();
     keys.push_back(key2); keys.push_back(key2); // Can't re-use sig
     CScript badsig1 = sign_multisig(scriptPubKey23, keys, txTo23);
-    QVERIFY(!VerifyScript(badsig1, scriptPubKey23, flags, MutableTransactionSignatureChecker(&txTo23, 0, txFrom23.vout[0].nValue), &err));
+    ok = VerifyScript(badsig1, scriptPubKey23, flags, MutableTransactionSignatureChecker(&txTo23, 0, txFrom23.vout[0].nValue), &err);
     QCOMPARE(ScriptErrorString(err), ScriptErrorString(SCRIPT_ERR_EVAL_FALSE));
+    QVERIFY(!ok);
 
     keys.clear();
     keys.push_back(key2); keys.push_back(key1); // sigs must be in correct order
     CScript badsig2 = sign_multisig(scriptPubKey23, keys, txTo23);
-    QVERIFY(!VerifyScript(badsig2, scriptPubKey23, flags, MutableTransactionSignatureChecker(&txTo23, 0, txFrom23.vout[0].nValue), &err));
+    ok = VerifyScript(badsig2, scriptPubKey23, flags, MutableTransactionSignatureChecker(&txTo23, 0, txFrom23.vout[0].nValue), &err);
     QCOMPARE(ScriptErrorString(err), ScriptErrorString(SCRIPT_ERR_EVAL_FALSE));
+    QVERIFY(!ok);
 
     keys.clear();
     keys.push_back(key3); keys.push_back(key2); // sigs must be in correct order
     CScript badsig3 = sign_multisig(scriptPubKey23, keys, txTo23);
-    QVERIFY(!VerifyScript(badsig3, scriptPubKey23, flags, MutableTransactionSignatureChecker(&txTo23, 0, txFrom23.vout[0].nValue), &err));
+    ok = VerifyScript(badsig3, scriptPubKey23, flags, MutableTransactionSignatureChecker(&txTo23, 0, txFrom23.vout[0].nValue), &err);
     QCOMPARE(ScriptErrorString(err), ScriptErrorString(SCRIPT_ERR_EVAL_FALSE));
+    QVERIFY(!ok);
 
     keys.clear();
     keys.push_back(key4); keys.push_back(key2); // sigs must match pubkeys
     CScript badsig4 = sign_multisig(scriptPubKey23, keys, txTo23);
-    QVERIFY(!VerifyScript(badsig4, scriptPubKey23, flags, MutableTransactionSignatureChecker(&txTo23, 0, txFrom23.vout[0].nValue), &err));
+    ok = VerifyScript(badsig4, scriptPubKey23, flags, MutableTransactionSignatureChecker(&txTo23, 0, txFrom23.vout[0].nValue), &err);
     QCOMPARE(ScriptErrorString(err), ScriptErrorString(SCRIPT_ERR_EVAL_FALSE));
+    QVERIFY(!ok);
 
     keys.clear();
     keys.push_back(key1); keys.push_back(key4); // sigs must match pubkeys
     CScript badsig5 = sign_multisig(scriptPubKey23, keys, txTo23);
-    QVERIFY(!VerifyScript(badsig5, scriptPubKey23, flags, MutableTransactionSignatureChecker(&txTo23, 0, txFrom23.vout[0].nValue), &err));
+    ok = VerifyScript(badsig5, scriptPubKey23, flags, MutableTransactionSignatureChecker(&txTo23, 0, txFrom23.vout[0].nValue), &err);
     QCOMPARE(ScriptErrorString(err), ScriptErrorString(SCRIPT_ERR_EVAL_FALSE));
+    QVERIFY(!ok);
 
     keys.clear(); // Must have signatures
     CScript badsig6 = sign_multisig(scriptPubKey23, keys, txTo23);
-    QVERIFY(!VerifyScript(badsig6, scriptPubKey23, flags, MutableTransactionSignatureChecker(&txTo23, 0, txFrom23.vout[0].nValue), &err));
+    ok = VerifyScript(badsig6, scriptPubKey23, flags, MutableTransactionSignatureChecker(&txTo23, 0, txFrom23.vout[0].nValue), &err);
     QCOMPARE(ScriptErrorString(err), ScriptErrorString(SCRIPT_ERR_INVALID_STACK_OPERATION));
+    QVERIFY(!ok);
 }
 
 void TestScript::script_combineSigs()
