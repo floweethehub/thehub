@@ -1286,20 +1286,6 @@ bool ContextualCheckBlock(const CBlock& block, CValidationState& state, CBlockIn
     }
 
     const std::uint32_t blockSize = ::GetSerializeSize(block, SER_NETWORK, PROTOCOL_VERSION);
-    if (pindexPrev && Application::uahfChainState() != Application::UAHFDisabled) {
-        const int64_t startTime = Application::uahfStartTime();
-        if (pindexPrev->GetMedianTimePast() >= startTime) {
-            if (pindexPrev->pprev && pindexPrev->pprev->GetMedianTimePast() < startTime) {
-                logInfo(8002) << "Found the BCH initial (anti-rollback) block" << pindexPrev->nHeight + 1 << "size:" << blockSize;
-                // If UAHF is enabled for the curent block, but not for the previous
-                // block, we must check that the block is larger than 1MB.
-                const uint32_t minBlockSize = Params().GenesisBlock().nTime == Application::uahfStartTime() // no bigger block in default regtest setup.
-                        && Params().NetworkIDString() == CBaseChainParams::REGTEST ? 0 : MAX_LEGACY_BLOCK_SIZE + 1;
-                if (blockSize < minBlockSize)
-                     return state.DoS(100, false, REJECT_INVALID, "bad-blk-too-small", false, "size limits failed");
-            }
-        }
-    }
     const std::uint32_t blockSizeAcceptLimit = Policy::blockSizeAcceptLimit();
     if (block.vtx.size() > blockSizeAcceptLimit || blockSize > blockSizeAcceptLimit) {
         const float punishment = (blockSize - blockSizeAcceptLimit) / (float) blockSizeAcceptLimit;
@@ -1979,7 +1965,7 @@ bool static ProcessMessage(CNode* pfrom, std::string strCommand, CDataStream& vR
     }
 
 
-    else if (strCommand == NetMsgType::ADDR && (Application::uahfChainState() == Application::UAHFDisabled) == ((pfrom->nServices & NODE_BITCOIN_CASH) == 0))
+    else if (strCommand == NetMsgType::ADDR && (pfrom->nServices & NODE_BITCOIN_CASH))
     {
         std::vector<CAddress> vAddr;
         vRecv >> vAddr;

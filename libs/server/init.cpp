@@ -684,17 +684,13 @@ bool AppInit2(boost::thread_group& threadGroup, CScheduler& scheduler)
 
     if (GetBoolArg("-use-thinblocks", true))
         nLocalServices |= NODE_XTHIN;
-    if (Application::uahfChainState() != Application::UAHFDisabled) {
-        nLocalServices |= NODE_BITCOIN_CASH;
-        if (Params().NetworkIDString() ==  CBaseChainParams::MAIN) {
-            if (Policy::blockSizeAcceptLimit() < 8000000)
-                return InitError("The block size accept limit is too low, the minimum is 8MB. The Hub is shutting down.");
-            if (GetArg("-blockmaxsize", Settings::DefaultBlockMAxSize) <= 1000000)
-                return InitError("The maxblocksize mining limit is too low, it should be over 1MB. The Hub is shutting down.");
-        }
+    if (Params().NetworkIDString() == CBaseChainParams::MAIN) {
+        if (Policy::blockSizeAcceptLimit() < 8000000)
+            return InitError("The block size accept limit is too low, the minimum is 8MB. The Hub is shutting down.");
+        if (GetArg("-blockmaxsize", Settings::DefaultBlockMAxSize) <= 1000000)
+            return InitError("The maxblocksize mining limit is too low, it should be over 1MB. The Hub is shutting down.");
     }
-
-    if (Params().NetworkIDString() == "regtest") { // setup for testing to not use so much disk space.
+    else if (Params().NetworkIDString() == CBaseChainParams::REGTEST) { // setup for testing to not use so much disk space.
         UnspentOutputDatabase::setSmallLimits();
     }
 

@@ -978,7 +978,7 @@ QString formatTimeOffset(int64_t nTimeOffset)
 
 QString uriPrefix()
 {
-    return Application::uahfChainState() == Application::UAHFDisabled ? "bitcoin" : "bitcoincash";
+    return "bitcoincash";
 }
 
 QString convertCashBitcoinAddress(const QString &address)

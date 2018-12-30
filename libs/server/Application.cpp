@@ -60,7 +60,7 @@ void Application::quit(int rc)
 Application::Application()
     : m_returnCode(0),
     m_closingDown(false),
-    m_uahfState(UAHFDisabled)
+    m_uahfState(UAHFWaiting)
 {
     init();
 }

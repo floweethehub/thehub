@@ -70,9 +70,6 @@ uint32_t GetNextEDAWorkRequired(const CBlockIndex *pindexPrev, const CBlockHeade
     if (nBits == nProofOfWorkLimit)
         return nProofOfWorkLimit;
 
-    if (Application::uahfChainState() == Application::UAHFDisabled)
-        return nBits;
-
     // If producing the last 6 blocks took less than 12h, we keep the same
     // difficulty.
     const CBlockIndex *pindex6 = pindexPrev->GetAncestor(nHeight - 7);

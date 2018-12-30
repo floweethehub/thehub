@@ -39,20 +39,11 @@ bool BitcoinUnits::valid(int unit)
 
 QString BitcoinUnits::name(int unit)
 {
-    if (Application::uahfChainState() == Application::UAHFDisabled) {
-        switch(unit) {
-        case BTC: return QString("BTC");
-        case mBTC: return QString("mBTC");
-        case uBTC: return QString::fromUtf8("μBTC");
-        default: return QString("???");
-        }
-    } else {
-        switch(unit) {
-        case BTC: return QString("BCH");
-        case mBTC: return QString("mBCH");
-        case uBTC: return QString::fromUtf8("μBCH");
-        default: return QString("???");
-        }
+    switch(unit) {
+    case BTC: return QString("BCH");
+    case mBTC: return QString("mBCH");
+    case uBTC: return QString::fromUtf8("μBCH");
+    default: return QString("???");
     }
 }
 

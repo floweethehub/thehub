@@ -127,31 +127,3 @@ BOOST_AUTO_TEST_CASE(Test_transactionAcceptance)
 }
 
 BOOST_AUTO_TEST_SUITE_END()
-
-
-// UAHF's rollback protection is turned off for regtest, as such we need to use mainnet to test it.
-class MainTestingFixture : public TestingSetup
-{
-public:
-    MainTestingFixture() : TestingSetup(CBaseChainParams::MAIN) {}
-};
-
-BOOST_FIXTURE_TEST_SUITE(UAHF2, MainTestingFixture)
-
-BOOST_AUTO_TEST_CASE(Test_startWithBigBlock)
-{
-    BOOST_CHECK_EQUAL(Application::uahfChainState(), Application::UAHFWaiting);
-    std::vector<FastBlock> blocks = bv.appendChain(20);
-    MockApplication::setUAHFStartTime(bv.blockchain()->Tip()->GetMedianTimePast());
-
-    CScript dummy;
-    FastBlock block = bv.createBlock(bv.blockchain()->Tip(), dummy);
-    auto future = bv.addBlock(block, 0);
-    future.setCheckPoW(false);
-    future.setCheckMerkleRoot(false);
-    future.start();
-    future.waitUntilFinished();
-    BOOST_CHECK_EQUAL(future.error(), "bad-blk-too-small");
-}
-
-BOOST_AUTO_TEST_SUITE_END()

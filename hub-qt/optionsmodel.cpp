@@ -118,12 +118,10 @@ void OptionsModel::Init(bool resetSettings)
         addOverriddenOption("-excessiveblocksize");
     else {
         QVariant limit = settings.value("blockSizeAcceptLimitBytes");
-        if (Application::uahfChainState() != Application::UAHFDisabled) {
-            bool ok;
-            int value = settings.value("blockSizeAcceptLimitBytes").toInt(&ok);
-            if (ok && value < 8000000)
-                limit = QVariant(8000000);
-        }
+        bool ok;
+        int value = settings.value("blockSizeAcceptLimitBytes").toInt(&ok);
+        if (ok && value < 8000000)
+            limit = QVariant(8000000);
         SoftSetArg("-blocksizeacceptlimitbytes", limit.toString().toStdString());
     }
 
