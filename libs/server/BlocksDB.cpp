@@ -600,7 +600,7 @@ std::set<int> Blocks::Index::fileIndexes()
     std::lock_guard<std::mutex> lock_(priv->blockIndexLock);
 
     std::set<int> setBlkDataFiles;
-    BOOST_FOREACH(const PAIRTYPE(uint256, CBlockIndex*)& item, priv->indexMap) {
+    for (const PAIRTYPE(uint256, CBlockIndex*)& item : priv->indexMap) {
         CBlockIndex* pindex = item.second;
         if (pindex->nStatus & BLOCK_HAVE_DATA) {
             setBlkDataFiles.insert(pindex->nFile);
@@ -624,7 +624,7 @@ std::vector<std::pair<int, CBlockIndex *> > Blocks::Index::allByHeight()
 
     std::vector<std::pair<int, CBlockIndex*> > vSortedByHeight;
     vSortedByHeight.reserve(priv->indexMap.size());
-    BOOST_FOREACH(const PAIRTYPE(uint256, CBlockIndex*)& item, priv->indexMap)
+    for (const PAIRTYPE(uint256, CBlockIndex*)& item : priv->indexMap)
     {
         CBlockIndex* pindex = item.second;
         vSortedByHeight.push_back(std::make_pair(pindex->nHeight, pindex));

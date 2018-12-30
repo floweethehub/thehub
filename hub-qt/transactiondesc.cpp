@@ -34,6 +34,8 @@
 #include <utxo/UnspentOutputDatabase.h>
 #include <UnspentOutputData.h>
 
+#include <boost/foreach.hpp>
+
 QString TransactionDesc::FormatTxStatus(const CWalletTx& wtx)
 {
     AssertLockHeld(cs_main);

@@ -40,12 +40,13 @@
 #include "util.h"
 #include "utilstrencodings.h"
 #include "validationinterface.h"
+#include <streaming/BufferPool.h>
 
 #include <stdint.h>
 
 #include <boost/assign/list_of.hpp>
 #include <boost/shared_ptr.hpp>
-#include <streaming/BufferPool.h>
+#include <boost/foreach.hpp>
 
 #include <univalue.h>
 

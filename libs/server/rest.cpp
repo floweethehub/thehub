@@ -38,6 +38,7 @@
 
 #include <boost/algorithm/string.hpp>
 #include <boost/dynamic_bitset.hpp>
+#include <boost/foreach.hpp>
 
 #include <univalue.h>
 

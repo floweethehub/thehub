@@ -48,6 +48,7 @@
 
 #include <boost/algorithm/string/replace.hpp>
 #include <boost/filesystem.hpp>
+#include <boost/foreach.hpp>
 #include <boost/math/distributions/poisson.hpp>
 
 /**
@@ -299,7 +300,7 @@ void FinalizeNode(NodeId nodeid) {
         AddressCurrentlyConnected(state->address);
     }
 
-    BOOST_FOREACH(const QueuedBlock& entry, state->vBlocksInFlight) {
+    for (const QueuedBlock& entry : state->vBlocksInFlight) {
         mapBlocksInFlight.erase(entry.hash);
     }
     nPreferredDownload -= state->fPreferredDownload;
@@ -492,7 +493,7 @@ void FindNextBlocksToDownload(NodeId nodeid, unsigned int count, std::vector<CBl
         // are not yet downloaded and not in flight to vBlocks. In the mean time, update
         // pindexLastCommonBlock as long as all ancestors are already downloaded, or if it's
         // already part of our chain (and therefore don't need it even if pruned).
-        BOOST_FOREACH(CBlockIndex* pindex, vToFetch) {
+        for (CBlockIndex* pindex : vToFetch) {
             if (!pindex->IsValid(BLOCK_VALID_TREE)) {
                 // We consider the chain that this peer is on invalid.
                 return;
@@ -532,7 +533,7 @@ bool GetNodeStateStats(NodeId nodeid, CNodeStateStats &stats) {
     stats.nMisbehavior = state->nMisbehavior;
     stats.nSyncHeight = state->pindexBestKnownBlock ? state->pindexBestKnownBlock->nHeight : -1;
     stats.nCommonHeight = state->pindexLastCommonBlock ? state->pindexLastCommonBlock->nHeight : -1;
-    BOOST_FOREACH(const QueuedBlock& queue, state->vBlocksInFlight) {
+    for (const QueuedBlock& queue : state->vBlocksInFlight) {
         if (queue.pindex)
             stats.vHeightInFlight.push_back(queue.pindex->nHeight);
     }
@@ -560,7 +561,7 @@ void UnregisterNodeSignals(CNodeSignals& nodeSignals)
 CBlockIndex* FindForkInGlobalIndex(const CChain& chain, const CBlockLocator& locator)
 {
     // Find the first block the caller has in the main chain
-    BOOST_FOREACH(const uint256& hash, locator.vHave) {
+    for (const uint256& hash : locator.vHave) {
         auto pindex = Blocks::Index::get(hash);
         if (pindex) {
             if (chain.Contains(pindex))
@@ -576,7 +577,7 @@ bool IsFinalTx(const CTransaction &tx, int nBlockHeight, int64_t nBlockTime)
         return true;
     if ((int64_t)tx.nLockTime < ((int64_t)tx.nLockTime < LOCKTIME_THRESHOLD ? (int64_t)nBlockHeight : nBlockTime))
         return true;
-    BOOST_FOREACH(const CTxIn& txin, tx.vin) {
+    for (const CTxIn& txin : tx.vin) {
         if (!(txin.nSequence == CTxIn::SEQUENCE_FINAL))
             return false;
     }
@@ -773,7 +774,7 @@ bool CheckSequenceLocks(CTxMemPool &mp, const CTransaction &tx, int flags, LockP
             // lock on a mempool input, so we can use the return value of
             // CheckSequenceLocks to indicate the LockPoints validity
             int maxInputHeight = 0;
-            BOOST_FOREACH(int height, prevheights) {
+            for (int height : prevheights) {
                 // Can ignore mempool inputs since we'll fail if they had non-zero locks
                 if (height != tip->nHeight+1) {
                     maxInputHeight = std::max(maxInputHeight, height);
@@ -798,8 +799,7 @@ bool CheckTransaction(const CTransaction& tx, CValidationState &state)
 
     // Check for negative or overflow output values
     CAmount nValueOut = 0;
-    BOOST_FOREACH(const CTxOut& txout, tx.vout)
-    {
+    for (const CTxOut& txout : tx.vout) {
         if (txout.nValue < 0)
             return state.DoS(100, false, REJECT_INVALID, "bad-txns-vout-negative");
         if (txout.nValue > MAX_MONEY)
@@ -811,8 +811,7 @@ bool CheckTransaction(const CTransaction& tx, CValidationState &state)
 
     // Check for duplicate inputs
     std::set<COutPoint> vInOutPoints;
-    BOOST_FOREACH(const CTxIn& txin, tx.vin)
-    {
+    for (const CTxIn& txin : tx.vin) {
         if (vInOutPoints.count(txin.prevout))
             return state.DoS(100, false, REJECT_INVALID, "bad-txns-inputs-duplicate");
         vInOutPoints.insert(txin.prevout);
@@ -825,7 +824,7 @@ bool CheckTransaction(const CTransaction& tx, CValidationState &state)
     }
     else
     {
-        BOOST_FOREACH(const CTxIn& txin, tx.vin)
+        for (const CTxIn& txin : tx.vin)
             if (txin.prevout.IsNull())
                 return state.DoS(10, false, REJECT_INVALID, "bad-txns-prevout-null");
     }
@@ -1313,7 +1312,7 @@ bool IsSuperMajority(int minVersion, const CBlockIndex* pstart, unsigned nRequir
 uint64_t CalculateCurrentUsage()
 {
     uint64_t retval = 0;
-    BOOST_FOREACH(const CBlockFileInfo &file, vinfoBlockFile) {
+    for (const CBlockFileInfo &file : vinfoBlockFile) {
         retval += file.nSize + file.nUndoSize;
     }
     return retval;
@@ -1435,8 +1434,7 @@ bool LoadBlockIndexDB()
 
     // Calculate nChainWork
     std::vector<std::pair<int, CBlockIndex*> > vSortedByHeight = Blocks::Index::allByHeight();
-    BOOST_FOREACH(const PAIRTYPE(int, CBlockIndex*)& item, vSortedByHeight)
-    {
+    for (const PAIRTYPE(int, CBlockIndex*) &item : vSortedByHeight) {
         CBlockIndex* pindex = item.second;
         pindex->nChainWork = (pindex->pprev ? pindex->pprev->nChainWork : 0) + GetBlockProof(*pindex);
         // We can link the chain of blocks for which we've received transactions at some point.
@@ -1731,7 +1729,7 @@ void static ProcessGetData(CNode* pfrom, const Consensus::Params& consensusParam
                             // Thus, the protocol spec specified allows for us to provide duplicate txn here,
                             // however we MUST always provide at least what the remote peer needs
                             typedef std::pair<unsigned int, uint256> PairType;
-                            BOOST_FOREACH(PairType& pair, merkleBlock.vMatchedTxn)
+                            for (PairType& pair : merkleBlock.vMatchedTxn)
                                 pfrom->PushMessage(NetMsgType::TX, block.vtx[pair.first]);
                             sendFullBlock = false;
                         }
@@ -1977,8 +1975,7 @@ bool static ProcessMessage(CNode* pfrom, std::string strCommand, CDataStream& vR
         std::vector<CAddress> vAddrOk;
         int64_t nNow = GetAdjustedTime();
         int64_t nSince = nNow - 10 * 60;
-        BOOST_FOREACH(CAddress& addr, vAddr)
-        {
+        for (CAddress& addr : vAddr) {
             boost::this_thread::interruption_point();
 
             if (addr.nTime <= 100000000 || addr.nTime > nNow + 10 * 60)
@@ -1999,8 +1996,7 @@ bool static ProcessMessage(CNode* pfrom, std::string strCommand, CDataStream& vR
                     uint256 hashRand = ArithToUint256(UintToArith256(hashSalt) ^ (hashAddr<<32) ^ ((GetTime()+hashAddr)/(24*60*60)));
                     hashRand = Hash(BEGIN(hashRand), END(hashRand));
                     std::multimap<uint256, CNode*> mapMix;
-                    BOOST_FOREACH(CNode* pnode, vNodes)
-                    {
+                    for (CNode* pnode : vNodes) {
                         if (pnode->nVersion < CADDR_TIME_VERSION)
                             continue;
                         unsigned int nPointer;
@@ -2487,7 +2483,7 @@ bool static ProcessMessage(CNode* pfrom, std::string strCommand, CDataStream& vR
 
         // Create the mapMissingTx from all the supplied tx's in the xthinblock
         std::map<uint64_t, CTransaction> mapMissingTx;
-        BOOST_FOREACH(CTransaction tx, thinBlockTx.vMissingTx) {
+        for (CTransaction tx : thinBlockTx.vMissingTx) {
             mapMissingTx[tx.GetHash().GetCheapHash()] = tx;
         }
 
@@ -2670,7 +2666,7 @@ bool static ProcessMessage(CNode* pfrom, std::string strCommand, CDataStream& vR
 
         pfrom->vAddrToSend.clear();
         std::vector<CAddress> vAddr = addrman.GetAddr();
-        BOOST_FOREACH(const CAddress &addr, vAddr)
+        for (const CAddress &addr : vAddr)
             pfrom->PushAddress(addr);
     }
 
@@ -2688,7 +2684,7 @@ bool static ProcessMessage(CNode* pfrom, std::string strCommand, CDataStream& vR
         std::vector<uint256> vtxid;
         mempool.queryHashes(vtxid);
         std::vector<CInv> vInv;
-        BOOST_FOREACH(uint256& hash, vtxid) {
+        for (uint256& hash : vtxid) {
             CInv inv(MSG_TX, hash);
             if (pfrom->pfilter) {
                 CTransaction tx;
@@ -3104,8 +3100,7 @@ bool SendMessages(CNode* pto)
             pto->nNextAddrSend = PoissonNextSend(nNow, AVG_ADDRESS_BROADCAST_INTERVAL);
             std::vector<CAddress> vAddr;
             vAddr.reserve(pto->vAddrToSend.size());
-            BOOST_FOREACH(const CAddress& addr, pto->vAddrToSend)
-            {
+            for (const CAddress& addr : pto->vAddrToSend) {
                 if (!pto->addrKnown.contains(addr.GetKey()))
                 {
                     pto->addrKnown.insert(addr.GetKey());
@@ -3139,7 +3134,7 @@ bool SendMessages(CNode* pto)
             state.fShouldBan = false;
         }
 
-        BOOST_FOREACH(const CBlockReject& reject, state.rejects)
+        for (const CBlockReject& reject : state.rejects)
             pto->PushMessage(NetMsgType::REJECT, (std::string)NetMsgType::BLOCK, reject.chRejectCode, reject.strRejectReason, reject.hashBlock);
         state.rejects.clear();
 
@@ -3197,7 +3192,7 @@ bool SendMessages(CNode* pto)
                 // Try to find first header that our peer doesn't have, and
                 // then send all headers past that one.  If we come across any
                 // headers that aren't on chainActive, give up.
-                BOOST_FOREACH(const uint256 &hash, pto->vBlockHashesToAnnounce) {
+                for (const uint256 &hash : pto->vBlockHashesToAnnounce) {
                     CBlockIndex *pindex = Blocks::Index::get(hash);
                     assert(pindex);
                     if (chainActive[pindex->nHeight] != pindex) {
@@ -3295,8 +3290,7 @@ bool SendMessages(CNode* pto)
             LOCK(pto->cs_inventory);
             vInv.reserve(std::min<size_t>(1000, pto->vInventoryToSend.size()));
             vInvWait.reserve(pto->vInventoryToSend.size());
-            BOOST_FOREACH(const CInv& inv, pto->vInventoryToSend)
-            {
+            for (const CInv& inv : pto->vInventoryToSend) {
                 if (inv.type == MSG_TX && pto->filterInventoryKnown.contains(inv.hash))
                     continue;
 
@@ -3363,7 +3357,7 @@ bool SendMessages(CNode* pto)
             std::vector<CBlockIndex*> vToDownload;
             NodeId staller = -1;
             FindNextBlocksToDownload(pto->GetId(), MAX_BLOCKS_IN_TRANSIT_PER_PEER - state.nBlocksInFlight, vToDownload, staller);
-            BOOST_FOREACH(CBlockIndex *pindex, vToDownload) {
+            for (CBlockIndex *pindex : vToDownload) {
                 // BUIP010 Xtreme Thinblocks: begin section
                 if (IsThinBlocksEnabled() && IsChainNearlySyncd()) {
                     CDataStream ss(SER_NETWORK, PROTOCOL_VERSION);

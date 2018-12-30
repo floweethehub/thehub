@@ -27,6 +27,7 @@
 #include <QDebug>
 #include <QList>
 #include <QTimer>
+#include <boost/foreach.hpp>
 
 bool NodeLessThan::operator()(const CNodeCombinedStats &left, const CNodeCombinedStats &right) const
 {

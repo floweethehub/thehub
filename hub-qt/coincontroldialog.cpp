@@ -32,6 +32,8 @@
 #include "main.h" // For minRelayTxFee
 #include "wallet/wallet.h"
 
+#include <boost/foreach.hpp>
+
 #include <QApplication>
 #include <QCheckBox>
 #include <QCursor>

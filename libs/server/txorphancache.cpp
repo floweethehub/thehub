@@ -21,7 +21,6 @@
 
 #include "util.h"
 #include "net.h"
-#include <boost/foreach.hpp>
 
 CTxOrphanCache::CTxOrphanCache()
     : m_limit(Settings::DefaultMaxOrphanTransactions)
@@ -65,7 +64,7 @@ bool CTxOrphanCache::AddOrphanTx(const CTransaction& tx, NodeId peer, uint32_t o
         originalEntryTime = GetTime();
     entry.nEntryTime = originalEntryTime;
     entry.onResultFlags = onResultFlags;
-    BOOST_FOREACH(const CTxIn& txin, tx.vin) {
+    for (const CTxIn& txin : tx.vin) {
         m_mapOrphanTransactionsByPrev[txin.prevout.hash].insert(hash);
     }
 
@@ -79,7 +78,7 @@ void CTxOrphanCache::EraseOrphanTx(uint256 hash)
     std::map<uint256, COrphanTx>::iterator it = m_mapOrphanTransactions.find(hash);
     if (it == m_mapOrphanTransactions.end())
         return;
-    BOOST_FOREACH(const CTxIn& txin, it->second.tx.vin) {
+    for (const CTxIn& txin : it->second.tx.vin) {
         auto itPrev = m_mapOrphanTransactionsByPrev.find(txin.prevout.hash);
         if (itPrev == m_mapOrphanTransactionsByPrev.end())
             continue;
@@ -199,7 +198,7 @@ void CTxOrphanCache::EraseOrphans(const std::vector<uint256> &txIds)
         if (it == m_mapOrphanTransactions.end())
             continue;
 
-        BOOST_FOREACH(const CTxIn& txin, it->second.tx.vin) {
+        for (const CTxIn& txin : it->second.tx.vin) {
             auto itPrev = m_mapOrphanTransactionsByPrev.find(txin.prevout.hash);
             if (itPrev == m_mapOrphanTransactionsByPrev.end())
                 continue;

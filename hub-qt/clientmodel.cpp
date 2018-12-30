@@ -36,6 +36,7 @@
 #include <BlocksDB.h>
 #include <QDebug>
 #include <QTimer>
+#include <boost/foreach.hpp>
 
 class CBlockIndex;
 

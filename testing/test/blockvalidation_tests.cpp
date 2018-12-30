@@ -29,6 +29,8 @@
 #include <consensus/merkle.h>
 #include <main.h>
 
+#include <boost/foreach.hpp>
+
 namespace {
 void nothing(){
     logDebug() << "nothing";

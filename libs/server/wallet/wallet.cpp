@@ -51,6 +51,7 @@
 #include <boost/algorithm/string/replace.hpp>
 #include <boost/filesystem.hpp>
 #include <boost/thread.hpp>
+#include <boost/foreach.hpp>
 #include <interfaces/boost_compat.h>
 
 /** Transaction fee set by the user */
