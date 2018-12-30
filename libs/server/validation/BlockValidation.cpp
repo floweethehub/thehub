@@ -58,7 +58,6 @@ using Validation::Exception;
 ValidationEnginePrivate::ValidationEnginePrivate(Validation::EngineType type)
     : strand(Application::instance()->ioService()),
     shuttingDown(false),
-    issuedWarningForVersion(false),
     headersInFlight(0),
     blocksInFlight(0),
     blockchain(nullptr),
@@ -1638,21 +1637,4 @@ void BlockValidationState::checkSignaturesChunk(CheckType type)
     const int chunksLeft = m_txChunkLeftToFinish.fetch_sub(1) - 1;
     if (chunksLeft <= 0) // I'm the last one to finish
         finishUp();
-}
-
-//---------------------------------------------------------
-
-int32_t WarningBitsConditionChecker::computeBlockVersion(const CBlockIndex* pindexPrev)
-{
-    LOCK(cs_main); // for versionbitscache
-    int32_t nVersion = VERSIONBITS_TOP_BITS;
-
-    for (int i = 1; i < (int)Consensus::MAX_VERSION_BITS_DEPLOYMENTS; i++) {
-        ThresholdState state = VersionBitsState(pindexPrev, Params().GetConsensus(), (Consensus::DeploymentPos)i, versionbitscache);
-        if (state == THRESHOLD_LOCKED_IN || state == THRESHOLD_STARTED) {
-            nVersion |= VersionBitsMask(Params().GetConsensus(), (Consensus::DeploymentPos)i);
-        }
-    }
-
-    return nVersion;
 }

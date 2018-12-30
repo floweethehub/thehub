@@ -108,7 +108,6 @@ extern bool fCheckpointsEnabled;
 extern size_t nCoinCacheUsage;
 extern CFeeRate minRelayTxFee;
 extern VersionBitsCache versionbitscache;
-extern ThresholdConditionCache warningcache[VERSIONBITS_NUM_BITS];
 
 // Xpress Validation: begin section
 /**

@@ -27,7 +27,6 @@
 #include <primitives/FastUndoBlock.h>
 #include <chain.h>
 #include <bloom.h>
-#include <versionbits.h>
 #include <txmempool.h>
 #include <BlocksDB.h>
 
@@ -233,7 +232,6 @@ public:
 
     BoostCompatStrand strand;
     std::atomic<bool> shuttingDown;
-    bool issuedWarningForVersion;
     std::mutex lock;
     std::condition_variable waitVariable;
 
@@ -286,31 +284,6 @@ public:
     std::atomic<long> m_mempoolTime;
     std::atomic<long> m_walletTime;
 #endif
-};
-
-/**
- * Threshold condition checker that triggers when unknown versionbits are seen on the network.
- */
-class WarningBitsConditionChecker : public AbstractThresholdConditionChecker
-{
-private:
-    int bit;
-
-public:
-    inline WarningBitsConditionChecker(int bitIn) : bit(bitIn) {}
-
-    inline int64_t BeginTime(const Consensus::Params& params) const { return 0; }
-    inline int64_t EndTime(const Consensus::Params& params) const { return std::numeric_limits<int64_t>::max(); }
-    inline int Period(const Consensus::Params& params) const { return params.nMinerConfirmationWindow; }
-    inline int Threshold(const Consensus::Params& params) const { return params.nRuleChangeActivationThreshold; }
-
-    inline bool Condition(const CBlockIndex* pindex, const Consensus::Params&) const {
-        return ((pindex->nVersion & VERSIONBITS_TOP_MASK) == VERSIONBITS_TOP_BITS) &&
-               ((pindex->nVersion >> bit) & 1) != 0 &&
-               ((computeBlockVersion(pindex->pprev) >> bit) & 1) == 0;
-    }
-
-    static int32_t computeBlockVersion(const CBlockIndex* pindexPrev);
 };
 
 #endif

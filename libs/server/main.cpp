@@ -1140,9 +1140,6 @@ int32_t ComputeBlockVersion(const CBlockIndex* pindexPrev, const Consensus::Para
     return nVersion;
 }
 
-// Protected by cs_main
-ThresholdConditionCache warningcache[VERSIONBITS_NUM_BITS];
-
 bool FlushStateToDisk(CValidationState &state, FlushStateMode mode) {
     const CChainParams& chainparams = Params();
     LOCK2(cs_main, cs_LastBlockFile);
@@ -1544,9 +1541,6 @@ void UnloadBlockIndex()
     mapNodeState.clear();
     recentRejects.reset(nullptr);
     versionbitscache.Clear();
-    for (int b = 0; b < VERSIONBITS_NUM_BITS; b++) {
-        warningcache[b].clear();
-    }
 
     Blocks::Index::unload();
     fHavePruned = false;
