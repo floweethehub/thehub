@@ -829,7 +829,7 @@ SpentOutput DataFile::remove(const UODBPrivate *priv, const uint256 &txid, int i
     }
     std::sort(diskRefs.begin(), diskRefs.end());
     if (hintFound)
-        diskRefs.push_back(leafHint); // check the hint first.
+        diskRefs.insert(diskRefs.begin(), leafHint); // check the hint first.
     for (size_t i = diskRefs.size(); i > 0; --i) {
         const uint32_t pos = diskRefs.at(i - 1);
         // we do this all without any locking on a copy of the bucket because we know that stuff written to
