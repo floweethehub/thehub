@@ -190,7 +190,7 @@ public:
     // Amount of inserts/deletes since last flush
     std::atomic_int m_changeCount;
     int m_changesSinceJumptableWritten = 0;
-    bool m_flushScheduled = false;
+    std::atomic_bool m_flushScheduled;
 
     // --- rollback info ---
     std::list<UnspentOutput> m_leafsBackup; //< contains leafs deleted and never saved

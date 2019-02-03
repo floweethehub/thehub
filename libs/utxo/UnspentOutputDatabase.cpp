@@ -341,11 +341,9 @@ void UnspentOutputDatabase::saveCaches()
     auto dfs(d->dataFiles);
     for (int i = 0; i < dfs.size(); ++i) {
         DataFile *df = dfs.at(i);
-        std::lock_guard<std::recursive_mutex> lock(df->m_lock);
-        if (df->m_flushScheduled)
-            continue;
-        df->m_flushScheduled = true;
-        d->ioService.post(std::bind(&DataFile::flushSomeNodesToDisk_callback, df));
+        bool old = false;
+        if (df->m_flushScheduled.compare_exchange_strong(old, true))
+            d->ioService.post(std::bind(&DataFile::flushSomeNodesToDisk_callback, df));
     }
 }
 
@@ -548,7 +546,8 @@ DataFile::DataFile(const boost::filesystem::path &filename)
       m_memBuffers(100000),
       m_path(filename),
       m_usageCount(1),
-      m_changeCount(0)
+      m_changeCount(0),
+      m_flushScheduled(false)
 {
     memset(m_jumptables, 0, sizeof(m_jumptables));
 
@@ -1342,8 +1341,9 @@ void DataFile::rollback()
 void DataFile::addChange(const UODBPrivate *priv)
 {
     if (!m_flushScheduled && !priv->memOnly && ++m_changeCount > SAVE_CHUNK_SIZE) {
-        m_flushScheduled = true;
-        priv->ioService.post(std::bind(&DataFile::flushSomeNodesToDisk_callback, this));
+        bool old = false;
+        if (m_flushScheduled.compare_exchange_strong(old, true))
+            priv->ioService.post(std::bind(&DataFile::flushSomeNodesToDisk_callback, this));
     }
 }
 
