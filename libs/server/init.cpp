@@ -738,6 +738,7 @@ bool AppInit2(boost::thread_group& threadGroup, CScheduler& scheduler)
     logCritical(Log::Bitcoin) << "Startup time:" << DateTimeStrFormat("%Y-%m-%d %H:%M:%S", GetTime());
     logCritical(Log::Bitcoin) << "Using data directory" << strDataDir;
     logCritical(Log::Bitcoin) << "Using config file" << GetConfigFile().string();
+    logCritical(Log::Bitcoin) << "Using log-config file" << GetConfigFile("logs.conf").string();
     logInfo(Log::Net) << "Using at most" << nMaxConnections  << "connections.";
     logInfo(Log::Internals) << nFD << "file descriptors available";
     std::ostringstream strErrors;
