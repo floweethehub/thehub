@@ -864,15 +864,22 @@ void Blocks::DBPrivate::setScheduler(CScheduler *scheduler)
 
 void Blocks::DBPrivate::closeFiles()
 {
-    std::lock_guard<std::recursive_mutex> lock_(lock);
-    size_t count = fileHistory.size();
-    const int64_t timeOut = GetTime() - (count < 100 ? 15 : 7); // amount of seconds to keep files open
-    for (auto iter = fileHistory.begin(); iter != fileHistory.end();) {
-        if (iter->lastAccessed < timeOut)
-            iter = fileHistory.erase(iter);
-        else
+    size_t before, after;
+    std::vector<FileHistoryEntry> oldEntries; // delay unmapping the files until after the mutex unlock
+    {
+        std::lock_guard<std::recursive_mutex> lock_(lock);
+        before = fileHistory.size();
+        const int64_t timeOut = GetTime() - (before < 100 ? 15 : 7); // amount of seconds to keep files open
+        for (auto iter = fileHistory.begin(); iter != fileHistory.end();) {
+            if (iter->lastAccessed < timeOut) {
+                oldEntries.push_back(*iter);
+                iter = fileHistory.erase(iter);
+                continue;
+            }
             ++iter;
+        }
+        after = fileHistory.size();
     }
-    if (count != fileHistory.size())
-        logInfo(Log::DB).nospace() << "Close block files unmapped " << (count - fileHistory.size()) << "/" << count << " files";
+    if (before != after)
+        logInfo(Log::DB).nospace() << "Close block files unmapped " << (before - after) << "/" << before << " files";
 }
