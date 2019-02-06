@@ -67,14 +67,6 @@ public:
 
     std::shared_ptr<char> mapFile(int fileIndex, BlockType type, size_t *size_out = 0, bool *isWritable = nullptr);
 
-    // Notify this class that the block file in question has been extended.  Calling this method
-    // is required whenever block files get written-to and their size changes.  If this method
-    // isn't called, mapFile() will continue to return memory from the old block file size until
-    // all extant shared_ptr<char> bufs die.  Calling this method ensures that subsequent calls to
-    // mapFile() will encompass the entire file.
-    void fileHasGrown(int fileIndex);
-    void revertFileHasGrown(int fileIndex);
-
     // close files from filehistory that have been unused for some time.
     void setScheduler(CScheduler *scheduler);
     void closeFiles();

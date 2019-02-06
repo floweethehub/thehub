@@ -835,28 +835,6 @@ std::shared_ptr<char> Blocks::DBPrivate::mapFile(int fileIndex, Blocks::BlockTyp
     return buf;
 }
 
-// we expect the mutex `lock` to be locked before calling this method
-void Blocks::DBPrivate::fileHasGrown(int fileIndex)
-{
-    assert(fileIndex >= 0 && fileIndex < static_cast<int>(datafiles.size()));
-    // unconditionally invalidate the pointer.
-    // This doesn't leak memory because if ptr existed, there are
-    // extant shard_ptr buffers.  When they get deleted, ptr will also.
-    // (see cleanupLambda in mapFile() above)
-    datafiles[static_cast<size_t>(fileIndex)] = nullptr;
-}
-
-// we expect the mutex `lock` to be locked before calling this method
-void Blocks::DBPrivate::revertFileHasGrown(int fileIndex)
-{
-    assert(fileIndex >= 0 && fileIndex < static_cast<int>(revertDatafiles.size()));
-    // unconditionally invalidate the pointer.
-    // This doesn't leak memory because if ptr existed, there are
-    // extant shard_ptr buffers.  When they get deleted, ptr will also.
-    // (see cleanupLambda in mapFile() above)
-    revertDatafiles[static_cast<size_t>(fileIndex)] = nullptr;
-}
-
 void Blocks::DBPrivate::setScheduler(CScheduler *scheduler)
 {
     scheduler->scheduleEvery(std::bind(&Blocks::DBPrivate::closeFiles, this), 10);
