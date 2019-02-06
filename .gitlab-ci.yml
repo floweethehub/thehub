@@ -23,7 +23,7 @@ build-debian-stable:
     paths:
     - bin
     - build/testing/*/test_*
-    expire_in: 1 hrs
+    expire_in: 10 hrs
 
 # this fails on gitlab but the same setup passes on my laptop.
 # Best idea I have is that its a memory thing. Disable for now.
