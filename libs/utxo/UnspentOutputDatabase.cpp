@@ -912,6 +912,7 @@ void DataFile::flushSomeNodesToDisk_callback()
     do {
         flushSomeNodesToDisk(NormalSave);
     } while (m_changeCount > SAVE_CHUNK_SIZE + SAVE_CHUNK_SIZE / 2);
+    m_flushScheduled = false;
 }
 
 bool DataFile::flushSomeNodesToDisk(ForceBool force)
@@ -965,7 +966,6 @@ bool DataFile::flushSomeNodesToDisk(ForceBool force)
         }
     }
     if (unsavedOutputs.empty()) {
-        m_flushScheduled = false;
         m_changeCount = 0;
         return false;
     }
@@ -1076,7 +1076,6 @@ bool DataFile::flushSomeNodesToDisk(ForceBool force)
 
     logInfo(Log::UTXO) << "Flushed" << flushedToDiskCount << "to disk." << m_path.filename().string() << "Filesize now:" << m_writeBuffer.offset();
     logDebug(Log::UTXO) << " +- Leafs in mem:" << m_leafs.size() << "Buckets in mem:" << m_buckets.size();
-    m_flushScheduled = false;
     m_changeCount = m_leafs.size();
 
     m_jumptableNeedsSave = true;
