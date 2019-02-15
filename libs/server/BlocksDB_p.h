@@ -70,6 +70,7 @@ public:
     // close files from filehistory that have been unused for some time.
     void setScheduler(CScheduler *scheduler);
     void closeFiles();
+    void pruneFiles();
 
     CChain headersChain;
     std::list<CBlockIndex*> headerChainTips;

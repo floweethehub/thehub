@@ -1,7 +1,7 @@
 /*
  * This file is part of the Flowee project
  * Copyright (c) 2009-2010 Satoshi Nakamoto
- * Copyright (c) 2017-2018 Tom Zander <tomz@freedommail.ch>
+ * Copyright (c) 2017-2019 Tom Zander <tomz@freedommail.ch>
  * Copyright (c) 2017 Calin Culianu <calin.culianu@gmail.com>
  *
  * This program is free software: you can redistribute it and/or modify
@@ -772,7 +772,7 @@ std::shared_ptr<char> Blocks::DBPrivate::mapFile(int fileIndex, Blocks::BlockTyp
 
     std::lock_guard<std::recursive_mutex> lock_(lock);
     if (static_cast<int>(list.size()) <= fileIndex)
-        list.resize(static_cast<size_t>(fileIndex) + 10);
+        list.resize(static_cast<size_t>(fileIndex) + 1);
     DataFile *df = list.at(static_cast<size_t>(fileIndex));
     if (df == nullptr) {
         df = new DataFile();
@@ -838,6 +838,7 @@ std::shared_ptr<char> Blocks::DBPrivate::mapFile(int fileIndex, Blocks::BlockTyp
 void Blocks::DBPrivate::setScheduler(CScheduler *scheduler)
 {
     scheduler->scheduleEvery(std::bind(&Blocks::DBPrivate::closeFiles, this), 10);
+    scheduler->scheduleEvery(std::bind(&Blocks::DBPrivate::pruneFiles, this), 15*60);
 }
 
 void Blocks::DBPrivate::closeFiles()
@@ -860,4 +861,70 @@ void Blocks::DBPrivate::closeFiles()
     }
     if (before != after)
         logInfo(Log::DB).nospace() << "Close block files unmapped " << (before - after) << "/" << before << " files";
+}
+
+// remove old revert files and snip off the zero's from the blk files (which makes them larger when copied)
+void Blocks::DBPrivate::pruneFiles()
+{
+    std::lock_guard<std::recursive_mutex> lock_(lock);
+    std::map<int, boost::filesystem::path> existingRevertFiles;
+    for (int i = static_cast<int>(revertDatafiles.size()) - 1; i >= 0 ; --i) {
+        boost::filesystem::path path = Blocks::getFilepathForIndex(i, "rev", false);
+        if (boost::filesystem::exists(path))
+            existingRevertFiles.insert(std::make_pair(i, path));
+        else if (!existingRevertFiles.empty())
+            break;
+    }
+    while (existingRevertFiles.size() > 3) {
+        auto iter = existingRevertFiles.begin();
+        auto path = iter->second;
+        logInfo(Log::DB) << "Deleting no longer useful revert file" << path.string();
+        boost::filesystem::remove(path);
+        existingRevertFiles.erase(iter);
+    }
+
+    if (reindexing == ScanningFiles || datafiles.size() < 3)
+        return;
+
+    size_t i = datafiles.size() - 3;
+    do {
+        boost::filesystem::path path = Blocks::getFilepathForIndex((int) i, "blk", false); // only 'local' files
+        if (!boost::filesystem::exists(path))
+            continue;
+
+        DataFile *df = datafiles.at(i);
+        if (df) { // been opened before.
+            if (df->filesize != MAX_BLOCKFILE_SIZE)
+                break;
+            if (datafiles.at(i)->file.is_open())
+                continue;
+        }
+        else { // not been opened yet
+            size_t size;
+            mapFile((int) i, Blocks::ForwardBlock, &size);
+            if (size != MAX_BLOCKFILE_SIZE)
+                break;
+            df = datafiles.at(i);
+        }
+        assert(df);
+
+        std::list<FileHistoryEntry>::iterator iter = fileHistory.begin();
+        {
+            Streaming::ConstBuffer dataFile = Blocks::DB::instance()->loadBlockFile(i);
+            assert(dataFile.isValid());
+            while (iter != fileHistory.end()) {
+                if (iter->dataFile == dataFile.internal_buffer())
+                    break;
+                ++iter;
+            }
+        }
+        const uint32_t fileSize = vinfoBlockFile[i].nSize;
+        if (fileSize > 0) {
+            logInfo(Log::DB) << "truncating blk file " << i << "to content-size:" << fileSize;
+            if (iter != fileHistory.end())
+                fileHistory.erase(iter);
+            const boost::filesystem::path path = Blocks::getFilepathForIndex((int) i, "blk", false);
+            boost::filesystem::resize_file(path, fileSize);
+        }
+    } while (i-- > 0);
 }
