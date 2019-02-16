@@ -1397,13 +1397,13 @@ void BlockValidationState::updateUtxoAndStartValidation()
     }
 
     try {
+        assert (m_block.transactions().size() > 0);
         int chunks, itemsPerChunk;
         calculateTxCheckChunks(chunks, itemsPerChunk);
         m_txChunkLeftToFinish.store(chunks);
         m_txChunkLeftToStart.store(chunks);
         m_undoItems.resize(static_cast<size_t>(chunks + 1));
 
-        assert (m_block.transactions().size() > 0);
         if (!m_checkValidityOnly) {
             // inserting all outputs that are created in this block first.
             // we do this in a single thread since inserting massively parallel will just cause a huge overhead
