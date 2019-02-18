@@ -138,7 +138,7 @@ UnspentOutput::UnspentOutput(uint64_t cheapHash, const Streaming::ConstBuffer &b
             break;
     }
     if (parser.next() == Streaming::Error)
-        throw std::runtime_error("Unparsable data");
+        throw std::runtime_error("Unparsable UTXO-record");
     assert(m_blockHeight > 0 && m_offsetInBlock >= 0);
 }
 
@@ -555,7 +555,7 @@ DataFile::DataFile(const boost::filesystem::path &filename)
     dbFile.concat(".db");
     m_file.open(dbFile, std::ios_base::binary | std::ios_base::in | std::ios_base::out);
     if (!m_file.is_open())
-        throw std::runtime_error("Failed to open file read/write");
+        throw std::runtime_error("Failed to open UTXO DB file read/write");
     m_buffer = std::shared_ptr<char>(const_cast<char*>(m_file.const_data()), nothing);
     m_writeBuffer = Streaming::BufferPool(m_buffer, static_cast<int>(m_file.size()), true);
 
@@ -1467,7 +1467,7 @@ std::string DataFileCache::writeInfoFile(DataFile *source)
     std::string outFile = filenameFor(newIndex).string();
     std::ofstream out(outFile, std::ios::binary | std::ios::out | std::ios::trunc);
     if (!out.is_open())
-        throw std::runtime_error("Failed to open info file for writing");
+        throw std::runtime_error("Failed to open UTXO info file for writing");
 
     Streaming::MessageBuilder builder(Streaming::NoHeader, 256);
     builder.add(UODB::FirstBlockHeight, source->m_initialBlockHeight);
