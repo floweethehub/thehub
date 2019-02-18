@@ -655,6 +655,8 @@ Blocks::DBPrivate::~DBPrivate()
 
 Streaming::ConstBuffer Blocks::DBPrivate::loadBlock(CDiskBlockPos pos, BlockType type)
 {
+    if (pos.nFile == -1)
+        throw std::runtime_error("Invalid BlockPos, does the block have data?");
     if (pos.nPos < 4)
         throw std::runtime_error("Blocks::loadBlock got Database corruption");
     size_t fileSize;

@@ -1186,6 +1186,11 @@ void BlockValidationState::checks1NoContext()
     } catch (const std::exception &e) {
         logInfo() << "BlockValidationState: Failed to load block, ignoring. Error:" << e.what()
                   << "File idx:" << m_blockPos.nFile << "pos:" << m_blockPos.nPos;
+        auto validationSettings = m_settings.lock();
+        if (validationSettings) {
+            validationSettings->error = std::string("Failed to load block. Error: ") + e.what();
+            validationSettings->markFinished();
+        }
         return;
     }
 #ifdef ENABLE_BENCHMARKS
