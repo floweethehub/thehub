@@ -1184,7 +1184,7 @@ void BlockValidationState::checks1NoContext()
         if (m_block.size() == 0)
             load();
     } catch (const std::exception &e) {
-        logInfo() << "BlockValidationState: Failed to load block, ignoring. Error:" << e.what()
+        logInfo(Log::BlockValidation) << "BlockValidationState: Failed to load block, ignoring. Error:" << e.what()
                   << "File idx:" << m_blockPos.nFile << "pos:" << m_blockPos.nPos;
         auto validationSettings = m_settings.lock();
         if (validationSettings) {
@@ -1529,9 +1529,8 @@ void BlockValidationState::checkSignaturesChunk(CheckType type)
                     utxoDuration += GetTimeMicros() - utxoStart;
 #endif
                     if (!unspentOutput.isValid()) {
-                        logCritical() << "Rejecting block" << m_block.createHash() << "due to missing inputs";
-                        logInfo() << " |  txid:" << tx.createHash();
-                        logInfo() << " + input:" << input.txid << input.index;
+                        logCritical(Log::BlockValidation) << "Rejecting block" << m_block.createHash() << "due to missing inputs";
+                        logInfo(Log::BlockValidation) << " + txid:" << tx.createHash() << "needs input:" << input.txid << input.index;
                         throw Exception("missing-inputs", 0);
                     }
                     prevheights.push_back(unspentOutput.blockHeight());
@@ -1568,9 +1567,8 @@ void BlockValidationState::checkSignaturesChunk(CheckType type)
                         utxoDuration += GetTimeMicros() - utxoStart;
 #endif
                         if (!removed.isValid()) {
-                            logCritical() << "Rejecting block" << m_block.createHash() << "due to deleted input";
-                            logInfo() << " |  txid:" << tx.createHash();
-                            logInfo() << " + input:" << input.txid << input.index;
+                            logCritical(Log::BlockValidation) << "Rejecting block" << m_block.createHash() << "due to deleted input";
+                            logInfo(Log::BlockValidation) << " + txid:" << tx.createHash() << "needs input:" << input.txid << input.index;
                             throw Exception("missing-inputs", 0);
                         }
                         assert(input.index >= 0);
