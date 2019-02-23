@@ -143,7 +143,7 @@ public:
      */
     inline void calculateTxCheckChunks(int &chunks, int &itemsPerChunk) const {
         size_t txCount = m_block.transactions().size();
-        chunks = std::min<int>((txCount+1) / 2, boost::thread::hardware_concurrency());
+        chunks = std::min<int>((txCount+9) / 10, boost::thread::hardware_concurrency());
         itemsPerChunk = std::lrint(std::ceil(txCount / static_cast<float>(chunks)));
     }
 
