@@ -41,6 +41,7 @@ public:
     UnspentOutput() = default;
     UnspentOutput(Streaming::BufferPool &pool, const uint256 &txid, int outIndex, int blockHeight, int offsetInBlock);
     UnspentOutput(uint64_t cheapHash, const Streaming::ConstBuffer &buffer);
+    UnspentOutput(const UnspentOutput &other) = default;
 
     inline bool isValid() const {
         return m_data.size() >= 33;

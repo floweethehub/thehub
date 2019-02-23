@@ -64,8 +64,9 @@ void TestUtxo::basic()
     UnspentOutput uo = db.find(txid, 0);
     QCOMPARE(uo.offsetInBlock(), 6000);
     QCOMPARE(uo.blockHeight(), 100);
+    QVERIFY(((uo.rmHint() >> 32) & 0xFFFFF) > 0);
 
-    SpentOutput rmData = db.remove(txid, 0);
+    SpentOutput rmData = db.remove(txid, 0, uo.rmHint());
     QVERIFY(rmData.isValid());
     QCOMPARE(rmData.blockHeight, 100);
     QCOMPARE(rmData.offsetInBlock, 6000);
@@ -76,6 +77,7 @@ void TestUtxo::basic()
     rmData = db.remove(txid, 0);
     QCOMPARE(rmData.isValid(), false);
     QVERIFY(rmData.blockHeight <= 0);
+
 }
 
 // test if we can keep multiple entries separate
@@ -111,7 +113,6 @@ void TestUtxo::multiple()
     QCOMPARE(find5.blockHeight(), 189);
     UnspentOutput find6 = db.find(remove2, 1);
     QCOMPARE(find6.blockHeight(), 0); // poof.
-
 }
 
 // test if we can keep entries between restarts

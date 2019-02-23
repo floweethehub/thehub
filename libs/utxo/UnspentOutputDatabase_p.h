@@ -1,6 +1,6 @@
 /*
  * This file is part of the Flowee project
- * Copyright (C) 2018 Tom Zander <tomz@freedommail.ch>
+ * Copyright (C) 2018-2019 Tom Zander <tomz@freedommail.ch>
  *
  * This program is free software: you can redistribute it and/or modify
  * it under the terms of the GNU General Public License as published by
@@ -20,7 +20,9 @@
 
 #include "UnspentOutputDatabase.h"
 #include "FloweeCOWList.h"
+#include "BucketMap.h"
 #include <streaming/BufferPool.h>
+#include <utils/util.h>
 
 #include <boost/iostreams/device/mapped_file.hpp>
 #include <boost/filesystem/path.hpp>
@@ -32,6 +34,9 @@
 #include <mutex>
 #include <uint256.h>
 
+#define MEMBIT 0x80000000
+#define MEMMASK 0x7FFFFFFF
+
 namespace {
     inline std::uint32_t createShortHash(uint64_t cheapHash) {
         std::uint32_t answer = static_cast<uint32_t>(cheapHash & 0xFF) << 12;
@@ -41,29 +46,27 @@ namespace {
     }
 }
 
-struct OutputRef {
-    OutputRef() = default;
-    OutputRef(uint64_t cheapHash, uint32_t leafPos)
-        : cheapHash(cheapHash), leafPos(leafPos) {
-    }
-    inline bool operator==(const OutputRef &other) const {
-        return cheapHash == other.cheapHash && leafPos == other.leafPos;
-    }
-    inline bool operator!=(const OutputRef &other) const { return !operator==(other); }
-    uint64_t cheapHash;
-    uint32_t leafPos;
+struct FlexLockGuard {
+    FlexLockGuard(std::recursive_mutex &mutex) : mutex(mutex) { mutex.lock(); }
+    inline ~FlexLockGuard() { unlock(); }
+    inline void unlock() { if (m_locked) { mutex.unlock(); m_locked = false; } }
+
+private:
+    std::recursive_mutex &mutex;
+    bool m_locked = true;
 };
 
 enum ForceBool {
     ForceSave,
     NormalSave
 };
-struct Bucket {
-    std::list<OutputRef> unspentOutputs;
-    short saveAttempt = 0;
 
-    void fillFromDisk(const Streaming::ConstBuffer &buffer, const int32_t bucketOffsetInFile);
-    int32_t saveToDisk(Streaming::BufferPool &pool) const;
+// used internally in the flush to disk method
+struct SavedBucket {
+    SavedBucket(const std::vector<OutputRef> &uo, uint32_t offset, int saveCount) : unspentOutputs(uo), offsetInFile(offset), saveCount(saveCount) {}
+    std::vector<OutputRef> unspentOutputs;
+    uint32_t offsetInFile;
+    int saveCount = 0;
 };
 
 namespace UODB {
@@ -146,17 +149,17 @@ public:
     SpentOutput remove(const UODBPrivate *priv, const uint256 &txid, int index, uint32_t leafHint = 0);
 
     // writing to disk. Return if there are still unsaved items left
-    bool flushSomeNodesToDisk(ForceBool force);
+    void flushSomeNodesToDisk(ForceBool force);
     void flushSomeNodesToDisk_callback(); // calls flush repeatedly, used as an asio callback
     std::string flushAll();
-    int32_t saveLeaf(const UnspentOutput &uo);
+    int32_t saveLeaf(const UnspentOutput *uo);
 
     // session management.
     void commit();
     void rollback();
 
     // update m_changeCount
-    void addChange(const UODBPrivate *priv);
+    void addChange(const UODBPrivate *priv, int count = 1);
 
     bool openInfo(int targetHeight);
 
@@ -166,11 +169,9 @@ public:
     // in-memory representation
     Streaming::BufferPool m_memBuffers;
     uint32_t m_jumptables[0x100000];
-    std::unordered_map<int, Bucket> m_buckets;
-    int m_nextBucketIndex = 1;
-    // unsaved leafs.
-    std::unordered_map<int, UnspentOutput> m_leafs;
-    int m_nextLeafIndex = 1;
+    mutable BucketMap m_buckets;
+    std::atomic_int m_nextBucketIndex;
+    std::atomic_int m_nextLeafIndex;
 
     // on-disk file.
     const boost::filesystem::path m_path;
@@ -193,7 +194,7 @@ public:
     std::atomic_bool m_flushScheduled;
 
     // --- rollback info ---
-    std::list<UnspentOutput> m_leafsBackup; //< contains leafs deleted and never saved
+    std::list<UnspentOutput*> m_leafsBackup; //< contains leafs deleted and never saved
     /// contains leaf-ids deleted related to a certain bucketId (so they can be re-added to bucket)
     std::list<OutputRef> m_leafIdsBackup;
     /// buckets that were in memory when we committed last and have since been modified. We refuse to save them (for now).
@@ -227,7 +228,7 @@ public:
 struct Limits
 {
     uint32_t DBFileSize = 2147483600; // 2GiB
-    uint32_t FileFull = 1800000000; // 1.8GB
+    int32_t FileFull = 1800000000; // 1.8GB
     uint32_t AutoFlush = 5000000; // every 5 million inserts/deletes, auto-flush jumptables
 };
 
