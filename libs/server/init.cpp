@@ -288,7 +288,7 @@ bool static Bind(const CService &addr, unsigned int flags) {
 void OnRPCStopped()
 {
     cvBlockChange.notify_all();
-    LogPrint("rpc", "RPC stopped.\n");
+    logInfo(Log::RPC) << "RPC stopped.";
 }
 
 void OnRPCPreCommand(const CRPCCommand& cmd)
@@ -814,12 +814,6 @@ bool AppInit2(boost::thread_group& threadGroup, CScheduler& scheduler)
                 // Initialize the block index (no-op if non-empty database was already loaded)
                 if (!InitBlockIndex(chainparams)) {
                     strLoadError = _("Error initializing block database");
-                    break;
-                }
-
-                // Check for changed -txindex state
-                if (fTxIndex != GetBoolArg("-txindex", Settings::DefaultTxIndex)) {
-                    strLoadError = _("You need to rebuild the database using -reindex to change -txindex");
                     break;
                 }
 

@@ -1304,55 +1304,6 @@ bool IsSuperMajority(int minVersion, const CBlockIndex* pstart, unsigned nRequir
 }
 
 
-/**
- * BLOCK PRUNING CODE
- */
-
-/* Calculate the amount of disk space the block & undo files currently use */
-uint64_t CalculateCurrentUsage()
-{
-    uint64_t retval = 0;
-    for (const CBlockFileInfo &file : vinfoBlockFile) {
-        retval += file.nSize + file.nUndoSize;
-    }
-    return retval;
-}
-
-/* Prune a block file (modify associated database entries)*/
-void PruneOneBlockFile(const int fileNumber)
-{
-#if 0
-    for (auto it = Blocks::indexMap.begin(); it != Blocks::indexMap.end(); ++it) {
-        CBlockIndex* pindex = it->second;
-        if (pindex->nFile == fileNumber) {
-            pindex->nStatus &= ~BLOCK_HAVE_DATA;
-            pindex->nStatus &= ~BLOCK_HAVE_UNDO;
-            pindex->nFile = 0;
-            pindex->nDataPos = 0;
-            pindex->nUndoPos = 0;
-            setDirtyBlockIndex.insert(pindex);
-
-            // Prune from mapBlocksUnlinked -- any block we prune would have
-            // to be downloaded again in order to consider its chain, at which
-            // point it would be considered as a candidate for
-            // mapBlocksUnlinked or setBlockIndexCandidates.
-            std::pair<std::multimap<CBlockIndex*, CBlockIndex*>::iterator, std::multimap<CBlockIndex*, CBlockIndex*>::iterator> range = mapBlocksUnlinked.equal_range(pindex->pprev);
-            while (range.first != range.second) {
-                std::multimap<CBlockIndex *, CBlockIndex *>::iterator it = range.first;
-                range.first++;
-                if (it->second == pindex) {
-                    mapBlocksUnlinked.erase(it);
-                }
-            }
-        }
-    }
-
-    vinfoBlockFile[fileNumber].SetNull();
-    setDirtyFileInfo.insert(fileNumber);
-#endif
-}
-
-
 void UnlinkPrunedFiles(std::set<int>& setFilesToPrune)
 {
     for (std::set<int>::iterator it = setFilesToPrune.begin(); it != setFilesToPrune.end(); ++it) {
@@ -1674,7 +1625,8 @@ void static ProcessGetData(CNode* pfrom, const Consensus::Params& consensusParam
                             (pindexBestHeader->GetBlockTime() - mi->GetBlockTime() < nOneMonth) &&
                             (GetBlockProofEquivalentTime(*pindexBestHeader, *mi, *pindexBestHeader, consensusParams) < nOneMonth);
                         if (!send) {
-                            LogPrintf("%s: ignoring request from peer=%i for old block that isn't in the main chain\n", __func__, pfrom->GetId());
+                            logDebug(Log::Net) << "ProcessGetData ignoring request from peer"
+                                                  << pfrom->GetId() << "for old block that isn't in the main chain";
                         }
                     }
                 }
@@ -1683,7 +1635,7 @@ void static ProcessGetData(CNode* pfrom, const Consensus::Params& consensusParam
                 static const int nOneWeek = 7 * 24 * 60 * 60; // assume > 1 week = historical
                 if (send && CNode::OutboundTargetReached(true) && ( ((pindexBestHeader != nullptr) && (pindexBestHeader->GetBlockTime() - mi->GetBlockTime() > nOneWeek)) || inv.type == MSG_FILTERED_BLOCK) && !pfrom->fWhitelisted)
                 {
-                    LogPrint("net", "historical block serving limit reached, disconnect peer=%d\n", pfrom->GetId());
+                    logCritical(Log::Net) << "historical block serving limit reached, disconnect peer" << pfrom->GetId();
 
                     //disconnect node
                     pfrom->fDisconnect = true;
@@ -1710,8 +1662,10 @@ void static ProcessGetData(CNode* pfrom, const Consensus::Params& consensusParam
                             if (nSizeThinBlock < nSizeBlock) {
                                 pfrom->PushMessage(NetMsgType::XTHINBLOCK, xThinBlock);
                                 sendFullBlock = false;
-                                LogPrint("thin", "Sent xthinblock - size: %d vs block size: %d => tx hashes: %d transactions: %d  peerid=%d\n",
-                                         nSizeThinBlock, nSizeBlock, xThinBlock.vTxHashes.size(), xThinBlock.vMissingTx.size(), pfrom->id);
+                                logInfo(Log::ThinBlocks) << "Sent xthinblock - size:" << nSizeThinBlock << "vs block size:"
+                                                         << nSizeBlock << "=> tx hashes:"  << xThinBlock.vTxHashes.size()
+                                                         << "transactions:" << xThinBlock.vMissingTx.size() << "peerid"
+                                                         << pfrom->id;
                             }
                         }
                     }
@@ -3332,7 +3286,7 @@ bool SendMessages(CNode* pto)
             // Stalling only triggers when the block download window cannot move. During normal steady state,
             // the download window should be much larger than the to-be-downloaded set of blocks, so disconnection
             // should only happen during initial block download.
-            LogPrintf("Peer=%d is stalling block download, disconnecting\n", pto->id);
+            logCritical(Log::Net) << "Peer" << pto->id << "is stalling block download, disconnecting";
             pto->fDisconnect = true;
         }
         // In case there is a block that has been in flight from this peer for 2 + 0.5 * N times the block interval
@@ -3344,7 +3298,7 @@ bool SendMessages(CNode* pto)
             QueuedBlock &queuedBlock = state.vBlocksInFlight.front();
             int nOtherPeersWithValidatedDownloads = nPeersWithValidatedDownloads - (state.nBlocksInFlightValidHeaders > 0);
             if (nNow > state.nDownloadingSince + consensusParams.nPowTargetSpacing * (BLOCK_DOWNLOAD_TIMEOUT_BASE + BLOCK_DOWNLOAD_TIMEOUT_PER_PEER * nOtherPeersWithValidatedDownloads)) {
-                LogPrintf("Timeout downloading block %s from peer=%d, disconnecting\n", queuedBlock.hash.ToString(), pto->id);
+                logCritical(Log::Net) << "Timeout downloading block" << queuedBlock.hash << "from peer" << pto->id << "disconnecting";
                 pto->fDisconnect = true;
             }
         }
@@ -3437,12 +3391,6 @@ bool SendMessages(CNode* pto)
 
 std::string CBlockFileInfo::ToString() const {
      return strprintf("CBlockFileInfo(blocks=%u, size=%u)", nBlocks, nSize);
-}
-
-ThresholdState VersionBitsTipState(const Consensus::Params& params, Consensus::DeploymentPos pos)
-{
-    LOCK(cs_main);
-    return VersionBitsState(chainActive.Tip(), params, pos, versionbitscache);
 }
 
 void MarkIndexUnsaved(CBlockIndex *index)
