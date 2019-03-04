@@ -69,12 +69,14 @@ void Application::init()
 {
     m_closingDown = false;
     m_uahfState = UAHFWaiting;
-    const std::string chain = Params().NetworkIDString();
-    if (chain == CBaseChainParams::REGTEST) {
-        m_uahfStartTme = 1296688602;
-        m_uahfState = UAHFActive;
-    } else {
-        m_uahfStartTme = 1501590000;
+    if (ParamsConfigured()) {
+        const std::string chain = Params().NetworkIDString();
+        if (chain == CBaseChainParams::REGTEST) {
+            m_uahfStartTme = 1296688602;
+            m_uahfState = UAHFActive;
+        } else {
+            m_uahfStartTme = 1501590000;
+        }
     }
 }
 

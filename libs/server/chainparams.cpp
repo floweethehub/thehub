@@ -396,6 +396,9 @@ public:
         assert(m_currentParams);
         return *m_currentParams;
     }
+    bool isSet() const {
+        return m_currentParams != nullptr;
+    }
     void setCurrent(CChainParams &params) {
         m_currentParams = &params;
     }
@@ -428,4 +431,8 @@ void SelectParams(const std::string& network)
 {
     SelectBaseParams(network);
     s_chains.setCurrent(Params(network));
+}
+
+bool ParamsConfigured() {
+    return s_chains.isSet();
 }

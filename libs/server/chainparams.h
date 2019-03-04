@@ -129,6 +129,8 @@ const CChainParams &Params();
  */
 CChainParams& Params(const std::string& chain);
 
+bool ParamsConfigured();
+
 /**
  * Sets the params returned by Params() to those for the given BIP70 chain name.
  * @throws std::runtime_error when the chain is not supported.
