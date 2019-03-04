@@ -32,14 +32,14 @@
 #ifdef DEBUG_BLOCK_VALIDATION
 # define DEBUGBV logCritical(Log::BlockValidation)
 #else
-# define DEBUGBV BTC_NO_DEBUG_MACRO()
+# define DEBUGBV BCH_NO_DEBUG_MACRO()
 #endif
 
 // #define DEBUG_TRANSACTION_VALIDATION
 #ifdef DEBUG_TRANSACTION_VALIDATION
 # define DEBUGTX logCritical(Log::TxValidation)
 #else
-# define DEBUGTX BTC_NO_DEBUG_MACRO()
+# define DEBUGTX BCH_NO_DEBUG_MACRO()
 #endif
 
 using Validation::Exception;

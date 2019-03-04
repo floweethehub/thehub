@@ -431,19 +431,19 @@ inline SilentItem MessageLogger::noDebug(int) { return SilentItem(); }
 #define logCritical Log::MessageLogger(BTC_MESSAGELOG_FILE, BTC_MESSAGELOG_LINE, BTC_MESSAGELOG_FUNC).critical
 #define logFatal Log::MessageLogger(BTC_MESSAGELOG_FILE, BTC_MESSAGELOG_LINE, BTC_MESSAGELOG_FUNC).fatal
 
-#define BTC_NO_DEBUG_MACRO while (false) Log::MessageLogger().noDebug
+#define BCH_NO_DEBUG_MACRO while (false) Log::MessageLogger().noDebug
 
-#if defined(BTC_NO_DEBUG_OUTPUT)
+#if defined(BCH_NO_DEBUG_OUTPUT)
 #  undef logDebug
-#  define logDebug BTC_NO_DEBUG_MACRO
+#  define logDebug BCH_NO_DEBUG_MACRO
 #endif
-#if defined(BTC_NO_INFO_OUTPUT)
+#if defined(BCH_NO_INFO_OUTPUT)
 #  undef logInfo
-#  define logInfo BTC_NO_DEBUG_MACRO
+#  define logInfo BCH_NO_DEBUG_MACRO
 #endif
-#if defined(BTC_NO_WARNING_OUTPUT)
+#if defined(BCH_NO_WARNING_OUTPUT)
 #  undef logWarning
-#  define logWarning BTC_NO_DEBUG_MACRO
+#  define logWarning BCH_NO_DEBUG_MACRO
 #endif
 
 #include <atomic>

@@ -67,7 +67,7 @@ elseif (NOT CMAKE_BUILD_TYPE AND NOT CMAKE_CONFIGURATION_TYPES)
     message(STATUS "Setting build type to 'ReleaseWithDebugInfo' as none was specified.")
     set(CMAKE_BUILD_TYPE RELWITHDEBINFO)
     # The default build should be free from debugging log-statements.
-    set(CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS_RELEASE} -DBTC_NO_DEBUG_OUTPUT")
+    set(CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS_RELEASE} -DBCH_NO_DEBUG_OUTPUT")
     # Set the possible values of build type for cmake-gui
     set_property(CACHE CMAKE_BUILD_TYPE PROPERTY STRINGS "Debug" "Release" "RelWithDebInfo")
 elseif (NOT CMAKE_CONFIGURATION_TYPES)
@@ -75,7 +75,7 @@ elseif (NOT CMAKE_CONFIGURATION_TYPES)
 endif ()
 
 # turn off debug logging for release builds
-set(CMAKE_CXX_FLAGS_RELEASE "${CMAKE_CXX_FLAGS_RELEASE} -DBTC_NO_DEBUG_OUTPUT")
+set(CMAKE_CXX_FLAGS_RELEASE "${CMAKE_CXX_FLAGS_RELEASE} -DBCH_NO_DEBUG_OUTPUT")
 
 if (build_tests)
     # add dependency

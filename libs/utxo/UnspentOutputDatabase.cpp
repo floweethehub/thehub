@@ -37,7 +37,7 @@
 #ifdef DEBUG_UTXO
 # define DEBUGUTXO logCritical(Log::UTXO)
 #else
-# define DEBUGUTXO BTC_NO_DEBUG_MACRO()
+# define DEBUGUTXO BCH_NO_DEBUG_MACRO()
 #endif
 
 /*

@@ -48,7 +48,7 @@
 #ifdef DEBUG_BLOCK_VALIDATION
 # define DEBUGBV logCritical(Log::BlockValidation)
 #else
-# define DEBUGBV BTC_NO_DEBUG_MACRO()
+# define DEBUGBV BCH_NO_DEBUG_MACRO()
 #endif
 
 using Validation::Exception;
