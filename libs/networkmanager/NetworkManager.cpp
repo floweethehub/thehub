@@ -1,6 +1,6 @@
 /*
  * This file is part of the Flowee project
- * Copyright (C) 2016 Tom Zander <tomz@freedommail.ch>
+ * Copyright (C) 2016,2019 Tom Zander <tomz@freedommail.ch>
  *
  * This program is free software: you can redistribute it and/or modify
  * it under the terms of the GNU General Public License as published by
@@ -71,7 +71,7 @@ NetworkManager::~NetworkManager()
 
 NetworkConnection NetworkManager::connection(const EndPoint &remote, ConnectionEnum connect)
 {
-    const bool hasHostname = !remote.ipAddress.is_unspecified() && remote.announcePort > 0;
+    const bool hasHostname = (!remote.ipAddress.is_unspecified() || !remote.hostname.empty()) && remote.announcePort > 0;
 
     if (hasHostname) {
         boost::recursive_mutex::scoped_lock lock(d->mutex);
