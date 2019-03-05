@@ -18,7 +18,7 @@ include_directories(${LIBUTILS_INCLUDES})
 
 add_library(flowee_utxo STATIC
     BucketMap.cpp
-    FloweeCOWList.cpp
+    DataFileList.cpp
     Pruner.cpp
     UnspentOutputDatabase.cpp
 )

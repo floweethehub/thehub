@@ -19,8 +19,8 @@
 #define UNSPENTOUTPUTDATABASEPRIVATE_H
 
 #include "UnspentOutputDatabase.h"
-#include "FloweeCOWList.h"
 #include "BucketMap.h"
+#include "DataFileList.h"
 #include <streaming/BufferPool.h>
 #include <utils/util.h>
 
@@ -249,7 +249,7 @@ public:
 
     const boost::filesystem::path basedir;
 
-    COWList<DataFile*> dataFiles;
+    DataFileList dataFiles;
 
     static Limits limits;
 };

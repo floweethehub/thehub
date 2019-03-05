@@ -1,6 +1,6 @@
 /*
  * This file is part of the Flowee project
- * Copyright (C) 2018 Tom Zander <tomz@freedommail.ch>
+ * Copyright (C) 2019 Tom Zander <tomz@freedommail.ch>
  *
  * This program is free software: you can redistribute it and/or modify
  * it under the terms of the GNU General Public License as published by
@@ -15,17 +15,32 @@
  * You should have received a copy of the GNU General Public License
  * along with this program.  If not, see <http://www.gnu.org/licenses/>.
  */
-#include "FloweeCOWList.h"
+#ifndef DATAFILELIST_H
+#define DATAFILELIST_H
 
-COWListData::COWListData(int newCount, int itemSize)
-    : array(reinterpret_cast<void*>(::malloc(newCount * itemSize)))
-{
-    ref = 1;
-    alloc = newCount;
-    size = 0;
-}
+class DataFileListPrivate;
+class DataFile;
+typedef DataFile* ValueType;
 
-COWListData::COWListData()
-    : ref(1)
+class DataFileList
 {
-}
+public:
+    DataFileList();
+    DataFileList(const DataFileList &other);
+    ~DataFileList();
+
+    DataFileList &operator=(DataFileList & other);
+
+    int size() const;
+    void clear();
+    DataFile *at(int i) const;
+    DataFile *last() const;
+    void append(DataFile *datafile);
+    ValueType &operator[](int pos);
+    bool isEmpty() const;
+
+private:
+    DataFileListPrivate *d = nullptr;
+};
+
+#endif

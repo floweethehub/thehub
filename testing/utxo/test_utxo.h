@@ -39,6 +39,8 @@ private slots:
     void restart();
     void commit();
 
+    void cowList();
+
 private:
     void insertTransactions(UnspentOutputDatabase &db, int number);
     uint256 insertedTxId(int index);

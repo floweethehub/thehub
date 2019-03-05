@@ -227,7 +227,7 @@ void UnspentOutputDatabase::insert(const uint256 &txid, int outIndex, int blockH
 
 UnspentOutput UnspentOutputDatabase::find(const uint256 &txid, int index) const
 {
-    COWList<DataFile*> dataFiles(d->dataFiles);
+    DataFileList dataFiles(d->dataFiles);
     for (int i = dataFiles.size(); i > 0; --i) {
         auto answer = dataFiles.at(i - 1)->find(txid, index);
         if (answer.isValid()) {
@@ -244,7 +244,7 @@ SpentOutput UnspentOutputDatabase::remove(const uint256 &txid, int index, uint64
     const int32_t dbHint = static_cast<int32_t>((rmHint >> 32) & 0xFFFFFF);
     const uint32_t leafHint = rmHint & 0xFFFFFFFF;
     if (dbHint == 0) { // we don't know which one holds the data, which means we'll have to try all until we got a hit.
-        COWList<DataFile*> dataFiles(d->dataFiles);
+        DataFileList dataFiles(d->dataFiles);
         for (int i = dataFiles.size(); i > 0; --i) {
             done  = dataFiles.at(i - 1)->remove(d, txid, index, leafHint);
             if (done.isValid())
@@ -324,7 +324,7 @@ void UnspentOutputDatabase::blockFinished(int blockheight, const uint256 &blockI
 
 void UnspentOutputDatabase::rollback()
 {
-    COWList<DataFile*> dataFiles(d->dataFiles);
+    DataFileList dataFiles(d->dataFiles);
     for (int i = 0; i < dataFiles.size(); ++i) {
         dataFiles.at(i)->rollback();
     }
@@ -369,11 +369,11 @@ UODBPrivate::UODBPrivate(boost::asio::io_service &service, const boost::filesyst
         if (status.type() != boost::filesystem::regular_file)
             break;
 
-        dataFiles.push_back(new DataFile(path));
+        dataFiles.append(new DataFile(path));
         ++i;
     }
-    if (dataFiles.empty()) {
-        dataFiles.push_back(DataFile::createDatafile(filepathForIndex(1), 0, uint256()));
+    if (dataFiles.isEmpty()) {
+        dataFiles.append(DataFile::createDatafile(filepathForIndex(1), 0, uint256()));
     } else {
         // find a checkpoint version all datafiles can agree on.
         bool allEqual = false;

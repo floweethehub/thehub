@@ -21,6 +21,8 @@
 #include <WorkerThreads.h>
 #include <util.h>
 
+#include <utxo/UnspentOutputDatabase_p.h>
+
 void TestUtxo::init()
 {
     m_testPath = GetTempPath() / strprintf("test_flowee_%lu", (unsigned long)GetTime());
@@ -77,7 +79,6 @@ void TestUtxo::basic()
     rmData = db.remove(txid, 0);
     QCOMPARE(rmData.isValid(), false);
     QVERIFY(rmData.blockHeight <= 0);
-
 }
 
 // test if we can keep multiple entries separate
@@ -312,6 +313,27 @@ void TestUtxo::commit()
         QVERIFY(db.find(txid5, 11).isValid());
         QVERIFY(db.find(txid5, 13).isValid());
     }
+}
+
+void TestUtxo::cowList()
+{
+    DataFileList list;
+    auto x = DataFile::createDatafile((m_testPath / "testdb").string(), 1, uint256());
+    list.append(x);
+    QVERIFY(x == list[0]);
+    QVERIFY(x == list.at(0));
+
+    auto copy(list);
+    QVERIFY(x == copy[0]);
+    QVERIFY(x == copy.at(0));
+
+    copy[0] = nullptr;
+    QVERIFY(x == list[0]);
+    QVERIFY(x == list.at(0));
+    QVERIFY(nullptr == copy[0]);
+    QVERIFY(nullptr == copy.at(0));
+
+    delete x;
 }
 
 QTEST_MAIN(TestUtxo)
