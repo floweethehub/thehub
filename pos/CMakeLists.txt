@@ -60,6 +60,7 @@ if (${Qt5Sql_FOUND} AND ${Qt5Quick_FOUND})
     add_executable(cashier ${CASHIER_SOURCES} ${CASHIER_SOURCES_QR})
 
     target_link_libraries(cashier ${POS_LIBS} Qt5::Quick Qt5::Sql ${QREncode_LIBRARIES})
+    install(PROGRAMS ${CMAKE_CURRENT_BINARY_DIR}/cashier DESTINATION bin)
 endif ()
 
 
@@ -71,5 +72,4 @@ add_executable(pos
 )
 target_link_libraries(pos ${POS_LIBS} Qt5::Core)
 
-install(PROGRAMS ${CMAKE_CURRENT_BINARY_DIR}/cashier DESTINATION bin)
 install(PROGRAMS ${CMAKE_CURRENT_BINARY_DIR}/pos DESTINATION bin)
