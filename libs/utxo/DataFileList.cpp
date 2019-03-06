@@ -20,6 +20,7 @@
 
 #include <deque>
 #include <atomic>
+#include <utility>
 
 class DataFileListPrivate
 {
@@ -80,19 +81,19 @@ DataFile *DataFileList::last() const
 
 void DataFileList::append(DataFile *datafile)
 {
-    auto newD = new DataFileListPrivate(d);
-    newD->list.push_back(datafile);
-    if (d->ref.fetch_sub(1) == 1)
-        delete d;
-    d = newD;
+    auto priv = new DataFileListPrivate(d);
+    priv->list.push_back(datafile);
+    std::swap(priv, d);
+    if (priv->ref.fetch_sub(1) == 1)
+        delete priv;
 }
 
 ValueType &DataFileList::operator[](int pos)
 {
-    auto newD = new DataFileListPrivate(d);
-    if (d->ref.fetch_sub(1) == 1)
-        delete d;
-    d = newD;
+    auto priv = new DataFileListPrivate(d);
+    std::swap(priv, d);
+    if (priv->ref.fetch_sub(1) == 1)
+        delete priv;
     return d->list[pos];
 }
 
