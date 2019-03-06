@@ -355,11 +355,30 @@ uint256 UnspentOutputDatabase::blockId() const
 
 
 // ///////////////////////////////////////////////////////////////////////
+#ifdef linux
+#include <sys/ioctl.h>
+#include <linux/fs.h>
+#endif
 
 UODBPrivate::UODBPrivate(boost::asio::io_service &service, const boost::filesystem::path &basedir)
     : ioService(service),
       basedir(basedir)
 {
+    boost::filesystem::create_directories(basedir);
+#ifdef linux
+    // make sure that the dir we open up in has the "NO-CoW" flag set, in case this is
+    // a btrfs filesystem. We are much slower when copy-on-write is enabled.
+    FILE *fp = fopen(basedir.string().c_str(), "r");
+    if (fp) {
+        int flags;
+        int rc = ioctl(fileno(fp), FS_IOC_GETFLAGS, &flags);
+        if (rc == 0 && (flags & FS_NOCOW_FL) == 0) {
+            flags |= FS_NOCOW_FL;
+            ioctl(fileno(fp), FS_IOC_SETFLAGS, &flags); // ignore result, its Ok to fail.
+        }
+        fclose(fp);
+    }
+#endif
     int i = 1;
     while(true) {
         auto path = filepathForIndex(i);
