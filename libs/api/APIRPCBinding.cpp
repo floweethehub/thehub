@@ -398,6 +398,7 @@ public:
     }
 };
 
+#ifdef ENABLE_WALLET
 // wallet
 
 class ListUnspent : public APIRPCBinding::RpcParser
@@ -481,6 +482,7 @@ public:
         builder.add(Api::Wallet::BitcoinAddress, result.get_str());
     }
 };
+#endif
 
 // Util
 
@@ -564,6 +566,7 @@ APIRPCBinding::Parser *APIRPCBinding::createParser(const Message &message)
             return new SignRawTransaction();
         }
         break;
+#ifdef ENABLE_WALLET
     case Api::WalletService:
         switch (message.messageId()) {
         case Api::Wallet::ListUnspent:
@@ -572,6 +575,7 @@ APIRPCBinding::Parser *APIRPCBinding::createParser(const Message &message)
             return new GetNewAddress();
         }
         break;
+#endif
     case Api::UtilService:
         switch (message.messageId()) {
         case Api::Util::CreateAddress:
