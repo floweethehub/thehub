@@ -1,6 +1,6 @@
 /*
  * This file is part of the Flowee project
- * Copyright (C) 2016-2017 Tom Zander <tomz@freedommail.ch>
+ * Copyright (C) 2016-2017,2019 Tom Zander <tomz@freedommail.ch>
  *
  * This program is free software: you can redistribute it and/or modify
  * it under the terms of the GNU General Public License as published by
@@ -35,7 +35,7 @@ namespace {
 
 // blockchain
 
-class GetBlockChainInfo : public APIRPCBinding::RpcParser
+class GetBlockChainInfo : public Api::RpcParser
 {
 public:
     GetBlockChainInfo() : RpcParser("getblockchaininfo", Api::BlockChain::GetBlockChainInfoReply, 500) {}
@@ -77,13 +77,13 @@ public:
     }
 };
 
-class GetBestBlockHash : public APIRPCBinding::RpcParser
+class GetBestBlockHash : public Api::RpcParser
 {
 public:
     GetBestBlockHash() : RpcParser("getbestblockhash", Api::BlockChain::GetBestBlockHashReply, 50) {}
 };
 
-class GetBlock : public APIRPCBinding::RpcParser
+class GetBlock : public Api::RpcParser
 {
 public:
     GetBlock() : RpcParser("getblock", Api::BlockChain::GetBlockReply), m_verbose(false) {}
@@ -173,7 +173,7 @@ private:
     bool m_verbose;
 };
 
-class GetBlockHeader : public APIRPCBinding::DirectParser
+class GetBlockHeader : public Api::DirectParser
 {
 public:
     GetBlockHeader() : DirectParser(Api::BlockChain::GetBlockHeaderReply, 190) {}
@@ -219,7 +219,7 @@ public:
     }
 };
 
-class GetBlockCount : public APIRPCBinding::DirectParser
+class GetBlockCount : public Api::DirectParser
 {
 public:
     GetBlockCount() : DirectParser(Api::BlockChain::GetBlockCountReply, 20) {}
@@ -231,7 +231,7 @@ public:
 
 // raw transactions
 
-class GetRawTransaction : public APIRPCBinding::RpcParser
+class GetRawTransaction : public Api::RpcParser
 {
 public:
     GetRawTransaction() : RpcParser("getrawtransaction", Api::RawTransactions::GetRawTransactionReply) {}
@@ -252,7 +252,7 @@ public:
     }
 };
 
-class SendRawTransaction : public APIRPCBinding::RpcParser
+class SendRawTransaction : public Api::RpcParser
 {
 public:
     SendRawTransaction() : RpcParser("sendrawtransaction", Api::RawTransactions::SendRawTransactionReply, 10) {}
@@ -279,10 +279,10 @@ struct PrevTransaction {
     }
 };
 
-class SignRawTransaction : public APIRPCBinding::RpcParser
+class SignRawTransaction : public Api::RpcParser
 {
 public:
-    SignRawTransaction() : APIRPCBinding::RpcParser("signrawtransaction", Api::RawTransactions::SignRawTransactionReply) {}
+    SignRawTransaction() : Api::RpcParser("signrawtransaction", Api::RawTransactions::SignRawTransactionReply) {}
 
     virtual void createRequest(const Message &message, UniValue &output) {
         output = UniValue(UniValue::VARR);
@@ -401,7 +401,7 @@ public:
 #ifdef ENABLE_WALLET
 // wallet
 
-class ListUnspent : public APIRPCBinding::RpcParser
+class ListUnspent : public Api::RpcParser
 {
 public:
     ListUnspent() : RpcParser("listunspent", Api::Wallet::ListUnspentReply) {}
@@ -474,7 +474,7 @@ public:
     }
 };
 
-class GetNewAddress : public APIRPCBinding::RpcParser
+class GetNewAddress : public Api::RpcParser
 {
 public:
     GetNewAddress() : RpcParser("getnewaddress", Api::Wallet::GetNewAddressReply, 50) {}
@@ -486,7 +486,7 @@ public:
 
 // Util
 
-class CreateAddress : public APIRPCBinding::RpcParser
+class CreateAddress : public Api::RpcParser
 {
 public:
     CreateAddress() : RpcParser("createaddress", Api::Util::CreateAddressReply, 150) {}
@@ -504,7 +504,7 @@ public:
     }
 };
 
-class ValidateAddress : public APIRPCBinding::RpcParser {
+class ValidateAddress : public Api::RpcParser {
 public:
     ValidateAddress() : RpcParser("validateaddress", Api::Util::ValidateAddressReply, 300) {}
 
@@ -529,10 +529,11 @@ public:
         }
     }
 };
+
 }
 
 
-APIRPCBinding::Parser *APIRPCBinding::createParser(const Message &message)
+Api::Parser *Api::createParser(const Message &message)
 {
     switch (message.serviceId()) {
     case Api::BlockChainService:
@@ -589,36 +590,36 @@ APIRPCBinding::Parser *APIRPCBinding::createParser(const Message &message)
 }
 
 
-APIRPCBinding::Parser::Parser(ParserType type, int answerMessageId, int messageSize)
+Api::Parser::Parser(ParserType type, int answerMessageId, int messageSize)
     : m_messageSize(messageSize),
       m_replyMessageId(answerMessageId),
       m_type(type)
 {
 }
 
-APIRPCBinding::RpcParser::RpcParser(const std::string &method, int replyMessageId, int messageSize)
+Api::RpcParser::RpcParser(const std::string &method, int replyMessageId, int messageSize)
     : Parser(WrapsRPCCall, replyMessageId, messageSize),
       m_method(method)
 {
 }
 
-void APIRPCBinding::RpcParser::buildReply(Streaming::MessageBuilder &builder, const UniValue &result)
+void Api::RpcParser::buildReply(Streaming::MessageBuilder &builder, const UniValue &result)
 {
     std::vector<char> answer;
     boost::algorithm::unhex(result.get_str(), back_inserter(answer));
     builder.add(1, answer);
 }
 
-void APIRPCBinding::RpcParser::createRequest(const Message &, UniValue &)
+void Api::RpcParser::createRequest(const Message &, UniValue &)
 {
 }
 
-int APIRPCBinding::RpcParser::calculateMessageSize(const UniValue &result) const
+int Api::RpcParser::calculateMessageSize(const UniValue &result) const
 {
     return result.get_str().size() + 20;
 }
 
-APIRPCBinding::DirectParser::DirectParser(int replyMessageId, int messageSize)
+Api::DirectParser::DirectParser(int replyMessageId, int messageSize)
     : Parser(IncludesHandler, replyMessageId, messageSize)
 {
 }

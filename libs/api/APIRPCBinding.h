@@ -28,7 +28,7 @@ namespace Streaming {
 class UniValue;
 class Message;
 
-namespace APIRPCBinding
+namespace Api
 {
     /**
      * This class, and its subclasses RpcParser / DirectParser are the baseclasses for specific commands.
@@ -64,6 +64,7 @@ namespace APIRPCBinding
     };
 
     /**
+     * A parser that binds to an existing (legacy) RPC call to execute the API call.
      * When a new request comes in from the network, the specific parser that can handle this
      * is instantiated and then createReqeust() is called with the message we received from the network,
      * followed by a call to buildReply() which is meant to build the answer.
@@ -112,6 +113,7 @@ namespace APIRPCBinding
     };
 
     /**
+     * A parser that calls directly to the libraries to execute the API call.
      * When a new request comes in from the network, the specific parser that can handle this
      * is instantiated and then buildReply() is called with the message we received from the network,
      * expecting a reply to be created to be send back to the caller.

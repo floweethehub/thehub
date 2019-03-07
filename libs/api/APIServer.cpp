@@ -222,9 +222,9 @@ void Api::Server::Connection::incomingMessage(const Message &message)
 {
     if (message.serviceId() >= 40) // not a service we handle
         return;
-    std::unique_ptr<APIRPCBinding::Parser> parser;
+    std::unique_ptr<Api::Parser> parser;
     try {
-        parser.reset(APIRPCBinding::createParser(message));
+        parser.reset(Api::createParser(message));
         assert(parser.get()); // createParser should never return a nullptr
     } catch (const std::exception &e) {
         logWarning(Log::ApiServer) << e;
@@ -234,7 +234,7 @@ void Api::Server::Connection::incomingMessage(const Message &message)
 
     assert(parser.get());
 
-    auto *rpcParser = dynamic_cast<APIRPCBinding::RpcParser*>(parser.get());
+    auto *rpcParser = dynamic_cast<Api::RpcParser*>(parser.get());
     if (rpcParser) {
         assert(!rpcParser->method().empty());
         try {
@@ -270,7 +270,7 @@ void Api::Server::Connection::incomingMessage(const Message &message)
         }
         return;
     }
-    auto *directParser = dynamic_cast<APIRPCBinding::DirectParser*>(parser.get());
+    auto *directParser = dynamic_cast<Api::DirectParser*>(parser.get());
     if (directParser) {
         m_bufferPool.reserve(directParser->calculateMessageSize());
         Streaming::MessageBuilder builder(m_bufferPool);
