@@ -275,7 +275,7 @@ void Api::Server::Connection::incomingMessage(const Message &message)
     auto *directParser = dynamic_cast<Api::DirectParser*>(parser.get());
     assert(directParser);
     if (directParser) {
-        m_bufferPool.reserve(directParser->calculateMessageSize());
+        m_bufferPool.reserve(directParser->calculateMessageSize(message));
         logInfo(Log::ApiServer) << message.serviceId() << '/' << message.messageId();
         Streaming::MessageBuilder builder(m_bufferPool);
         directParser->buildReply(message, builder);

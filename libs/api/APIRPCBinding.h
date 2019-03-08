@@ -124,7 +124,7 @@ namespace Api
 
         /// Return the size we shall reserve for the message to be created in buildReply.
         /// This size CAN NOT be smaller than what is actually consumed in buildReply.
-        virtual int calculateMessageSize() const { return m_messageSize; }
+        virtual int calculateMessageSize(const Message &request) { return m_messageSize; }
 
         /**
          * @brief The buildReply method takes the request and builds the reply to be sent over the network.

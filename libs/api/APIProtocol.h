@@ -159,6 +159,8 @@ enum MessageIds {
     GetBestBlockHashReply,
     GetBlock,
     GetBlockReply,
+    GetBlockVerbose,
+    GetBlockVerboseReply,
     GetBlockHeader,
     GetBlockHeaderReply,
     GetBlockCount,
@@ -193,8 +195,8 @@ enum Tags {
     Bip9ForkId,
     Bip9ForkStatus,
 
-    // GetBlock-tags
-    BlockHash = 40,
+    // GetBlockVerbose-tags
+    BlockHash = 60,
     Confirmations,
     Height,
     MerkleRoot,

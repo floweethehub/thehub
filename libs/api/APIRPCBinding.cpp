@@ -31,6 +31,8 @@
 
 #include <list>
 
+#include <primitives/FastBlock.h>
+
 namespace {
 
 // blockchain
@@ -83,21 +85,28 @@ public:
     GetBestBlockHash() : RpcParser("getbestblockhash", Api::BlockChain::GetBestBlockHashReply, 50) {}
 };
 
-class GetBlock : public Api::RpcParser
+class GetBlockLegacy : public Api::RpcParser
 {
 public:
-    GetBlock() : RpcParser("getblock", Api::BlockChain::GetBlockReply), m_verbose(false) {}
+    GetBlockLegacy() : RpcParser("getblock", Api::BlockChain::GetBlockVerboseReply), m_verbose(true) {}
     virtual void createRequest(const Message &message, UniValue &output) {
-        std::string txid;
+        std::string blockId;
         Streaming::MessageParser parser(message.body());
         while (parser.next() == Streaming::FoundTag) {
             if (parser.tag() == Api::BlockChain::BlockHash
-                    || parser.tag() == Api::RawTransactions::GenericByteData)
-                boost::algorithm::hex(parser.bytesData(), back_inserter(txid));
-            else if (parser.tag() == Api::BlockChain::Verbose)
+                    || parser.tag() == Api::RawTransactions::GenericByteData) {
+                boost::algorithm::hex(parser.bytesData(), back_inserter(blockId));
+            } else if (parser.tag() == Api::BlockChain::Verbose) {
                 m_verbose = parser.boolData();
+            } else if (parser.tag() == Api::BlockChain::Height) {
+                auto index = Blocks::DB::instance()->headerChain()[parser.intData()];
+                if (index) {
+                    const uint256 blockHash = index->GetBlockHash();
+                    boost::algorithm::hex(blockHash.begin(), blockHash.end(), back_inserter(blockId));
+                }
+            }
         }
-        output.push_back(std::make_pair("block", UniValue(UniValue::VSTR, txid)));
+        output.push_back(std::make_pair("block", UniValue(UniValue::VSTR, blockId)));
         output.push_back(std::make_pair("verbose", UniValue(UniValue::VBOOL, m_verbose ? "1": "0")));
     }
 
@@ -219,6 +228,49 @@ public:
     }
 };
 
+/*
+ * To receive a block should be hyper configurable.
+ * The requestor can want the raw block
+ * They should also be able to just get txids, offset-in-block,
+ * only inputs or outputs, maybe outputs that are op_return removed,
+ * and last we should allow a filter on addresses so we only ship
+ * the transactions with outputs matching the filter and filter on
+ * 'from' transaction-ids for same.
+ */
+class GetBlock : public Api::DirectParser
+{
+public:
+    GetBlock() : DirectParser(Api::BlockChain::GetBlockReply) {}
+
+    int calculateMessageSize(const Message &request) {
+        CBlockIndex *index = nullptr;
+        Streaming::MessageParser parser(request.body());
+        while (parser.next() == Streaming::FoundTag) {
+            if (parser.tag() == Api::BlockChain::BlockHash
+                    || parser.tag() == Api::RawTransactions::GenericByteData) {
+                if (parser.dataLength() == 32)
+                    index = Blocks::Index::get(uint256(&parser.bytesData()[0]));
+            } else if (parser.tag() == Api::BlockChain::Height) {
+                index = Blocks::DB::instance()->headerChain()[parser.intData()];
+            }
+        }
+        if (index == nullptr)
+            return 0;
+        try {
+            m_block = Blocks::DB::instance()->loadBlock(index->GetBlockPos());
+            return m_block.size();
+        } catch (...) {
+            return 0;
+        }
+    }
+
+    void buildReply(const Message&, Streaming::MessageBuilder &builder) {
+        if (m_block.isFullBlock())
+            builder.add(Api::BlockChain::GenericByteData, m_block.data());
+    }
+
+    FastBlock m_block;
+};
 class GetBlockCount : public Api::DirectParser
 {
 public:
@@ -411,7 +463,6 @@ public:
     }
 
     virtual void createRequest(const Message &message, UniValue &output) {
-        std::string txid;
         int minConf = -1;
         int maxConf = -1;
         std::list<std::vector<char>> addresses;
@@ -541,6 +592,8 @@ Api::Parser *Api::createParser(const Message &message)
             return new GetBestBlockHash();
         case Api::BlockChain::GetBlock:
             return new GetBlock();
+        case Api::BlockChain::GetBlockVerbose:
+            return new GetBlockLegacy();
         case Api::BlockChain::GetBlockHeader:
             return new GetBlockHeader();
         case Api::BlockChain::GetBlockCount:
