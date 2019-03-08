@@ -91,7 +91,7 @@ flowee-the-hub-linux.zip:
   - build-static
   only:
     - master
-    - "2018.02"
+    - "2019.01"
 
 createHubDocker:
   stage: deploy
