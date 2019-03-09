@@ -117,7 +117,7 @@ public:
     /// consume a number of bytes without parsing.
     void consume(int bytes);
 
-    static void debugMessage(const Message &message);
+    static void debugMessage(int section, const Message &message);
 
     static int32_t read32int(const char *buffer);
     static int16_t read16int(const char *buffer);

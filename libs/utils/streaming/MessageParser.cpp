@@ -274,7 +274,7 @@ void Streaming::MessageParser::consume(int bytes)
     m_position += bytes;
 }
 
-void Streaming::MessageParser::debugMessage(const Message &message)
+void Streaming::MessageParser::debugMessage(int section, const Message &message)
 {
     MessageParser parser(message.body());
     Streaming::ParsedType type;
@@ -283,24 +283,19 @@ void Streaming::MessageParser::debugMessage(const Message &message)
         if (type != Streaming::FoundTag)
             break;
         if (parser.isInt())
-            LogPrintf(" + %d = %d\n", parser.tag(), parser.intData());
+            logCritical(section) << " +" << parser.tag() << "=" << parser.intData();
         else if (parser.isLong())
-            LogPrintf(" + %d = %ld\n", parser.tag(), parser.longData());
+            logCritical(section) << " +" << parser.tag() << "=" << parser.longData();
         else if (parser.isString())
-            LogPrintf(" + %d = \"%s\"\n", parser.tag(), parser.stringData().c_str());
+            logCritical(section) << " +" << parser.tag() << "=" << parser.stringData();
         else if (parser.isBool())
-            LogPrintf(" + %d = %s\n", parser.tag(), parser.boolData() ? "true" : "false");
-        else if (parser.isByteArray()) {
-            std::string output;
-            boost::algorithm::hex(parser.bytesData(), back_inserter(output));
-            if (output.size() > 400)
-                output = output.substr(0, 400);
-            LogPrintf(" + %d = %s\n", parser.tag(), output.c_str());
-        }
+            logCritical(section) << " +" << parser.tag() << "=" << parser.boolData();
+        else if (parser.isByteArray())
+            logCritical(section) << " +" << parser.tag() << "=" << parser.bytesData();
         else if (parser.isDouble())
-            LogPrintf(" + %d = %E\n", parser.tag(), parser.doubleData());
+            logCritical(section) << " +" << parser.tag() << "=" << parser.doubleData();
         else
-            LogPrintf(" + %d = [unknown]\n", parser.tag());
+            logCritical(section) << " +" << parser.tag() << "=[unknown]";
     }
 }
 
