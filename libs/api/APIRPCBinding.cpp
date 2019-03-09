@@ -658,6 +658,44 @@ public:
     }
 };
 
+class RegTestGenerateBlock : public Api::RpcParser {
+public:
+    RegTestGenerateBlock() : RpcParser("generate", Api::RegTest::GenerateBlockReply) {}
+
+    void createRequest(const Message &message, UniValue &output) {
+        Streaming::MessageParser parser(message.body());
+        int amount = 1;
+        std::vector<uint8_t> outAddress;
+        while (parser.next() == Streaming::FoundTag) {
+            if (parser.tag() == Api::RegTest::Amount)
+                amount = parser.intData();
+            else if (parser.tag() == Api::RegTest::BitcoinAddress)
+                outAddress = parser.unsignedBytesData();
+        }
+        if (amount <= 0 || amount > 150)
+            throw Api::ParserException("Invalid Amount argument");
+        if (outAddress.size() != 20)
+            throw Api::ParserException("Invalid BitcoinAddress (need 20 byte array)");
+
+        std::string hex;
+        boost::algorithm::hex(outAddress, back_inserter(hex));
+        output.push_back(std::make_pair("item0", UniValue(amount)));
+        logFatal() << "address: " << hex;
+        output.push_back(std::make_pair("item1", UniValue(UniValue::VSTR, hex)));
+        m_messageSize = amount * 35;
+    }
+
+    void buildReply(Streaming::MessageBuilder &builder, const UniValue &result) {
+        assert(result.getType() == UniValue::VARR);
+        for (int i = 0; i < result.size(); ++i) {
+            assert(result[i].get_str().size() == 64);
+            std::vector<char> hex;
+            boost::algorithm::unhex(result[i].get_str(), back_inserter(hex));
+            builder.add(Api::RegTest::BlockHash, hex);
+        }
+    }
+};
+
 }
 
 
@@ -713,6 +751,12 @@ Api::Parser *Api::createParser(const Message &message)
             return new CreateAddress();
         case Api::Util::ValidateAddress:
             return new ValidateAddress();
+        }
+        break;
+    case Api::RegTestService:
+        switch (message.messageId()) {
+        case Api::RegTest::GenerateBlock:
+            return new RegTestGenerateBlock();
         }
         break;
     }

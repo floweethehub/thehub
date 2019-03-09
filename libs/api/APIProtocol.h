@@ -27,6 +27,7 @@ enum ServiceIds {
     RawTransactionService,
     BlockChainService,
     WalletService,
+    RegTestService,
 
     /// Connections can subscribe to bitcoin-address usage notifications
     AddressMonitorService = 40,
@@ -322,6 +323,23 @@ enum Tags {
     /// A string giving a human (well, developer) readable error message
     ErrorMessage
 };
+}
+namespace RegTest {
+
+// RegTest Service
+enum MessageIds {
+    GenerateBlock,
+    GenerateBlockReply
+};
+
+enum Tags {
+    Separator = 0,
+    GenericByteData,
+    BitcoinAddress,
+    Amount,
+    BlockHash
+};
+
 }
 }
 #endif

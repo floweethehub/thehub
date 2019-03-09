@@ -566,15 +566,23 @@ CScript Mining::ScriptForCoinbase(const std::string &coinbase)
 
     if (IsHex(coinbase)) {
         std::vector<unsigned char> data(ParseHex(coinbase));
-        CPubKey pubKey(data.begin(), data.end());
-        if (!pubKey.IsFullyValid())
-            throw std::runtime_error("Pubkey is not a valid public key");
-
+        if (data.size() != 20)
+            throw std::runtime_error("Invalid hash160");
         CScript answer;
-        answer << ToByteVector(data) << OP_CHECKSIG;
+        answer << OP_DUP << OP_HASH160 << ToByteVector(data) << OP_EQUALVERIFY << OP_CHECKSIG;
         return answer;
     }
-    throw std::runtime_error("pubkey not in recognized format");
+    CBitcoinAddress ad(coinbase);
+    if (ad.IsValid()) {
+        CKeyID id;
+        if (ad.GetKeyID(id)) {
+            std::vector<unsigned char> data(id.begin(), id.end());
+            CScript answer;
+            answer << OP_DUP << OP_HASH160 << data << OP_EQUALVERIFY << OP_CHECKSIG;
+            return answer;
+        }
+    }
+    throw std::runtime_error("address not in recognized format");
 }
 
 void Mining::GenerateBitcoins(bool fGenerate, int nThreads, const CChainParams& chainparams, const std::string &coinbase_)
