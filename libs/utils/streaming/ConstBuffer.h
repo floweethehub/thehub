@@ -1,6 +1,6 @@
 /*
  * This file is part of the Flowee project
- * Copyright (C) 2016 Tom Zander <tomz@freedommail.ch>
+ * Copyright (C) 2016, 2019 Tom Zander <tomz@freedommail.ch>
  *
  * This program is free software: you can redistribute it and/or modify
  * it under the terms of the GNU General Public License as published by
@@ -20,6 +20,7 @@
 
 #include <memory>
 #include <boost/asio/buffer.hpp>
+#include "Logger.h"
 
 namespace Streaming
 {
@@ -72,5 +73,28 @@ private:
     char const* m_stop;
 };
 }
+
+inline Log::Item operator<<(Log::Item item, const Streaming::ConstBuffer &buf) {
+    if (item.isEnabled()) {
+        const bool old = item.useSpace();
+        item.nospace() << '{';
+        const bool tooLong = buf.size() > 80;
+        const uint8_t *end = reinterpret_cast<const uint8_t*>(tooLong ? buf.begin() + 77 : buf.end());
+        for (const uint8_t *p = reinterpret_cast<const uint8_t*>(buf.begin()); p < end; ++p) {
+            char h = '0' + (*p >> 4);
+            if (h > '9') h += 7;
+            char l = '0' + (*p & 0xF);
+            if (l > '9') l += 7;
+            item << h << l;
+        }
+        if (tooLong) item << "...";
+        item << '}';
+        if (old)
+            return item.space();
+    }
+    return item;
+}
+inline Log::SilentItem operator<<(Log::SilentItem item, const Streaming::ConstBuffer&) { return item; }
+
 
 #endif
