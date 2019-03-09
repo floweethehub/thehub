@@ -1196,8 +1196,9 @@ bool FlushStateToDisk(CValidationState &state, FlushStateMode mode) {
                 vBlocks.push_back(*it);
                 setDirtyBlockIndex.erase(it++);
             }
-            if (!Blocks::DB::instance()->WriteBatchSync(vFiles, nLastBlockFile, vBlocks)) {
-                return AbortNode(state, "Files to write to block index database");
+            if (Blocks::DB::instance()) { // only when we actually finished init
+                if (!Blocks::DB::instance()->WriteBatchSync(vFiles, nLastBlockFile, vBlocks))
+                    return AbortNode(state, "Files to write to block index database");
             }
         }
         // Finally remove any pruned files
