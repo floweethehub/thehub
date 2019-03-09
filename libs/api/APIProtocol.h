@@ -195,8 +195,38 @@ enum Tags {
     Bip9ForkId,
     Bip9ForkStatus,
 
+    // GetBlockReply tags
+// TODO
+    // txid
+    // height
+    // prevTxId
+    // input
+    // script  (in or out)
+    // amount
+    // address
+    //
+
+    // GetBlock-Request-tags
+    // GetBlock can filter a block to only return transactions that match a bitcoin-address filter
+    // (list of addresses).
+    ReuseAddressFilter = 50, ///< A getBlock call resuses a previously created address filter. bool
+    SetFilterAddress,        ///< Followed with one bytearray address. Clears and sets one address in filter.
+    AddFilterAddress,        ///< Add one bytearray address.
+    // for each individual transaction you can select how they should be returned.
+// TODO
+//   FullTransactionData,     ///< bool. Selects between original Tx data (when true) or tagged interpreted data otherwise.
+//   GetBlock_TxId,           ///< bool.
+//   GetBlock_OffsetInBlock,  ///< bool.
+//   GetBlock_Inputs,         ///< bool.
+//   GetBlock_Outputs,        ///< bool.
+//   GetBlock_OutputAmounts,  ///< bool.
+//   GetBlock_OutputScripts,  ///< bool. Full output Scripts.
+//   GetBlock_OutputAddresses,///< bool. If OutputScripts if false, return addresses for default p2pkh scripts
+//   GetBlock_SkipOpReturns,  ///< bool. if OutputScripts if false, return OP_RETURN based scripts.
+
+
     // GetBlockVerbose-tags
-    BlockHash = 60,
+    BlockHash = 70,
     Confirmations,
     Height,
     MerkleRoot,

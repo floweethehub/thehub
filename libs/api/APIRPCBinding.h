@@ -19,6 +19,8 @@
 #ifndef APIRPCBINDING_H
 #define APIRPCBINDING_H
 
+#include "APIServer.h"
+
 #include <string>
 #include <functional>
 
@@ -30,6 +32,11 @@ class Message;
 
 namespace Api
 {
+    class ParserException : public std::runtime_error {
+    public:
+        ParserException(const char *errorMessage) : std::runtime_error(errorMessage) {}
+    };
+
     /**
      * This class, and its subclasses RpcParser / DirectParser are the baseclasses for specific commands.
      *
@@ -57,10 +64,13 @@ namespace Api
             return m_replyMessageId;
         }
 
+        void setSessionData(SessionData **value);
+
     protected:
         int m_messageSize;
         int m_replyMessageId;
         ParserType m_type;
+        SessionData **data;
     };
 
     /**

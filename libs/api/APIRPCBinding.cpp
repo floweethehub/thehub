@@ -240,11 +240,23 @@ public:
 class GetBlock : public Api::DirectParser
 {
 public:
+    class BlockSessionData : public Api::SessionData
+    {
+    public:
+        std::set<CKeyID> keys; // keys to filter on
+    };
+
     GetBlock() : DirectParser(Api::BlockChain::GetBlockReply) {}
 
     int calculateMessageSize(const Message &request) {
         CBlockIndex *index = nullptr;
         Streaming::MessageParser parser(request.body());
+        BlockSessionData *session = dynamic_cast<BlockSessionData*>(*data);
+        if (session == nullptr) {
+            session = new BlockSessionData();
+            *data = session;
+        }
+
         while (parser.next() == Streaming::FoundTag) {
             if (parser.tag() == Api::BlockChain::BlockHash
                     || parser.tag() == Api::RawTransactions::GenericByteData) {
@@ -252,12 +264,61 @@ public:
                     index = Blocks::Index::get(uint256(&parser.bytesData()[0]));
             } else if (parser.tag() == Api::BlockChain::Height) {
                 index = Blocks::DB::instance()->headerChain()[parser.intData()];
+            } else if (parser.tag() == Api::BlockChain::ReuseAddressFilter) {
+                m_filterOnKeys = parser.boolData();
+            } else if (parser.tag() == Api::BlockChain::SetFilterAddress
+                       ||  parser.tag() == Api::BlockChain::AddFilterAddress) {
+                if (parser.dataLength() != 20)
+                    throw Api::ParserException("GetBlock: filter-address should be a 20bytes bytearray");
+                if (parser.tag() == Api::BlockChain::SetFilterAddress)
+                    session->keys.clear();
+                session->keys.insert(CKeyID(uint160(parser.unsignedBytesData())));
+                m_filterOnKeys = true;
             }
         }
+logFatal() << "GetBlock with filters: " << session->keys.size();
+
         if (index == nullptr)
             return 0;
         try {
             m_block = Blocks::DB::instance()->loadBlock(index->GetBlockPos());
+            if (m_filterOnKeys) {
+                Tx::Iterator iter(m_block);
+                auto type = iter.next();
+                bool oneEnd = false, txMatched = false;
+                int size = 0;
+                while (true) {
+                    if (type == Tx::End) {
+                        if (txMatched) {
+                            Tx prevTx = iter.prevTx();
+                            size += prevTx.size();
+                            m_transactions.push_back(std::make_pair(prevTx.offsetInBlock(m_block), prevTx.size()));
+                            txMatched = false;
+                        }
+                        if (oneEnd) // then the second end means end of block
+                            break;
+                        oneEnd = true;
+                    }
+                    else if (!txMatched && type == Tx::OutputScript) {
+                        CScript scriptPubKey(iter.byteData());
+
+                        std::vector<std::vector<unsigned char> > vSolutions;
+                        txnouttype whichType;
+                        bool recognizedTx = Solver(scriptPubKey, whichType, vSolutions);
+                        if (recognizedTx && (whichType == TX_PUBKEY || whichType == TX_PUBKEYHASH)) {
+                            CKeyID keyID;
+                            if (whichType == TX_PUBKEYHASH)
+                                keyID = CKeyID(uint160(vSolutions[0]));
+                            else if (whichType == TX_PUBKEY)
+                                keyID = CPubKey(vSolutions[0]).GetID();
+                            if (session->keys.find(keyID) != session->keys.end())
+                                txMatched = true;
+                        }
+                    }
+                    type = iter.next();
+                }
+                return size;
+            }
             return m_block.size();
         } catch (...) {
             return 0;
@@ -265,11 +326,19 @@ public:
     }
 
     void buildReply(const Message&, Streaming::MessageBuilder &builder) {
-        if (m_block.isFullBlock())
+        if (m_filterOnKeys) {
+            for (auto posAndSize : m_transactions) {
+                builder.add(Api::BlockChain::GenericByteData,
+                    m_block.data().mid(posAndSize.first, posAndSize.second));
+            }
+        }
+        else if (m_block.isFullBlock())
             builder.add(Api::BlockChain::GenericByteData, m_block.data());
     }
 
     FastBlock m_block;
+    std::vector<std::pair<int, int>> m_transactions; // list of offset-in-block and length of tx to include
+    bool m_filterOnKeys = false;
 };
 class GetBlockCount : public Api::DirectParser
 {
@@ -645,6 +714,11 @@ Api::Parser::Parser(ParserType type, int answerMessageId, int messageSize)
       m_replyMessageId(answerMessageId),
       m_type(type)
 {
+}
+
+void Api::Parser::setSessionData(Api::SessionData **value)
+{
+    data = value;
 }
 
 Api::RpcParser::RpcParser(const std::string &method, int replyMessageId, int messageSize)

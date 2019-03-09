@@ -1,6 +1,6 @@
 /*
  * This file is part of the Flowee project
- * Copyright (C) 2016 Tom Zander <tomz@freedommail.ch>
+ * Copyright (C) 2016, 2019 Tom Zander <tomz@freedommail.ch>
  *
  * This program is free software: you can redistribute it and/or modify
  * it under the terms of the GNU General Public License as published by
@@ -28,9 +28,14 @@
 #include <boost/thread/mutex.hpp>
 #include <boost/asio/deadline_timer.hpp>
 
-class NetworkManager;
-
 namespace Api {
+
+class SessionData
+{
+public:
+    SessionData() {}
+    virtual ~SessionData();
+};
 
 class Server {
 public:
@@ -48,6 +53,7 @@ private:
     class Connection {
     public:
         Connection(NetworkConnection && connection);
+        ~Connection();
         void incomingMessage(const Message &message);
 
         NetworkConnection m_connection;
@@ -56,6 +62,7 @@ private:
         void sendFailedMessage(const Message &origin, const std::string &failReason);
 
         Streaming::BufferPool m_bufferPool;
+        std::map<uint32_t, SessionData*> m_properties;
     };
 
     struct NewConnection {

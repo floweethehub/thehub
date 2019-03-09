@@ -1,6 +1,6 @@
 /*
  * This file is part of the Flowee project
- * Copyright (C) 2016 Tom Zander <tomz@freedommail.ch>
+ * Copyright (C) 2016, 2019 Tom Zander <tomz@freedommail.ch>
  *
  * This program is free software: you can redistribute it and/or modify
  * it under the terms of the GNU General Public License as published by
@@ -220,6 +220,13 @@ Api::Server::Connection::Connection(NetworkConnection && connection)
     m_connection.setOnIncomingMessage(std::bind(&Api::Server::Connection::incomingMessage, this, std::placeholders::_1));
 }
 
+Api::Server::Connection::~Connection()
+{
+    for (auto iter = m_properties.begin(); iter != m_properties.end(); ++iter) {
+        delete iter->second;
+    }
+}
+
 void Api::Server::Connection::incomingMessage(const Message &message)
 {
     if (message.serviceId() >= 40) // not a service we handle
@@ -235,6 +242,10 @@ void Api::Server::Connection::incomingMessage(const Message &message)
     }
 
     assert(parser.get());
+    assert(message.serviceId() < 0xFFFF);
+    assert(message.messageId() < 0xFFFF);
+    const uint32_t sessionDataId = static_cast<uint32_t>(message.serviceId()) << 16 + static_cast<uint32_t>(message.messageId());
+    parser.get()->setSessionData(&m_properties[sessionDataId]);
 
     auto *rpcParser = dynamic_cast<Api::RpcParser*>(parser.get());
     if (rpcParser) {
@@ -264,6 +275,10 @@ void Api::Server::Connection::incomingMessage(const Message &message)
             if (requestId != -1)
                 reply.setHeaderInt(Api::RequestId, requestId);
             m_connection.send(reply);
+        } catch (const ParserException &e) {
+            logWarning(Log::ApiServer) << e;
+            sendFailedMessage(message, e.what());
+            return;
         } catch (const std::exception &e) {
             std::string error = "Interal Error " + std::string(e.what());
             logCritical(Log::ApiServer) << "ApiServer internal error in parsing" << rpcParser->method() <<  e;
@@ -278,12 +293,18 @@ void Api::Server::Connection::incomingMessage(const Message &message)
         m_bufferPool.reserve(directParser->calculateMessageSize(message));
         logInfo(Log::ApiServer) << message.serviceId() << '/' << message.messageId();
         Streaming::MessageBuilder builder(m_bufferPool);
-        directParser->buildReply(message, builder);
-        Message reply = builder.message(message.serviceId(), directParser->replyMessageId());
-        const int requestId = message.headerInt(Api::RequestId);
-        if (requestId != -1)
-            reply.setHeaderInt(Api::RequestId, requestId);
-        m_connection.send(reply);
+        try {
+            directParser->buildReply(message, builder);
+            Message reply = builder.message(message.serviceId(), directParser->replyMessageId());
+            const int requestId = message.headerInt(Api::RequestId);
+            if (requestId != -1)
+                reply.setHeaderInt(Api::RequestId, requestId);
+            m_connection.send(reply);
+        } catch (const ParserException &e) {
+            logWarning(Log::ApiServer) << e;
+            sendFailedMessage(message, e.what());
+            return;
+        }
     }
 }
 
@@ -299,4 +320,10 @@ void Api::Server::Connection::sendFailedMessage(const Message &origin, const std
     if (requestId != -1)
         answer.setHeaderInt(Api::RequestId, requestId);
     m_connection.send(answer);
+}
+
+
+
+Api::SessionData::~SessionData()
+{
 }
