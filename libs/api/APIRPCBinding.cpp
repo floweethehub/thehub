@@ -256,14 +256,17 @@ public:
             session = new BlockSessionData();
             *data = session;
         }
-
+        bool requestOk = false;
         while (parser.next() == Streaming::FoundTag) {
             if (parser.tag() == Api::BlockChain::BlockHash
                     || parser.tag() == Api::RawTransactions::GenericByteData) {
-                if (parser.dataLength() == 32)
-                    index = Blocks::Index::get(uint256(&parser.bytesData()[0]));
+                if (parser.dataLength() != 32)
+                    throw Api::ParserException("BlockHash should be a 32 byte-bytearray");
+                index = Blocks::Index::get(uint256(&parser.bytesData()[0]));
+                requestOk = true;
             } else if (parser.tag() == Api::BlockChain::Height) {
                 index = Blocks::DB::instance()->headerChain()[parser.intData()];
+                requestOk = true;
             } else if (parser.tag() == Api::BlockChain::ReuseAddressFilter) {
                 m_filterOnKeys = parser.boolData();
             } else if (parser.tag() == Api::BlockChain::SetFilterAddress
@@ -276,56 +279,63 @@ public:
                 m_filterOnKeys = true;
             }
         }
-logFatal() << "GetBlock with filters: " << session->keys.size();
 
         if (index == nullptr)
-            return 0;
+            throw Api::ParserException(requestOk ? "Requested block not found" :
+                                                   "Request needs to contain either height or blockhash");
+        m_height = index->nHeight;
         try {
             m_block = Blocks::DB::instance()->loadBlock(index->GetBlockPos());
-            if (m_filterOnKeys) {
-                Tx::Iterator iter(m_block);
-                auto type = iter.next();
-                bool oneEnd = false, txMatched = false;
-                int size = 0;
-                while (true) {
-                    if (type == Tx::End) {
-                        if (txMatched) {
-                            Tx prevTx = iter.prevTx();
-                            size += prevTx.size();
-                            m_transactions.push_back(std::make_pair(prevTx.offsetInBlock(m_block), prevTx.size()));
-                            txMatched = false;
-                        }
-                        if (oneEnd) // then the second end means end of block
-                            break;
-                        oneEnd = true;
-                    }
-                    else if (!txMatched && type == Tx::OutputScript) {
-                        CScript scriptPubKey(iter.byteData());
-
-                        std::vector<std::vector<unsigned char> > vSolutions;
-                        txnouttype whichType;
-                        bool recognizedTx = Solver(scriptPubKey, whichType, vSolutions);
-                        if (recognizedTx && (whichType == TX_PUBKEY || whichType == TX_PUBKEYHASH)) {
-                            CKeyID keyID;
-                            if (whichType == TX_PUBKEYHASH)
-                                keyID = CKeyID(uint160(vSolutions[0]));
-                            else if (whichType == TX_PUBKEY)
-                                keyID = CPubKey(vSolutions[0]).GetID();
-                            if (session->keys.find(keyID) != session->keys.end())
-                                txMatched = true;
-                        }
-                    }
-                    type = iter.next();
-                }
-                return size;
-            }
-            return m_block.size();
+            assert(m_block.isFullBlock());
         } catch (...) {
-            return 0;
+            throw Api::ParserException("Blockdata not present on this Hub");
         }
+
+        if (!m_filterOnKeys)
+            return m_block.size() + 45;
+
+        Tx::Iterator iter(m_block);
+        auto type = iter.next();
+        bool oneEnd = false, txMatched = false;
+        int size = 0;
+        while (true) {
+            if (type == Tx::End) {
+                if (txMatched) {
+                    Tx prevTx = iter.prevTx();
+                    size += prevTx.size();
+                    m_transactions.push_back(std::make_pair(prevTx.offsetInBlock(m_block), prevTx.size()));
+                    txMatched = false;
+                }
+                if (oneEnd) // then the second end means end of block
+                    break;
+                oneEnd = true;
+            }
+            else if (!txMatched && type == Tx::OutputScript) {
+                CScript scriptPubKey(iter.byteData());
+
+                std::vector<std::vector<unsigned char> > vSolutions;
+                txnouttype whichType;
+                bool recognizedTx = Solver(scriptPubKey, whichType, vSolutions);
+                if (recognizedTx && (whichType == TX_PUBKEY || whichType == TX_PUBKEYHASH)) {
+                    CKeyID keyID;
+                    if (whichType == TX_PUBKEYHASH)
+                        keyID = CKeyID(uint160(vSolutions[0]));
+                    else if (whichType == TX_PUBKEY)
+                        keyID = CPubKey(vSolutions[0]).GetID();
+                    if (session->keys.find(keyID) != session->keys.end())
+                        txMatched = true;
+                }
+            }
+            type = iter.next();
+        }
+        return size + 45;
     }
 
     void buildReply(const Message&, Streaming::MessageBuilder &builder) {
+        assert(m_height >= 0);
+        builder.add(Api::BlockChain::Height, m_height);
+        builder.add(Api::BlockChain::BlockHash, m_block.createHash());
+
         if (m_filterOnKeys) {
             for (auto posAndSize : m_transactions) {
                 builder.add(Api::BlockChain::GenericByteData,
@@ -339,6 +349,7 @@ logFatal() << "GetBlock with filters: " << session->keys.size();
     FastBlock m_block;
     std::vector<std::pair<int, int>> m_transactions; // list of offset-in-block and length of tx to include
     bool m_filterOnKeys = false;
+    int m_height = -1;
 };
 class GetBlockCount : public Api::DirectParser
 {
