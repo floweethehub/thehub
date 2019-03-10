@@ -22,6 +22,7 @@ add_library(flowee_api STATIC
     NetworkSubscriptionService.cpp
 
     AddressMonitorService.cpp
+    BlockNotificationService.cpp
 )
 
 target_link_libraries(flowee_api flowee_server flowee_networkmanager)

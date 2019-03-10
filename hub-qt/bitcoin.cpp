@@ -1,6 +1,7 @@
 /*
  * This file is part of the Flowee project
  * Copyright (C) 2011-2015 The Bitcoin Core developers
+ * Copyright (C) 2018-2019 Tom Zander <tomz@freedommail.ch>
  *
  * This program is free software: you can redistribute it and/or modify
  * it under the terms of the GNU General Public License as published by
@@ -68,6 +69,7 @@
 #include <APIServer.h>
 #include <Application.h>
 #include <AddressMonitorService.h>
+#include <BlockNotificationService.h>
 
 #if defined(QT_STATICPLUGIN)
 #include <QtPlugin>
@@ -203,6 +205,7 @@ private:
     CScheduler scheduler;
     std::unique_ptr<Api::Server> apiServer;
     std::unique_ptr<AddressMonitorService> addressMonitorService;
+    std::unique_ptr<BlockNotificationService> blockNotificationService;
 
     /// Pass fatal exception message to UI thread
     void handleRunawayException(const std::exception *e);
@@ -293,9 +296,11 @@ void BitcoinCore::initialize()
         if (GetBoolArg("-api", true)) {
             apiServer.reset(new Api::Server(Application::instance()->ioService()));
             addressMonitorService.reset(new AddressMonitorService());
+            blockNotificationService.reset(new BlockNotificationService());
             extern CTxMemPool mempool;
             addressMonitorService->setMempool(&mempool);
             apiServer->addService(addressMonitorService.get());
+            apiServer->addService(blockNotificationService.get());
         }
     } catch (const std::exception& e) {
         handleRunawayException(&e);
@@ -309,6 +314,7 @@ void BitcoinCore::shutdown()
     try
     {
         qDebug() << __func__ << ": Running Shutdown in thread";
+        blockNotificationService.reset();
         addressMonitorService.reset();
         apiServer.reset();
         Interrupt(threadGroup);

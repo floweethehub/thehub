@@ -31,6 +31,7 @@ enum ServiceIds {
 
     /// Connections can subscribe to bitcoin-address usage notifications
     AddressMonitorService = 40,
+    BlockNotificationService,
 };
 
 enum ApiTags {
@@ -285,6 +286,22 @@ enum Tags {
 };
 }
 
+namespace RegTest {
+
+// RegTest Service
+enum MessageIds {
+    GenerateBlock,
+    GenerateBlockReply
+};
+
+enum Tags {
+    Separator = 0,
+    GenericByteData,
+    BitcoinAddress,
+    Amount,
+    BlockHash
+};
+}
 
 namespace AddressMonitor {
 enum MessageIds {
@@ -310,6 +327,9 @@ enum MessageIds {
 };
 
 enum Tags {
+    Separator = 0,
+    GenericByteData,
+
     /// A string representing an address.
     BitcoinAddress,
     /// A bytearray for a full sha256 txid
@@ -324,22 +344,22 @@ enum Tags {
     ErrorMessage
 };
 }
-namespace RegTest {
 
-// RegTest Service
+namespace BlockNotification {
 enum MessageIds {
-    GenerateBlock,
-    GenerateBlockReply
+    Subscribe,
+    SubscribeReply,
+    Unsubscribe,
+    UnsubscribeReply,
+    NewBlockOnChain,
 };
 
 enum Tags {
     Separator = 0,
     GenericByteData,
-    BitcoinAddress,
-    Amount,
-    BlockHash
+    BlockHash,
+    Height
 };
-
 }
 }
 #endif
