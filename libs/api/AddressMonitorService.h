@@ -1,6 +1,6 @@
 /*
  * This file is part of the Flowee project
- * Copyright (C) 2018 Tom Zander <tomz@freedommail.ch>
+ * Copyright (C) 2018-2019 Tom Zander <tomz@freedommail.ch>
  *
  * This program is free software: you can redistribute it and/or modify
  * it under the terms of the GNU General Public License as published by
@@ -21,7 +21,7 @@
 #include <primitives/pubkey.h>
 
 #include <validationinterface.h>
-#include <NetworkService.h>
+#include <NetworkSubscriptionService.h>
 #include <NetworkConnection.h>
 #include <primitives/FastTransaction.h>
 #include <script/standard.h>
@@ -30,7 +30,7 @@
 
 class CTxMemPool;
 
-class AddressMonitorService : public ValidationInterface, public NetworkService
+class AddressMonitorService : public ValidationInterface, public NetworkSubscriptionService
 {
 public:
     AddressMonitorService();
@@ -42,27 +42,29 @@ public:
     // void SetBestChain(const CBlockLocator &locator) override;
     void DoubleSpendFound(const Tx &first, const Tx &duplicate) override;
 
-    void onIncomingMessage(const Message &message, const EndPoint &ep) override;
-
     inline void setMempool(CTxMemPool *mempool) {
         m_mempool = mempool;
     }
 
-private:
-    struct Remote {
+protected:
+    class RemoteWithKeys : public Remote {
+    public:
         std::set<CKeyID> keys;
-        NetworkConnection connection;
     };
 
+    // NetworkSubscriptionService interface
+    Remote *createRemote() override {
+        return new RemoteWithKeys();
+    }
+
+private:
     enum FindReason {
         Mempool,
         Confirmed,
         Conflicted
     };
 
-    void onDisconnected(const EndPoint &endPoint);
-
-    void handle(Remote *con, const Message &message, const EndPoint &ep);
+    void handle(Remote *con, const Message &message, const EndPoint &ep) override;
 
     void findTransactions(Tx::Iterator && iter, FindReason findReason);
 
@@ -70,7 +72,6 @@ private:
 
     void findTxInMempool(int connectionId, const CKeyID &keyId);
 
-    std::vector<Remote*> m_remotes;
     Streaming::BufferPool m_pool;
 
     // true if any remote added a watch

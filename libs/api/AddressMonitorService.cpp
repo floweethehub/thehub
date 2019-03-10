@@ -1,6 +1,6 @@
 /*
  * This file is part of the Flowee project
- * Copyright (C) 2018 Tom Zander <tomz@freedommail.ch>
+ * Copyright (C) 2018-2019 Tom Zander <tomz@freedommail.ch>
  *
  * This program is free software: you can redistribute it and/or modify
  * it under the terms of the GNU General Public License as published by
@@ -30,7 +30,7 @@
 #include "txmempool.h"
 
 AddressMonitorService::AddressMonitorService()
-    : NetworkService(Api::AddressMonitorService)
+    : NetworkSubscriptionService(Api::AddressMonitorService)
 {
     ValidationNotifier().addListener(this);
 }
@@ -102,7 +102,8 @@ void AddressMonitorService::findTransactions(Tx::Iterator && iter, FindReason fi
                     else if (whichType == TX_PUBKEYHASH)
                         keyID = CKeyID(uint160(vSolutions[0]));
                     for (size_t i = 0; i < m_remotes.size(); ++i) {
-                        if (m_remotes[i]->keys.find(keyID) != m_remotes[i]->keys.end()) {
+                        RemoteWithKeys *rwk = static_cast<RemoteWithKeys*>(m_remotes.at(i));
+                        if (rwk->keys.find(keyID) != rwk->keys.end()) {
                             Match &m = matchingRemotes[i];
                             m.amount += amount;
                             m.keys.push_back(keyID);
@@ -126,42 +127,10 @@ void AddressMonitorService::DoubleSpendFound(const Tx &first, const Tx &duplicat
 
 }
 
-void AddressMonitorService::onIncomingMessage(const Message &message, const EndPoint &ep)
+void AddressMonitorService::handle(Remote *remote_, const Message &message, const EndPoint &ep)
 {
-    for (auto remote : m_remotes) {
-        if (remote->connection.endPoint().connectionId == ep.connectionId) {
-            handle(remote, message, ep);
-            return;
-        }
-    }
-    for (auto remote : m_remotes) {
-        if (remote->connection.endPoint().announcePort == ep.announcePort && remote->connection.endPoint().hostname == ep.hostname) {
-            handle(remote, message, ep);
-            return;
-        }
-    }
-    NetworkConnection con = manager()->connection(ep, NetworkManager::OnlyExisting);
-    if (!con.isValid())
-        return;
-    con.setOnDisconnected(std::bind(&AddressMonitorService::onDisconnected, this, std::placeholders::_1));
-    Remote *r = new Remote();
-    r->connection = std::move(con);
-    m_remotes.push_back(r);
-    handle(r, message, ep);
-}
-
-void AddressMonitorService::onDisconnected(const EndPoint &endPoint)
-{
-    for (auto iter = m_remotes.begin(); iter != m_remotes.end(); ++iter) {
-        if ((*iter)->connection.endPoint().connectionId == endPoint.connectionId) {
-            m_remotes.erase(iter);
-            return;
-        }
-    }
-}
-
-void AddressMonitorService::handle(Remote *remote, const Message &message, const EndPoint &ep)
-{
+    assert(dynamic_cast<RemoteWithKeys*>(remote_));
+    RemoteWithKeys *remote = static_cast<RemoteWithKeys*>(remote_);
     if (message.messageId() == Api::AddressMonitor::Subscribe)
         logInfo(Log::MonitorService) << "Remote" << ep.connectionId << "registers a new address";
 
@@ -222,7 +191,8 @@ void AddressMonitorService::updateBools()
     // monitor P2PKH types for now... Boring, I know.
     m_findP2PKH = false;
     for (auto remote : m_remotes) {
-        m_findP2PKH = m_findP2PKH || !remote->keys.empty();
+        RemoteWithKeys *rwk = static_cast<RemoteWithKeys*>(remote);
+        m_findP2PKH = m_findP2PKH || !rwk->keys.empty();
     }
 }
 
