@@ -40,9 +40,9 @@ void ValidationInterfaceBroadcaster::SyncAllTransactionsInBlock(const CBlock *pb
     for (auto i : m_listeners) i->SyncAllTransactionsInBlock(pblock);
 }
 
-void ValidationInterfaceBroadcaster::SyncAllTransactionsInBlock(const FastBlock &block)
+void ValidationInterfaceBroadcaster::SyncAllTransactionsInBlock(const FastBlock &block, CBlockIndex *index)
 {
-    for (auto i : m_listeners) i->SyncAllTransactionsInBlock(block);
+    for (auto i : m_listeners) i->SyncAllTransactionsInBlock(block, index);
 }
 
 void ValidationInterfaceBroadcaster::SetBestChain(const CBlockLocator &locator)

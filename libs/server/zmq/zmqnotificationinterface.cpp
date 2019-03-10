@@ -139,7 +139,8 @@ void CZMQNotificationInterface::Shutdown()
     }
 }
 
-void CZMQNotificationInterface::UpdatedBlockTip(const CBlockIndex *pindex)
+
+void CZMQNotificationInterface::SyncAllTransactionsInBlock(const FastBlock &, CBlockIndex *pindex)
 {
     for (std::list<CZMQAbstractNotifier*>::iterator i = notifiers.begin(); i!=notifiers.end(); )
     {
@@ -156,7 +157,7 @@ void CZMQNotificationInterface::UpdatedBlockTip(const CBlockIndex *pindex)
     }
 }
 
-void CZMQNotificationInterface::SyncTransaction(const CTransaction &tx, const CBlock *)
+void CZMQNotificationInterface::SyncTransaction(const CTransaction &tx)
 {
     for (std::list<CZMQAbstractNotifier*>::iterator i = notifiers.begin(); i!=notifiers.end(); )
     {
@@ -176,6 +177,6 @@ void CZMQNotificationInterface::SyncTransaction(const CTransaction &tx, const CB
 void CZMQNotificationInterface::SyncAllTransactionsInBlock(const CBlock *pblock)
 {
     for (const CTransaction &tx : pblock->vtx) {
-        SyncTransaction(tx, nullptr);
+        SyncTransaction(tx);
     }
 }

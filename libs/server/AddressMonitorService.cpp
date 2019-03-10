@@ -115,7 +115,7 @@ void AddressMonitorService::findTransactions(Tx::Iterator && iter, FindReason fi
     }
 }
 
-void AddressMonitorService::SyncAllTransactionsInBlock(const FastBlock &block)
+void AddressMonitorService::SyncAllTransactionsInBlock(const FastBlock &block, CBlockIndex *)
 {
     findTransactions(Tx::Iterator(block), Confirmed);
 }
