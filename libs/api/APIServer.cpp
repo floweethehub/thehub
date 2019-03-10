@@ -158,6 +158,8 @@ void Api::Server::incomingLoginMessage(const Message &message)
             }
         }
     }
+    else
+        error = "First message has to be a LoginService/LoginMessage";
     NetworkConnection con(&m_networkManager, message.remote);
     assert(con.isValid());
     if (!success) {
