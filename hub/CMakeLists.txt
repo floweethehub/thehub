@@ -20,8 +20,8 @@ include_directories(. ${LIBS_INCLUDES})
 
 set (HUB_LIBS
     flowee_api
-    flowee_networkmanager
     flowee_server
+    flowee_networkmanager
     flowee_console
     flowee_utils
     flowee_crypto
