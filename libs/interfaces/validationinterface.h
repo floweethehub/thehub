@@ -45,7 +45,7 @@ public:
     virtual void SyncAllTransactionsInBlock(const CBlock *pblock) {}
 
     /** Notifies listeners of updated transaction data, on a new accepted block. */
-    virtual void SyncAllTransactionsInBlock(const FastBlock &) {}
+    virtual void SyncAllTransactionsInBlock(const FastBlock &, CBlockIndex *) {}
 
     /** Notifies listeners of a new active block chain. */
     virtual void SetBestChain(const CBlockLocator &locator) {}
@@ -74,7 +74,7 @@ public:
     void SyncTransaction(const CTransaction &tx) override;
     void SyncTx(const Tx &) override;
     void SyncAllTransactionsInBlock(const CBlock *pblock) override;
-    void SyncAllTransactionsInBlock(const FastBlock &block) override;
+    void SyncAllTransactionsInBlock(const FastBlock &block, CBlockIndex *index) override;
     void SetBestChain(const CBlockLocator &locator) override;
     void UpdatedTransaction(const uint256 &hash) override;
     void Inventory(const uint256 &hash) override;

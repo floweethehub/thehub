@@ -635,7 +635,7 @@ void ValidationEnginePrivate::processNewBlock(std::shared_ptr<BlockValidationSta
                     ValidationNotifier().SyncTransaction(tx);
                     ValidationNotifier().SyncTx(Tx::fromOldTransaction(tx, &pool));
                 }
-                ValidationNotifier().SyncAllTransactionsInBlock(state->m_block); // ... and about transactions that got confirmed:
+                ValidationNotifier().SyncAllTransactionsInBlock(state->m_block, index); // ... and about transactions that got confirmed:
                 ValidationNotifier().SyncAllTransactionsInBlock(&block);
 
 #ifdef ENABLE_BENCHMARKS

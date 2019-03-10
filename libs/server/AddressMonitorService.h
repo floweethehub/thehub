@@ -38,7 +38,7 @@ public:
 
     // the hub pushed a transaction into its mempool
     void SyncTx(const Tx &tx) override;
-    void SyncAllTransactionsInBlock(const FastBlock &block) override;
+    void SyncAllTransactionsInBlock(const FastBlock &block, CBlockIndex *index) override;
     // void SetBestChain(const CBlockLocator &locator) override;
     void DoubleSpendFound(const Tx &first, const Tx &duplicate) override;
 
