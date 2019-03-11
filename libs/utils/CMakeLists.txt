@@ -37,6 +37,7 @@ add_library(flowee_utils STATIC
     support/cleanse.cpp
     support/pagelocker.cpp
     sync.cpp
+    TransactionBuilder.cpp
     primitives/block.cpp
     primitives/FastBlock.cpp
     primitives/FastTransaction.cpp
