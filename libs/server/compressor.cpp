@@ -19,8 +19,8 @@
 
 #include "compressor.h"
 
-#include "hash.h"
-#include "pubkey.h"
+#include <hash.h>
+#include <primitives/pubkey.h>
 #include "script/standard.h"
 
 bool CScriptCompressor::IsToKeyID(CKeyID &hash) const

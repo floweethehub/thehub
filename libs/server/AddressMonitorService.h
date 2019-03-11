@@ -18,7 +18,7 @@
 #ifndef ADDRESSMONITORSERVICE_H
 #define ADDRESSMONITORSERVICE_H
 
-#include "pubkey.h"
+#include <primitives/pubkey.h>
 
 #include <validationinterface.h>
 #include <NetworkService.h>

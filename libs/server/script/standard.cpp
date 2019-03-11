@@ -20,8 +20,8 @@
 #include "script/standard.h"
 
 #include <SettingsDefaults.h>
-#include "pubkey.h"
-#include "script/script.h"
+#include <primitives/pubkey.h>
+#include "primitives/script.h"
 #include "util.h"
 #include "utilstrencodings.h"
 

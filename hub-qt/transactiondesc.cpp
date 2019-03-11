@@ -26,7 +26,7 @@
 #include "base58.h"
 #include "consensus/consensus.h"
 #include "main.h"
-#include "script/script.h"
+#include "primitives/script.h"
 #include "timedata.h"
 #include "util.h"
 #include "wallet/db.h"

@@ -23,7 +23,7 @@
 #include <key.h>
 #include <txmempool.h>
 #include <validation/Engine.h>
-#include <script/script.h>
+#include <primitives/script.h>
 #include <primitives/FastBlock.h>
 
 class MockBlockValidation : public Validation::Engine {

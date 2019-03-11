@@ -24,7 +24,7 @@
 #include "consensus/validation.h"
 #include "main.h"
 #include "policy/fees.h"
-#include "streams.h"
+#include "streaming/streams.h"
 #include "timedata.h"
 #include "util.h"
 #include "utilmoneystr.h"

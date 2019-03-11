@@ -23,7 +23,7 @@
 #include <streaming/ConstBuffer.h>
 
 #include <uint256.h>
-#include <script/script.h>
+#include <primitives/script.h>
 
 class CTransaction;
 class FastBlock;

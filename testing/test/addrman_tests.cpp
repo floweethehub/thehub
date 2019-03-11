@@ -18,7 +18,7 @@
 #include "addrman.h"
 #include "test/test_bitcoin.h"
 #include <boost/test/unit_test.hpp>
-#include <streams.h>
+#include <streaming/streams.h>
 #include <clientversion.h>
 
 class CAddrManTest : public CAddrMan{};

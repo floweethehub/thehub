@@ -27,8 +27,8 @@
 #include <ripemd160.h>
 #include <sha1.h>
 #include <sha256.h>
-#include "pubkey.h"
-#include "script/script.h"
+#include <primitives/pubkey.h>
+#include <primitives/script.h>
 #include "uint256.h"
 
 #include <boost/atomic.hpp>

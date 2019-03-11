@@ -20,7 +20,7 @@
 #include "uint256.h"
 #include "random.h"
 #include "bloom.h"
-#include "streams.h"
+#include "streaming/streams.h"
 #include "version.h"
 #include "serialize.h"
 #include "utilstrencodings.h"

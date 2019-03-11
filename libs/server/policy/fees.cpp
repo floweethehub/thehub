@@ -23,7 +23,7 @@
 
 #include "amount.h"
 #include "primitives/transaction.h"
-#include "streams.h"
+#include "streaming/streams.h"
 #include "txmempool.h"
 #include "util.h"
 

@@ -20,7 +20,7 @@
 #include <boost/test/unit_test.hpp>
 #include "hash.h"
 #include "serialize.h"
-#include "streams.h"
+#include "streaming/streams.h"
 #include "net.h"
 #include "chainparams.h"
 #include "clientversion.h"

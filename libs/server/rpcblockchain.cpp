@@ -28,7 +28,7 @@
 #include "policy/policy.h"
 #include "primitives/transaction.h"
 #include "rpcserver.h"
-#include "streams.h"
+#include "streaming/streams.h"
 #include "sync.h"
 #include "txmempool.h"
 #include "BlocksDB.h"

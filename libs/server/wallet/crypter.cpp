@@ -20,7 +20,7 @@
 
 #include <aes.h>
 #include <sha512.h>
-#include "script/script.h"
+#include "primitives/script.h"
 #include "script/standard.h"
 #include "util.h"
 

@@ -21,7 +21,7 @@
 
 #include "clientversion.h"
 #include "serialize.h"
-#include "streams.h"
+#include "streaming/streams.h"
 #include "util.h"
 #include "utilstrencodings.h"
 #include "version.h"

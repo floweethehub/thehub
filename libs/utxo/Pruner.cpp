@@ -26,7 +26,7 @@
 #include <boost/iostreams/device/mapped_file.hpp>
 #include <boost/filesystem.hpp>
 #include <boost/filesystem/fstream.hpp>
-#include <server/hash.h>
+#include <utils/hash.h>
 
 namespace {
 static void nothing(const char *){}

@@ -20,10 +20,10 @@
 
 #include "primitives/transaction.h"
 #include "hash.h"
-#include "script/script.h"
+#include "primitives/script.h"
 #include "script/standard.h"
 #include "random.h"
-#include "streams.h"
+#include "streaming/streams.h"
 
 #include <cmath>
 

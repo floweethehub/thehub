@@ -23,7 +23,7 @@
 #include "random.h"
 #include "test/test_bitcoin.h"
 #include <utilstrencodings.h>
-#include <streams.h>
+#include <streaming/streams.h>
 #include <clientversion.h>
 
 #include <boost/test/unit_test.hpp>

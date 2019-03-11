@@ -22,7 +22,7 @@
 #include <streaming/MessageBuilder.h>
 #include <streaming/MessageParser.h>
 #include <utils/util.h>
-#include <server/hash.h>
+#include <utils/hash.h>
 
 #include <iostream>
 #include <fstream>

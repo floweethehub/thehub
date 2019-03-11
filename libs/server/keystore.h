@@ -21,8 +21,8 @@
 #define FLOWEE_KEYSTORE_H
 
 #include "key.h"
-#include "pubkey.h"
-#include "script/script.h"
+#include "primitives/pubkey.h"
+#include "primitives/script.h"
 #include "script/standard.h"
 #include "sync.h"
 

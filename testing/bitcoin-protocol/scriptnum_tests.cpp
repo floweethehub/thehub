@@ -18,7 +18,7 @@
 
 #include "scriptnum_tests.h"
 #include "scriptnum10.h"
-#include "script/script.h"
+#include "primitives/script.h"
 #include "test/test_bitcoin.h"
 
 static const int64_t values[] = \

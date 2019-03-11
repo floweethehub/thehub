@@ -27,7 +27,7 @@
 #include "serialize.h"
 #include "base58.h"
 #include "miner.h"
-#include "pubkey.h"
+#include <primitives/pubkey.h>
 
 #include "amount.h"
 #include "Application.h"

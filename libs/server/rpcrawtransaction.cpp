@@ -32,7 +32,7 @@
 #include "policy/policy.h"
 #include "primitives/transaction.h"
 #include "rpcserver.h"
-#include "script/script.h"
+#include "primitives/script.h"
 #include "script/script_error.h"
 #include "script/sign.h"
 #include "script/standard.h"

@@ -33,7 +33,6 @@ set (FLOWEE_SERVER_FILES
     core_write.cpp
     CrashCatcher.cpp
     dbwrapper.cpp
-    hash.cpp
     httprpc.cpp
     httpserver.cpp
     init.cpp
@@ -48,13 +47,8 @@ set (FLOWEE_SERVER_FILES
     policy/fees.cpp
     policy/policy.cpp
     pow.cpp
-    primitives/block.cpp
-    primitives/FastBlock.cpp
-    primitives/FastTransaction.cpp
     primitives/FastUndoBlock.cpp
-    primitives/transaction.cpp
     protocol.cpp
-    pubkey.cpp
     rest.cpp
     rpcblockchain.cpp
     rpcmining.cpp
@@ -64,7 +58,6 @@ set (FLOWEE_SERVER_FILES
     rpcserver.cpp
     scheduler.cpp
     script/interpreter.cpp
-    script/script.cpp
     script/script_error.cpp
     script/sigcache.cpp
     script/sign.cpp

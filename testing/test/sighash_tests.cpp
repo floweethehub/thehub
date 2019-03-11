@@ -22,9 +22,9 @@
 #include "main.h" // For CheckTransaction
 #include "random.h"
 #include "script/interpreter.h"
-#include "script/script.h"
+#include "primitives/script.h"
 #include "serialize.h"
-#include "streams.h"
+#include "streaming/streams.h"
 #include "test/test_bitcoin.h"
 #include "transaction_utils.h"
 #include "util.h"

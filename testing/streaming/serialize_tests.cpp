@@ -19,7 +19,7 @@
 #include "serialize_tests.h"
 #include <serialize.h>
 #include <hash.h>
-#include <streams.h>
+#include <streaming/streams.h>
 
 void Test_Serialize::sizes()
 {

@@ -23,7 +23,7 @@
 #include "data/base58_keys_valid.json.h"
 
 #include "key.h"
-#include "script/script.h"
+#include "primitives/script.h"
 #include "uint256.h"
 #include "util.h"
 #include "utilstrencodings.h"

@@ -22,7 +22,7 @@
 #define FLOWEE_PRIMITIVES_TRANSACTION_H
 
 #include "amount.h"
-#include "script/script.h"
+#include "primitives/script.h"
 #include "serialize.h"
 #include "uint256.h"
 

@@ -21,7 +21,7 @@
 #include "arith_uint256.h"
 #include <crypto/common.h>
 #include <hmac_sha512.h>
-#include "pubkey.h"
+#include <primitives/pubkey.h>
 #include "random.h"
 
 #include <secp256k1.h>

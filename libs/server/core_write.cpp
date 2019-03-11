@@ -21,10 +21,10 @@
 
 #include "base58.h"
 #include "primitives/transaction.h"
-#include "script/script.h"
+#include "primitives/script.h"
 #include "script/standard.h"
 #include "serialize.h"
-#include "streams.h"
+#include "streaming/streams.h"
 #include <univalue.h>
 #include "util.h"
 #include "utilmoneystr.h"

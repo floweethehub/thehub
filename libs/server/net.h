@@ -28,7 +28,7 @@
 #include "primitives/block.h"
 #include "protocol.h"
 #include "random.h"
-#include "streams.h"
+#include "streaming/streams.h"
 #include "sync.h"
 #include "uint256.h"
 

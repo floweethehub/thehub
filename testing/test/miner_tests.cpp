@@ -22,7 +22,7 @@
 #include "consensus/validation.h"
 #include "main.h"
 #include "miner.h"
-#include "pubkey.h"
+#include "primitives/pubkey.h"
 #include "script/standard.h"
 #include "txmempool.h"
 #include "uint256.h"

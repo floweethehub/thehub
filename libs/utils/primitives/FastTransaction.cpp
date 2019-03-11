@@ -18,13 +18,13 @@
 #include "FastTransaction.h"
 #include "FastBlock.h"
 #include "TxIterator_p.h"
-#include "transaction.h"
+#include "primitives/transaction.h"
 #include <streaming/BufferPool.h>
 
 #include <compat/endian.h>
 
 #include <hash.h>
-#include <streams.h>
+#include <streaming/streams.h>
 
 Tx::Tx()
 {

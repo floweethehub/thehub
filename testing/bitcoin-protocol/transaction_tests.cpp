@@ -27,7 +27,7 @@
 #include "keystore.h"
 #include "main.h" // For CheckTransaction
 #include "policy/policy.h"
-#include "script/script.h"
+#include "primitives/script.h"
 #include "transaction_utils.h"
 #include "chainparams.h"
 #include <SettingsDefaults.h>

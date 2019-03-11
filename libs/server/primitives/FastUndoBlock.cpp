@@ -17,7 +17,7 @@
  */
 #include "FastUndoBlock.h"
 
-#include <streams.h>
+#include <streaming/streams.h>
 #include <undo.h>
 #include <streaming/MessageBuilder.h>
 #include <streaming/BufferPool.h>

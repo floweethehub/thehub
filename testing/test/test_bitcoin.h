@@ -22,7 +22,7 @@
 
 #include <chainparamsbase.h>
 #include <key.h>
-#include <pubkey.h>
+#include <primitives/pubkey.h>
 #include <txmempool.h>
 #include <Application.h>
 #include <validation/Engine.h>

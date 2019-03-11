@@ -21,7 +21,7 @@
 #define FLOWEE_WALLET_WALLET_H
 
 #include "amount.h"
-#include "streams.h"
+#include "streaming/streams.h"
 #include "tinyformat.h"
 #include "UiInterface.h"
 #include "utilstrencodings.h"

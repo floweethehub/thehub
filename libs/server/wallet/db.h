@@ -22,7 +22,7 @@
 
 #include "clientversion.h"
 #include "serialize.h"
-#include "streams.h"
+#include "streaming/streams.h"
 #include "sync.h"
 #include "version.h"
 

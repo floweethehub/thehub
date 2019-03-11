@@ -21,7 +21,7 @@
 #define FLOWEE_COMPRESSOR_H
 
 #include "primitives/transaction.h"
-#include "script/script.h"
+#include "primitives/script.h"
 #include "serialize.h"
 
 class CKeyID;

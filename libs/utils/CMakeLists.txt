@@ -24,6 +24,7 @@ add_library(flowee_utils STATIC
     compat/glibc_sanity.cpp
     compat/glibcxx_sanity.cpp
     compat/strnlen.cpp
+    hash.cpp
     LogChannels.cpp
     Logger.cpp
     Message.cpp
@@ -36,6 +37,12 @@ add_library(flowee_utils STATIC
     support/cleanse.cpp
     support/pagelocker.cpp
     sync.cpp
+    primitives/block.cpp
+    primitives/FastBlock.cpp
+    primitives/FastTransaction.cpp
+    primitives/pubkey.cpp
+    primitives/script.cpp
+    primitives/transaction.cpp
     uint256.cpp
     util.cpp
     utilmoneystr.cpp
@@ -45,5 +52,6 @@ add_library(flowee_utils STATIC
 )
 
 add_dependencies(flowee_utils univalue)
+add_dependencies(flowee_utils secp256k1)
 
 target_link_libraries(flowee_utils flowee_interfaces flowee_crypto)

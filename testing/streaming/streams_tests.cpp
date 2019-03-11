@@ -18,7 +18,7 @@
 
 #include "streams_tests.h"
 
-#include <streams.h>
+#include <streaming/streams.h>
 
 #include <vector>
 #include <boost/assign/std/vector.hpp> // for 'operator+=()'

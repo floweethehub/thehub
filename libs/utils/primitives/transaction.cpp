@@ -24,7 +24,7 @@
 #include "tinyformat.h"
 #include "utilstrencodings.h"
 
-#include <streams.h>
+#include <streaming/streams.h>
 
 std::string COutPoint::ToString() const
 {

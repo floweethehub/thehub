@@ -9,7 +9,7 @@
 
 #include "amount.h"
 #include "random.h"
-#include "script/script.h"
+#include "primitives/script.h"
 #include "script/standard.h"
 #include "util.h"
 #include "utilstrencodings.h"

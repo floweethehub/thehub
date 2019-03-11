@@ -23,7 +23,7 @@
 #include "TestFloweeBase.h"
 
 #include <chainparamsbase.h>
-#include <pubkey.h>
+#include <primitives/pubkey.h>
 
 class TestFloweeEnvPlusNet : public TestFloweeBase
 {

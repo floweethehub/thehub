@@ -19,7 +19,7 @@
 
 #include <cassert>
 #include <hash.h>
-#include <streams.h>
+#include <streaming/streams.h>
 
 #include <primitives/block.h>
 

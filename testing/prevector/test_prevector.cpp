@@ -24,7 +24,7 @@
 #include <random.h>
 
 #include "serialize.h"
-#include "streams.h"
+#include "streaming/streams.h"
 #include <boost/foreach.hpp>
 #include <utils/Logger.h>
 #include <server/chainparams.h>

@@ -22,7 +22,7 @@
 #include "cuckoocache.h"
 #include "memusage.h"
 #include <SettingsDefaults.h>
-#include "pubkey.h"
+#include <primitives/pubkey.h>
 #include "random.h"
 #include "uint256.h"
 #include "util.h"

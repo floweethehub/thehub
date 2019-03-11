@@ -20,7 +20,7 @@
 #ifndef FLOWEE_KEY_H
 #define FLOWEE_KEY_H
 
-#include "pubkey.h"
+#include "primitives/pubkey.h"
 #include "serialize.h"
 #include "support/allocators/secure.h"
 #include "uint256.h"

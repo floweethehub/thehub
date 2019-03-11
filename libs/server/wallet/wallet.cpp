@@ -39,7 +39,7 @@
 #include "primitives/block.h"
 #include "primitives/transaction.h"
 #include <primitives/FastBlock.h>
-#include "script/script.h"
+#include "primitives/script.h"
 #include "script/sign.h"
 #include "timedata.h"
 #include "txmempool.h"

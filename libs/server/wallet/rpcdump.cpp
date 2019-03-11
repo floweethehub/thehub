@@ -21,7 +21,7 @@
 #include "rpcserver.h"
 #include "init.h"
 #include "main.h"
-#include "script/script.h"
+#include "primitives/script.h"
 #include "script/standard.h"
 #include "sync.h"
 #include "util.h"

@@ -9,7 +9,7 @@
 #include "optionsmodel.h"
 
 #include "clientversion.h"
-#include "streams.h"
+#include "streaming/streams.h"
 
 #include <boost/foreach.hpp>
 

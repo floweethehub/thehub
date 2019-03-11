@@ -26,7 +26,7 @@
 #include "main.h"
 #include "httpserver.h"
 #include "rpcserver.h"
-#include "streams.h"
+#include "streaming/streams.h"
 #include "sync.h"
 #include "BlocksDB.h"
 #include "txmempool.h"
