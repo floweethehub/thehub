@@ -21,6 +21,8 @@
 #include "primitives/transaction.h"
 #include "primitives/FastTransaction.h"
 
+#include <primitives/pubkey.h>
+
 /**
  * This class allows anyone to create or extend Bitcoin (BCH) transactions.
  *
@@ -172,7 +174,7 @@ public:
      * For the selected output a standard output script will be generated
      * that allows payment to a certain public-key-hash (aka bitcoin-address)
      */
-    void setPublicKeyHash(const uint160 &address);
+    void setPublicKeyHash(const CPubKey &address); // TODO rename. Use add or write or something. Its not a setter!
     // void setPublicKeyHash(const std::string &address);
 
     /// delete an output based on index. Updates currentIndex.

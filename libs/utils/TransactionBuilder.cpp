@@ -115,7 +115,7 @@ int TransactionBuilder::selectOutput(int index)
     return m_curOutput;
 }
 
-void TransactionBuilder::setPublicKeyHash(const uint160 &address)
+void TransactionBuilder::setPublicKeyHash(const CPubKey &address)
 {
     assert(m_curOutput >= 0);
     assert(m_curOutput < m_transaction.vout.size());
