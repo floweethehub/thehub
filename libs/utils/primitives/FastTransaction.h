@@ -185,6 +185,11 @@ public:
 
     Output output(int index) const;
 
+    /// \internal
+    inline Streaming::ConstBuffer data() const {
+        return m_data;
+    }
+
 private:
     Streaming::ConstBuffer m_data;
 };
