@@ -1563,9 +1563,9 @@ uint256 SignatureHash(const CScript& scriptCode, const CTransaction& txTo, unsig
         // Input prevouts/nSequence (none/all, depending on flags)
         ss << hashPrevouts;
         ss << hashSequence;
-        // The input being signed (replacing the scriptSig with scriptCode +
-        // amount). The prevout may already be contained in hashPrevout, and the
-        // nSequence may already be contain in hashSequence.
+        // The input being signed (replacing the scriptSig with scriptCode + amount).
+        // The prevout may already be included in hashPrevout, and the
+        // nSequence may already be included in hashSequence.
         ss << txTo.vin[nIn].prevout;
         ss << static_cast<const CScriptBase &>(scriptCode);
         ss << amount;
