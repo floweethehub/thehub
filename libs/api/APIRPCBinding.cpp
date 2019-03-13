@@ -486,21 +486,18 @@ public:
 
 // Util
 
-class CreateAddress : public Api::RpcParser
+class CreateAddress : public Api::DirectParser
 {
 public:
-    CreateAddress() : RpcParser("createaddress", Api::Util::CreateAddressReply, 150) {}
+    CreateAddress() : DirectParser(Api::Util::CreateAddressReply, 150) {}
 
-    virtual void buildReply(Streaming::MessageBuilder &builder, const UniValue &result) {
-        const UniValue &address = find_value(result, "address");
-        builder.add(Api::Util::BitcoinAddress, address.get_str());
-        const UniValue &scriptPubKey = find_value(result, "scriptPubKey");
-        std::vector<char> bytearray;
-        boost::algorithm::unhex(scriptPubKey.get_str(), back_inserter(bytearray));
-        builder.add(Api::Util::ScriptPubKey, bytearray);
-        bytearray.clear();
-        const UniValue &priv = find_value(result, "private");
-        builder.add(Api::Util::PrivateAddress, priv.get_str());
+    virtual void buildReply(const Message &request, Streaming::MessageBuilder &builder) {
+        CKey key;
+        key.MakeNewKey();
+        assert(key.IsCompressed());
+        const CKeyID pkh = key.GetPubKey().GetID();
+        builder.addByteArray(Api::Util::BitcoinAddress, pkh.begin(), pkh.size());
+        builder.addByteArray(Api::Util::PrivateAddress, key.begin(), key.size());
     }
 };
 
