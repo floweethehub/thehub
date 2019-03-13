@@ -20,8 +20,9 @@
 
 #include "primitives/transaction.h"
 #include "primitives/FastTransaction.h"
+#include "primitives/key.h"
 
-#include <primitives/pubkey.h>
+class CPubKey;
 
 /**
  * This class allows anyone to create or extend Bitcoin (BCH) transactions.
@@ -104,19 +105,31 @@ public:
     };
 
     /**
-     * Alters the current input to set a sighash type based on the selection.
+     * Pushes the data needed for the current input to receive its signatures.
      *
-     * Inputs prove you own money that this transaction spends. It is therefore important
-     * to allow or disallow other inputs to co-exist even after signing the input. For instance
-     * a fundraiser may want to combine inputs from a lot of people into one transaction.
+     * Inputs use a signature to prove you own the money that this transaction spends. To make the
+     * signing secure it doesn't just take the private key, it also takes the prevOutScript and the amount
+     * properties, which your wallet should supply you with.
+     *
+     * The SignInputs / SignOutputs options determine how flexible the signature is with regards to a
+     * changing transaction after final signing time.
+     *
+     * For instance a fundraiser may want to combine inputs from a lot of people into one transaction.
+     * Those inputs can then be signed individually using SignOnlyThisInput and later combined without
+     * breaking the signature.
+     *
+     * A common rule is that outputs or inputs not included in the transaction may be changed after signing
+     * and before the transaction is mined.
      *
      * In most cases you should be very careful to pick at least one output you care about that you
-     * will sign because that guarentees your money can only be spent to those outputs.
+     * will sign because that guarentees your money can only be spent with those outputs getting paid.
      *
      * The default is to sign all inputs and all outputs, which implies that the entire transaction
      * is fully constructed before signatures are collected.
+     *
+     * Notice that actual signing only happens when calling createTransaction()
      */
-    void setSignatureOption(SignInputs inputs, SignOutputs outputs);
+    void pushInputSignature(const CKey &privKey, const CScript &prevOutScript, int64_t amount, SignInputs inputs = SignAllInputs, SignOutputs outputs = SignAllOuputs);
 
     /// locking options.
     enum LockingOptions {
@@ -162,7 +175,7 @@ public:
      * are transaction-global options and will effect all outputs in one go.
      */
     void setLocking(LockingOptions option, uint32_t value);
-    /// delete an input based on index. Updates currentIndex.
+    /// delete an input based on index. Updates current input index.
     void deleteInput(int index);
 
     /// Appends and selects an output.
@@ -172,12 +185,12 @@ public:
 
     /**
      * For the selected output a standard output script will be generated
-     * that allows payment to a certain public-key-hash (aka bitcoin-address)
+     * that sends the funds to the public-key-hash (aka bitcoin-address) passed.
      */
-    void setPublicKeyHash(const CPubKey &address); // TODO rename. Use add or write or something. Its not a setter!
-    // void setPublicKeyHash(const std::string &address);
+    void pushOutputPay2Address(const CKeyID &address);
+    // void pushOutputPay2Address(const std::string &address);
 
-    /// delete an output based on index. Updates currentIndex.
+    /// delete an output based on index. Updates current output index.
     void deleteOutput(int index);
 
 #if 0
@@ -190,8 +203,13 @@ public:
     };
 #endif
 
-    /// exports the current transaction.
-    Tx createTransaction(Streaming::BufferPool *pool = nullptr) const;
+    /**
+     * Render the state of the transaction, signing any inputs that we have signing data for.
+     * @see pushInputSignature
+     *
+     * @param optional pool to use for memory allocation.
+     */
+    Tx createTransaction(Streaming::BufferPool *pool = nullptr);
 
     /// Signatures imported may break because we removed/added or altered parts that signature relied on.
     /// This method returns which inputs used to have signatures that likely stopped working.
@@ -203,10 +221,20 @@ public:
     // mergeTransaction(const Tx &tx);
 
 private:
+    void checkCurInput();
+    void checkCurOutput();
     CMutableTransaction m_transaction;
 
     LockingOptions m_defaultLocking = NoLocking;
     int m_curInput = -1, m_curOutput = -1;
+
+    struct SignInfo {
+        uint8_t hashType = 0;
+        int64_t amount = 0;
+        CKey privKey;
+        CScript prevOutScript;
+    };
+    std::vector<SignInfo> m_signInfo;
 };
 
 #endif
