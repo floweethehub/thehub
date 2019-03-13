@@ -34,7 +34,7 @@
 #include "consensus/validation.h"
 #include "httpserver.h"
 #include "httprpc.h"
-#include "key.h"
+#include <primitives/key.h>
 #include "main.h"
 #include "miner.h"
 #include "net.h"

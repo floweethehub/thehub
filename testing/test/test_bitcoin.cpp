@@ -22,7 +22,7 @@
 #include <chainparams.h>
 #include <consensus/merkle.h>
 #include <main.h>
-#include <key.h>
+#include <primitives/key.h>
 #include <net.h>
 #include <random.h>
 #include <UiInterface.h>

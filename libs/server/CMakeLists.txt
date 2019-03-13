@@ -36,7 +36,6 @@ set (FLOWEE_SERVER_FILES
     httprpc.cpp
     httpserver.cpp
     init.cpp
-    key.cpp
     keystore.cpp
     main.cpp
     merkleblock.cpp

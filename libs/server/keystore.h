@@ -20,9 +20,9 @@
 #ifndef FLOWEE_KEYSTORE_H
 #define FLOWEE_KEYSTORE_H
 
-#include "key.h"
-#include "primitives/pubkey.h"
-#include "primitives/script.h"
+#include <primitives/key.h>
+#include <primitives/pubkey.h>
+#include <primitives/script.h>
 #include "script/standard.h"
 #include "sync.h"
 

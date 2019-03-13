@@ -29,7 +29,7 @@
 #define FLOWEE_BASE58_H
 
 #include "chainparams.h"
-#include "key.h"
+#include <primitives/key.h>
 #include <primitives/pubkey.h>
 #include "primitives/script.h"
 #include "script/standard.h"

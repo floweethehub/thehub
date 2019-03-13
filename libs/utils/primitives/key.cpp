@@ -18,7 +18,7 @@
 
 #include "key.h"
 
-#include "arith_uint256.h"
+// #include "arith_uint256.h"
 #include <crypto/common.h>
 #include <hmac_sha512.h>
 #include <primitives/pubkey.h>

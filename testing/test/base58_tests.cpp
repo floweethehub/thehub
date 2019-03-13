@@ -22,7 +22,7 @@
 #include "data/base58_keys_invalid.json.h"
 #include "data/base58_keys_valid.json.h"
 
-#include "key.h"
+#include <primitives/key.h>
 #include "primitives/script.h"
 #include "uint256.h"
 #include "util.h"

@@ -19,7 +19,7 @@
 #include "bip32_tests.h"
 
 #include "base58.h"
-#include "key.h"
+#include <primitives/key.h>
 #include "uint256.h"
 #include "util.h"
 #include "utilstrencodings.h"

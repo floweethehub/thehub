@@ -30,7 +30,7 @@
 #include "coincontrol.h"
 #include "consensus/consensus.h"
 #include "consensus/validation.h"
-#include "key.h"
+#include <primitives/key.h>
 #include "init.h"
 #include "keystore.h"
 #include "main.h"

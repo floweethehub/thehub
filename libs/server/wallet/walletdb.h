@@ -22,7 +22,7 @@
 
 #include "amount.h"
 #include "db.h"
-#include "key.h"
+#include <primitives/key.h>
 
 #include <list>
 

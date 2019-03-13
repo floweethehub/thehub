@@ -25,7 +25,7 @@
 #include <server/script/standard.h>
 #include <primitives/transaction.h>
 #include <chainparams.h>
-#include <key.h>
+#include <primitives/key.h>
 #include <consensus/merkle.h>
 #include <main.h>
 

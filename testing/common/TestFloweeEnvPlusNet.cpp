@@ -20,7 +20,7 @@
 #include "TestFloweeEnvPlusNet.h"
 #include "MockApplication.h"
 #include <chainparams.h>
-#include <key.h>
+#include <primitives/key.h>
 #include <util.h>
 
 extern void noui_connect();

@@ -26,6 +26,7 @@ add_executable(test_streaming
 target_link_libraries(test_streaming
     flowee_testlib
     flowee_server
+    flowee_utils
 
     ${LEVELDB_LIBRARY}
     ${SECP256K1_LIBRARY}

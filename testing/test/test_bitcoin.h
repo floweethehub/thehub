@@ -21,7 +21,7 @@
 #define FLOWEE_TEST_TEST_MAIN_H
 
 #include <chainparamsbase.h>
-#include <key.h>
+#include <primitives/key.h>
 #include <primitives/pubkey.h>
 #include <txmempool.h>
 #include <Application.h>

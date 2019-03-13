@@ -19,7 +19,7 @@
 
 #include "wallet_ismine.h"
 
-#include "key.h"
+#include <primitives/key.h>
 #include "keystore.h"
 #include "primitives/script.h"
 #include "script/standard.h"

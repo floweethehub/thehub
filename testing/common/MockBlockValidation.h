@@ -20,7 +20,7 @@
 #ifndef MOCKBLOCKVALIDATION_H
 #define MOCKBLOCKVALIDATION_H
 
-#include <key.h>
+#include <primitives/key.h>
 #include <txmempool.h>
 #include <validation/Engine.h>
 #include <primitives/script.h>

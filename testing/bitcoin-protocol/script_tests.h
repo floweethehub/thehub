@@ -19,7 +19,7 @@
 #ifndef SCRIPT_TESTS_H
 #define SCRIPT_TESTS_H
 #include <primitives/transaction.h>
-#include <server/key.h>
+#include <primitives/key.h>
 #include <univalue.h>
 #include <script/interpreter.h>
 

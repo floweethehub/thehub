@@ -22,7 +22,7 @@
 #include "main.h"
 #include "script/standard.h"
 #include <primitives/FastBlock.h>
-#include <key.h>
+#include <primitives/key.h>
 #include <consensus/consensus.h>
 
 #include <boost/test/unit_test.hpp>

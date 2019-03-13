@@ -20,7 +20,7 @@
 #ifndef CHECKDATASIG_TESTS_H
 #define CHECKDATASIG_TESTS_H
 #include <common/TestFloweeEnvPlusNet.h>
-#include <key.h>
+#include <primitives/key.h>
 
 #include <cstdint>
 #include <vector>

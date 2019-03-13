@@ -19,8 +19,8 @@
 
 #include "keystore.h"
 
-#include "key.h"
-#include "primitives/pubkey.h"
+#include <primitives/key.h>
+#include <primitives/pubkey.h>
 #include "util.h"
 
 #include <boost/foreach.hpp>
