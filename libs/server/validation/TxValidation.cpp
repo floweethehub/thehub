@@ -243,9 +243,9 @@ void TxValidationState::checkTransaction()
 
                 // find the ones in the mempool
                 for (size_t i = 0; i < tx.vin.size(); ++i) {
-                    Tx tx;
-                    if (parent->mempool->lookup(txid, tx))
-                        mempoolTransactions[i] = tx;
+                    Tx prevTx;
+                    if (parent->mempool->lookup(tx.vin[i].prevout.hash, prevTx))
+                        mempoolTransactions[i] = prevTx;
                 }
             }
 
