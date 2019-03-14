@@ -561,8 +561,8 @@ public:
         return (mapTx.count(hash) != 0);
     }
 
-    bool lookup(uint256 hash, CTransaction& result) const;
-    bool lookup(uint256 hash, Tx& result) const;
+    bool lookup(const uint256 &hash, CTransaction& result) const;
+    bool lookup(const uint256 &hash, Tx& result) const;
 
     /** Estimate fee rate needed to get into the next nBlocks
      *  If no answer can be given at nBlocks, return an estimate

@@ -656,7 +656,7 @@ void CTxMemPool::queryHashes(std::vector<uint256>& vtxid)
         vtxid.push_back(mi->GetTx().GetHash());
 }
 
-bool CTxMemPool::lookup(uint256 hash, CTransaction &result) const
+bool CTxMemPool::lookup(const uint256 &hash, CTransaction &result) const
 {
     LOCK(cs);
     indexed_transaction_set::const_iterator i = mapTx.find(hash);
@@ -665,7 +665,7 @@ bool CTxMemPool::lookup(uint256 hash, CTransaction &result) const
     return true;
 }
 
-bool CTxMemPool::lookup(uint256 hash, Tx& result) const
+bool CTxMemPool::lookup(const uint256 &hash, Tx& result) const
 {
     LOCK(cs);
     indexed_transaction_set::const_iterator i = mapTx.find(hash);
