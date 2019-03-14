@@ -1,6 +1,6 @@
 /*
  * This file is part of the Flowee project
- * Copyright (C) 2016-2017 Tom Zander <tomz@freedommail.ch>
+ * Copyright (C) 2016-2017, 2019 Tom Zander <tomz@freedommail.ch>
  *
  * This program is free software: you can redistribute it and/or modify
  * it under the terms of the GNU General Public License as published by
@@ -118,6 +118,9 @@ public:
     void consume(int bytes);
 
     static void debugMessage(int section, const Message &message);
+    inline static void debugMessage(const Message &message) {
+        debugMessage(LOG_DEFAULT_SECTION, message);
+    }
 
     static int32_t read32int(const char *buffer);
     static int16_t read16int(const char *buffer);
