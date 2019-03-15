@@ -65,8 +65,8 @@ enum Verbosity {
  * Sections in logging work in two levels. We have groups with enum 0, 1000, 2000, etc.
  * And under the groups are a small set of named sub-sections.
  *
- * Calling logInfo(2020) will use section "Net" and an unnamed sub-section 2020.
- * A user can enable/disable whole sections, like "Net" and that would make this log item
+ * Calling logInfo(2020) will use section "Networking" and an unnamed sub-section 2020.
+ * A user can enable/disable whole sections, like "Networking" and that would make this log item
  * be marked as disabled. Or the user can disable/enable specific sections like 2020 to
  * only have his/her class be logged.
  *
