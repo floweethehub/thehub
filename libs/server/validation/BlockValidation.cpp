@@ -1403,45 +1403,53 @@ void BlockValidationState::updateUtxoAndStartValidation()
 
     try {
         assert (m_block.transactions().size() > 0);
-        int chunks, itemsPerChunk;
-        calculateTxCheckChunks(chunks, itemsPerChunk);
-        m_txChunkLeftToFinish.store(chunks);
-        m_txChunkLeftToStart.store(chunks);
-        m_undoItems.resize(static_cast<size_t>(chunks + 1));
+        // inserting all outputs that are created in this block first.
+        // we do this in a single thread since inserting massively parallel will just cause a huge overhead
+        // and we'd end up being no faster while competing for the scarce resources that are the UTXO DB
+        UnspentOutputDatabase::BlockData data;
+        data.blockHeight = m_blockIndex->nHeight;
+        data.outputs.reserve(m_block.transactions().size());
+        Tx::Iterator iter = Tx::Iterator(m_block);
+        int outputCount = 0, txIndex = 0;
+        uint256 prevTxHash;
+        while (true) {
+            const auto type = iter.next();
+            if (type == Tx::End) {
+                Tx tx = iter.prevTx();
+                const int offsetInBlock = tx.offsetInBlock(m_block);
+                assert(tx.isValid());
+                const uint256 txHash = tx.createHash();
+                if (flags.hf201811Active && txIndex > 1 && txHash.Compare(prevTxHash) <= 0)
+                    throw Exception("tx-ordering-not-CTOR");
+                data.outputs.push_back(UnspentOutputDatabase::BlockData::TxOutputs(txHash, offsetInBlock, 0, outputCount - 1));
+                outputCount = 0;
+                if (flags.hf201811Active)
+                    prevTxHash = txHash;
+                ++txIndex;
+                if (iter.next() == Tx::End) // double end: last tx in block
+                    break;
+            }
+            else if (iter.tag() == Tx::OutputValue) { // next output!
+                if (iter.longData() == 0)
+                    logDebug(Log::BlockValidation) << "Output with zero value";
+                outputCount++;
+            }
+        }
 
-        if (!m_checkValidityOnly) {
-            // inserting all outputs that are created in this block first.
-            // we do this in a single thread since inserting massively parallel will just cause a huge overhead
-            // and we'd end up being no faster while competing for the scarce resources that are the UTXO DB
-            UnspentOutputDatabase::BlockData data;
-            data.blockHeight = m_blockIndex->nHeight;
-            data.outputs.reserve(m_block.transactions().size());
-            Tx::Iterator iter = Tx::Iterator(m_block);
-            int outputCount = 0, txIndex = 0;
-            uint256 prevTxHash;
-            while (true) {
-                const auto type = iter.next();
-                if (type == Tx::End) {
-                    Tx tx = iter.prevTx();
-                    const int offsetInBlock = tx.offsetInBlock(m_block);
-                    assert(tx.isValid());
-                    const uint256 txHash = tx.createHash();
-                    if (flags.hf201811Active && txIndex > 1 && txHash.Compare(prevTxHash) <= 0)
-                        throw Exception("tx-ordering-not-CTOR");
-                    data.outputs.push_back(UnspentOutputDatabase::BlockData::TxOutputs(txHash, offsetInBlock, 0, outputCount - 1));
-                    outputCount = 0;
-                    if (flags.hf201811Active)
-                        prevTxHash = txHash;
-                    ++txIndex;
-                    if (iter.next() == Tx::End) // double end: last tx in block
-                        break;
-                }
-                else if (iter.tag() == Tx::OutputValue) { // next output!
-                    if (iter.longData() == 0)
-                        logDebug(Log::BlockValidation) << "Output with zero value";
-                    outputCount++;
+        int chunks, itemsPerChunk;
+        if (m_checkValidityOnly) { // no UTXO interaction allowed.
+            chunks = 1;
+            itemsPerChunk = m_block.transactions().size();
+
+            for (auto tx : data.outputs) {
+                assert(tx.firstOutput == 0);
+                for (int i = 0; i < tx.lastOutput; ++i) {
+                    m_txMap.insert(std::make_pair(tx.txid, i));
                 }
             }
+        }
+        else {
+            calculateTxCheckChunks(chunks, itemsPerChunk);
 #ifdef ENABLE_BENCHMARKS
             int64_t start = GetTimeMicros();
 #endif
@@ -1451,10 +1459,13 @@ void BlockValidationState::updateUtxoAndStartValidation()
             parent->m_utxoTime.fetch_add(end - start);
 #endif
         }
+        m_txChunkLeftToFinish.store(chunks);
+        m_txChunkLeftToStart.store(chunks);
+        m_undoItems.resize(static_cast<size_t>(chunks));
 
         for (int i = 0; i < chunks; ++i) {
             Application::instance()->ioService().post(std::bind(&BlockValidationState::checkSignaturesChunk,
-                                                                shared_from_this(), CheckUnordered));
+                                                                shared_from_this()));
         }
     } catch(const Exception &ex) {
         blockFailed(ex.punishment(), ex.what(), ex.rejectCode(), ex.corruptionPossible());
@@ -1466,7 +1477,7 @@ void BlockValidationState::updateUtxoAndStartValidation()
     }
 }
 
-void BlockValidationState::checkSignaturesChunk(CheckType type)
+void BlockValidationState::checkSignaturesChunk()
 {
 #ifdef ENABLE_BENCHMARKS
     int64_t start = GetTimeMicros();
@@ -1480,29 +1491,23 @@ void BlockValidationState::checkSignaturesChunk(CheckType type)
     assert(utxo);
     const int totalTxCount = static_cast<int>(m_block.transactions().size());
 
-    int chunkToStart = type == CheckOrdered ? 0 : (m_txChunkLeftToStart.fetch_sub(1) - 1);
+    int chunkToStart = m_txChunkLeftToStart.fetch_sub(1) - 1;
     assert(chunkToStart >= 0);
     DEBUGBV << chunkToStart << m_block.createHash();
 
     int chunks, itemsPerChunk;
-    calculateTxCheckChunks(chunks, itemsPerChunk);
+    if (m_checkValidityOnly) {
+        chunks = 1; itemsPerChunk = totalTxCount;
+    } else {
+        calculateTxCheckChunks(chunks, itemsPerChunk);
+    }
     bool blockValid = (m_validationStatus.load() & BlockInvalid) == 0;
     int txIndex = itemsPerChunk * chunkToStart;
-    if (type == CheckOrdered) { // check all (but skips non-flagged ones below)
-        txIndex = 0;
-        itemsPerChunk = totalTxCount;
-    }
     const int txMax = std::min(txIndex + itemsPerChunk, totalTxCount);
     uint32_t chunkSigops = 0;
     CAmount chunkFees = 0;
     std::unique_ptr<std::deque<FastUndoBlock::Item> >undoItems(new std::deque<FastUndoBlock::Item>());
-    std::deque<Output> newOutputs; // for when processing ordered items
 
-    // If \a type == CheckOrdered we have transactions spending outputs that may come from this block.
-    // because we don't want to inserts stuff in the unspendOutputDB and shortly after delete it again
-    // we store a map here
-    typedef boost::unordered_map<uint256, int, Blocks::BlockHashShortener> TXMap;
-    TXMap txMap;
     try {
         for (;blockValid && txIndex < txMax; ++txIndex) {
             // ordered Tx are only checked when type == CheckOrdered
@@ -1611,9 +1616,6 @@ void BlockValidationState::checkSignaturesChunk(CheckType type)
                     content = txIter.next();
                 }
             }
-
-            if (type == CheckOrdered)
-                txMap.insert(std::make_pair(hash, txIndex));
         }
     } catch (const Exception &e) {
         DEBUGBV << "Failed validation due to" << e.what();
