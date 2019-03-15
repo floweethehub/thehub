@@ -360,14 +360,14 @@ CBlockTemplate* Mining::CreateNewBlock(Validation::Engine &validationEngine) con
     conf.start();
     conf.waitUntilFinished();
     if (!conf.error().empty()) {
-        logCritical(Log::Mining) << "CreateNewBlock managed to mine an invalid block:" << conf.error();
+        logFatal(Log::Mining) << "CreateNewBlock managed to mine an invalid block:" << conf.error();
         if (pblock->vtx.size() == 1) // avoid user passing in bad block number or somesuch create an infinite recursion.
             return nullptr;
         // This should also never happen... but if an invalid transaction somehow entered
         // the mempool due to a bug, remove all the transactions in the block
         // and try again (it is not worth trying to figure out which transaction(s)
         // are causing the block to be invalid).
-        logInfo(Log::Mining) << "Retrying with smaller mempool";
+        logCritical(Log::Mining) << "Retrying with smaller mempool";
         std::list<CTransaction> unused;
         CTxMemPool *mempool = validationEngine.mempool();
         BOOST_REVERSE_FOREACH(const CTransaction& tx, pblock->vtx) {
