@@ -255,7 +255,7 @@ public:
 class SendRawTransaction : public Api::RpcParser
 {
 public:
-    SendRawTransaction() : RpcParser("sendrawtransaction", Api::RawTransactions::SendRawTransactionReply, 10) {}
+    SendRawTransaction() : RpcParser("sendrawtransaction", Api::RawTransactions::SendRawTransactionReply, 34) {}
 
     virtual void createRequest(const Message &message, UniValue &output) {
         std::string tx;
