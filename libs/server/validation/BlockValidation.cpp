@@ -1,6 +1,6 @@
 /*
  * This file is part of the flowee project
- * Copyright (C) 2017-2018 Tom Zander <tomz@freedommail.ch>
+ * Copyright (C) 2017-2019 Tom Zander <tomz@freedommail.ch>
  *
  * This program is free software: you can redistribute it and/or modify
  * it under the terms of the GNU General Public License as published by
@@ -1443,9 +1443,12 @@ void BlockValidationState::updateUtxoAndStartValidation()
 
             for (auto tx : data.outputs) {
                 assert(tx.firstOutput == 0);
-                for (int i = 0; i < tx.lastOutput; ++i) {
-                    m_txMap.insert(std::make_pair(tx.txid, i));
+                std::deque<std::pair<int, int> > outputs;
+                for (int i = 0; i <= tx.lastOutput; ++i) {
+                    outputs.push_back(std::make_pair(i, tx.offsetInBlock));
                 }
+                DEBUGBV << "available in this block: " << tx.txid << tx.lastOutput;
+                m_txMap.insert(std::make_pair(tx.txid, outputs));
             }
         }
         else {
@@ -1533,29 +1536,53 @@ void BlockValidationState::checkSignaturesChunk()
 #ifdef ENABLE_BENCHMARKS
                     utxoDuration += GetTimeMicros() - utxoStart;
 #endif
-                    if (!unspentOutput.isValid()) {
+                    bool validUtxo = unspentOutput.isValid();
+                    bool validInterBlockSpent = validUtxo; // ONLY used when m_validityOnly is true!
+                    if (!validUtxo && m_checkValidityOnly) {
+                        // in the checkValidity case we don't touch the UTXO and as such some inter-block spending may
+                        // give a false-positive. Check that using the m_txMap structure
+                        auto ti = m_txMap.find(input.txid);
+                        if (ti != m_txMap.end()) {
+                            for (auto iter = ti->second.begin(); iter != ti->second.end(); ++iter) {
+                                if (iter->first == input.index) {
+                                    // found index.
+                                    prevheights.push_back(m_blockIndex->nHeight);
+                                    if (flags.enableValidation) {
+                                        int output = input.index;
+                                        assert(output >= 0);
+                                        Tx::Iterator prevTxIter(m_block, iter->second);
+                                        while (output-- >= 0) {
+                                            prevTxIter.next(Tx::OutputValue);
+                                        }
+                                        prevOut.amount = prevTxIter.longData();
+                                        prevTxIter.next();
+                                        assert(prevTxIter.tag() == Tx::OutputScript);
+                                        prevOut.outputScript = prevTxIter.byteData();
+                                        prevOut.blockheight = m_blockIndex->nHeight;
+                                        unspents.push_back(prevOut);
+                                    }
+                                    validInterBlockSpent = true;
+                                    ti->second.erase(iter);
+                                    break;
+                                }
+                            }
+                            if (!validInterBlockSpent)
+                                DEBUGBV << "Found txid in m_txMap, but not the wanted output...";
+                        }
+                    }
+                    if (!validUtxo && !validInterBlockSpent) {
                         logCritical(Log::BlockValidation) << "Rejecting block" << m_block.createHash() << "due to missing inputs";
                         logInfo(Log::BlockValidation) << " + txid:" << tx.createHash() << "needs input:" << input.txid << input.index;
                         throw Exception("missing-inputs", 0);
                     }
-                    prevheights.push_back(unspentOutput.blockHeight());
-                    if (flags.enableValidation) {
-                        UnspentOutputData data(unspentOutput);
-                        prevOut.amount = data.outputValue();
-                        prevOut.outputScript = data.outputScript();
-                        prevOut.blockheight = data.blockHeight();
-                        unspents.push_back(prevOut);
-                    }
-
-                    if (m_checkValidityOnly) {
-                        // we just checked the UTXO, but when this bool is true
+                    if (m_checkValidityOnly && validUtxo) {
+                        // we just checked the UTXO, but when m_checkValidityOnly is true
                         // the output is not removed from the UTXO, and as such we need a bit of extra code
                         // to detect double-spends.
-                        std::lock_guard<std::mutex> lock(m_spendMapLock);
                         auto ti = m_spentMap.find(input.txid);
                         if (ti != m_spentMap.end()) {
                             for (int index : ti->second) {
-                                if (index == input.index)
+                                if (index == input.index) // already spent the UTXO!
                                     throw Exception("missing-inputs", 0);
                             }
                             ti->second.push_back(input.index);
@@ -1563,7 +1590,19 @@ void BlockValidationState::checkSignaturesChunk()
                             std::deque<int> spentIndex = { input.index };
                             m_spentMap.insert(std::make_pair(input.txid, spentIndex));
                         }
-                    } else {
+                    }
+                    if (validUtxo) { // fill prevHeight and unspents from the UTXO
+                        prevheights.push_back(unspentOutput.blockHeight());
+                        if (flags.enableValidation) {
+                            UnspentOutputData data(unspentOutput);
+                            prevOut.amount = data.outputValue();
+                            prevOut.outputScript = data.outputScript();
+                            prevOut.blockheight = data.blockHeight();
+                            unspents.push_back(prevOut);
+                        }
+                    }
+
+                    if (!m_checkValidityOnly) {
 #ifdef ENABLE_BENCHMARKS
                         utxoStart = GetTimeMicros();
 #endif

@@ -1,6 +1,6 @@
 /*
  * This file is part of the flowee project
- * Copyright (C) 2017-2018 Tom Zander <tomz@freedommail.ch>
+ * Copyright (C) 2017-2019 Tom Zander <tomz@freedommail.ch>
  *
  * This program is free software: you can redistribute it and/or modify
  * it under the terms of the GNU General Public License as published by
@@ -176,16 +176,18 @@ public:
     // my block is likely on the main chain since that means they might be as well.
     std::vector<std::weak_ptr<BlockValidationState> > m_chainChildren;
 
+    //   ---------- only used when m_validateOnly is true.
     // for validateOnly style we omit changing the UTXO. As such we need to
     // allow some way to do in-block tx spending. This structure does that.
-    typedef boost::unordered_map<uint256, int, Blocks::BlockHashShortener> TXMap;
-    TXMap m_txMap; /// ONLY used when m_checkValidityOnly is true!
+    // we map txid to a pair of ints. The first int is the output index. The second int is the tx's offset in block.
+    typedef boost::unordered_map<uint256, std::deque<std::pair<int, int> >, Blocks::BlockHashShortener> UnspentMap;
+    UnspentMap m_txMap;
 
     // when a block is being checked for validity only (not appended) we store changes
     // in this map to detect double-spends.
     typedef boost::unordered_map<uint256, std::deque<int>, Blocks::BlockHashShortener> SpentMap;
     SpentMap m_spentMap;
-    std::mutex m_spendMapLock;
+    //   ---------- only used when m_validateOnly is true.
 };
 
 struct MapHashShortener
