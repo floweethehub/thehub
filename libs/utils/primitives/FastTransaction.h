@@ -151,13 +151,15 @@ public:
 
         /// Return the value of the current tag as a ConstBuffer.
         Streaming::ConstBuffer byteData() const;
-        // Return the value of the current tag as a 32-bit signed int
+        /// Return the amount of bytes would be included in the byteData()
+        int dataLength() const;
+        /// Return the value of the current tag as a 32-bit signed int
         int32_t intData() const;
-        // Return the value of the current tag as a 32-bit unsigned int
+        /// Return the value of the current tag as a 32-bit unsigned int
         uint32_t uintData() const;
-        // Return the value of the current tag as a 64-bit unsigned int
+        /// Return the value of the current tag as a 64-bit unsigned int
         uint64_t longData() const;
-        // Return the value of the current tag as a 256-bit unsigned 'int'
+        /// Return the value of the current tag as a 256-bit unsigned 'int'
         uint256 uint256Data() const;
 
         void operator=(const Iterator &other) = delete;

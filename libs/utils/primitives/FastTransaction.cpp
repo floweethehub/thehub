@@ -309,6 +309,11 @@ Streaming::ConstBuffer Tx::Iterator::byteData() const
     return Streaming::ConstBuffer(d->m_data.internal_buffer(), d->m_currentTokenStart, d->m_currentTokenEnd);
 }
 
+int Tx::Iterator::dataLength() const
+{
+    return d->m_currentTokenEnd - d->m_currentTokenStart;
+}
+
 int32_t Tx::Iterator::intData() const
 {
     if (isConstBytes(d->tag()))
