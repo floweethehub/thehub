@@ -19,6 +19,10 @@ include_directories(${LIBAPI_INCLUDES})
 add_library(flowee_api STATIC
     APIRPCBinding.cpp
     APIServer.cpp
+    NetworkSubscriptionService.cpp
+
+    AddressMonitorService.cpp
+    BlockNotificationService.cpp
 )
 
 target_link_libraries(flowee_api flowee_server flowee_networkmanager)

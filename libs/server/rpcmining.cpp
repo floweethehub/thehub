@@ -142,7 +142,7 @@ UniValue generate(const UniValue& params, bool fHelp)
             "\nNote: this function can only be used on the regtest network\n"
             "\nArguments:\n"
             "1. numblocks    (numeric, required) How many blocks are generated immediately.\n"
-            "2. coinbase     (string, required) the public key for the coinbase address\n"
+            "2. coinbase     (string, required) the hash160 (bitcoin address) for the coinbase\n"
             "\nResult\n"
             "[ blockhashes ]     (array) hashes of blocks generated\n"
             "\nExamples:\n"

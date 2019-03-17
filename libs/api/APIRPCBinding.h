@@ -1,6 +1,6 @@
 /*
  * This file is part of the Flowee project
- * Copyright (C) 2016-2017 Tom Zander <tomz@freedommail.ch>
+ * Copyright (C) 2016-2017, 2019 Tom Zander <tomz@freedommail.ch>
  *
  * This program is free software: you can redistribute it and/or modify
  * it under the terms of the GNU General Public License as published by
@@ -19,6 +19,8 @@
 #ifndef APIRPCBINDING_H
 #define APIRPCBINDING_H
 
+#include "APIServer.h"
+
 #include <string>
 #include <functional>
 
@@ -30,6 +32,11 @@ class Message;
 
 namespace Api
 {
+    class ParserException : public std::runtime_error {
+    public:
+        ParserException(const char *errorMessage) : std::runtime_error(errorMessage) {}
+    };
+
     /**
      * This class, and its subclasses RpcParser / DirectParser are the baseclasses for specific commands.
      *
@@ -57,10 +64,13 @@ namespace Api
             return m_replyMessageId;
         }
 
+        void setSessionData(SessionData **value);
+
     protected:
         int m_messageSize;
         int m_replyMessageId;
         ParserType m_type;
+        SessionData **data;
     };
 
     /**
@@ -124,7 +134,7 @@ namespace Api
 
         /// Return the size we shall reserve for the message to be created in buildReply.
         /// This size CAN NOT be smaller than what is actually consumed in buildReply.
-        virtual int calculateMessageSize() const { return m_messageSize; }
+        virtual int calculateMessageSize(const Message &request) { return m_messageSize; }
 
         /**
          * @brief The buildReply method takes the request and builds the reply to be sent over the network.

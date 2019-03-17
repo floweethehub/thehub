@@ -31,6 +31,8 @@
 
 #include <list>
 
+#include <primitives/FastBlock.h>
+
 namespace {
 
 // blockchain
@@ -83,21 +85,28 @@ public:
     GetBestBlockHash() : RpcParser("getbestblockhash", Api::BlockChain::GetBestBlockHashReply, 50) {}
 };
 
-class GetBlock : public Api::RpcParser
+class GetBlockLegacy : public Api::RpcParser
 {
 public:
-    GetBlock() : RpcParser("getblock", Api::BlockChain::GetBlockReply), m_verbose(false) {}
+    GetBlockLegacy() : RpcParser("getblock", Api::BlockChain::GetBlockVerboseReply), m_verbose(true) {}
     virtual void createRequest(const Message &message, UniValue &output) {
-        std::string txid;
+        std::string blockId;
         Streaming::MessageParser parser(message.body());
         while (parser.next() == Streaming::FoundTag) {
             if (parser.tag() == Api::BlockChain::BlockHash
-                    || parser.tag() == Api::RawTransactions::GenericByteData)
-                boost::algorithm::hex(parser.bytesData(), back_inserter(txid));
-            else if (parser.tag() == Api::BlockChain::Verbose)
+                    || parser.tag() == Api::RawTransactions::GenericByteData) {
+                boost::algorithm::hex(parser.bytesData(), back_inserter(blockId));
+            } else if (parser.tag() == Api::BlockChain::Verbose) {
                 m_verbose = parser.boolData();
+            } else if (parser.tag() == Api::BlockChain::Height) {
+                auto index = Blocks::DB::instance()->headerChain()[parser.intData()];
+                if (index) {
+                    const uint256 blockHash = index->GetBlockHash();
+                    boost::algorithm::hex(blockHash.begin(), blockHash.end(), back_inserter(blockId));
+                }
+            }
         }
-        output.push_back(std::make_pair("block", UniValue(UniValue::VSTR, txid)));
+        output.push_back(std::make_pair("block", UniValue(UniValue::VSTR, blockId)));
         output.push_back(std::make_pair("verbose", UniValue(UniValue::VBOOL, m_verbose ? "1": "0")));
     }
 
@@ -219,6 +228,248 @@ public:
     }
 };
 
+class GetBlock : public Api::DirectParser
+{
+public:
+    class BlockSessionData : public Api::SessionData
+    {
+    public:
+        std::set<CKeyID> keys; // keys to filter on
+    };
+
+    GetBlock() : DirectParser(Api::BlockChain::GetBlockReply) {}
+
+    int calculateMessageSize(const Message &request) {
+        CBlockIndex *index = nullptr;
+        Streaming::MessageParser parser(request.body());
+        BlockSessionData *session = dynamic_cast<BlockSessionData*>(*data);
+        if (session == nullptr) {
+            session = new BlockSessionData();
+            *data = session;
+        }
+
+        bool filterOnKeys = false;
+        bool requestOk = false;
+        bool fullTxData = false;
+        while (parser.next() == Streaming::FoundTag) {
+            if (parser.tag() == Api::BlockChain::BlockHash
+                    || parser.tag() == Api::RawTransactions::GenericByteData) {
+                if (parser.dataLength() != 32)
+                    throw Api::ParserException("BlockHash should be a 32 byte-bytearray");
+                index = Blocks::Index::get(uint256(&parser.bytesData()[0]));
+                requestOk = true;
+            } else if (parser.tag() == Api::BlockChain::Height) {
+                index = Blocks::DB::instance()->headerChain()[parser.intData()];
+                requestOk = true;
+            } else if (parser.tag() == Api::BlockChain::ReuseAddressFilter) {
+                filterOnKeys = parser.boolData();
+            } else if (parser.tag() == Api::BlockChain::SetFilterAddress
+                       ||  parser.tag() == Api::BlockChain::AddFilterAddress) {
+                if (parser.dataLength() != 20)
+                    throw Api::ParserException("GetBlock: filter-address should be a 20bytes bytearray");
+                if (parser.tag() == Api::BlockChain::SetFilterAddress)
+                    session->keys.clear();
+                session->keys.insert(CKeyID(uint160(parser.unsignedBytesData())));
+                filterOnKeys = true;
+            } else if (parser.tag() == Api::BlockChain::FullTransactionData) {
+                fullTxData = parser.boolData();
+            } else if (parser.tag() == Api::BlockChain::GetBlock_TxId) {
+                m_returnTxId = parser.boolData();
+            } else if (parser.tag() == Api::BlockChain::GetBlock_OffsetInBlock) {
+                m_returnOffsetInBlock = parser.boolData();
+            } else if (parser.tag() == Api::BlockChain::GetBlock_Inputs) {
+                m_returnInputs = parser.boolData();
+            } else if (parser.tag() == Api::BlockChain::GetBlock_Outputs) {
+                m_returnOutputs = parser.boolData();
+            } else if (parser.tag() == Api::BlockChain::GetBlock_OutputAmounts) {
+                m_returnOutputAmounts = parser.boolData();
+            } else if (parser.tag() == Api::BlockChain::GetBlock_OutputScripts) {
+                m_returnOutputScripts = parser.boolData();
+            } else if (parser.tag() == Api::BlockChain::GetBlock_OutputAddresses) {
+                m_returnOutputAddresses = parser.boolData();
+            }
+        }
+        if (fullTxData) // if explicitly asked.
+            m_fullTxData = true;
+        else if (m_returnTxId || m_returnInputs || m_returnOutputs || m_returnOutputAmounts
+                || m_returnOutputScripts || m_returnOutputAddresses)
+            // we imply false if they want a subset.
+            m_fullTxData = false;
+
+        if (index == nullptr)
+            throw Api::ParserException(requestOk ? "Requested block not found" :
+                                                   "Request needs to contain either height or blockhash");
+        m_height = index->nHeight;
+        try {
+            m_block = Blocks::DB::instance()->loadBlock(index->GetBlockPos());
+            assert(m_block.isFullBlock());
+        } catch (...) {
+            throw Api::ParserException("Blockdata not present on this Hub");
+        }
+
+        Tx::Iterator iter(m_block);
+        auto type = iter.next();
+        bool oneEnd = false, txMatched = !filterOnKeys;
+        int size = 0, matchedOutputs = 0, matchedInputsSize = 0;
+        int txOutputCount = 0, txInputSize = 0, txOutputScriptSizes = 0;
+        int matchedOutputScriptSizes = 0;
+        while (true) {
+            if (type == Tx::End) {
+                if (txMatched) {
+                    Tx prevTx = iter.prevTx();
+                    size += prevTx.size();
+                    matchedInputsSize += txInputSize;
+                    matchedOutputs += txOutputCount;
+                    matchedOutputScriptSizes += txOutputScriptSizes;
+                    m_transactions.push_back(std::make_pair(prevTx.offsetInBlock(m_block), prevTx.size()));
+                    txMatched = !filterOnKeys;
+                }
+                if (oneEnd) // then the second end means end of block
+                    break;
+                oneEnd = true;
+
+                txInputSize = 0;
+                txOutputCount = 0;
+                txOutputScriptSizes = 0;
+            } else {
+                oneEnd = false;
+            }
+
+            if (type == Tx::PrevTxHash) {
+                txInputSize += 42; // prevhash: 32 + 3 +  prevIndex; 6 + 1
+            }
+            else if (m_returnInputs && type == Tx::TxInScript) {
+                txInputSize += iter.dataLength() + 3;
+            }
+            else if (type == Tx::OutputValue) {
+                ++txOutputCount;
+            }
+            else if (type == Tx::OutputScript) {
+                txOutputScriptSizes += iter.dataLength(); // the 6 for the outindex
+                if (!txMatched) {
+                    CScript scriptPubKey(iter.byteData());
+
+                    std::vector<std::vector<unsigned char> > vSolutions;
+                    txnouttype whichType;
+                    bool recognizedTx = Solver(scriptPubKey, whichType, vSolutions);
+                    if (recognizedTx && (whichType == TX_PUBKEY || whichType == TX_PUBKEYHASH)) {
+                        CKeyID keyID;
+                        if (whichType == TX_PUBKEYHASH)
+                            keyID = CKeyID(uint160(vSolutions[0]));
+                        else if (whichType == TX_PUBKEY)
+                            keyID = CPubKey(vSolutions[0]).GetID();
+                        if (session->keys.find(keyID) != session->keys.end())
+                            txMatched = true;
+                    }
+                }
+            }
+            type = iter.next();
+        }
+
+        int bytesPerTx = 1;
+        if (m_returnTxId) bytesPerTx += 35;
+        if (m_returnOffsetInBlock) bytesPerTx += 6;
+        if (m_fullTxData)  bytesPerTx += 5; // actual tx-data is in 'size'
+
+        int bytesPerOutput = 5;
+        if (m_returnOutputAmounts || m_returnOutputs) bytesPerOutput += 10;
+        if (m_returnOutputAddresses || m_returnOutputs) bytesPerOutput += 23;
+
+        int total = 45 + m_transactions.size() * bytesPerTx;
+        if (m_fullTxData) total += size;
+        if (m_returnOutputs || m_returnOutputScripts)
+            total += matchedOutputScriptSizes;
+        if (m_returnInputs)
+            total += matchedInputsSize;
+        if (m_returnOutputs || m_returnOutputAddresses || m_returnOutputAmounts)
+            total += matchedOutputs * bytesPerOutput;
+
+        logDebug(Log::ApiServer) << "GetBlock calculated to need at most" << total << "bytes";
+        logDebug(Log::ApiServer) << "  tx" << bytesPerTx << "*" << m_transactions.size() << "(=num tx). Plus"
+                                 << bytesPerOutput << "bytes per output (" << matchedOutputs << ")";
+        logDebug(Log::ApiServer) << "  matched Script Output sizes:" << matchedOutputScriptSizes;
+        return total;
+    }
+
+    void buildReply(const Message&, Streaming::MessageBuilder &builder) {
+        assert(m_height >= 0);
+        builder.add(Api::BlockChain::Height, m_height);
+        builder.add(Api::BlockChain::BlockHash, m_block.createHash());
+
+        const bool partialTxData = m_returnTxId  || m_returnInputs  || m_returnOutputs  || m_returnOutputAmounts
+                || m_returnOutputScripts  || m_returnOutputAddresses;
+        for (auto posAndSize : m_transactions) {
+            if (m_returnOffsetInBlock)
+                builder.add(Api::BlockChain::Tx_OffsetInBlock, posAndSize.first);
+            if (partialTxData) {
+                int outIndex = 0;
+                if (m_returnTxId) {
+                    Tx tx(m_block.data().mid(posAndSize.first, posAndSize.second));
+                    builder.add(Api::BlockChain::TxId, tx.createHash());
+                }
+                Tx::Iterator iter(m_block, posAndSize.first);
+                auto type = iter.next();
+                while (type != Tx::End) {
+                    if (m_returnInputs && type == Tx::PrevTxHash) {
+                        builder.add(Api::BlockChain::Tx_IN_TxId, iter.uint256Data());
+                    }
+                    else if (m_returnInputs && type == Tx::TxInScript) {
+                        builder.add(Api::BlockChain::Tx_Script, iter.byteData());
+                    }
+                    else if (m_returnInputs && type == Tx::PrevTxIndex) {
+                        builder.add(Api::BlockChain::Tx_IN_OutIndex, iter.intData());
+                    }
+                    else if ((m_returnOutputs || m_returnOutputAmounts) && type == Tx::OutputValue) {
+                        builder.add(Api::BlockChain::Tx_Out_Index, outIndex++);
+                        builder.add(Api::BlockChain::Tx_Out_Amount, iter.longData());
+                    }
+                    else if ((m_returnOutputs || m_returnOutputScripts || m_returnOutputAddresses) && type == Tx::OutputScript) {
+                        if (!m_returnOutputs && !m_returnOutputAddresses) // if not done before OutputValue
+                            builder.add(Api::BlockChain::Tx_Out_Index, outIndex++);
+                        if (m_returnOutputs || m_returnOutputScripts)
+                            builder.add(Api::BlockChain::Tx_Script, iter.byteData());
+                        if (m_returnOutputAddresses) {
+                            CScript scriptPubKey(iter.byteData());
+
+                            std::vector<std::vector<unsigned char> > vSolutions;
+                            txnouttype whichType;
+                            bool recognizedTx = Solver(scriptPubKey, whichType, vSolutions);
+                            if (recognizedTx && (whichType == TX_PUBKEY || whichType == TX_PUBKEYHASH)) {
+                                if (whichType == TX_PUBKEYHASH) {
+                                    assert(vSolutions[0].size() == 20);
+                                    builder.addByteArray(Api::BlockChain::Tx_Out_Address, vSolutions[0].data(), 20);
+                                } else if (whichType == TX_PUBKEY) {
+                                    unsigned char array[20];
+                                    CHash160().Write(vSolutions[0].data(), vSolutions[0].size()).Finalize(array);
+                                    builder.addByteArray(Api::BlockChain::Tx_Out_Address, array, 20);
+                                }
+                            }
+                        }
+                    }
+
+                    type = iter.next();
+                }
+            }
+            if (m_fullTxData)
+                builder.add(Api::BlockChain::GenericByteData,
+                    m_block.data().mid(posAndSize.first, posAndSize.second));
+
+            builder.add(Api::BlockChain::Separator, true);
+        }
+    }
+
+    FastBlock m_block;
+    std::vector<std::pair<int, int>> m_transactions; // list of offset-in-block and length of tx to include
+    bool m_fullTxData = true;
+    bool m_returnTxId = false;
+    bool m_returnOffsetInBlock = true;
+    bool m_returnInputs = false;
+    bool m_returnOutputs = false;
+    bool m_returnOutputAmounts = false;
+    bool m_returnOutputScripts = false;
+    bool m_returnOutputAddresses = false;
+    int m_height = -1;
+};
 class GetBlockCount : public Api::DirectParser
 {
 public:
@@ -411,7 +662,6 @@ public:
     }
 
     virtual void createRequest(const Message &message, UniValue &output) {
-        std::string txid;
         int minConf = -1;
         int maxConf = -1;
         std::list<std::vector<char>> addresses;
@@ -527,6 +777,44 @@ public:
     }
 };
 
+class RegTestGenerateBlock : public Api::RpcParser {
+public:
+    RegTestGenerateBlock() : RpcParser("generate", Api::RegTest::GenerateBlockReply) {}
+
+    void createRequest(const Message &message, UniValue &output) {
+        Streaming::MessageParser parser(message.body());
+        int amount = 1;
+        std::vector<uint8_t> outAddress;
+        while (parser.next() == Streaming::FoundTag) {
+            if (parser.tag() == Api::RegTest::Amount)
+                amount = parser.intData();
+            else if (parser.tag() == Api::RegTest::BitcoinAddress)
+                outAddress = parser.unsignedBytesData();
+        }
+        if (amount <= 0 || amount > 150)
+            throw Api::ParserException("Invalid Amount argument");
+        if (outAddress.size() != 20)
+            throw Api::ParserException("Invalid BitcoinAddress (need 20 byte array)");
+
+        std::string hex;
+        boost::algorithm::hex(outAddress, back_inserter(hex));
+        output.push_back(std::make_pair("item0", UniValue(amount)));
+        logFatal() << "address: " << hex;
+        output.push_back(std::make_pair("item1", UniValue(UniValue::VSTR, hex)));
+        m_messageSize = amount * 35;
+    }
+
+    void buildReply(Streaming::MessageBuilder &builder, const UniValue &result) {
+        assert(result.getType() == UniValue::VARR);
+        for (int i = 0; i < result.size(); ++i) {
+            assert(result[i].get_str().size() == 64);
+            std::vector<char> hex;
+            boost::algorithm::unhex(result[i].get_str(), back_inserter(hex));
+            builder.add(Api::RegTest::BlockHash, hex);
+        }
+    }
+};
+
 }
 
 
@@ -541,6 +829,8 @@ Api::Parser *Api::createParser(const Message &message)
             return new GetBestBlockHash();
         case Api::BlockChain::GetBlock:
             return new GetBlock();
+        case Api::BlockChain::GetBlockVerbose:
+            return new GetBlockLegacy();
         case Api::BlockChain::GetBlockHeader:
             return new GetBlockHeader();
         case Api::BlockChain::GetBlockCount:
@@ -582,6 +872,12 @@ Api::Parser *Api::createParser(const Message &message)
             return new ValidateAddress();
         }
         break;
+    case Api::RegTestService:
+        switch (message.messageId()) {
+        case Api::RegTest::GenerateBlock:
+            return new RegTestGenerateBlock();
+        }
+        break;
     }
     throw std::runtime_error("Unsupported command");
 }
@@ -592,6 +888,11 @@ Api::Parser::Parser(ParserType type, int answerMessageId, int messageSize)
       m_replyMessageId(answerMessageId),
       m_type(type)
 {
+}
+
+void Api::Parser::setSessionData(Api::SessionData **value)
+{
+    data = value;
 }
 
 Api::RpcParser::RpcParser(const std::string &method, int replyMessageId, int messageSize)

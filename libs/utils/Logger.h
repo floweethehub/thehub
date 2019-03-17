@@ -102,6 +102,7 @@ enum Sections {
     // modern fancy apis
     ApiServer = 2500,
     MonitorService,
+    BlockNotifactionService,
 
     DB = 3000,
     Coindb,

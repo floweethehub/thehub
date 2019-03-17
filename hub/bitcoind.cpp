@@ -2,6 +2,7 @@
  * This file is part of the Flowee project
  * Copyright (c) 2009-2010 Satoshi Nakamoto
  * Copyright (c) 2009-2015 The Bitcoin Core developers
+ * Copyright (C) 2018-2019 Tom Zander <tomz@freedommail.ch>
  *
  * This program is free software: you can redistribute it and/or modify
  * it under the terms of the GNU General Public License as published by
@@ -35,6 +36,7 @@
 #include <boost/thread.hpp>
 
 #include <AddressMonitorService.h>
+#include <BlockNotificationService.h>
 #include <cstdio>
 
 static bool fDaemon;
@@ -96,6 +98,7 @@ bool AppInit(int argc, char* argv[])
 
     std::unique_ptr<Api::Server> apiServer;
     std::unique_ptr<AddressMonitorService> addressMonitorService;
+    std::unique_ptr<BlockNotificationService> blockNotificationService;
     try
     {
         std::string dd = GetArg("-datadir", "");
@@ -168,9 +171,11 @@ bool AppInit(int argc, char* argv[])
             if (GetBoolArg("-api", true)) {
                 apiServer.reset(new Api::Server(Application::instance()->ioService()));
                 addressMonitorService.reset(new AddressMonitorService());
+                blockNotificationService.reset(new BlockNotificationService());
                 extern CTxMemPool mempool;
                 addressMonitorService->setMempool(&mempool);
                 apiServer->addService(addressMonitorService.get());
+                apiServer->addService(blockNotificationService.get());
             }
         }
     }

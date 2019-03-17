@@ -18,7 +18,6 @@ include_directories(${LIBSERVER_INCLUDES} ${CMAKE_CURRENT_SOURCE_DIR}/..)
 
 set (FLOWEE_SERVER_FILES
     addrman.cpp
-    AddressMonitorService.cpp
     Application.cpp
     arith_uint256.cpp
     base58.cpp

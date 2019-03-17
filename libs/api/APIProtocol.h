@@ -27,9 +27,11 @@ enum ServiceIds {
     RawTransactionService,
     BlockChainService,
     WalletService,
+    RegTestService,
 
     /// Connections can subscribe to bitcoin-address usage notifications
     AddressMonitorService = 40,
+    BlockNotificationService,
 };
 
 enum ApiTags {
@@ -159,6 +161,8 @@ enum MessageIds {
     GetBestBlockHashReply,
     GetBlock,
     GetBlockReply,
+    GetBlockVerbose,
+    GetBlockVerboseReply,
     GetBlockHeader,
     GetBlockHeaderReply,
     GetBlockCount,
@@ -193,8 +197,34 @@ enum Tags {
     Bip9ForkId,
     Bip9ForkStatus,
 
-    // GetBlock-tags
-    BlockHash = 40,
+    // GetBlockReply tags
+    Tx_OffsetInBlock,
+    Tx_IN_TxId,
+    Tx_IN_OutIndex,
+    Tx_Script,
+    Tx_Out_Index,
+    Tx_Out_Amount,
+    Tx_Out_Address,
+
+    // GetBlock-Request-tags
+    // GetBlock can filter a block to only return transactions that match a bitcoin-address filter
+    // (list of addresses).
+    ReuseAddressFilter = 50, ///< A getBlock call resuses a previously created address filter. bool
+    SetFilterAddress,        ///< Followed with one bytearray address. Clears and sets one address in filter.
+    AddFilterAddress,        ///< Add one bytearray address.
+    // for each individual transaction you can select how they should be returned.
+    GetBlock_TxId,           ///< bool.
+    GetBlock_OffsetInBlock,  ///< bool.
+    FullTransactionData,     ///< bool. When true, return full tx data even when interpeted data is sent.
+    GetBlock_Inputs,         ///< bool. Return all inputs for selected tx.
+    GetBlock_OutputAmounts,  ///< bool. Return the amounts field for selected transactions.
+    GetBlock_OutputScripts,  ///< bool. Return full output Scripts.
+    GetBlock_Outputs,        ///< bool. Return all parts of outputs, overriding the previous 2 options.
+    GetBlock_OutputAddresses,///< bool. If the output is a p2pkh, return the hash160 of the address paid to.
+
+
+    // GetBlockVerbose-tags
+    BlockHash = 70,
     Confirmations,
     Height,
     MerkleRoot,
@@ -252,6 +282,22 @@ enum Tags {
 };
 }
 
+namespace RegTest {
+
+// RegTest Service
+enum MessageIds {
+    GenerateBlock,
+    GenerateBlockReply
+};
+
+enum Tags {
+    Separator = 0,
+    GenericByteData,
+    BitcoinAddress,
+    Amount,
+    BlockHash
+};
+}
 
 namespace AddressMonitor {
 enum MessageIds {
@@ -277,6 +323,9 @@ enum MessageIds {
 };
 
 enum Tags {
+    Separator = 0,
+    GenericByteData,
+
     /// A string representing an address.
     BitcoinAddress,
     /// A bytearray for a full sha256 txid
@@ -289,6 +338,23 @@ enum Tags {
     Result,
     /// A string giving a human (well, developer) readable error message
     ErrorMessage
+};
+}
+
+namespace BlockNotification {
+enum MessageIds {
+    Subscribe,
+    SubscribeReply,
+    Unsubscribe,
+    UnsubscribeReply,
+    NewBlockOnChain,
+};
+
+enum Tags {
+    Separator = 0,
+    GenericByteData,
+    BlockHash,
+    Height
 };
 }
 }
