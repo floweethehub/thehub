@@ -1,6 +1,6 @@
 /*
  * This file is part of the flowee project
- * Copyright (C) 2017-2018 Tom Zander <tomz@freedommail.ch>
+ * Copyright (C) 2017-2019 Tom Zander <tomz@freedommail.ch>
  *
  * This program is free software: you can redistribute it and/or modify
  * it under the terms of the GNU General Public License as published by
@@ -48,6 +48,7 @@ void ValidationPrivate::validateTransactionInputs(CTransaction &tx, const std::v
     int64_t valueIn = 0;
     for (size_t i = 0; i < tx.vin.size(); ++i) {
         const ValidationPrivate::UnspentOutput &prevout = unspents.at(i);
+        assert(prevout.amount >= 0);
         if (flags.strictPayToScriptHash && prevout.outputScript.IsPayToScriptHash()) {
             // Add in sigops done by pay-to-script-hash inputs;
             // this is to prevent a "rogue miner" from creating
@@ -370,6 +371,7 @@ void TxValidationState::checkTransaction()
             std::string errString;
             if (!parent->mempool->CalculateMemPoolAncestors(entry, setAncestors, nLimitAncestors, nLimitAncestorSize,
                                                             nLimitDescendants, nLimitDescendantSize, errString)) {
+                logInfo(Log::TxValidation) << "Tx rejected from mempool (too-long-mempool-chain). Reason:" << errString;
                 throw Exception("too-long-mempool-chain", Validation::RejectNonstandard, 0);
             }
 
