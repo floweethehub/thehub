@@ -198,15 +198,13 @@ enum Tags {
     Bip9ForkStatus,
 
     // GetBlockReply tags
-// TODO
-    // txid
-    // height
-    // prevTxId
-    // input
-    // script  (in or out)
-    // amount
-    // address
-    //
+    Tx_OffsetInBlock,
+    Tx_IN_TxId,
+    Tx_IN_OutIndex,
+    Tx_Script,
+    Tx_Out_Index,
+    Tx_Out_Amount,
+    Tx_Out_Address,
 
     // GetBlock-Request-tags
     // GetBlock can filter a block to only return transactions that match a bitcoin-address filter
@@ -215,16 +213,14 @@ enum Tags {
     SetFilterAddress,        ///< Followed with one bytearray address. Clears and sets one address in filter.
     AddFilterAddress,        ///< Add one bytearray address.
     // for each individual transaction you can select how they should be returned.
-// TODO
-//   FullTransactionData,     ///< bool. Selects between original Tx data (when true) or tagged interpreted data otherwise.
-//   GetBlock_TxId,           ///< bool.
-//   GetBlock_OffsetInBlock,  ///< bool.
-//   GetBlock_Inputs,         ///< bool.
-//   GetBlock_Outputs,        ///< bool.
-//   GetBlock_OutputAmounts,  ///< bool.
-//   GetBlock_OutputScripts,  ///< bool. Full output Scripts.
-//   GetBlock_OutputAddresses,///< bool. If OutputScripts if false, return addresses for default p2pkh scripts
-//   GetBlock_SkipOpReturns,  ///< bool. if OutputScripts if false, return OP_RETURN based scripts.
+    GetBlock_TxId,           ///< bool.
+    GetBlock_OffsetInBlock,  ///< bool.
+    FullTransactionData,     ///< bool. When true, return full tx data even when interpeted data is sent.
+    GetBlock_Inputs,         ///< bool. Return all inputs for selected tx.
+    GetBlock_OutputAmounts,  ///< bool. Return the amounts field for selected transactions.
+    GetBlock_OutputScripts,  ///< bool. Return full output Scripts.
+    GetBlock_Outputs,        ///< bool. Return all parts of outputs, overriding the previous 2 options.
+    GetBlock_OutputAddresses,///< bool. If the output is a p2pkh, return the hash160 of the address paid to.
 
 
     // GetBlockVerbose-tags
