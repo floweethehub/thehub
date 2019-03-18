@@ -34,7 +34,8 @@
 
 TxVulcano::TxVulcano(boost::asio::io_service &ioService)
     : m_networkManager(ioService),
-      m_transactionsToCreate(50000),
+      m_transactionsToCreate(500000),
+      m_blockSizeLeft(0),
       m_timer(ioService),
       m_wallet("mywallet")
 {
@@ -49,6 +50,20 @@ void TxVulcano::tryConnect(const EndPoint &ep)
     m_connection.setOnDisconnected(std::bind(&TxVulcano::disconnected, this));
     m_connection.setOnIncomingMessage(std::bind(&TxVulcano::incomingMessage, this, std::placeholders::_1));
     m_connection.connect();
+}
+
+#include <qdebug.h>
+void TxVulcano::setMaxBlockSize(int sizeInMb)
+{
+    m_nextBlockSize.clear();
+    int sequence[] { 0, 20, 50, 100, 250, 600, 1000, 1400, 1900, -1 };
+    for (int i = 1; sequence[i] > 0 && sequence[i - 1] <= sizeInMb; ++i) {
+        const int size = std::min(sizeInMb, sequence[i]);
+        for (int n = 0; n < 5; ++n) {
+            m_nextBlockSize.append(size);
+        }
+    }
+    qDebug() << "Block size sequcen selected:" << m_nextBlockSize.toStdList();
 }
 
 void TxVulcano::connectionEstablished(const EndPoint &)
@@ -89,8 +104,6 @@ void TxVulcano::incomingMessage(const Message& message)
 {
     // logDebug() << message.serviceId() << message.messageId() << message.body().size();
     if (message.serviceId() == Api::ControlService && message.messageId() == Api::Control::CommandFailed) {
-        logCritical() << "incoming message recived a \"message failed\" notification";
-        Streaming::MessageParser::debugMessage(message);
         Streaming::MessageParser parser(message.body());
         int serviceId = -1;
         int messageId = -1;
@@ -115,16 +128,20 @@ void TxVulcano::incomingMessage(const Message& message)
                     m_transactionsInProgress.erase(iter);
                     return;
                 }
-                // if it failed because of a different reason, we assume a generate() will fix that.
-                m_transactionsInProgress.clear();
-                m_wallet.clearUnconfirmedUTXOs();
-
-                // generate();
-                m_timer.cancel();
-                m_timer.expires_from_now(boost::posix_time::milliseconds(500));
-                m_timer.async_wait(std::bind(&TxVulcano::generate, this, 1));
+                if (errorMessage == "64: too-long-mempool-chain") {
+                    // a generate() will fix that.
+                    m_transactionsInProgress.clear();
+                    m_wallet.clearUnconfirmedUTXOs();
+                    // generate() with 1s delay;
+                    m_timer.cancel();
+                    m_timer.expires_from_now(boost::posix_time::seconds(1));
+                    m_timer.async_wait(std::bind(&TxVulcano::generate, this, 1));
+                    return;
+                }
             }
         }
+        logCritical().nospace()
+            << "incoming message recived a '" << errorMessage  << "` notification. S/C: " << serviceId << "/" << messageId;
     }
     else if (message.serviceId() == Api::UtilService && message.messageId() == Api::Util::CreateAddressReply) {
         Streaming::MessageParser parser(message.body());
@@ -230,7 +247,13 @@ void TxVulcano::incomingMessage(const Message& message)
         Streaming::MessageParser parser(message.body());
         while (parser.next() == Streaming::FoundTag) {
             if (parser.tag() == Api::RegTest::BlockHash)
-                logFatal() << "  Generate returns with a block hash: " << parser.uint256Data();
+                logInfo() << "  Generate returns with a block hash: " << parser.uint256Data();
+        }
+        if (m_blockSizeLeft < 1000) {
+            if (m_nextBlockSize.isEmpty())
+                m_blockSizeLeft = 50000000;
+            else
+                m_blockSizeLeft = m_nextBlockSize.takeFirst() * 1000000;
         }
     }
     else if (message.serviceId() == Api::BlockNotificationService && message.messageId() == Api::BlockNotification::NewBlockOnChain) {
@@ -251,14 +274,12 @@ void TxVulcano::incomingMessage(const Message& message)
         }
     }
     else if (message.serviceId() == Api::RawTransactionService && message.messageId() == Api::RawTransactions::SendRawTransactionReply) {
-        logDebug() << "SendRawTransactionReply";
         auto item = m_transactionsInProgress.find(message.headerInt(Api::RequestId));
         if (item != m_transactionsInProgress.end()) {
             UnvalidatedTransaction txData = item->second;
             const uint256 hash = txData.transaction.createHash();
             int64_t amount = -1;
             int outIndex = 0;
-
             Tx::Iterator iter(txData.transaction);
             while (iter.next() != Tx::End) {
                 if (iter.tag() == Tx::OutputValue)
@@ -274,11 +295,26 @@ void TxVulcano::incomingMessage(const Message& message)
                 }
             }
             m_transactionsInProgress.erase(item);
-            if (outIndex > 0) {
-                // we have more outputs to spent! Make sure we continue.
+            if (++m_transactionsCreated > m_transactionsToCreate && m_transactionsToCreate > 0) {
                 m_timer.cancel();
-                m_connection.postOnStrand(std::bind(&TxVulcano::createTransactions_priv, this));
+                generate(1);
+                m_connection.disconnect();
+                Application::quit(0);
             }
+
+            m_blockSizeLeft -= txData.transaction.size();
+            if (m_blockSizeLeft <= 0) {
+                generate(1);
+                m_transactionsInProgress.clear();
+                m_wallet.clearUnconfirmedUTXOs();
+                m_timer.cancel();
+            }
+
+//           if (outIndex > 0) {
+//               // we have more outputs to spent! Make sure we continue.
+//               m_timer.cancel();
+//               m_connection.postOnStrand(std::bind(&TxVulcano::createTransactions, this));
+//           }
         }
     }
     else {
@@ -291,7 +327,6 @@ void TxVulcano::createTransactions(const boost::system::error_code& error)
     if (error)
         return;
     if (m_transactionsInProgress.size() > 50) {
-        logDebug() << "Slow down...";
         // too many in flight, delay
         m_timer.expires_from_now(boost::posix_time::milliseconds(200));
         m_timer.async_wait(std::bind(&TxVulcano::createTransactions, this, std::placeholders::_1));
@@ -302,35 +337,7 @@ void TxVulcano::createTransactions(const boost::system::error_code& error)
 
 void TxVulcano::createTransactions_priv()
 {
-    logFatal() << "createTransaction";
     TransactionBuilder builder;
-
-    /*
-     * It honestly should be as simple as;
-     * collect inputs and outputs and combine in a Tx...
-     *
-     * but...
-     * I should use the wallet to fund transactions and sign it.
-     * I should use the wallet to find how much money is contained in it.
-     *    This means I should be able to just take the first N utxos from the wallet and base my transaction on it.
-     * Next I take a list of addresses that the wallet owns and based my outputs on it.
-     *
-     * The wallet should have a goal number of private keys, and I should aim to use them all in 2 blocks.
-     * As such I can base my number of UTXOs vs my list of private keys and decide if I want to really grow, just grow
-     * or have a mostly stable ratio between inputs and outputs.
-     *
-     * When a transaction is signed I need to remove the UTXOs from the wallet and add the outputs it creates.
-     * Additionally I should have a 'depth' int on UTXOs which states how many unconfirmed parents it has.
-     *
-     * Lets begin at the start;
-     * * find 3 inputs
-     * * find 10 target addresses
-     * * create transaction
-     * * make wallet sign transaction.
-     * * send to Hub
-     * * remove from wallet the spent UTXOs
-     * * GoTO 10
-     */
 
     /*
      * TODO
@@ -342,7 +349,7 @@ void TxVulcano::createTransactions_priv()
     short unconfirmedDepth = 0;
     int64_t amount = 0;
     for (auto utxo = m_wallet.unspentOutputs().begin(); utxo != m_wallet.unspentOutputs().end();) {
-        if (utxo->coinbaseHeight > 0 && utxo->coinbaseHeight + 100 > m_highestBlock) {// coinbase maturity
+        if (utxo->coinbaseHeight > 0 && utxo->coinbaseHeight + 100 >= m_highestBlock) {// coinbase maturity
             ++utxo;
             continue;
         }
@@ -357,9 +364,10 @@ void TxVulcano::createTransactions_priv()
         builder.pushInputSignature(*key, utxo->prevOutScript, utxo->amount);
         utxo = m_wallet.spendOutput(utxo);
         unconfirmedDepth = std::max(unconfirmedDepth, utxo->unconfirmedDepth);
-        break;
+        if (amount > 12500)
+            break;
     }
-    if (amount == 0) {
+    if (amount < 10000) {
         logCritical() << "No matured coins available";
         return;
     }
@@ -383,7 +391,7 @@ void TxVulcano::createTransactions_priv()
         unvalidatedTransaction.pubKeys.push_back(out);
     }
 
-    m_pool.reserve(2000); // Should be plenty
+    m_pool.reserve(1000); // Should be plenty
     Tx signedTx = builder.createTransaction(&m_pool);
 
     m_pool.reserve(signedTx.size() + 30);
@@ -394,12 +402,12 @@ void TxVulcano::createTransactions_priv()
     const int id = ++m_lastId;
     unvalidatedTransaction.transaction = signedTx;
     m_transactionsInProgress.insert(std::make_pair(id, unvalidatedTransaction));
-    ++m_transactionsCreated;
     m.setHeaderInt(Api::RequestId, id);
     m_connection.send(m);
 
+    // wait until next eventloop so we still do network in the meantime
     m_timer.cancel();
-    m_timer.expires_from_now(boost::posix_time::milliseconds(1));
+    m_timer.expires_from_now(boost::posix_time::milliseconds(0));
     m_timer.async_wait(std::bind(&TxVulcano::createTransactions, this, std::placeholders::_1));
 }
 
@@ -443,7 +451,6 @@ void TxVulcano::buildGetBlockRequest(Streaming::MessageBuilder &builder, bool &f
 
 void TxVulcano::nowCurrent()
 {
-    logDebug() << "nowCurrent";
     if (m_wallet.unspentOutputs().size() < 10)
         generate(110);
     else

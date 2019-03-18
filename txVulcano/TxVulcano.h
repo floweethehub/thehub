@@ -28,6 +28,7 @@
 #include <primitives/FastTransaction.h>
 
 #include <boost/asio/deadline_timer.hpp>
+#include <qlist.h>
 #include <vector>
 
 namespace Streaming {
@@ -41,7 +42,11 @@ public:
 
     void tryConnect(const EndPoint &ep);
 
-    void sendRequest(int messageId);
+    void setMaxBlockSize(int sizeInMb);
+    inline void setMaxNumTransactions(int num) {
+        assert(num > 0);
+        m_transactionsToCreate = num;
+    }
 
 private:
     void connectionEstablished(const EndPoint &ep);
@@ -63,8 +68,12 @@ private:
 
     Streaming::BufferPool m_pool;
 
+    // limits
     int m_transactionsToCreate;
     int m_transactionsCreated;
+    int m_blockSizeLeft;
+    QList<int> m_nextBlockSize;
+
     boost::asio::deadline_timer m_timer;
 
     struct UnvalidatedTransaction {

@@ -26,6 +26,8 @@
 #include <server/chainparams.h>
 #include "TxVulcano.h"
 
+#include <qdebug.h>
+
 int main(int argc, char **argv)
 {
     QCoreApplication app(argc, argv);
@@ -33,27 +35,14 @@ int main(int argc, char **argv)
     app.setOrganizationDomain("flowee.org");
     app.setApplicationName("txVulcano");
 
-    // server <:port>
-    //  -size-limit=1MB
-    //  -tx-limit=100
-    //  -mine-block=blocksizeMB
-
-    // start client, connect
-
-    // read;
-    // ~/.local/share/flowee/txVolcano.db
-    // which should contain all the private and public addresses known to the vulcano.
-    // if we own less than 10BCH, mine some.
-
-    // use the previous algo to distribute the transactions.
-    // notice that I need a transaction-builder class as the previous design used TxV4
-
     QCommandLineParser parser;
     parser.setApplicationDescription("Transaction generator of epic proportions");
     parser.addHelpOption();
     parser.addPositionalArgument("server", "server address with optional port");
-    QCommandLineOption sizeLimit(QStringList() << "size-limit" << "l", "sets a limit to the amount of transactions created" );
+    QCommandLineOption sizeLimit(QStringList() << "block-size" << "b", "sets a goal to the blocks-size created", "<size>");
     parser.addOption(sizeLimit);
+    QCommandLineOption txLimit(QStringList() << "num-transactions" << "n", "Limits number of transactions created (default=500000)", "<amount>");
+    parser.addOption(txLimit);
 
     parser.process(app);
     const QStringList args = parser.positionalArguments();
@@ -73,6 +62,33 @@ int main(int argc, char **argv)
     ECC_Start();
     SelectParams("regtest");
     TxVulcano vulcano(Application::instance()->ioService());
+    if (parser.isSet(sizeLimit)) {
+        bool ok;
+        qDebug() <<  parser.value(sizeLimit);
+        int sl = parser.value(sizeLimit).toInt(&ok);
+        if (!ok) {
+            logFatal() << "size-limit has to be a number";
+            return 1;
+        }
+        if (sl < 1) {
+            logFatal() << "Min block size is 1MB";
+            return 1;
+        }
+        vulcano.setMaxBlockSize(sl);
+    }
+    if (parser.isSet(txLimit)) {
+        bool ok;
+        int lim = parser.value(txLimit).toInt(&ok);
+        if (!ok) {
+            logFatal() << "num-transactions has to be a number";
+            return 1;
+        }
+        if (lim < 1) {
+            logFatal() << "num-transactions to low";
+            return 1;
+        }
+        vulcano.setMaxNumTransactions(lim);
+    }
     EndPoint ep;
     ep.announcePort = 11235;
     ep.hostname = args.first().toLocal8Bit().toStdString();
