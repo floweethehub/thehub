@@ -43,6 +43,7 @@ target_link_libraries(txVulcano
     ${Boost_LIBRARIES}
     ${ZMQ_LIBRARIES}
     ${Event_LIBRARIES}
+    ${MINIUPNP_LIBRARY}
     ${BOOST_THREAD_LIBRARY}
     Qt5::Core
 )
