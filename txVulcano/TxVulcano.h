@@ -73,6 +73,7 @@ private:
     int m_transactionsCreated;
     int m_blockSizeLeft;
     QList<int> m_nextBlockSize;
+    int m_damage = 0; // increased at every failed tx, decreased at every accepted one.
 
     boost::asio::deadline_timer m_timer;
 

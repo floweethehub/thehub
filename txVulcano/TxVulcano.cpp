@@ -121,26 +121,31 @@ void TxVulcano::incomingMessage(const Message& message)
 
             auto iter = m_transactionsInProgress.find(requestId);
             if (iter != m_transactionsInProgress.end()) {
-                if (errorMessage == "16: missing-inputs") {
-                    // our wallet currently doesn't mark as spent outputs spent in the same block.
-                    // so we just gracefully let the Hub do this check for now as I'm a lazy programmer.
+                // possible we get "16: missing-inputs"
+                // our wallet currently doesn't mark as spent outputs spent in the same block.
+                // so we just gracefully let the Hub do this check for now as I'm a lazy programmer.
 
-                    m_transactionsInProgress.erase(iter);
-                    return;
-                }
-                if (errorMessage == "64: too-long-mempool-chain") {
+                if (errorMessage == "64: too-long-mempool-chain" && ++m_damage > 100) {
+                    logCritical() << "Transaction was returned with" << errorMessage << "calling generate()";
+                    logInfo() << "| note we still have" << m_wallet.unspentOutputs().size() << "UTXOs to spend";
                     // a generate() will fix that.
                     m_transactionsInProgress.clear();
                     m_wallet.clearUnconfirmedUTXOs();
+                    logInfo() << "\\_after removing the unconfirmed ones that is down to:" << m_wallet.unspentOutputs().size();
                     // generate() with 1s delay;
                     m_timer.cancel();
                     m_timer.expires_from_now(boost::posix_time::seconds(1));
                     m_timer.async_wait(std::bind(&TxVulcano::generate, this, 1));
-                    return;
+                }
+                else {
+                    // we remove utxo's from the wallet when we create the tx, we re-add unspent ones when the tx gets
+                    // accepted.
+                    // The rejected ones we just forget, which means we may lose coin, so don't run this with real money!
+                    m_transactionsInProgress.erase(iter);
                 }
             }
         }
-        logCritical().nospace()
+        logDebug().nospace()
             << "incoming message recived a '" << errorMessage  << "` notification. S/C: " << serviceId << "/" << messageId;
     }
     else if (message.serviceId() == Api::UtilService && message.messageId() == Api::Util::CreateAddressReply) {
@@ -203,6 +208,7 @@ void TxVulcano::incomingMessage(const Message& message)
         int64_t amount = 0;
         int outIndex = -1;
         uint160 address;
+        m_damage = -100;
         CScript script;
         Streaming::MessageParser parser(message.body());
         /*
@@ -254,6 +260,7 @@ void TxVulcano::incomingMessage(const Message& message)
                 m_blockSizeLeft = 50000000;
             else
                 m_blockSizeLeft = m_nextBlockSize.takeFirst() * 1000000;
+            logCritical() << "Setting block size wanted to" << (m_blockSizeLeft / 1000000) << "MB";
         }
     }
     else if (message.serviceId() == Api::BlockNotificationService && message.messageId() == Api::BlockNotification::NewBlockOnChain) {
@@ -276,6 +283,7 @@ void TxVulcano::incomingMessage(const Message& message)
     else if (message.serviceId() == Api::RawTransactionService && message.messageId() == Api::RawTransactions::SendRawTransactionReply) {
         auto item = m_transactionsInProgress.find(message.headerInt(Api::RequestId));
         if (item != m_transactionsInProgress.end()) {
+            m_damage = std::max(-100, m_damage - 1);
             UnvalidatedTransaction txData = item->second;
             const uint256 hash = txData.transaction.createHash();
             int64_t amount = -1;
@@ -297,6 +305,7 @@ void TxVulcano::incomingMessage(const Message& message)
             m_transactionsInProgress.erase(item);
             if (++m_transactionsCreated > m_transactionsToCreate && m_transactionsToCreate > 0) {
                 m_timer.cancel();
+                logCritical() << "We created" << m_transactionsCreated << "transactions, completing the run with one more generate() & shutting down";
                 generate(1);
                 m_connection.disconnect();
                 Application::quit(0);
@@ -304,10 +313,11 @@ void TxVulcano::incomingMessage(const Message& message)
 
             m_blockSizeLeft -= txData.transaction.size();
             if (m_blockSizeLeft <= 0) {
-                generate(1);
+                logCritical() << "Block is full enough, calling generate()";
                 m_transactionsInProgress.clear();
                 m_wallet.clearUnconfirmedUTXOs();
                 m_timer.cancel();
+                generate(1);
             }
 
 //           if (outIndex > 0) {
@@ -349,7 +359,7 @@ void TxVulcano::createTransactions_priv()
     short unconfirmedDepth = 0;
     int64_t amount = 0;
     for (auto utxo = m_wallet.unspentOutputs().begin(); utxo != m_wallet.unspentOutputs().end();) {
-        if (utxo->coinbaseHeight > 0 && utxo->coinbaseHeight + 100 >= m_highestBlock) {// coinbase maturity
+        if (utxo->coinbaseHeight > 0 && utxo->coinbaseHeight + 101 > m_highestBlock) {// coinbase maturity
             ++utxo;
             continue;
         }
@@ -390,6 +400,7 @@ void TxVulcano::createTransactions_priv()
         builder.pushOutputPay2Address(m_wallet.publicKey(out).GetID());
         unvalidatedTransaction.pubKeys.push_back(out);
     }
+    assert(count > 0);
 
     m_pool.reserve(1000); // Should be plenty
     Tx signedTx = builder.createTransaction(&m_pool);
@@ -466,5 +477,6 @@ void TxVulcano::generate(int blockCount)
     const CKeyID id = m_wallet.publicKey(pkId).GetID();
     builder.add(Api::RegTest::BitcoinAddress, std::vector<char>(id.begin(), id.end()));
     builder.add(Api::RegTest::Amount, blockCount);
+    logCritical() << "  Sending generate, the block size we aimed for is still" << (m_blockSizeLeft / 1000) << "KB away";
     m_connection.send(builder.message(Api::RegTestService, Api::RegTest::GenerateBlock));
 }

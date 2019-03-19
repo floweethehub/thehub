@@ -39,9 +39,9 @@ int main(int argc, char **argv)
     parser.setApplicationDescription("Transaction generator of epic proportions");
     parser.addHelpOption();
     parser.addPositionalArgument("server", "server address with optional port");
-    QCommandLineOption sizeLimit(QStringList() << "block-size" << "b", "sets a goal to the blocks-size created", "<size>");
+    QCommandLineOption sizeLimit(QStringList() << "block-size" << "b", "sets a goal to the blocks-size created", "size");
     parser.addOption(sizeLimit);
-    QCommandLineOption txLimit(QStringList() << "num-transactions" << "n", "Limits number of transactions created (default=500000)", "<amount>");
+    QCommandLineOption txLimit(QStringList() << "num-transactions" << "n", "Limits number of transactions created (default=500000)", "amount");
     parser.addOption(txLimit);
 
     parser.process(app);
