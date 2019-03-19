@@ -29,16 +29,20 @@
 
 #include <boost/asio/deadline_timer.hpp>
 #include <qlist.h>
+#include <qmutex.h>
+#include <qthread.h>
 #include <vector>
 
 namespace Streaming {
     class MessageBuilder;
 }
 
-class TxVulcano
+class TxVulcano : public QObject
 {
+    Q_OBJECT
 public:
     TxVulcano(boost::asio::io_service &ioService);
+    ~TxVulcano();
 
     void tryConnect(const EndPoint &ep);
 
@@ -48,14 +52,20 @@ public:
         m_transactionsToCreate = num;
     }
 
+signals:
+    void newBlockFound(const Message &message);
+
+private slots:
+    // handle incoming GetBlockReply messages
+    void processNewBlock(const Message &message);
+    void createTransactions_priv();
+
 private:
     void connectionEstablished(const EndPoint &ep);
     void disconnected();
     void incomingMessage(const Message &message);
 
     void createTransactions(const boost::system::error_code& error);
-    // this one is guarenteed to be called in the network-manager thread.
-    void createTransactions_priv();
     std::vector<char> createOutScript(const std::vector<char> &address);
     void buildGetBlockRequest(Streaming::MessageBuilder &builder, bool &first) const;
 
@@ -66,6 +76,7 @@ private:
     NetworkManager m_networkManager;
     NetworkConnection m_connection;
 
+    Streaming::BufferPool m_Txpool;
     Streaming::BufferPool m_pool;
 
     // limits
@@ -83,12 +94,16 @@ private:
         std::vector<int> pubKeys;
     };
 
+    QMutex m_miscMutex;
     std::map<int, UnvalidatedTransaction> m_transactionsInProgress;
     int m_lastId = 0;
 
+    QMutex m_walletMutex;
     Wallet m_wallet;
     int m_lastSeenBlock = -1;
     int m_highestBlock = -1; // the block that we learned that the remote has.
+
+    QThread m_workerThread;
 };
 
 #endif

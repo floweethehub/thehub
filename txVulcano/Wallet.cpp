@@ -66,7 +66,8 @@ void Wallet::addOutput(int blockHeight, const uint256 &txid, int offsetInBlock, 
     const int coinbaseHeight = offsetInBlock == 81 ? blockHeight : -1;
     m_unspentOutputs.push_back({txid, (short) outIndex, keyId, 1, coinbaseHeight, amount, script});
 
-    for (auto wi : m_walletItems) {
+    /*
+    for (const WalletItem &wi : m_walletItems) {
         if (wi.blockHeight == blockHeight && offsetInBlock == wi.byteOffsetInblock && wi.txid ==  txid) {
             wi.valueTransfer.push_back(ValueTransfer(keyId, amount));
             return;
@@ -78,6 +79,7 @@ void Wallet::addOutput(int blockHeight, const uint256 &txid, int offsetInBlock, 
     item.txid = txid;
     item.valueTransfer.push_back(ValueTransfer(keyId, amount));
     m_walletItems.push_back(item);
+    */
 }
 
 void Wallet::addOutput(const uint256 &txid, int outIndex, int64_t amount, int keyId, short unconfirmedDepth, const CScript &script)

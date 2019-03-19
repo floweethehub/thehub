@@ -30,15 +30,30 @@
 #include <base58.h>
 #include <random>
 
-#define MIN_FEE 2500
+#define MIN_FEE 1000
+
+#include <qtimer.h>
 
 TxVulcano::TxVulcano(boost::asio::io_service &ioService)
     : m_networkManager(ioService),
       m_transactionsToCreate(500000),
+      m_transactionsCreated(0),
       m_blockSizeLeft(0),
       m_timer(ioService),
+      m_walletMutex(QMutex::Recursive),
       m_wallet("mywallet")
 {
+    qRegisterMetaType<Message>("Message");
+    moveToThread(&m_workerThread);
+    m_workerThread.start();
+    // connect but make sure that the processNewBlock is on the Qt thread.
+    connect (this, SIGNAL(newBlockFound(Message)), SLOT(processNewBlock(Message)), Qt::QueuedConnection);
+}
+
+TxVulcano::~TxVulcano()
+{
+    m_workerThread.exit(0);
+    m_workerThread.wait();
 }
 
 void TxVulcano::tryConnect(const EndPoint &ep)
@@ -119,6 +134,8 @@ void TxVulcano::incomingMessage(const Message& message)
         if (serviceId == Api::RawTransactionService && messageId == Api::RawTransactions::SendRawTransaction) {
             int requestId = message.headerInt(Api::RequestId);
 
+            QMutexLocker lock(&m_walletMutex);
+            QMutexLocker lock2(&m_miscMutex);
             auto iter = m_transactionsInProgress.find(requestId);
             if (iter != m_transactionsInProgress.end()) {
                 // possible we get "16: missing-inputs"
@@ -158,6 +175,7 @@ void TxVulcano::incomingMessage(const Message& message)
                         reinterpret_cast<const unsigned char*>(constBuf.end()), true);
 
                 if (key.IsValid()) {
+                    QMutexLocker lock(&m_walletMutex);
                     m_wallet.addKey(key);
                 } else  {
                     logCritical() << "Private address doesn't validate";
@@ -188,6 +206,7 @@ void TxVulcano::incomingMessage(const Message& message)
         while (parser.next() == Streaming::FoundTag) {
             if (parser.tag() == Api::BlockChain::Height) {
                 m_highestBlock = parser.intData();
+                QMutexLocker lock(&m_walletMutex);
                 const auto ids = m_wallet.publicKeys();
                 m_pool.reserve((m_highestBlock - m_lastSeenBlock) * 4 + ids.size() * 25);
                 Streaming::MessageBuilder builder(m_pool);
@@ -203,51 +222,8 @@ void TxVulcano::incomingMessage(const Message& message)
             nowCurrent();
     }
     else if (message.serviceId() == Api::BlockChainService && message.messageId() == Api::BlockChain::GetBlockReply) {
-        int txOffsetInBlock = 0;
-        uint256 txid;
-        int64_t amount = 0;
-        int outIndex = -1;
-        uint160 address;
-        m_damage = -100;
-        CScript script;
-        Streaming::MessageParser parser(message.body());
-        /*
-         * TODO also fetch the outputs spent and remove them from the wallet
-         */
-        while (parser.next() == Streaming::FoundTag) {
-            if (parser.tag() == Api::BlockChain::Height) {
-                m_lastSeenBlock = parser.intData();
-                // logDebug() << "Block at" << m_lastSeenBlock;
-            } else if (parser.tag() == Api::BlockChain::BlockHash) {
-                m_wallet.setLastCachedBlock(parser.uint256Data());
-            } else if (parser.tag() == Api::BlockChain::Separator) {
-                txOffsetInBlock = 0;
-                amount = 0;
-            } else if (parser.tag() == Api::BlockChain::Tx_OffsetInBlock) {
-                txOffsetInBlock = parser.intData();
-            } else if (parser.tag() == Api::BlockChain::TxId) {
-                txid = parser.uint256Data();
-            } else if (parser.tag() == Api::BlockChain::Tx_Out_Amount) {
-                amount = parser.longData();
-            } else if (parser.tag() == Api::BlockChain::Tx_Script) {
-                auto constBuf = parser.bytesDataBuffer();
-                script = CScript(reinterpret_cast<const unsigned char*>(constBuf.begin()),
-                        reinterpret_cast<const unsigned char*>(constBuf.end()));
-            } else if (parser.tag() == Api::BlockChain::Tx_Out_Index) {
-                outIndex = parser.intData();
-            } else if (parser.tag() == Api::BlockChain::Tx_Out_Address) {
-                address = base_blob<160>(parser.bytesDataBuffer().begin());
-                if (txOffsetInBlock > 0)
-                    logDebug() << "Got Transaction in" << m_lastSeenBlock
-                                  << "@" << txOffsetInBlock
-                                  << "for" << amount
-                                  << "txid:" << txid
-                                  << "for address" << address;
-                m_wallet.addOutput(m_lastSeenBlock, txid, txOffsetInBlock, outIndex, amount, address, script);
-            }
-        }
-        if (m_lastSeenBlock == m_highestBlock)
-            this->nowCurrent();
+        // this can take a lot of time to process, so process it on a different thread.
+        emit newBlockFound(message);
     }
     else if (message.serviceId() == Api::RegTestService && message.messageId() == Api::RegTest::GenerateBlockReply) {
         Streaming::MessageParser parser(message.body());
@@ -268,6 +244,7 @@ void TxVulcano::incomingMessage(const Message& message)
         while (parser.next() == Streaming::FoundTag) {
             if (parser.tag() == Api::BlockNotification::BlockHash) {
                 logInfo() << "Hub mined or found a new block:" << parser.uint256Data();
+                QMutexLocker lock(&m_walletMutex);
                 m_pool.reserve(40 + m_wallet.publicKeys().size() * 25);
                 Streaming::MessageBuilder builder(m_pool);
                 builder.add(Api::BlockChain::BlockHash, parser.uint256Data());
@@ -281,6 +258,8 @@ void TxVulcano::incomingMessage(const Message& message)
         }
     }
     else if (message.serviceId() == Api::RawTransactionService && message.messageId() == Api::RawTransactions::SendRawTransactionReply) {
+        QMutexLocker lock(&m_walletMutex);
+        QMutexLocker lock2(&m_miscMutex);
         auto item = m_transactionsInProgress.find(message.headerInt(Api::RequestId));
         if (item != m_transactionsInProgress.end()) {
             m_damage = std::max(-100, m_damage - 1);
@@ -315,8 +294,8 @@ void TxVulcano::incomingMessage(const Message& message)
             if (m_blockSizeLeft <= 0) {
                 logCritical() << "Block is full enough, calling generate()";
                 m_transactionsInProgress.clear();
-                m_wallet.clearUnconfirmedUTXOs();
                 m_timer.cancel();
+                m_wallet.clearUnconfirmedUTXOs();
                 generate(1);
             }
 
@@ -332,22 +311,74 @@ void TxVulcano::incomingMessage(const Message& message)
     }
 }
 
+void TxVulcano::processNewBlock(const Message &message)
+{
+    int txOffsetInBlock = 0;
+    uint256 txid;
+    int64_t amount = 0;
+    int outIndex = -1;
+    uint160 address;
+    m_damage = -100;
+    CScript script;
+    Streaming::MessageParser parser(message.body());
+    /*
+     * TODO also fetch the outputs spent and remove them from the wallet
+     */
+    QMutexLocker lock(&m_walletMutex);
+    while (parser.next() == Streaming::FoundTag) {
+        if (parser.tag() == Api::BlockChain::Height) {
+            m_lastSeenBlock = parser.intData();
+            // logDebug() << "Block at" << m_lastSeenBlock;
+        } else if (parser.tag() == Api::BlockChain::BlockHash) {
+            m_wallet.setLastCachedBlock(parser.uint256Data());
+        } else if (parser.tag() == Api::BlockChain::Separator) {
+            txOffsetInBlock = 0;
+            amount = 0;
+        } else if (parser.tag() == Api::BlockChain::Tx_OffsetInBlock) {
+            txOffsetInBlock = parser.intData();
+        } else if (parser.tag() == Api::BlockChain::TxId) {
+            txid = parser.uint256Data();
+        } else if (parser.tag() == Api::BlockChain::Tx_Out_Amount) {
+            amount = parser.longData();
+        } else if (parser.tag() == Api::BlockChain::Tx_Script) {
+            auto constBuf = parser.bytesDataBuffer();
+            script = CScript(reinterpret_cast<const unsigned char*>(constBuf.begin()),
+                    reinterpret_cast<const unsigned char*>(constBuf.end()));
+        } else if (parser.tag() == Api::BlockChain::Tx_Out_Index) {
+            outIndex = parser.intData();
+        } else if (parser.tag() == Api::BlockChain::Tx_Out_Address) {
+            address = base_blob<160>(parser.bytesDataBuffer().begin());
+            if (txOffsetInBlock > 0)
+                /*
+                logDebug() << "Got Transaction in" << m_lastSeenBlock
+                              << "@" << txOffsetInBlock
+                              << "for" << amount
+                              << "txid:" << txid
+                              << "for address" << address;
+                              */
+            m_wallet.addOutput(m_lastSeenBlock, txid, txOffsetInBlock, outIndex, amount, address, script);
+        }
+    }
+    if (m_lastSeenBlock == m_highestBlock)
+        m_connection.postOnStrand(std::bind(&TxVulcano::nowCurrent, this));
+}
+
 void TxVulcano::createTransactions(const boost::system::error_code& error)
 {
     if (error)
         return;
+    QMutexLocker lock(&m_miscMutex);
     if (m_transactionsInProgress.size() > 50) {
         // too many in flight, delay
         m_timer.expires_from_now(boost::posix_time::milliseconds(200));
         m_timer.async_wait(std::bind(&TxVulcano::createTransactions, this, std::placeholders::_1));
     } else {
-        m_connection.postOnStrand(std::bind(&TxVulcano::createTransactions_priv, this));
+        QTimer::singleShot(0, this, SLOT(createTransactions_priv()));
     }
 }
 
 void TxVulcano::createTransactions_priv()
 {
-    TransactionBuilder builder;
 
     /*
      * TODO
@@ -356,10 +387,12 @@ void TxVulcano::createTransactions_priv()
      * What about I add a list of those in this class?
      */
 
+    TransactionBuilder builder;
     short unconfirmedDepth = 0;
     int64_t amount = 0;
+    QMutexLocker lock(&m_walletMutex);
     for (auto utxo = m_wallet.unspentOutputs().begin(); utxo != m_wallet.unspentOutputs().end();) {
-        if (utxo->coinbaseHeight > 0 && utxo->coinbaseHeight + 101 > m_highestBlock) {// coinbase maturity
+        if (utxo->coinbaseHeight > 0 && utxo->coinbaseHeight + 99 > m_highestBlock) {// coinbase maturity
             ++utxo;
             continue;
         }
@@ -384,7 +417,7 @@ void TxVulcano::createTransactions_priv()
 
     const int OutputCount = m_wallet.unspentOutputs().size() < 5000 ? 20 :
                             m_wallet.unspentOutputs().size() < 20000 ? 10 : 2;
-    const int64_t outAmount = (amount - MIN_FEE) / OutputCount;
+    const int64_t outAmount = (amount - MIN_FEE - 100 * OutputCount) / OutputCount;
 
     UnvalidatedTransaction unvalidatedTransaction;
     unvalidatedTransaction.unconfirmedDepth = unconfirmedDepth;
@@ -402,18 +435,21 @@ void TxVulcano::createTransactions_priv()
     }
     assert(count > 0);
 
-    m_pool.reserve(1000); // Should be plenty
-    Tx signedTx = builder.createTransaction(&m_pool);
+    m_Txpool.reserve(1000); // Should be plenty
+    Tx signedTx = builder.createTransaction(&m_Txpool);
 
-    m_pool.reserve(signedTx.size() + 30);
-    Streaming::MessageBuilder mb(m_pool);
+    m_Txpool.reserve(signedTx.size() + 30);
+    Streaming::MessageBuilder mb(m_Txpool);
     mb.add(Api::RawTransactions::RawTransaction, signedTx.data());
     Message m(mb.message(Api::RawTransactionService, Api::RawTransactions::SendRawTransaction));
 
-    const int id = ++m_lastId;
     unvalidatedTransaction.transaction = signedTx;
-    m_transactionsInProgress.insert(std::make_pair(id, unvalidatedTransaction));
-    m.setHeaderInt(Api::RequestId, id);
+    {
+        QMutexLocker lock(&m_miscMutex);
+        const int id = ++m_lastId;
+        m_transactionsInProgress.insert(std::make_pair(id, unvalidatedTransaction));
+        m.setHeaderInt(Api::RequestId, id);
+    }
     m_connection.send(m);
 
     // wait until next eventloop so we still do network in the meantime
@@ -465,13 +501,14 @@ void TxVulcano::nowCurrent()
     if (m_wallet.unspentOutputs().size() < 10)
         generate(110);
     else
-        createTransactions_priv();
+        QTimer::singleShot(0, this, SLOT(createTransactions_priv()));
 }
 
 void TxVulcano::generate(int blockCount)
 {
     m_pool.reserve(30);
     Streaming::MessageBuilder builder(m_pool);
+    QMutexLocker lock(&m_walletMutex);
     int pkId = m_wallet.firstEmptyPubKey();
     assert(pkId >= 0);
     const CKeyID id = m_wallet.publicKey(pkId).GetID();
