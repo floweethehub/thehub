@@ -73,6 +73,7 @@
 #include <boost/algorithm/string/replace.hpp>
 #include <boost/algorithm/string/split.hpp>
 #include <boost/algorithm/string/case_conv.hpp> // for to_lower()
+#include <boost/lexical_cast.hpp>
 #include <boost/bind.hpp>
 #include <boost/filesystem.hpp>
 #include <boost/function.hpp>
@@ -430,7 +431,7 @@ void InitParameterInteraction()
     }
     const int32_t acceptSize = Policy::blockSizeAcceptLimit();
     if ((int) miningSize > acceptSize) {
-        if (SoftSetArg("-blocksizeacceptlimit", GetArg("-blockmaxsize", "")))
+        if (SoftSetArg("-blocksizeacceptlimit", boost::lexical_cast<std::string>((miningSize + 100000) / 1E6)))
             logCritical(Log::Net) << "parameter interaction: -blockmaxsize  N -> setting -blockacceptlimit=N";
         else
             throw std::runtime_error("Block Accept setting smaller than block mining size. Please adjust and restart");
