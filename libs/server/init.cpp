@@ -2,6 +2,7 @@
  * This file is part of the Flowee project
  * Copyright (c) 2009-2010 Satoshi Nakamoto
  * Copyright (c) 2009-2015 The Bitcoin Core developers
+ * Copyright (C) 2019 Tom Zander <tomz@freedommail.ch>
  *
  * This program is free software: you can redistribute it and/or modify
  * it under the terms of the GNU General Public License as published by
@@ -391,25 +392,25 @@ void InitParameterInteraction()
     if (mapArgs.count("-externalip")) {
         // if an explicit public IP is specified, do not try to find others
         if (SoftSetBoolArg("-discover", false))
-            logCritical(Log::Net) << "parameter interaction: -externalip set -> setting -discover=0";
+            logCritical(Log::Net) << "parameter interaction: -externalip set -> setting -discover=false";
     }
 
     if (GetBoolArg("-salvagewallet", false)) {
         // Rewrite just private keys: rescan to find transactions
         if (SoftSetBoolArg("-rescan", true))
-            logCritical(Log::Wallet) << "parameter interaction: -salvagewallet=1 -> setting -rescan=1";
+            logCritical(Log::Wallet) << "parameter interaction: -salvagewallet -> setting -rescan=true";
     }
 
     // -zapwallettx implies a rescan
     if (GetBoolArg("-zapwallettxes", false)) {
         if (SoftSetBoolArg("-rescan", true))
-            logCritical(Log::Wallet) << "parameter interaction: -zapwallettxes=<mode> -> setting -rescan=1";
+            logCritical(Log::Wallet) << "parameter interaction: -zapwallettxes=<mode> -> setting -rescan=true";
     }
 
     // disable walletbroadcast and whitelistrelay in blocksonly mode
     if (GetBoolArg("-blocksonly", Settings::DefaultBlocksOnly)) {
         if (SoftSetBoolArg("-whitelistrelay", false))
-            logCritical(Log::Net) << "parameter interaction: -blocksonly=1 -> setting -whitelistrelay=0";
+            logCritical(Log::Net) << "parameter interaction: -blocksonly=true -> setting -whitelistrelay=false";
 #ifdef ENABLE_WALLET
         if (SoftSetBoolArg("-walletbroadcast", false))
             logCritical(Log::Wallet) << "parameter interaction: -blocksonly=1 -> setting -walletbroadcast=0";
@@ -419,8 +420,22 @@ void InitParameterInteraction()
     // Forcing relay from whitelisted hosts implies we will accept relays from them in the first place.
     if (GetBoolArg("-whitelistforcerelay", Settings::DefaultWhitelistForceRelay)) {
         if (SoftSetBoolArg("-whitelistrelay", true))
-            logCritical(Log::Net) << "parameter interaction: -whitelistforcerelay=1 -> setting -whitelistrelay=1";
+            logCritical(Log::Net) << "parameter interaction: -whitelistforcerelay=true -> setting -whitelistrelay=true";
     }
+
+    const auto miningSize = GetArg("-blockmaxsize", -1);
+    if (miningSize > 0x7FFFFFFF) { // overflow
+        logCritical(Log::Mining) << "parameter -blockmaxsize is too large. Max is 31bit int";
+        throw std::runtime_error("invalid parameter passed to -blockmaxsize");
+    }
+    const int32_t acceptSize = Policy::blockSizeAcceptLimit();
+    if ((int) miningSize > acceptSize) {
+        if (SoftSetArg("-blocksizeacceptlimit", GetArg("-blockmaxsize", "")))
+            logCritical(Log::Net) << "parameter interaction: -blockmaxsize  N -> setting -blockacceptlimit=N";
+        else
+            throw std::runtime_error("Block Accept setting smaller than block mining size. Please adjust and restart");
+    }
+    assert(Policy::blockSizeAcceptLimit() >= miningSize);
 }
 
 void InitLogging()
