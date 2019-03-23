@@ -1230,13 +1230,16 @@ void BlockValidationState::checks1NoContext()
             }
 
             // Size limits
-            if (block.vtx.empty())
+            if (block.vtx.empty()) {
+                logCritical(Log::BlockValidation) << "Block has no transactions, not even a coinbase. Rejecting";
                 throw Exception("bad-blk-length");
+            }
 
             const std::uint32_t blockSizeAcceptLimit = Policy::blockSizeAcceptLimit();
             const std::uint32_t blockSize = m_block.size();
             if (block.vtx.size() > blockSizeAcceptLimit || blockSize > blockSizeAcceptLimit) {
                 const float punishment = (blockSize - blockSizeAcceptLimit) / (float) blockSizeAcceptLimit;
+                logCritical(Log::BlockValidation) << "Block too large" << blockSize << ">" << blockSizeAcceptLimit;
                 throw Exception("bad-blk-length", Validation::RejectExceedsLimit, 10 * punishment + 0.5);
             }
 

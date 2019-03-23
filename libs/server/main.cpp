@@ -1286,6 +1286,7 @@ bool ContextualCheckBlock(const CBlock& block, CValidationState& state, CBlockIn
     const std::uint32_t blockSizeAcceptLimit = Policy::blockSizeAcceptLimit();
     if (block.vtx.size() > blockSizeAcceptLimit || blockSize > blockSizeAcceptLimit) {
         const float punishment = (blockSize - blockSizeAcceptLimit) / (float) blockSizeAcceptLimit;
+        logCritical(Log::Bitcoin) << "ContextualCheckBlock: Block too large" << blockSize << ">" << blockSizeAcceptLimit;
         return state.DoS(10 * punishment + 0.5, error("CheckBlock(): block larger than user-limit"), REJECT_EXCEEDSLIMIT, "bad-blk-length");
     }
 
