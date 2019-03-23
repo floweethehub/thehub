@@ -1,6 +1,6 @@
 /*
  * This file is part of the Flowee project
- * Copyright (C) 2016 Tom Zander <tomz@freedommail.ch>
+ * Copyright (C) 2016, 2019 Tom Zander <tomz@freedommail.ch>
  *
  * This program is free software: you can redistribute it and/or modify
  * it under the terms of the GNU General Public License as published by
@@ -15,17 +15,13 @@
  * You should have received a copy of the GNU General Public License
  * along with this program.  If not, see <http://www.gnu.org/licenses/>.
  */
+#include "testNWM.h"
+
 #include <networkmanager/NetworkManager.h>
-#include <Application.h>
+#include <WorkerThreads.h>
 #include <Message.h>
-#include <streaming/BufferPool.h>
-#include "test_bitcoin.h"
 
-#include <boost/test/auto_unit_test.hpp>
-
-BOOST_FIXTURE_TEST_SUITE(Connections, BasicTestingSetup)
-
-BOOST_AUTO_TEST_CASE(BigMessage)
+void TestNWM::testBigMessage()
 {
     auto localhost = boost::asio::ip::address_v4::loopback();
     const int port = std::max(1100, rand() % 65000);
@@ -33,8 +29,8 @@ BOOST_AUTO_TEST_CASE(BigMessage)
     std::list<NetworkConnection> stash;
     int messageSize = -1;
 
-    MockApplication::doInit();
-    NetworkManager server(Application::instance()->ioService());
+    WorkerThreads threads;
+    NetworkManager server(threads.ioService());
     server.bind(boost::asio::ip::tcp::endpoint(localhost, port), [&stash, &messageSize](NetworkConnection &connection) {
         connection.setOnIncomingMessage([&messageSize](const Message &message) {
             messageSize = message.body().size();
@@ -43,7 +39,7 @@ BOOST_AUTO_TEST_CASE(BigMessage)
         stash.push_back(std::move(connection));
     });
 
-    NetworkManager client(Application::instance()->ioService());
+    NetworkManager client(threads.ioService());
     EndPoint ep;
     ep.announcePort = port;
     ep.ipAddress = localhost;
@@ -62,7 +58,7 @@ BOOST_AUTO_TEST_CASE(BigMessage)
      * one should arrive at the other end.
      */
     boost::this_thread::sleep_for(boost::chrono::seconds(1));
-    BOOST_CHECK_EQUAL(messageSize, BigSize);
+    QCOMPARE(messageSize, BigSize);
 }
 
-BOOST_AUTO_TEST_SUITE_END()
+QTEST_MAIN(TestNWM)

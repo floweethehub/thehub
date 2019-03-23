@@ -48,7 +48,6 @@ include_directories(.. ${LIBS_INCLUDES} ${CMAKE_CURRENT_BINARY_DIR})
 
 set (TEST_LIBS
     flowee_api
-    flowee_networkmanager
     flowee_server
     flowee_console
     flowee_utils
@@ -105,7 +104,6 @@ set (TEST_SOURCES
     sigopcount_tests.cpp
     skiplist_tests.cpp
     test_bitcoin.cpp
-    TestConnections.cpp
     thinblock_tests.cpp
     timedata_tests.cpp
     transaction_utils.cpp
