@@ -2083,7 +2083,8 @@ public:
         for (ListenSocket& hListenSocket : vhListenSocket)
             if (hListenSocket.socket != INVALID_SOCKET)
                 if (!CloseSocket(hListenSocket.socket))
-                    logCritical(Log::Net) << "CloseSocket(hListenSocket) failed with error" << NetworkErrorString(WSAGetLastError());
+                    // keep on debug level as its too dangerous to log in shutdown.
+                    logDebug(Log::Net) << "CloseSocket(hListenSocket) failed with error" << NetworkErrorString(WSAGetLastError());
 
         // clean up some globals (to help leak detection)
         for (CNode *pnode : vNodes)
