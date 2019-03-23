@@ -1,6 +1,6 @@
 /*
  * This file is part of the Flowee project
- * Copyright (C) 2016 Tom Zander <tomz@freedommail.ch>
+ * Copyright (C) 2016, 2019 Tom Zander <tomz@freedommail.ch>
  *
  * This program is free software: you can redistribute it and/or modify
  * it under the terms of the GNU General Public License as published by
@@ -43,6 +43,110 @@ class NetworkConnection;
 class NetworkService;
 
 using boost::asio::ip::tcp;
+
+template<class V>
+class RingBuffer
+{
+public:
+    void append(const V &v) {
+        m_array[m_next] = v;
+        if (++m_next >= NumItems)
+            m_next = 0;
+        assert(m_next != m_first);
+    }
+
+    /// total amount of space in this ringbuffer
+    inline int reserved() const { return NumItems; }
+    /// Amount of items filled
+    inline int count() const {
+        return m_next - m_first + (m_next < m_first /* we went circular */ ? NumItems : 0);
+    }
+    /// reserved minus usage
+    int slotsAvailable() const {
+        return reserved() - count();
+    }
+    /// alias for count()
+    inline int size() const { return count(); }
+    inline bool isEmpty() const { return m_first == m_next; }
+
+    /// the tip is the first inserted, but not yet removed item.
+    inline const V &tip() const {
+        assert(m_first != m_next); // aka empty
+        return m_array[m_first];
+    }
+    /// remove the tip, moving the tip to the next item.
+    inline void removeTip() {
+        assert(m_first != m_next); // aka empty
+        m_array[m_first] = V();
+        if (++m_first >= NumItems)
+            m_first = 0;
+
+        if (m_first <= m_next) // standard linear list
+            m_readIndex = std::max(m_readIndex, m_first);
+        else if (m_readIndex < m_first && m_readIndex > m_next) // circular list state
+            m_readIndex = m_first;
+    }
+
+    /// an item just inserted is unread, we read in the same order as insertion.
+    inline void markRead(int count = 1) {
+        assert(count < NumItems);
+        assert(count > 0);
+        m_readIndex += count;
+        while (m_readIndex >= NumItems)
+            m_readIndex -= NumItems;
+        assert(m_first < m_next && m_readIndex >= m_first
+               || m_first > m_next && (m_readIndex >= m_first || m_readIndex <= m_next));
+    }
+    /// first not yet read item.
+    inline const V &unreadTip() const {
+        return m_array[m_readIndex];
+    }
+    /// returns true, like isEmpty(), when there are no unread items.
+    inline bool isRead() const { return m_readIndex == m_next; }
+    /// Return true if there are items inserted, but not yet marked read (inverse of isRead())
+    inline bool hasUnread() const { return m_readIndex != m_next; }
+
+    inline bool hasItemsMarkedRead() const {
+        return m_readIndex != m_first;
+    }
+    inline void markAllUnread() {
+        m_readIndex = m_first;
+    }
+
+    /// clear all data.
+    inline void clear() {
+        const int end = count() + m_first;
+        for (int i = m_first; i < end; ++i) {
+            m_array[i % NumItems] = V();
+        }
+        m_first = 0;
+        m_readIndex = 0;
+        m_next = 0;
+    }
+
+private:
+    enum BufferSize {
+        NumItems = 1000
+    };
+
+    /* We append at 'next', increasing it to point to the first unused one.
+     * As this is a FIFO, we move the m_first and m_readIndex as we process (and remove) items,
+     * if we reach the 'next' position we have an empty buffer.
+     *
+     * Write       |   variable  |   Read
+     *
+     *                 m_first   ->   tip()
+     *                                 |
+     * markRead() -> m_readIndex ->  unreadTip()
+     *                                 |
+     *                               last-item
+     * append()   ->  m_next     ->   nullptr
+     */
+    V m_array[NumItems];
+    int m_first = 0;
+    int m_readIndex = 0;
+    int m_next = 0; // last plus one
+};
 
 class NetworkManagerConnection
 {
@@ -131,10 +235,9 @@ private:
     tcp::socket m_socket;
     tcp::resolver m_resolver;
 
-    std::list<Message> m_messageQueue;
-    std::list<Message> m_priorityMessageQueue;
-    std::list<Message> m_sentPriorityMessages;
-    std::list<Streaming::ConstBuffer> m_sendQHeaders;
+    RingBuffer<Message> m_messageQueue;
+    RingBuffer<Message> m_priorityMessageQueue;
+    RingBuffer<Streaming::ConstBuffer> m_sendQHeaders;
     int m_messageBytesSend; // future tense
     int m_messageBytesSent; // past tense
 

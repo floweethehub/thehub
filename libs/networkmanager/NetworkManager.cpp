@@ -409,7 +409,8 @@ Streaming::ConstBuffer NetworkManagerConnection::createHeader(const Message &mes
 void NetworkManagerConnection::runMessageQueue()
 {
     assert(m_strand.running_in_this_thread());
-    if (m_sendingInProgress || m_isConnecting || m_isClosingDown || (m_messageQueue.empty() && m_priorityMessageQueue.empty()) || !isConnected())
+    if (m_sendingInProgress || m_isConnecting || m_isClosingDown
+            || (m_messageQueue.isEmpty() && m_priorityMessageQueue.isRead()) || !isConnected())
         return;
 
     m_sendingInProgress = true;
@@ -430,25 +431,25 @@ void NetworkManagerConnection::runMessageQueue()
     int bytesLeft = 250*1024;
     std::vector<Streaming::ConstBuffer> socketQueue; // the stuff we will send over the socket
 
-    std::list<Message>::iterator iter = m_priorityMessageQueue.begin();
-    while (iter != m_priorityMessageQueue.end()) {
-        const Message &message = *iter;
-        if (!iter->hasHeader()) { // build a simple header
+    while (m_priorityMessageQueue.hasUnread()) {
+        const Message &message = m_priorityMessageQueue.unreadTip();
+        if (!message.hasHeader()) { // build a simple header
             const Streaming::ConstBuffer constBuf = createHeader(message);
             bytesLeft -= constBuf.size();
             socketQueue.push_back(constBuf);
-            m_sendQHeaders.push_back(constBuf);
+            m_sendQHeaders.append(constBuf);
         }
         socketQueue.push_back(message.rawData());
         bytesLeft -= message.rawData().size();
-        m_sentPriorityMessages.push_back(message);
-        iter = m_priorityMessageQueue.erase(iter);
+        m_priorityMessageQueue.markRead();
         if (bytesLeft <= 0)
             break;
     }
-    for (const Message &message : m_messageQueue) {
+
+    while (m_messageQueue.hasUnread()) {
         if (bytesLeft <= 0)
             break;
+        const Message &message = m_messageQueue.unreadTip();
         if (message.rawData().size() > CHUNK_SIZE) {
             assert(!message.hasHeader()); // should have been blocked from entering in queueMessage();
 
@@ -492,7 +493,7 @@ void NetworkManagerConnection::runMessageQueue()
                 }
                 bytesLeft -= header.size();
                 socketQueue.push_back(header);
-                m_sendQHeaders.push_back(header);
+                m_sendQHeaders.append(header);
 
                 socketQueue.push_back(bodyChunk);
                 bytesLeft -= bodyChunk.size();
@@ -500,18 +501,21 @@ void NetworkManagerConnection::runMessageQueue()
                 if (bytesLeft <= 0)
                     break;
             }
-            if (begin >= end) // done with message.
+            if (begin >= end) { // done with message.
                 m_messageBytesSend = 0;
+                m_messageQueue.markRead();
+            }
         }
         else {
             if (!message.hasHeader()) { // build a simple header
                 const Streaming::ConstBuffer constBuf = createHeader(message);
                 bytesLeft -= constBuf.size();
                 socketQueue.push_back(constBuf);
-                m_sendQHeaders.push_back(constBuf);
+                m_sendQHeaders.append(constBuf);
             }
             socketQueue.push_back(message.rawData());
             bytesLeft -= message.rawData().size();
+            m_messageQueue.markRead();
         }
     }
     assert(m_messageBytesSend >= 0);
@@ -528,65 +532,57 @@ void NetworkManagerConnection::sentSomeBytes(const boost::system::error_code& er
     assert(m_strand.running_in_this_thread());
     m_sendingInProgress = false;
     if (error) {
-        logWarning(Log::NWM) << "sent error" << error.message();
+        logWarning(Log::NWM) << "send received error" << error.message();
         m_messageBytesSend = 0;
         m_messageBytesSent = 0;
+        m_sendQHeaders.clear();
+        m_messageQueue.markAllUnread();
+        m_priorityMessageQueue.markAllUnread();
         runOnStrand(std::bind(&NetworkManagerConnection::connect, this));
         return;
     }
     logDebug(Log::NWM) << "Managed to send" << bytes_transferred << "bytes";
-
     m_reconnectStep = 0;
-    // now we remove any message data from our lists so the underlying malloced data can be freed
-    // This is needed since boost asio unfortunately doesn't keep our ref-counted pointers.
-    m_messageBytesSent += bytes_transferred;
-    int bytesLeft = m_messageBytesSent;
 
-    // We can have data spread over 3 lists, we eat at them in proper order.
-    while (!m_messageQueue.empty() || !m_sentPriorityMessages.empty()) {
-        const Message &message = m_sentPriorityMessages.empty() ? m_messageQueue.front() : m_sentPriorityMessages.front();
-        const int bodySize = message.rawData().size();
-        if (bodySize > CHUNK_SIZE) {
-            const std::int64_t chunks = std::lrint(std::ceil(bodySize / static_cast<float>(CHUNK_SIZE)));
-            assert(chunks > 0);
-            if (m_sendQHeaders.size() < static_cast<size_t>(chunks))
-                break;
-            std::list<Streaming::ConstBuffer>::iterator iter = m_sendQHeaders.begin();
-            for (unsigned int i = 0; i < chunks; ++i) {
-                bytesLeft -= iter->size();
-                ++iter;
+    assert(bytes_transferred < 0x7FFFFFFF);
+    int bytesLeft = static_cast<int>(bytes_transferred);
+    while (bytesLeft > 0) {
+        assert (!(m_messageQueue.isEmpty() && m_priorityMessageQueue.isEmpty())); // then WTF did we sent!
+
+        const Message &message = m_priorityMessageQueue.hasItemsMarkedRead() ? m_priorityMessageQueue.tip() : m_messageQueue.tip();
+        const int messageSize = message.rawData().size();
+        if (messageSize > CHUNK_SIZE) {
+            assert(!message.hasHeader()); // as defined by queuemessage()
+            // also defined by queuemessage() is that priority messages are always smaller than chunk size.
+            assert(!m_priorityMessageQueue.hasItemsMarkedRead()); // its a messageQueue item.
+            assert(m_messageBytesSent < messageSize);
+            while (bytesLeft > 0 && messageSize > m_messageBytesSent) {
+                auto header = m_sendQHeaders.tip();
+                bytesLeft -= header.size();
+                m_sendQHeaders.removeTip();
+                const int chunkSize = std::min(CHUNK_SIZE, messageSize - m_messageBytesSent);
+                m_messageBytesSent += chunkSize;
+                bytesLeft -= chunkSize;
             }
-            if (bytesLeft < bodySize)
-                break;
 
-            // still here? Then we remove the message and all the headers
-            for (unsigned int i = 0; i < chunks; ++i) {
-                m_sendQHeaders.erase(m_sendQHeaders.begin());
+            if (messageSize == m_messageBytesSent) {
+                m_messageBytesSent = 0;
+                m_messageQueue.removeTip();
             }
         }
-        else if (!message.hasHeader()) {
-            assert(!m_sendQHeaders.empty());
-            const int headerSize = m_sendQHeaders.front().size();
-            if (headerSize > bytesLeft)
-                break;
-            if (bodySize > bytesLeft - headerSize)
-                break;
-            bytesLeft -= headerSize; // bodysize is subtraced below
-            m_sendQHeaders.erase(m_sendQHeaders.begin());
-        } else {
-            if (bodySize > bytesLeft)
-                break;
+        else {
+            if (!message.hasHeader()) {
+                auto header = m_sendQHeaders.tip();
+                bytesLeft -= header.size();
+                m_sendQHeaders.removeTip();
+            }
+            bytesLeft -= message.rawData().size();
+            if (m_priorityMessageQueue.hasItemsMarkedRead())
+                m_priorityMessageQueue.removeTip();
+            else
+                m_messageQueue.removeTip();
         }
-        assert(bodySize <= bytesLeft);
-        bytesLeft -= bodySize;
-        if (m_sentPriorityMessages.empty())
-            m_messageQueue.erase(m_messageQueue.begin());
-        else
-            m_sentPriorityMessages.erase(m_sentPriorityMessages.begin());
-        if (bytesLeft <= 0)
-            break;
     }
-    m_messageBytesSent = bytesLeft;
     runMessageQueue();
 }
 
@@ -640,7 +636,8 @@ void NetworkManagerConnection::receivedSomeBytes(const boost::system::error_code
         const int packetLength = (rawHeader & 0xFFFF);
         logDebug(Log::NWM) << "Processing incoming packet. Size" << packetLength;
         if (packetLength > MAX_MESSAGE_SIZE) {
-            logWarning(Log::NWM) << "receive; Data error from server- stream is corrupt";
+            logWarning(Log::NWM).nospace() << "receive; Data error from server- stream is corrupt ("
+                                           << "pl=" << packetLength << ")";
             close();
             return;
         }
@@ -714,8 +711,14 @@ bool NetworkManagerConnection::processPacket(const std::shared_ptr<char> &buffer
             isPing = true;
             break;
         default:
-            if (parser.isInt() && parser.tag() < 0xFFFFFF)
+            if (parser.isInt() && parser.tag() < 0xFFFFFF) {
+                if (parser.tag() <= 10) { // illegal header tag for users.
+                    logInfo(Log::NWM) << "  header uses illegal tag. Malformed: disconnecting";
+                    close();
+                    return false;
+                }
                 messageHeaderData.insert(std::make_pair(static_cast<int>(parser.tag()), parser.intData()));
+            }
             break;
         }
 
@@ -742,7 +745,7 @@ bool NetworkManagerConnection::processPacket(const std::shared_ptr<char> &buffer
                 builder.add(Network::HeaderEnd, true);
                 m_pingMessage = builder.message();
             }
-            m_messageQueue.push_back(m_pingMessage);
+            m_messageQueue.append(m_pingMessage);
             m_pingTimer.cancel();
             runMessageQueue();
             m_pingTimer.expires_from_now(boost::posix_time::seconds(120));
@@ -878,9 +881,9 @@ void NetworkManagerConnection::queueMessage(const Message &message, NetworkConne
 
     if (m_strand.running_in_this_thread()) {
         if (priority == NetworkConnection::NormalPriority)
-            m_messageQueue.push_back(message);
+            m_messageQueue.append(message);
         else
-            m_priorityMessageQueue.push_back(message);
+            m_priorityMessageQueue.append(message);
         if (isConnected())
             runMessageQueue();
         else
@@ -906,7 +909,6 @@ void NetworkManagerConnection::close(bool reconnect)
     m_messageBytesSent = 0;
 
     m_priorityMessageQueue.clear();
-    m_sentPriorityMessages.clear();
     m_messageQueue.clear();
     m_sendQHeaders.clear();
 
@@ -941,7 +943,7 @@ void NetworkManagerConnection::sendPing(const boost::system::error_code& error)
         builder.add(Network::HeaderEnd, true);
         m_pingMessage = builder.message();
     }
-    m_messageQueue.push_back(m_pingMessage);
+    m_messageQueue.append(m_pingMessage);
     runMessageQueue();
 
     m_pingTimer.expires_from_now(boost::posix_time::seconds(90));
