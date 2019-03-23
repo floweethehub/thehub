@@ -1234,7 +1234,7 @@ void BlockValidationState::checks1NoContext()
                 throw Exception("bad-blk-length");
 
             const std::uint32_t blockSizeAcceptLimit = Policy::blockSizeAcceptLimit();
-            const std::uint32_t blockSize = ::GetSerializeSize(block, SER_NETWORK, PROTOCOL_VERSION);
+            const std::uint32_t blockSize = m_block.size();
             if (block.vtx.size() > blockSizeAcceptLimit || blockSize > blockSizeAcceptLimit) {
                 const float punishment = (blockSize - blockSizeAcceptLimit) / (float) blockSizeAcceptLimit;
                 throw Exception("bad-blk-length", Validation::RejectExceedsLimit, 10 * punishment + 0.5);
