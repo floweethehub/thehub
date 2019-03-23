@@ -164,7 +164,7 @@ public:
     bool openInfo(int targetHeight);
 
     bool m_jumptableNeedsSave = false;
-    bool m_fileFull = false;
+    std::atomic_int m_fileFull;
 
     // in-memory representation
     Streaming::BufferPool m_memBuffers;
@@ -241,6 +241,7 @@ public:
     void init();
 
     boost::filesystem::path filepathForIndex(int fileIndex);
+    DataFile *checkCapacity();
 
     boost::asio::io_service& ioService;
 

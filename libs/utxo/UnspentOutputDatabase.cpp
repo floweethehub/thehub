@@ -217,12 +217,14 @@ void UnspentOutputDatabase::setSmallLimits()
 
 void UnspentOutputDatabase::insertAll(const UnspentOutputDatabase::BlockData &data)
 {
-    d->dataFiles.last()->insertAll(d, data);
+    auto df = d->checkCapacity();
+    df->insertAll(d, data);
 }
 
 void UnspentOutputDatabase::insert(const uint256 &txid, int outIndex, int blockHeight, int offsetInBlock)
 {
-    d->dataFiles.last()->insert(d, txid, outIndex, outIndex, blockHeight, offsetInBlock);
+    auto df = d->checkCapacity();
+    df->insert(d, txid, outIndex, outIndex, blockHeight, offsetInBlock);
 }
 
 UnspentOutput UnspentOutputDatabase::find(const uint256 &txid, int index) const
@@ -253,10 +255,12 @@ SpentOutput UnspentOutputDatabase::remove(const uint256 &txid, int index, uint64
     }
     else {
         assert(dbHint > 0);
-        if (dbHint > d->dataFiles.size())
+        DataFileList dataFiles(d->dataFiles);
+        if (dbHint > dataFiles.size())
             throw std::runtime_error("dbHint out of range");
-        DataFile *df = d->dataFiles.at(dbHint - 1);
-        done  = df->remove(d, txid, index, leafHint);
+        if (dbHint == dataFiles.size())
+            d->checkCapacity();
+        done = dataFiles.at(dbHint - 1)->remove(d, txid, index, leafHint);
     }
     return done;
 }
@@ -274,13 +278,7 @@ void UnspentOutputDatabase::blockFinished(int blockheight, const uint256 &blockI
         df->commit();
     }
 
-    if (d->dataFiles.last()->m_fileFull) {
-        d->doPrune = true;
-        DEBUGUTXO << "Creating a new DataFile" << d->dataFiles.size();
-        auto df = d->dataFiles.last();
-        d->dataFiles.append(DataFile::createDatafile(d->filepathForIndex(d->dataFiles.size() + 1),
-                df->m_lastBlockHeight, df->m_lastBlockHash));
-    }
+    d->checkCapacity();
 
     if (totalChanges > 5000000) { // every 5 million inserts/deletes, auto-flush jumptables
         std::vector<std::string> infoFilenames;
@@ -346,19 +344,19 @@ void UnspentOutputDatabase::saveCaches()
 
 int UnspentOutputDatabase::blockheight() const
 {
-    return d->dataFiles.last()->m_lastBlockHeight;
+    return DataFileList(d->dataFiles).last()->m_lastBlockHeight;
 }
 
 uint256 UnspentOutputDatabase::blockId() const
 {
-    return d->dataFiles.last()->m_lastBlockHash;
+    return DataFileList(d->dataFiles).last()->m_lastBlockHash;
 }
 
 
 // ///////////////////////////////////////////////////////////////////////
 #ifdef linux
-#include <sys/ioctl.h>
-#include <linux/fs.h>
+# include <sys/ioctl.h>
+# include <linux/fs.h>
 #endif
 
 UODBPrivate::UODBPrivate(boost::asio::io_service &service, const boost::filesystem::path &basedir)
@@ -439,6 +437,21 @@ boost::filesystem::path UODBPrivate::filepathForIndex(int fileIndex)
     ss << std::fixed << std::setprecision(2) << "data-" << fileIndex;
     answer = answer / ss.str();
     return answer;
+}
+
+DataFile *UODBPrivate::checkCapacity()
+{
+    auto df = DataFileList(dataFiles).last();
+    int fullValue = 1; // what the flush() method sets fileFull to
+    const bool isFull = df->m_fileFull.compare_exchange_strong(fullValue, 2); // only true once after it was set to '1'
+    if (isFull) {
+        doPrune = true;
+        DEBUGUTXO << "Creating a new DataFile" << dataFiles.size();
+        dataFiles.append(DataFile::createDatafile(filepathForIndex(dataFiles.size() + 1),
+                df->m_lastBlockHeight, df->m_lastBlockHash));
+        return dataFiles.last();
+    }
+    return df;
 }
 
 
@@ -893,7 +906,7 @@ void DataFile::flushSomeNodesToDisk(ForceBool force)
     * if save counter is >= 4, save bucket and make a copy of it. Don't delete it from m_buckets.
     * increase save count
     */
-    for (auto iter = m_buckets.begin(); iter != m_buckets.end(); ++iter) {
+    for (auto iter = m_buckets.begin(); m_fileFull == 0 && iter != m_buckets.end(); ++iter) {
         const uint32_t bucketId = static_cast<uint32_t>(iter.key());
         Bucket *bucket = &iter.value();
         assert(bucket);
@@ -1004,8 +1017,10 @@ void DataFile::flushSomeNodesToDisk(ForceBool force)
 
     m_changeCount = 0;
     m_jumptableNeedsSave = true;
-    if (!m_fileFull && m_writeBuffer.offset() > UODBPrivate::limits.FileFull)
-        m_fileFull = true;
+    if (m_writeBuffer.offset() > UODBPrivate::limits.FileFull) {
+        int notFull = 0; // only change if its still the default value.
+        m_fileFull.compare_exchange_strong(notFull, 1);
+    }
     m_changesSinceJumptableWritten += flushedToDiskCount;
 }
 
