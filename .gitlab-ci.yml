@@ -25,42 +25,40 @@ build-debian-stable:
     - build/testing/*/test_*
     expire_in: 10 hrs
 
-# this fails on gitlab but the same setup passes on my laptop.
-# Best idea I have is that its a memory thing. Disable for now.
-.test_hub.deb:
-  stage: test
-  script: testing/test-parallel build/testing/test/test_hub
-  dependencies:
-  - build-debian-stable
-
-test_utxo.deb:
+test_utxo:
   stage: test
   script:
     - build/testing/utxo/test_utxo
   dependencies:
   - build-debian-stable
 
-test_prevector.deb:
+test_prevector:
   stage: test
   script: build/testing/prevector/test_prevector
   dependencies:
   - build-debian-stable
 
-test_doublespend.deb:
+test_doublespend:
   stage: test
   script: build/testing/doublespend/test_doublespend
   dependencies:
   - build-debian-stable
 
-test_streaming.deb:
+test_streaming:
   stage: test
   script: build/testing/streaming/test_streaming
   dependencies:
   - build-debian-stable
 
-test_protocol.deb:
+test_protocol:
   stage: test
   script: build/testing/bitcoin-protocol/test_protocol
+  dependencies:
+  - build-debian-stable
+
+test_networkmanager:
+  stage: test
+  script: build/testing/networkmanager/test_networkmanager
   dependencies:
   - build-debian-stable
 
