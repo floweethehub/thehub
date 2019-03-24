@@ -26,8 +26,6 @@
 #include <server/chainparams.h>
 #include "TxVulcano.h"
 
-#include <qdebug.h>
-
 int main(int argc, char **argv)
 {
     QCoreApplication app(argc, argv);
@@ -64,7 +62,6 @@ int main(int argc, char **argv)
     TxVulcano vulcano(Application::instance()->ioService());
     if (parser.isSet(sizeLimit)) {
         bool ok;
-        qDebug() <<  parser.value(sizeLimit);
         int sl = parser.value(sizeLimit).toInt(&ok);
         if (!ok) {
             logFatal() << "size-limit has to be a number";

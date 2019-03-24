@@ -67,7 +67,6 @@ void TxVulcano::tryConnect(const EndPoint &ep)
     m_connection.connect();
 }
 
-#include <qdebug.h>
 void TxVulcano::setMaxBlockSize(int sizeInMb)
 {
     m_nextBlockSize.clear();
@@ -78,7 +77,8 @@ void TxVulcano::setMaxBlockSize(int sizeInMb)
             m_nextBlockSize.append(size);
         }
     }
-    qDebug() << "Block size sequcen selected:" << m_nextBlockSize.toStdList();
+    assert(!m_nextBlockSize.isEmpty());
+    m_blockSizeLeft = m_nextBlockSize.takeFirst() * 1000000;
 }
 
 void TxVulcano::connectionEstablished(const EndPoint &)
@@ -112,7 +112,6 @@ void TxVulcano::connectionEstablished(const EndPoint &)
 void TxVulcano::disconnected()
 {
     logCritical() << "TxVulcano::disconnect received";
-    Application::quit(0);
 }
 
 void TxVulcano::incomingMessage(const Message& message)
@@ -142,7 +141,7 @@ void TxVulcano::incomingMessage(const Message& message)
                 // our wallet currently doesn't mark as spent outputs spent in the same block.
                 // so we just gracefully let the Hub do this check for now as I'm a lazy programmer.
 
-                if (errorMessage == "64: too-long-mempool-chain" && ++m_damage > 100) {
+                if (errorMessage == "64: too-long-mempool-chain" && ++m_damage > 1000) {
                     logCritical() << "Transaction was returned with" << errorMessage << "calling generate()";
                     logInfo() << "| note we still have" << m_wallet.unspentOutputs().size() << "UTXOs to spend";
                     // a generate() will fix that.
@@ -220,6 +219,10 @@ void TxVulcano::incomingMessage(const Message& message)
         }
         if (m_highestBlock == m_lastSeenBlock)
             nowCurrent();
+        else if (m_lastSeenBlock > m_lastSeenBlock) {
+            logFatal() << "Hub went backwards in time...";
+            Application::quit(1);
+        }
     }
     else if (message.serviceId() == Api::BlockChainService && message.messageId() == Api::BlockChain::GetBlockReply) {
         // this can take a lot of time to process, so process it on a different thread.
@@ -412,6 +415,10 @@ void TxVulcano::createTransactions_priv()
     }
     if (amount < 10000) {
         logCritical() << "No matured coins available";
+        // generate() with 1s delay;
+        m_timer.cancel();
+        m_timer.expires_from_now(boost::posix_time::seconds(1));
+        m_timer.async_wait(std::bind(&TxVulcano::generate, this, 1));
         return;
     }
 
