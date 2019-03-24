@@ -906,7 +906,7 @@ void DataFile::flushSomeNodesToDisk(ForceBool force)
     * if save counter is >= 4, save bucket and make a copy of it. Don't delete it from m_buckets.
     * increase save count
     */
-    for (auto iter = m_buckets.begin(); m_fileFull == 0 && iter != m_buckets.end(); ++iter) {
+    for (auto iter = m_buckets.begin(); iter != m_buckets.end(); ++iter) {
         const uint32_t bucketId = static_cast<uint32_t>(iter.key());
         Bucket *bucket = &iter.value();
         assert(bucket);
