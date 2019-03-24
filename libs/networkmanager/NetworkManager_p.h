@@ -94,11 +94,13 @@ public:
         m_readIndex += count;
         while (m_readIndex >= NumItems)
             m_readIndex -= NumItems;
-        assert(m_first < m_next && m_readIndex >= m_first
-               || m_first > m_next && (m_readIndex >= m_first || m_readIndex <= m_next));
+        assert(m_first < m_next && m_readIndex >= m_first && m_readIndex <= m_next
+               || (m_first > m_next && (m_readIndex >= m_first || m_readIndex <= m_next)));
     }
     /// first not yet read item.
     inline const V &unreadTip() const {
+        assert(m_first < m_next && m_readIndex >= m_first && m_readIndex < m_next
+               || (m_first > m_next && (m_readIndex >= m_first || m_readIndex < m_next)));
         return m_array[m_readIndex];
     }
     /// returns true, like isEmpty(), when there are no unread items.

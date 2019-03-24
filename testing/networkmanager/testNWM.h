@@ -29,6 +29,8 @@ public:
 
 private slots:
     void testBigMessage();
+
+    void testRingBuffer();
 };
 
 #endif

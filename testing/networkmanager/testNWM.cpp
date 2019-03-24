@@ -18,6 +18,7 @@
 #include "testNWM.h"
 
 #include <networkmanager/NetworkManager.h>
+#include <networkmanager/NetworkManager_p.h>
 #include <WorkerThreads.h>
 #include <Message.h>
 
@@ -59,6 +60,118 @@ void TestNWM::testBigMessage()
      */
     boost::this_thread::sleep_for(boost::chrono::seconds(1));
     QCOMPARE(messageSize, BigSize);
+}
+
+void TestNWM::testRingBuffer()
+{
+    RingBuffer<int> buf;
+
+    QCOMPARE(buf.reserved(), 1000); // this makes sure the tests follows the implementation
+    QCOMPARE(buf.isEmpty(), true);
+    QCOMPARE(buf.count(), 0);
+    QCOMPARE(buf.hasItemsMarkedRead(), false);
+    QCOMPARE(buf.hasUnread(), false);
+
+    for (int i = 0; i < 250; ++i) {
+        buf.append(i);
+    }
+    QCOMPARE(buf.hasItemsMarkedRead(), false);
+    QCOMPARE(buf.hasUnread(), true);
+    QCOMPARE(buf.isEmpty(), false);
+    QCOMPARE(buf.count(), 250);
+    QCOMPARE(buf.tip(), 0);
+    QCOMPARE(buf.unreadTip(), 0);
+
+    buf.markRead(10);
+
+    QCOMPARE(buf.hasItemsMarkedRead(), true);
+    QCOMPARE(buf.isEmpty(), false);
+    QCOMPARE(buf.count(), 250);
+    QCOMPARE(buf.tip(), 0);
+    QCOMPARE(buf.hasUnread(), true);
+    QCOMPARE(buf.unreadTip(), 10);
+
+    buf.markAllUnread();
+    QCOMPARE(buf.hasItemsMarkedRead(), false);
+    QCOMPARE(buf.isEmpty(), false);
+    QCOMPARE(buf.count(), 250);
+    QCOMPARE(buf.tip(), 0);
+    QCOMPARE(buf.hasUnread(), true);
+    QCOMPARE(buf.unreadTip(), 0);
+
+    buf.markRead(249);
+    QCOMPARE(buf.hasItemsMarkedRead(), true);
+    QCOMPARE(buf.isEmpty(), false);
+    QCOMPARE(buf.count(), 250);
+    QCOMPARE(buf.tip(), 0);
+    QCOMPARE(buf.hasUnread(), true);
+    QCOMPARE(buf.unreadTip(), 249);
+
+    buf.markRead(1);
+    QCOMPARE(buf.hasItemsMarkedRead(), true);
+    QCOMPARE(buf.isEmpty(), false);
+    QCOMPARE(buf.count(), 250);
+    QCOMPARE(buf.tip(), 0);
+    QCOMPARE(buf.hasUnread(), false);
+    // don't call unreadTip when hasUnread returns falls. It will assert.
+
+    // remove 200 of the 250 items
+    for (int i = 0; i < 200; ++i) {
+        QCOMPARE(buf.hasItemsMarkedRead(), true);
+        QCOMPARE(buf.isEmpty(), false);
+        QCOMPARE(buf.count(), 250 - i);
+        QCOMPARE(buf.tip(), i);
+        QCOMPARE(buf.hasUnread(), false);
+        buf.removeTip();
+    }
+
+    // add 900 items so we now have 950 items wrapping around the buffer.
+    for (int i = 0; i < 900; ++i) {
+        QCOMPARE(buf.hasItemsMarkedRead(), true);
+        QCOMPARE(buf.isEmpty(), false);
+        QCOMPARE(buf.count(), 50 + i);
+        QCOMPARE(buf.tip(), 200);
+        QCOMPARE(buf.hasUnread(), i != 0);
+        if (i > 0)
+            QCOMPARE(buf.unreadTip(), 1000);
+        buf.append(1000 + i);
+    }
+
+    buf.markRead(800); // move to absolute pos 50, relative pos 850. Value 1800
+    QCOMPARE(buf.hasItemsMarkedRead(), true);
+    QCOMPARE(buf.isEmpty(), false);
+    QCOMPARE(buf.count(), 950);
+    QCOMPARE(buf.tip(), 200);
+    QCOMPARE(buf.hasUnread(), true);
+    QCOMPARE(buf.unreadTip(), 1800);
+
+    // remove the first 50 items we added.
+    // this means we have 900 items with value 1000 - 1900 and the read pos is at value 1800
+    for (int i = 0; i < 50; ++i) {
+        QCOMPARE(buf.hasItemsMarkedRead(), true);
+        QCOMPARE(buf.isEmpty(), false);
+        QCOMPARE(buf.count(), 950 - i);
+        QCOMPARE(buf.tip(), 200 + i);
+        QCOMPARE(buf.hasUnread(), true);
+        QCOMPARE(buf.unreadTip(), 1800);
+        buf.removeTip();
+    }
+
+    // remove all other items we added.
+    for (int i = 0; i < 900; ++i) {
+        QCOMPARE(buf.hasItemsMarkedRead(), i < 800);
+        QCOMPARE(buf.isEmpty(), false);
+        QCOMPARE(buf.count(), 900 - i);
+        QCOMPARE(buf.tip(), 1000 + i);
+        QCOMPARE(buf.hasUnread(), true);
+        QCOMPARE(buf.unreadTip(), std::max(1800, 1000 + i));
+        buf.removeTip();
+    }
+    // its empty now
+    QCOMPARE(buf.hasItemsMarkedRead(), false);
+    QCOMPARE(buf.isEmpty(), true);
+    QCOMPARE(buf.count(), 0);
+    QCOMPARE(buf.hasUnread(), false);
 }
 
 QTEST_MAIN(TestNWM)
