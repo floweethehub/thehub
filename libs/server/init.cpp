@@ -437,6 +437,13 @@ void InitParameterInteraction()
             throw std::runtime_error("Block Accept setting smaller than block mining size. Please adjust and restart");
     }
     assert(Policy::blockSizeAcceptLimit() >= miningSize);
+
+    const int64_t mempoolMaxSize = GetArg("-maxmempool", Settings::DefaultMaxMempoolSize) * 4500000;
+    if (mempoolMaxSize < miningSize * 1000000) {
+        if (SoftSetArg("-maxmempool", boost::lexical_cast<std::string>(miningSize * 4 / 1000000)))
+            logCritical(Log::Net) << "parameter interaction: -blockmaxsize  N -> setting -maxmempool=4N";
+    }
+
 }
 
 void InitLogging()
