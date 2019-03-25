@@ -35,6 +35,24 @@
 
 namespace {
 
+void convertHashStringToNetworkBytes(char *outBuffer, const UniValue &univalue) {
+    assert(univalue.isStr());
+    assert(univalue.getValStr().size() % 2 == 0);
+    const char *input = univalue.getValStr().c_str();
+    int numBytes = univalue.getValStr().size() / 2;
+    char *outReverseBuf = outBuffer + numBytes- 1;
+
+    while (numBytes-- > 0) {
+        signed char c = HexDigit(*input++);
+        assert(c != -1);
+        unsigned char n = (c << 4);
+        c = HexDigit(*input++);
+        assert(c != -1);
+        n |= c;
+        *outReverseBuf-- = n;
+    }
+}
+
 // blockchain
 
 class GetBlockChainInfo : public Api::RpcParser
@@ -799,7 +817,6 @@ public:
         std::string hex;
         boost::algorithm::hex(outAddress, back_inserter(hex));
         output.push_back(std::make_pair("item0", UniValue(amount)));
-        logFatal() << "address: " << hex;
         output.push_back(std::make_pair("item1", UniValue(UniValue::VSTR, hex)));
         m_messageSize = amount * 35;
     }
@@ -808,9 +825,9 @@ public:
         assert(result.getType() == UniValue::VARR);
         for (int i = 0; i < result.size(); ++i) {
             assert(result[i].get_str().size() == 64);
-            std::vector<char> hex;
-            boost::algorithm::unhex(result[i].get_str(), back_inserter(hex));
-            builder.add(Api::RegTest::BlockHash, hex);
+            char hex[32];
+            convertHashStringToNetworkBytes(hex, result[i]);
+            builder.addByteArray(Api::RegTest::BlockHash, &hex[0], 32);
         }
     }
 };
