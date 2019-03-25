@@ -305,7 +305,6 @@ void NetworkManagerConnection::connect_priv()
 
 void NetworkManagerConnection::onAddressResolveComplete(const boost::system::error_code &error, tcp::resolver::iterator iterator)
 {
-    assert(m_strand.running_in_this_thread());
     m_isConnecting = false;
     if (m_isClosingDown)
         return;
@@ -315,6 +314,7 @@ void NetworkManagerConnection::onAddressResolveComplete(const boost::system::err
         m_reconnectDelay.async_wait(m_strand.wrap(std::bind(&NetworkManagerConnection::reconnectWithCheck, this, std::placeholders::_1)));
         return;
     }
+    assert(m_strand.running_in_this_thread());
     m_remote.ipAddress = (iterator++)->endpoint().address();
 
     // Notice that we always only use the first reported DNS entry. Which is likely Ok.
@@ -326,7 +326,6 @@ void NetworkManagerConnection::onConnectComplete(const boost::system::error_code
 {
     if (error.value() == boost::asio::error::operation_aborted)
         return;
-    assert(m_strand.running_in_this_thread());
     if (m_isClosingDown)
         return;
     if (error) {
@@ -337,6 +336,7 @@ void NetworkManagerConnection::onConnectComplete(const boost::system::error_code
         m_reconnectDelay.async_wait(m_strand.wrap(std::bind(&NetworkManagerConnection::reconnectWithCheck, this, std::placeholders::_1)));
         return;
     }
+    assert(m_strand.running_in_this_thread());
     logInfo(Log::NWM) << "Successfully connected to" << m_remote.hostname << m_remote.announcePort;
 
     if (!d->apiCookieFilename.empty()
@@ -529,7 +529,6 @@ void NetworkManagerConnection::sentSomeBytes(const boost::system::error_code& er
     if (error.value() == boost::asio::error::connection_aborted) // assume instance already deleted
         return;
 
-    assert(m_strand.running_in_this_thread());
     m_sendingInProgress = false;
     if (error) {
         logWarning(Log::NWM) << "send received error" << error.message();
@@ -541,6 +540,7 @@ void NetworkManagerConnection::sentSomeBytes(const boost::system::error_code& er
         runOnStrand(std::bind(&NetworkManagerConnection::connect, this));
         return;
     }
+    assert(m_strand.running_in_this_thread());
     logDebug(Log::NWM) << "Managed to send" << bytes_transferred << "bytes";
     m_reconnectStep = 0;
 
@@ -593,7 +593,6 @@ void NetworkManagerConnection::receivedSomeBytes(const boost::system::error_code
 
     if (m_isClosingDown)
         return;
-    assert(m_strand.running_in_this_thread());
     logDebug(Log::NWM) << (static_cast<void*>(this)) << "receivedSomeBytes" << bytes_transferred;
     if (error) {
         logDebug(Log::NWM) << "receivedSomeBytes errored:" << error.message();
@@ -615,6 +614,7 @@ void NetworkManagerConnection::receivedSomeBytes(const boost::system::error_code
         m_firstPacket = true;
         return;
     }
+    assert(m_strand.running_in_this_thread());
     m_receiveStream.markUsed(static_cast<int>(bytes_transferred)); // move write pointer
 
     while (true) { // get all packets out
