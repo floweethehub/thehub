@@ -217,8 +217,10 @@ void UnspentOutputDatabase::setSmallLimits()
 
 void UnspentOutputDatabase::insertAll(const UnspentOutputDatabase::BlockData &data)
 {
-    auto df = d->checkCapacity();
-    df->insertAll(d, data);
+    for (size_t i = 0; i < data.outputs.size(); i += 2000) {
+        auto df = d->checkCapacity();
+        df->insertAll(d, data, i, std::min(data.outputs.size(), i + 2000));
+    }
 }
 
 void UnspentOutputDatabase::insert(const uint256 &txid, int outIndex, int blockHeight, int offsetInBlock)
@@ -601,10 +603,18 @@ void DataFile::insert(const UODBPrivate *priv, const uint256 &txid, int firstOut
     addChange(priv);
 }
 
-void DataFile::insertAll(const UODBPrivate *priv, const UnspentOutputDatabase::BlockData &data)
+void DataFile::insertAll(const UODBPrivate *priv, const UnspentOutputDatabase::BlockData &data, size_t start, size_t end)
 {
-    for (auto o : data.outputs) {
+    for (size_t i = start; i < end; ++i) {
+        assert(data.outputs.size() > i);
+        const auto &o = data.outputs.at(i);
         insert(priv, o.txid, o.firstOutput, o.lastOutput, data.blockHeight, o.offsetInBlock);
+    }
+    int spaceLeft = UODBPrivate::limits.FileFull - m_writeBuffer.offset();
+    if (m_changeCount.load() * 120 > spaceLeft) {
+        int notFull = 0; // only change if its still the default value.
+        m_fileFull.compare_exchange_strong(notFull, 1);
+        DEBUGUTXO << "insertAll: Marking file full";
     }
 }
 

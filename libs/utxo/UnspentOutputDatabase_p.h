@@ -144,7 +144,7 @@ public:
     DataFile(const boost::filesystem::path &filename);
 
     void insert(const UODBPrivate *priv, const uint256 &txid, int firstOutput, int lastOutput, int blockHeight, int offsetInBlock);
-    void insertAll(const UODBPrivate *priv, const UnspentOutputDatabase::BlockData &data);
+    void insertAll(const UODBPrivate *priv, const UnspentOutputDatabase::BlockData &data, size_t start, size_t end);
     UnspentOutput find(const uint256 &txid, int index) const;
     SpentOutput remove(const UODBPrivate *priv, const uint256 &txid, int index, uint32_t leafHint = 0);
 
