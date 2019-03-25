@@ -38,7 +38,7 @@ static const int64_t MinDbCache = 4;
 // /////// NET
 
 /** Default for -blocksizeacceptlimit */
-static const int32_t DefaultBlockAcceptSize = 32000000;
+static const int32_t DefaultBlockAcceptSize = 128000000;
 
 static const bool DefaultAcceptDataCarrier = true;
 static const unsigned int MaxOpReturnRelay = 223; //! bytes (+1 for OP_RETURN, +2 for the pushdata opcodes)
