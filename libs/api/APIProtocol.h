@@ -21,7 +21,6 @@
 namespace Api {
 enum ServiceIds {
     ControlService,
-    LoginService,
     UtilService,
     MiningService,
     RawTransactionService,
@@ -59,24 +58,7 @@ enum Tags {
     FailedCommandServiceId,
     FailedCommandId,
 };
-
 }
-
-
-namespace Login { // Login Service
-
-enum MessageIds {
-    LoginMessage
-};
-
-enum Tags {
-    Separator = 0,
-    GenericByteData,
-    CookieData
-};
-
-}
-
 
 namespace Util {
 

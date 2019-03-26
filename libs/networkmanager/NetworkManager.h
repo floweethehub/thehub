@@ -74,8 +74,6 @@ public:
     void addService(NetworkService *service);
     void removeService(NetworkService *service);
 
-    void setAutoApiLogin(bool on, const std::string &cookieFilename = std::string());
-
     std::weak_ptr<NetworkManagerPrivate> priv(); ///< \internal
 
 private:

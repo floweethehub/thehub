@@ -86,19 +86,14 @@ void TxVulcano::connectionEstablished(const EndPoint &)
     logCritical() << "Connection established";
     assert(m_connection.isValid());
 
-    // send login message
-    // TODO upgrade when we have a better way to do authentication
-    m_pool.reserve(70);
-    Streaming::MessageBuilder builder(m_pool);
-    builder.add(Api::Login::CookieData, "Vqlxrny7AVOERQg4DSMmA/XwbMYCEAZ2k8kmgBI6FaI=");
-    m_connection.send(builder.message(Api::LoginService, Api::Login::LoginMessage));
-
     // fill the wallet with private keys
     int count = 100 - m_wallet.keyCount();
     while (--count > 0) {
         m_connection.send(Message(Api::UtilService, Api::Util::CreateAddress));
     }
 
+    m_pool.reserve(50);
+    Streaming::MessageBuilder builder(m_pool);
     if (m_wallet.lastCachedBlock().IsNull()) {
         m_lastSeenBlock = 0; // from genesis
     } else {

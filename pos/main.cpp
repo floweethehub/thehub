@@ -35,7 +35,6 @@ int main(int x, char **y)
     app.setApplicationName("pos");
 
     QCommandLineParser parser;
-    parser.addPositionalArgument("api-cookie", "The filename of the API cookie (secret) we can use to authenticate");
     parser.addPositionalArgument("[address]", "Addresses to listen to");
     QCommandLineOption port("port", "Non-default port to connect to", "<number>");
     QCommandLineOption connect("connect", "IP-address to connect to, uses localhost if not given", "<IP-Address>");
@@ -74,7 +73,6 @@ int main(int x, char **y)
     auto args = parser.positionalArguments();
     if (args.isEmpty())
         parser.showHelp(1);
-    manager.setAutoApiLogin(true, args.takeFirst().toStdString());
     auto connection = manager.connection(ep);
     assert (connection.isValid());
     NetworkPaymentProcessor processor(std::move(connection));

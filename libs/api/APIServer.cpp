@@ -32,40 +32,14 @@
 #include <fstream>
 #include <functional>
 
-// the amount of seconds after which we disconnect incoming connections that have not logged in yet.
-#define LOGIN_TIMEOUT 4
+// the amount of seconds after which we disconnect incoming connections that have done anything yet.
+#define INTRODUCTION_TIMEOUT 4
 
 Api::Server::Server(boost::asio::io_service &service)
     : m_networkManager(service),
       m_timerRunning(false),
       m_newConnectionTimeout(service)
 {
-    boost::filesystem::path path(GetArg("-apicookiefile", "api-cookie"));
-    if (!path.is_complete())
-        path = GetDataDir() / path;
-
-    std::ifstream file;
-    file.open(path.string().c_str());
-    if (file.is_open()) {
-        std::getline(file, m_cookie);
-        file.close();
-    } else {
-        // then we create one.
-        uint8_t buf[32];
-        GetRandBytes(buf, 32);
-        m_cookie = EncodeBase64(&buf[0],32);
-
-        std::ofstream out;
-        out.open(path.string().c_str());
-        if (!out.is_open()) {
-            logFatal(Log::ApiServer) << "Unable to open api-cookie authentication file" << path.string() << "for writing";
-            throw std::runtime_error("Unable to open api-cookie authentication file.");
-        }
-        out << m_cookie;
-        out.close();
-        logInfo(Log::ApiServer) << "Generated api-authentication cookie" << path.string();
-    }
-
     int defaultPort = BaseParams().ApiServerPort();
     std::list<boost::asio::ip::tcp::endpoint> endpoints;
 
@@ -100,19 +74,19 @@ void Api::Server::addService(NetworkService *service)
 
 void Api::Server::newConnection(NetworkConnection &connection)
 {
-    connection.setOnIncomingMessage(std::bind(&Api::Server::incomingLoginMessage, this, std::placeholders::_1));
+    connection.setOnIncomingMessage(std::bind(&Api::Server::incomingMessage, this, std::placeholders::_1));
     connection.setOnDisconnected(std::bind(&Api::Server::connectionRemoved, this, std::placeholders::_1));
     connection.accept();
     NewConnection con;
     con.connection = std::move(connection);
-    con.time = boost::posix_time::second_clock::universal_time() + boost::posix_time::seconds(LOGIN_TIMEOUT);
+    con.initialConnectionTime = boost::posix_time::second_clock::universal_time();
 
     boost::mutex::scoped_lock lock(m_mutex);
     m_newConnections.push_back(std::move(con));
 
     if (!m_timerRunning) {
         m_timerRunning = true;
-        m_newConnectionTimeout.expires_from_now(boost::posix_time::seconds(LOGIN_TIMEOUT));
+        m_newConnectionTimeout.expires_from_now(boost::posix_time::seconds(INTRODUCTION_TIMEOUT));
         m_newConnectionTimeout.async_wait(std::bind(&Api::Server::checkConnections, this, std::placeholders::_1));
     }
 }
@@ -140,38 +114,12 @@ void Api::Server::connectionRemoved(const EndPoint &endPoint)
     }
 }
 
-void Api::Server::incomingLoginMessage(const Message &message)
+void Api::Server::incomingMessage(const Message &message)
 {
-    bool success = false;
-    std::string error;
-    if (message.messageId() == Login::LoginMessage && message.serviceId() == LoginService) {
-        Streaming::MessageParser parser(message.body());
-        while (!success && parser.next() == Streaming::FoundTag) {
-            if (parser.tag() == Login::CookieData) {
-                assert(!m_cookie.empty());
-                if (m_cookie == parser.stringData())
-                    success = true;
-                else if (parser.dataLength() != 44)
-                    error = strprintf("Cookie wrong length; %d", parser.dataLength());
-                else
-                    error = parser.stringData() + "|"+ m_cookie;
-            }
-        }
-    }
-    else
-        error = "First message has to be a LoginService/LoginMessage";
     NetworkConnection con(&m_networkManager, message.remote);
     assert(con.isValid());
-    if (!success) {
-        if (error.empty())
-            error = "Malformed login, no cookie data found";
-        logCritical(Log::ApiServer) << "Remote failed login" << error;
-        con.disconnect();
-        return;
-    }
-    logInfo(Log::ApiServer) << "Remote login accepted from" << con.endPoint().hostname << con.endPoint().ipAddress.to_string();
-
     con.setOnDisconnected(std::bind(&Api::Server::connectionRemoved, this, std::placeholders::_1));
+
     Connection *handler = new Connection(std::move(con));
     boost::mutex::scoped_lock lock(m_mutex);
     m_connections.push_back(handler);
@@ -184,6 +132,7 @@ void Api::Server::incomingLoginMessage(const Message &message)
         }
         ++iter;
     }
+    handler->incomingMessage(message);
 }
 
 void Api::Server::checkConnections(boost::system::error_code error)
@@ -191,11 +140,12 @@ void Api::Server::checkConnections(boost::system::error_code error)
     if (error.value() == boost::asio::error::operation_aborted)
         return;
     boost::mutex::scoped_lock lock(m_mutex);
-    const auto now = boost::posix_time::second_clock::universal_time();
+    const auto disconnectTime = boost::posix_time::second_clock::universal_time()
+            - boost::posix_time::seconds(INTRODUCTION_TIMEOUT);
     auto iter = m_newConnections.begin();
     while (iter != m_newConnections.end()) {
-        if (iter->time <= now) {
-            // LogPrintf("Calling disconnect on connection %d now\n", iter->connection.connectionId());
+        if (iter->initialConnectionTime <= disconnectTime) {
+            logDebug() << "Calling disconnect on connection" << iter->connection.connectionId() << "now";
             iter->connection.disconnect();
             iter = m_newConnections.erase(iter);
         } else {

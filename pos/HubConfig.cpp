@@ -26,7 +26,6 @@
 const char * HubConfig::GROUP_ID = "server";
 const char * HubConfig::KEY_SERVER_IP = "ip";
 const char * HubConfig::KEY_SERVER_PORT = "port";
-const char * HubConfig::KEY_COOKIE = "ecookie_filename";
 
 static void set(const char *key, const QVariant &value)
 {
@@ -52,20 +51,6 @@ void HubConfig::setServer(const QString &server)
     m_server = server;
     set(KEY_SERVER_IP, server);
     emit serverChanged();
-}
-
-QString HubConfig::cookieFilename() const
-{
-    return m_cookieFilename;
-}
-
-void HubConfig::setCookieFilename(const QString &cookieFilename)
-{
-    if (m_cookieFilename == cookieFilename)
-        return;
-    m_cookieFilename = cookieFilename;
-    set(KEY_COOKIE, cookieFilename);
-    emit cookieFilenameChanged();
 }
 
 int HubConfig::port() const
@@ -100,9 +85,6 @@ EndPoint HubConfig::readEndPoint(NetworkManager *manager, bool *ok)
             incomplete = true;
         }
     }
-    const QString cookieFilename = settings.value(KEY_COOKIE).toString();
-    logInfo(Log::POS) << "Setting cookie file to;" << cookieFilename;
-    manager->setAutoApiLogin(true, cookieFilename.toStdString());
     if (ok)
         *ok = !incomplete;
     return ep;

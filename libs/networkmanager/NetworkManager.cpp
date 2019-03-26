@@ -142,14 +142,6 @@ void NetworkManager::removeService(NetworkService *service)
     service->setManager(nullptr);
 }
 
-void NetworkManager::setAutoApiLogin(bool on, const std::string &cookieFilename)
-{
-    if (on)
-        d->apiCookieFilename = cookieFilename;
-    else
-        d->apiCookieFilename.clear();
-}
-
 std::weak_ptr<NetworkManagerPrivate> NetworkManager::priv()
 {
     return d;
@@ -338,28 +330,6 @@ void NetworkManagerConnection::onConnectComplete(const boost::system::error_code
     }
     assert(m_strand.running_in_this_thread());
     logInfo(Log::NWM) << "Successfully connected to" << m_remote.hostname << m_remote.announcePort;
-
-    if (!d->apiCookieFilename.empty()
-                //  outgoing means announce and peerPort are the same.
-            && m_remote.announcePort == m_remote.peerPort) {
-        // do auto-login to the API server we expect on the other side.
-        try {
-            std::ifstream is(d->apiCookieFilename);
-            std::string content; // we read this every time to avoid the need for restarts
-            if (std::getline(is, content)) {
-                is.close();
-                if (content.size() < 1000) { // protect from memory abuse.
-                    m_sendHelperBuffer.reserve(20 + static_cast<int>(content.size()));
-                    Streaming::MessageBuilder builder(m_sendHelperBuffer);
-                    builder.add(Api::Login::CookieData, content);
-                    queueMessage(builder.message(Api::LoginService, Api::Login::LoginMessage), NetworkConnection::HighPriority);
-                }
-            } else
-                logCritical(Log::NWM) << "cookie file empty or not a (text) file" << d->apiCookieFilename;
-        } catch (std::exception &e) {
-            logCritical(Log::NWM) << "Reading and sending login cookie went wrong;" << e;
-        }
-    }
 
     for (auto it = m_onConnectedCallbacks.begin(); it != m_onConnectedCallbacks.end(); ++it) {
         try {

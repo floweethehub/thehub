@@ -27,7 +27,6 @@ class HubConfig : public QObject
 {
     Q_OBJECT
     Q_PROPERTY(QString server READ server WRITE setServer NOTIFY serverChanged)
-    Q_PROPERTY(QString cookieFilename READ cookieFilename WRITE setCookieFilename NOTIFY cookieFilenameChanged)
     Q_PROPERTY(int port READ port WRITE setPort NOTIFY portChanged)
 public:
     explicit HubConfig(QObject *parent = nullptr);
@@ -35,13 +34,9 @@ public:
     static const char * GROUP_ID;
     static const char * KEY_SERVER_IP;
     static const char * KEY_SERVER_PORT;
-    static const char * KEY_COOKIE;
 
     QString server() const;
     void setServer(const QString &server);
-
-    QString cookieFilename() const;
-    void setCookieFilename(const QString &cookieFilename);
 
     int port() const;
     void setPort(int port);
@@ -50,13 +45,10 @@ public:
 
 signals:
     void serverChanged();
-    void cookieFilenameChanged();
-    void cookieConentsChanged();
     void portChanged();
 
 private:
     QString m_server;
-    QString m_cookieFilename;
     int m_port;
 };
 

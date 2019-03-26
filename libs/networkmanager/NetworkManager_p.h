@@ -308,8 +308,6 @@ public:
 
     std::vector<NetworkManagerServer *> servers;
 
-    std::string apiCookieFilename; // if non-empty, auto login to the API server on connect.
-
     std::list<BannedNode> banned;
     std::list<NetworkService*> services;
     boost::asio::deadline_timer m_cronHourly;

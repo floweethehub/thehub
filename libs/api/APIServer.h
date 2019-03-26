@@ -46,7 +46,7 @@ public:
 private:
     void newConnection(NetworkConnection &connection);
     void connectionRemoved(const EndPoint &endPoint);
-    void incomingLoginMessage(const Message &message);
+    void incomingMessage(const Message &message);
 
     void checkConnections(boost::system::error_code error);
 
@@ -67,11 +67,10 @@ private:
 
     struct NewConnection {
         NetworkConnection connection;
-        boost::posix_time::ptime time;
+        boost::posix_time::ptime initialConnectionTime;
     };
 
     NetworkManager m_networkManager;
-    std::string m_cookie; // for authentication
 
     mutable boost::mutex m_mutex; // protects the next 4 vars.
     std::list<Connection*> m_connections;

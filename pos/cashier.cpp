@@ -44,7 +44,6 @@ int main(int x, char **y)
     Log::Manager::instance()->parseConfig(logsconf.toLocal8Bit().toStdString(), logFile.toLocal8Bit().toStdString());
 
     QCommandLineParser parser;
-    parser.addPositionalArgument("api-cookie", "The filename of the API cookie (secret) we can use to authenticate");
     QCommandLineOption port("port", "Non-default port to connect to", "<number>");
     QCommandLineOption connect("connect", "IP-address to connect to, uses localhost if not given", "<IP-Address>");
     parser.addOption(port);
@@ -85,8 +84,6 @@ int main(int x, char **y)
             settings.setValue(HubConfig::KEY_SERVER_PORT, portNum);
         if (!ip.isEmpty())
             settings.setValue(HubConfig::KEY_SERVER_IP, ip);
-        if (!parser.positionalArguments().isEmpty())
-            settings.setValue(HubConfig::KEY_COOKIE, parser.positionalArguments().first());
     }
 
     qmlRegisterType<Calculator>("org.flowee", 1, 0, "Calculator");
