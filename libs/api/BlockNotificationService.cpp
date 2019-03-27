@@ -47,7 +47,7 @@ void BlockNotificationService::SyncAllTransactionsInBlock(const FastBlock &, CBl
     m_pool.reserve(45);
     Streaming::MessageBuilder builder(m_pool);
     builder.add(Api::BlockNotification::BlockHash, index->GetBlockHash());
-    builder.add(Api::BlockNotification::Height, index->nHeight);
+    builder.add(Api::BlockNotification::BlockHeight, index->nHeight);
     Message message(builder.message(Api::BlockNotificationService, Api::BlockNotification::NewBlockOnChain));
 
     for (auto remote : m_remotes) {

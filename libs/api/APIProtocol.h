@@ -133,13 +133,13 @@ enum Tags {
     GenericByteData = Api::GenericByteData,
     BitcoinAddress = Api::BitcoinAddress, // Unused at this time.
     PrivateKey = Api::PrivateKey,     // string TODO stop bieng a string // TODO do we really use this??
-    TransactionId = Api::TxId,   // bytearray // TODO rename to TxId
+    TxId = Api::TxId,   // bytearray
 
     RawTransaction,
     Completed,       // boolean
     OutputIndex,
-    ScriptSig,      // bytearray.   This is the input-script. // TODO renme to InputScript
-    ScriptPubKey,   // bytearray.   This is the output-script. // TODO rename to OutputScript
+    InputScript,      // bytearray.   This is also called the ScriptSig
+    OutputScript,   // bytearray.   This is also called the ScriptPubKey
     Sequence,       // Number
     ErrorMessage,   // string
     SigHashType,    // Number
@@ -328,7 +328,7 @@ enum Tags {
     Separator = Api::Separator,
     GenericByteData = Api::GenericByteData,
     BlockHash = Api::BlockHash,
-    Height = Api::BlockHeight // TODO rename to BlockHeight
+    BlockHeight = Api::BlockHeight
 };
 }
 }

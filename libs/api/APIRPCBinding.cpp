@@ -509,7 +509,7 @@ public:
         std::string txid;
         Streaming::MessageParser parser(message.body());
         while (parser.next() == Streaming::FoundTag) {
-            if (parser.tag() == Api::RawTransactions::TransactionId
+            if (parser.tag() == Api::RawTransactions::TxId
                     || parser.tag() == Api::RawTransactions::GenericByteData)
                 boost::algorithm::hex(parser.bytesData(), back_inserter(txid));
         }
@@ -576,14 +576,14 @@ public:
             case Api::RawTransactions::SigHashType:
                 sigHashType = parser.intData();
                 break;
-            case Api::RawTransactions::TransactionId:
+            case Api::RawTransactions::TxId:
                 boost::algorithm::hex(parser.bytesData(), back_inserter(string));
                 prevTx.txid = string;
                 break;
             case Api::RawTransactions::OutputIndex:
                 prevTx.vout = parser.intData();
                 break;
-            case Api::RawTransactions::ScriptPubKey:
+            case Api::RawTransactions::OutputScript:
                 boost::algorithm::hex(parser.bytesData(), back_inserter(string));
                 prevTx.scriptPubKey = string;
                 break;
@@ -650,13 +650,13 @@ public:
                 else builder.add(Api::Separator, true);
                 const UniValue &txid = find_value(error, "txid");
                 boost::algorithm::unhex(txid.get_str(), back_inserter(bytearray));
-                builder.add(Api::RawTransactions::TransactionId, bytearray);
+                builder.add(Api::RawTransactions::TxId, bytearray);
                 bytearray.clear();
                 const UniValue &vout = find_value(error, "vout");
                 builder.add(Api::RawTransactions::OutputIndex, vout.get_int());
                 const UniValue &scriptSig = find_value(error, "scriptSig");
                 boost::algorithm::unhex(scriptSig.get_str(), back_inserter(bytearray));
-                builder.add(Api::RawTransactions::ScriptSig, bytearray);
+                builder.add(Api::RawTransactions::InputScript, bytearray);
                 bytearray.clear();
                 const UniValue &sequence = find_value(error, "sequence");
                 builder.add(Api::RawTransactions::Sequence, (uint64_t) sequence.get_int64());

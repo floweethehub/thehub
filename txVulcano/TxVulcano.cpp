@@ -226,7 +226,7 @@ void TxVulcano::incomingMessage(const Message& message)
                 buildGetBlockRequest(builder, first);
                 m_connection.send(builder.message(Api::BlockChainService, Api::BlockChain::GetBlock));
             }
-            else if (parser.tag() == Api::BlockNotification::Height) {
+            else if (parser.tag() == Api::BlockNotification::BlockHeight) {
                 m_highestBlock = std::max(m_highestBlock, parser.intData());
             }
         }
