@@ -382,7 +382,7 @@ void NetworkManagerConnection::runMessageQueue()
 {
     assert(m_strand.running_in_this_thread());
     if (m_sendingInProgress || m_isConnecting || m_isClosingDown
-            || (m_messageQueue.isEmpty() && m_priorityMessageQueue.isRead()) || !isConnected())
+            || (m_messageQueue.isRead() && m_priorityMessageQueue.isRead()) || !isConnected())
         return;
 
     m_sendingInProgress = true;
