@@ -307,7 +307,8 @@ void NetworkManagerConnection::onAddressResolveComplete(const boost::system::err
         return;
     }
     assert(m_strand.running_in_this_thread());
-    m_remote.ipAddress = (iterator++)->endpoint().address();
+    m_remote.ipAddress = iterator->endpoint().address();
+    logDebug(Log::NWM) << "Outgoing connection to" << m_remote.hostname << "resolved to:" << m_remote.ipAddress.to_string();
 
     // Notice that we always only use the first reported DNS entry. Which is likely Ok.
     m_socket.async_connect(*iterator, m_strand.wrap(
