@@ -371,6 +371,7 @@ Streaming::ConstBuffer NetworkManagerConnection::createHeader(const Message &mes
         ++iter;
     }
     builder.add(Network::HeaderEnd, true);
+    assert(m_sendHelperBuffer.size() + message.size() < MAX_MESSAGE_SIZE);
     builder.setMessageSize(m_sendHelperBuffer.size() + message.size());
     logDebug(Log::NWM) << "createHeader of message of length;" << m_sendHelperBuffer.size() << '+' << message.size();
     return builder.buffer();
@@ -403,12 +404,15 @@ void NetworkManagerConnection::runMessageQueue()
 
     while (m_priorityMessageQueue.hasUnread()) {
         const Message &message = m_priorityMessageQueue.unreadTip();
+        int headerSize = message.header().size();
         if (!message.hasHeader()) { // build a simple header
             const Streaming::ConstBuffer constBuf = createHeader(message);
-            bytesLeft -= constBuf.size();
+            headerSize = constBuf.size();
+            bytesLeft -= headerSize;
             socketQueue.push_back(constBuf);
             m_sendQHeaders.append(constBuf);
         }
+        assert(message.body().size() + headerSize < MAX_MESSAGE_SIZE);
         socketQueue.push_back(message.rawData());
         bytesLeft -= message.rawData().size();
         m_priorityMessageQueue.markRead();
@@ -452,6 +456,7 @@ void NetworkManagerConnection::runMessageQueue()
                         headerBuilder.add(Network::SequenceStart, body.size());
                     headerBuilder.add(Network::LastInSequence, (begin == end));
                     headerBuilder.add(Network::HeaderEnd, true);
+                    assert(m_sendHelperBuffer.size() + bodyChunk.size() < MAX_MESSAGE_SIZE);
                     headerBuilder.setMessageSize(m_sendHelperBuffer.size() + bodyChunk.size());
 
                     header = headerBuilder.buffer();
@@ -606,7 +611,7 @@ void NetworkManagerConnection::receivedSomeBytes(const boost::system::error_code
         const int packetLength = (rawHeader & 0xFFFF);
         logDebug(Log::NWM) << "Processing incoming packet. Size" << packetLength;
         if (packetLength > MAX_MESSAGE_SIZE) {
-            logWarning(Log::NWM).nospace() << "receive; Data error from server- stream is corrupt ("
+            logWarning(Log::NWM).nospace() << "receive; Data error from server - stream is corrupt ("
                                            << "pl=" << packetLength << ")";
             close();
             return;
@@ -841,8 +846,17 @@ void NetworkManagerConnection::queueMessage(const Message &message, NetworkConne
 #endif
         return;
     }
-    if (priority == NetworkConnection::HighPriority && message.rawData().size() > CHUNK_SIZE) {
+    if (priority != NetworkConnection::NormalPriority && message.rawData().size() > CHUNK_SIZE) {
         logWarning(Log::NWM) << "queueMessage: Can't send large message in the priority queue";
+#ifdef DEBUG_CONNECTIONS
+        assert(false);
+#endif
+        return;
+    }
+    // we have a chunk size of 8K and a max message size of 9K. The 1000 bytes is for headers and worse case is around
+    // 10 bytes per item plus some extra stuff. So we reject any messages with more than 95 header items.
+    if (message.headerData().size() > 95) {
+        logWarning(Log::NWM) << "queueMessage: Can't send message with too much header items";
 #ifdef DEBUG_CONNECTIONS
         assert(false);
 #endif
