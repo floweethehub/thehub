@@ -91,7 +91,7 @@ enum Tags {
     Separator = Api::Separator,
     GenericByteData = Api::GenericByteData,
     BitcoinAddress = Api::BitcoinAddress,
-    PrivateAddress = Api::PrivateKey, // ToDO rename to PrivateKey
+    PrivateKey = Api::PrivateKey,
     ScriptPubKey,
     IsValid,
 };
@@ -179,7 +179,7 @@ enum Tags {
     TxId = Api::TxId,
     BlockHash = Api::BlockHash,
     Tx_Out_Amount = Api::Amount,
-    Height = Api::BlockHeight, // TODo rename to BlockHeight
+    BlockHeight = Api::BlockHeight,
 
     // GetBlockReply tags
     Tx_OffsetInBlock, // (rawTransactions should copy these)
@@ -303,7 +303,7 @@ enum Tags {
     /// A string representing an address.
     BitcoinAddress = Api::BitcoinAddress, // Unused at this time.
     /// A bytearray for a full sha256 txid
-    TransactionId = Api::TxId, // TODo rename to TxId
+    TxId = Api::TxId,
     /// An unsigned 64 bit number for the amount of satshi you received
     Amount = Api::Amount,
     /// True if it was mined in a block

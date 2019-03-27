@@ -116,7 +116,7 @@ public:
                 boost::algorithm::hex(parser.bytesData(), back_inserter(blockId));
             } else if (parser.tag() == Api::BlockChain::Verbose) {
                 m_verbose = parser.boolData();
-            } else if (parser.tag() == Api::BlockChain::Height) {
+            } else if (parser.tag() == Api::BlockChain::BlockHeight) {
                 auto index = Blocks::DB::instance()->headerChain()[parser.intData()];
                 if (index) {
                     const uint256 blockHash = index->GetBlockHash();
@@ -154,7 +154,7 @@ public:
         const UniValue &size = find_value(result, "size");
         builder.add(Api::BlockChain::Size, size.get_int());
         const UniValue &height = find_value(result, "height");
-        builder.add(Api::BlockChain::Height, height.get_int());
+        builder.add(Api::BlockChain::BlockHeight, height.get_int());
         const UniValue &version = find_value(result, "version");
         builder.add(Api::BlockChain::Version, version.get_int());
         const UniValue &merkleroot = find_value(result, "merkleroot");
@@ -209,7 +209,7 @@ public:
         assert(index);
         builder.add(Api::BlockChain::BlockHash, index->GetBlockHash());
         builder.add(Api::BlockChain::Confirmations, chainActive.Contains(index) ? chainActive.Height() - index->nHeight : -1);
-        builder.add(Api::BlockChain::Height, index->nHeight);
+        builder.add(Api::BlockChain::BlockHeight, index->nHeight);
         builder.add(Api::BlockChain::Version, index->nVersion);
         builder.add(Api::BlockChain::MerkleRoot, index->hashMerkleRoot);
         builder.add(Api::BlockChain::Time, (uint64_t) index->nTime);
@@ -234,7 +234,7 @@ public:
                 if (bi)
                     return buildReply(builder, bi);
             }
-            if (parser.tag() == Api::BlockChain::Height) {
+            if (parser.tag() == Api::BlockChain::BlockHeight) {
                 int height = parser.intData();
                 auto index = chainActive[height];
                 if (index)
@@ -276,7 +276,7 @@ public:
                     throw Api::ParserException("BlockHash should be a 32 byte-bytearray");
                 index = Blocks::Index::get(uint256(&parser.bytesData()[0]));
                 requestOk = true;
-            } else if (parser.tag() == Api::BlockChain::Height) {
+            } else if (parser.tag() == Api::BlockChain::BlockHeight) {
                 index = Blocks::DB::instance()->headerChain()[parser.intData()];
                 requestOk = true;
             } else if (parser.tag() == Api::BlockChain::ReuseAddressFilter) {
@@ -411,7 +411,7 @@ public:
 
     void buildReply(const Message&, Streaming::MessageBuilder &builder) {
         assert(m_height >= 0);
-        builder.add(Api::BlockChain::Height, m_height);
+        builder.add(Api::BlockChain::BlockHeight, m_height);
         builder.add(Api::BlockChain::BlockHash, m_block.createHash());
 
         const bool partialTxData = m_returnTxId  || m_returnInputs  || m_returnOutputs  || m_returnOutputAmounts
@@ -494,7 +494,7 @@ public:
     GetBlockCount() : DirectParser(Api::BlockChain::GetBlockCountReply, 20) {}
 
     void buildReply(const Message&, Streaming::MessageBuilder &builder) {
-        builder.add(Api::BlockChain::Height, chainActive.Height());
+        builder.add(Api::BlockChain::BlockHeight, chainActive.Height());
     }
 };
 
@@ -680,7 +680,7 @@ public:
         assert(key.IsCompressed());
         const CKeyID pkh = key.GetPubKey().GetID();
         builder.addByteArray(Api::Util::BitcoinAddress, pkh.begin(), pkh.size());
-        builder.addByteArray(Api::Util::PrivateAddress, key.begin(), key.size());
+        builder.addByteArray(Api::Util::PrivateKey, key.begin(), key.size());
     }
 };
 

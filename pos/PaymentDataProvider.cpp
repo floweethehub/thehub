@@ -261,7 +261,7 @@ void PaymentDataProvider::onIncomingMessage(const Message &message)
             if (parser.tag() == Api::Util::BitcoinAddress) {
                 pub = QString::fromUtf8(parser.stringData().data());
             }
-            else if (parser.tag() == Api::Util::PrivateAddress) {
+            else if (parser.tag() == Api::Util::PrivateKey) {
                 priv = QString::fromUtf8(parser.stringData().data());
             }
         }

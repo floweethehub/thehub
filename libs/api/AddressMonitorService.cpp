@@ -74,7 +74,7 @@ void AddressMonitorService::findTransactions(Tx::Iterator && iter, FindReason fi
                     Streaming::MessageBuilder builder(m_pool);
                     for (auto key : match.keys)
                         builder.add(Api::AddressMonitor::BitcoinAddress, CBitcoinAddress(key).ToString());
-                    builder.add(Api::AddressMonitor::TransactionId, iter.prevTx().createHash());
+                    builder.add(Api::AddressMonitor::TxId, iter.prevTx().createHash());
                     builder.add(Api::AddressMonitor::Amount, i->second.amount);
                     builder.add(Api::AddressMonitor::Mined, findReason == Confirmed ? true : false);
                     Message message = builder.message(Api::AddressMonitorService,
@@ -220,7 +220,7 @@ void AddressMonitorService::findTxInMempool(int connectionId, const CKeyID &keyI
                     m_pool.reserve(75);
                     Streaming::MessageBuilder builder(m_pool);
                     builder.add(Api::AddressMonitor::BitcoinAddress, CBitcoinAddress(keyId).ToString());
-                    builder.add(Api::AddressMonitor::TransactionId, txIter.prevTx().createHash());
+                    builder.add(Api::AddressMonitor::TxId, txIter.prevTx().createHash());
                     builder.add(Api::AddressMonitor::Amount, matchedAmounts);
                     builder.add(Api::AddressMonitor::Mined, false);
                     Message message = builder.message(Api::AddressMonitorService, Api::AddressMonitor::TransactionFound);

@@ -61,7 +61,7 @@ void NetworkPaymentProcessor::onIncomingMessage(const Message &message, const En
         auto type = parser.next();
         bool mined = false;
         while (type == Streaming::FoundTag) {
-            if (parser.tag() == Api::AddressMonitor::TransactionId) {
+            if (parser.tag() == Api::AddressMonitor::TxId) {
                 txid = parser.bytesDataBuffer();
             } else if (parser.tag() == Api::AddressMonitor::BitcoinAddress) {
                 address = QString::fromStdString(parser.stringData());

@@ -138,7 +138,7 @@ void TxVulcano::incomingMessage(const Message& message)
     else if (message.serviceId() == Api::UtilService && message.messageId() == Api::Util::CreateAddressReply) {
         Streaming::MessageParser parser(message.body());
         while (parser.next() == Streaming::FoundTag) {
-            if (parser.tag() == Api::Util::PrivateAddress) {
+            if (parser.tag() == Api::Util::PrivateKey) {
                 CKey key;
                 auto constBuf = parser.bytesDataBuffer();
                 key.Set(reinterpret_cast<const unsigned char*>(constBuf.begin()),
@@ -156,7 +156,7 @@ void TxVulcano::incomingMessage(const Message& message)
     else if (message.serviceId() == Api::BlockChainService && message.messageId() == Api::BlockChain::GetBlockHeaderReply) {
         Streaming::MessageParser parser(message.body());
         while (parser.next() == Streaming::FoundTag) {
-            if (parser.tag() == Api::BlockChain::Height) {
+            if (parser.tag() == Api::BlockChain::BlockHeight) {
                 m_lastSeenBlock = parser.intData();
                 m_highestBlock = m_lastSeenBlock;
                 break;
@@ -174,14 +174,14 @@ void TxVulcano::incomingMessage(const Message& message)
         Streaming::MessageParser parser(message.body());
         bool first = true;
         while (parser.next() == Streaming::FoundTag) {
-            if (parser.tag() == Api::BlockChain::Height) {
+            if (parser.tag() == Api::BlockChain::BlockHeight) {
                 m_highestBlock = parser.intData();
                 QMutexLocker lock(&m_walletMutex);
                 const auto ids = m_wallet.publicKeys();
                 m_pool.reserve((m_highestBlock - m_lastSeenBlock) * 4 + ids.size() * 25);
                 Streaming::MessageBuilder builder(m_pool);
                 for (int i = m_lastSeenBlock + 1; i <= m_highestBlock; ++i) {
-                    builder.add(Api::BlockChain::Height, i);
+                    builder.add(Api::BlockChain::BlockHeight, i);
                     buildGetBlockRequest(builder, first);
                     m_connection.send(builder.message(Api::BlockChainService, Api::BlockChain::GetBlock));
                 }
@@ -291,7 +291,7 @@ void TxVulcano::processNewBlock(const Message &message)
      */
     QMutexLocker lock(&m_walletMutex);
     while (parser.next() == Streaming::FoundTag) {
-        if (parser.tag() == Api::BlockChain::Height) {
+        if (parser.tag() == Api::BlockChain::BlockHeight) {
             m_lastSeenBlock = parser.intData();
             // logDebug() << "Block at" << m_lastSeenBlock;
         } else if (parser.tag() == Api::BlockChain::BlockHash) {
