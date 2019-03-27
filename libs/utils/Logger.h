@@ -54,8 +54,8 @@ __Precision precision(int amount);
 
 enum Verbosity {
     DebugLevel = 1,
-    WarningLevel,
     InfoLevel,
+    WarningLevel,
     CriticalLevel,
     FatalLevel
 };

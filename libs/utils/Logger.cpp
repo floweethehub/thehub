@@ -297,7 +297,7 @@ void Log::Manager::parseConfig(const boost::filesystem::path &configfile, const 
                 std::string type = boost::trim_copy(line.substr(offset));
                 short level = Log::CriticalLevel; // quiet is default
                 if (type == "info")
-                    level = WarningLevel;
+                    level = InfoLevel;
                 else if (type == "debug")
                     level = DebugLevel;
                 else if (type == "silent")
@@ -322,7 +322,7 @@ void Log::Manager::parseConfig(const boost::filesystem::path &configfile, const 
         d->enabledSections[0] = Log::DebugLevel;
 #endif
         for (short i = 1000; i <= 20000; i+=1000)
-            d->enabledSections[i] = Log::InfoLevel;
+            d->enabledSections[i] = Log::WarningLevel;
     }
 
     if (!loadedConsoleLog && GetBoolArg("-printtoconsole", false))
