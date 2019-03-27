@@ -1,6 +1,6 @@
 /*
  * This file is part of the Flowee project
- * Copyright (C) 2016-2017 Tom Zander <tomz@freedommail.ch>
+ * Copyright (C) 2016-2019 Tom Zander <tomz@freedommail.ch>
  *
  * This program is free software: you can redistribute it and/or modify
  * it under the terms of the GNU General Public License as published by
@@ -20,46 +20,58 @@
 
 namespace Api {
 enum ServiceIds {
-    ControlService,
-    UtilService,
-    MiningService,
-    RawTransactionService,
+    FailuresService,
     BlockChainService,
-    WalletService,
+    RawTransactionService,
+    UtilService,
     RegTestService,
 
+    // MiningService,
+
+    /* service IDs under 16 are reserved to be handled by the APIServer
+       it will generate errors for any in this region it doesn't understand.
+    */
+
+    /// Hub control service.
+    HubControlService = 16,
+        // hub stopping, networking settings. Logging.
+
     /// Connections can subscribe to bitcoin-address usage notifications
-    AddressMonitorService = 40,
+    AddressMonitorService = 17,
     BlockNotificationService,
 };
 
 enum ApiTags {
-    RequestId = 11
+    // various common tags
+    Separator = 0,
+    GenericByteData,
+    BitcoinAddress, ///< If a bytearray then we expect the raw 160 bit hash.
+    PrivateKey,
+    TxId,
+    BlockHash,
+    Amount,
+    BlockHeight,
+    RequestId = 11 ///< Use only in headers.
 };
 
 
-namespace Control {
+//  FailuresService (owned by APIServer)
+namespace Failures {
 
-// Control Service
 enum MessageIds {
     CommandFailed,
-//   getinfo
-    Stop,
-    StopReply
-    // Maybe 'version' ? To allow a client to see if the server is a different version.
-    // and then at the same time a "supports" method that returns true if a certain
-    // command is supported.
 };
 
 enum Tags {
-    Separator = 0,
-    GenericByteData,
+    Separator = Api::Separator,
+    GenericByteData = Api::GenericByteData,
     FailedReason,
     FailedCommandServiceId,
     FailedCommandId,
 };
 }
 
+// Utils service (owned by APIServer)
 namespace Util {
 
 enum MessageIds {
@@ -76,11 +88,11 @@ enum MessageIds {
 };
 
 enum Tags {
-    Separator = 0,
-    GenericByteData,
-    BitcoinAddress,
+    Separator = Api::Separator,
+    GenericByteData = Api::GenericByteData,
+    BitcoinAddress = Api::BitcoinAddress,
+    PrivateAddress = Api::PrivateKey, // ToDO rename to PrivateKey
     ScriptPubKey,
-    PrivateAddress,
     IsValid,
 };
 }
@@ -88,8 +100,8 @@ enum Tags {
 namespace Mining { // Mining Service
 
 enum MessageIds {
-    CreateNewBlock,
-    CreateNewBlockReply
+    // CreateNewBlock,
+    // CreateNewBlockReply
 
 //   getblocktemplate ( "jsonrequestobject" )
 //   getmininginfo
@@ -106,7 +118,6 @@ enum Tags {
 };
 }
 
-
 namespace RawTransactions {
 
 enum MessageIds {
@@ -118,22 +129,23 @@ enum MessageIds {
     SignRawTransactionReply
 };
 enum Tags {
-    Separator = 0,
-    GenericByteData,
+    Separator = Api::Separator,
+    GenericByteData = Api::GenericByteData,
+    BitcoinAddress = Api::BitcoinAddress, // Unused at this time.
+    PrivateKey = Api::PrivateKey,     // string TODO stop bieng a string // TODO do we really use this??
+    TransactionId = Api::TxId,   // bytearray // TODO rename to TxId
+
     RawTransaction,
-    TransactionId,   // bytearray
     Completed,       // boolean
     OutputIndex,
-    ScriptPubKey,   // bytearray.   This is the output-script.
-    ScriptSig,      // bytearray.   This is the input-script.
+    ScriptSig,      // bytearray.   This is the input-script. // TODO renme to InputScript
+    ScriptPubKey,   // bytearray.   This is the output-script. // TODO rename to OutputScript
     Sequence,       // Number
     ErrorMessage,   // string
-    PrivateKey,     // string
     SigHashType,    // Number
     OutputAmount    // value in satoshis
 };
 }
-
 
 namespace BlockChain {
 enum MessageIds {
@@ -158,35 +170,23 @@ enum MessageIds {
 //   verifychain ( checklevel numblocks )
 };
 
+// BlockChain-tags
 enum Tags {
-    Separator = 0,
-    GenericByteData,
-    Verbose,    // bool
-    Size,       // int
-    Version,    // int
-    Time,       // in seconds since epoch
-    Difficulty, // double
-    MedianTime, // in seconds since epoch
-    ChainWork,  // a sha256
-
-    // BlockChain-tags
-    Chain = 30,
-    Blocks,
-    Headers,
-    BestBlockHash,
-    VerificationProgress,
-    Pruned,
-    Bip9ForkId,
-    Bip9ForkStatus,
+    Separator = Api::Separator,
+    GenericByteData = Api::GenericByteData,
+    Tx_Out_Address = Api::BitcoinAddress,
+    PrivateKey,
+    TxId = Api::TxId,
+    BlockHash = Api::BlockHash,
+    Tx_Out_Amount = Api::Amount,
+    Height = Api::BlockHeight, // TODo rename to BlockHeight
 
     // GetBlockReply tags
-    Tx_OffsetInBlock,
+    Tx_OffsetInBlock, // (rawTransactions should copy these)
     Tx_IN_TxId,
     Tx_IN_OutIndex,
-    Tx_Script,
+    Tx_Script, // TODO split into InputScript and OutputScript
     Tx_Out_Index,
-    Tx_Out_Amount,
-    Tx_Out_Address,
 
     // GetBlock-Request-tags
     // GetBlock can filter a block to only return transactions that match a bitcoin-address filter
@@ -204,13 +204,26 @@ enum Tags {
     GetBlock_Outputs,        ///< bool. Return all parts of outputs, overriding the previous 2 options.
     GetBlock_OutputAddresses,///< bool. If the output is a p2pkh, return the hash160 of the address paid to.
 
+    Verbose,    // bool
+    Size,       // int
+    Version,    // int
+    Time,       // in seconds since epoch
+    Difficulty, // double
+    MedianTime, // in seconds since epoch
+    ChainWork,  // a sha256
+
+    Chain,
+    Blocks,
+    Headers,
+    BestBlockHash,
+    VerificationProgress,
+    Pruned,
+    Bip9ForkId,
+    Bip9ForkStatus,
 
     // GetBlockVerbose-tags
-    BlockHash = 70,
     Confirmations,
-    Height,
     MerkleRoot,
-    TxId,
     Nonce,      //int
     Bits,       // integer
     PrevBlockHash,
@@ -219,8 +232,8 @@ enum Tags {
 
 }
 
-
-namespace Network {
+// Hub Control Service
+namespace Hub {
 enum MessageIds {
 //   == Network ==
 //   addnode "node" "add|remove|onetry"
@@ -236,31 +249,9 @@ enum MessageIds {
 };
 
 enum Tags {
-    Separator = 0,
-    GenericByteData,
+    Separator = Api::Separator,
+    GenericByteData = Api::GenericByteData,
 
-};
-}
-
-namespace Wallet {
-enum MessageIds {
-    ListUnspent,
-    ListUnspentReply,
-    GetNewAddress,
-    GetNewAddressReply,
-};
-
-enum Tags {
-    Separator = 0,
-    GenericByteData,
-    MinimalConfirmations,
-    MaximumConfirmations,
-    TransactionId,
-    TXOutputIndex,
-    BitcoinAddress,
-    ScriptPubKey,
-    Amount,
-    ConfirmationCount
 };
 }
 
@@ -273,11 +264,12 @@ enum MessageIds {
 };
 
 enum Tags {
-    Separator = 0,
-    GenericByteData,
-    BitcoinAddress,
-    Amount,
-    BlockHash
+    Separator = Api::Separator,
+    GenericByteData = Api::GenericByteData,
+    BitcoinAddress = Api::BitcoinAddress, // Unused at this time.
+    // skipped 2 numbers here.
+    BlockHash = Api::BlockHash,
+    Amount = Api::Amount
 };
 }
 
@@ -305,15 +297,15 @@ enum MessageIds {
 };
 
 enum Tags {
-    Separator = 0,
-    GenericByteData,
+    Separator = Api::Separator,
+    GenericByteData = Api::GenericByteData,
 
     /// A string representing an address.
-    BitcoinAddress,
+    BitcoinAddress = Api::BitcoinAddress, // Unused at this time.
     /// A bytearray for a full sha256 txid
-    TransactionId,
+    TransactionId = Api::TxId, // TODo rename to TxId
     /// An unsigned 64 bit number for the amount of satshi you received
-    Amount,
+    Amount = Api::Amount,
     /// True if it was mined in a block
     Mined,
     /// boolean. Success equals 'true'
@@ -333,10 +325,10 @@ enum MessageIds {
 };
 
 enum Tags {
-    Separator = 0,
-    GenericByteData,
-    BlockHash,
-    Height
+    Separator = Api::Separator,
+    GenericByteData = Api::GenericByteData,
+    BlockHash = Api::BlockHash,
+    Height = Api::BlockHeight // TODO rename to BlockHeight
 };
 }
 }

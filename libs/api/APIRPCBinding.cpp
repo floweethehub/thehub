@@ -87,7 +87,7 @@ public:
         bool first = true;
         for (auto fork : bip9.getValues()) {
             if (first) first = false;
-            else builder.add(Api::Wallet::Separator, true);
+            else builder.add(Api::Separator, true);
             const UniValue &id = find_value(fork, "id");
             builder.add(Api::BlockChain::Bip9ForkId, id.get_str());
             const UniValue &status = find_value(fork, "status");
@@ -165,7 +165,7 @@ public:
         bool first = true;
         for (const UniValue &transaction: tx.getValues()) {
             if (first) first = false;
-            else builder.add(Api::Wallet::Separator, true);
+            else builder.add(Api::Separator, true);
             boost::algorithm::unhex(transaction.get_str(), back_inserter(bytearray));
             builder.add(Api::BlockChain::TxId, bytearray);
             bytearray.clear();
@@ -647,7 +647,7 @@ public:
             bool first = true;
             for (const UniValue &error : errors.getValues()) {
                 if (first) first = false;
-                else builder.add(Api::Wallet::Separator, true);
+                else builder.add(Api::Separator, true);
                 const UniValue &txid = find_value(error, "txid");
                 boost::algorithm::unhex(txid.get_str(), back_inserter(bytearray));
                 builder.add(Api::RawTransactions::TransactionId, bytearray);
@@ -666,91 +666,6 @@ public:
         }
     }
 };
-
-#ifdef ENABLE_WALLET
-// wallet
-
-class ListUnspent : public Api::RpcParser
-{
-public:
-    ListUnspent() : RpcParser("listunspent", Api::Wallet::ListUnspentReply) {}
-
-    virtual int calculateMessageSize(const UniValue &result) const {
-        return result.size() * 300;
-    }
-
-    virtual void createRequest(const Message &message, UniValue &output) {
-        int minConf = -1;
-        int maxConf = -1;
-        std::list<std::vector<char>> addresses;
-        Streaming::MessageParser parser(message.body());
-        while (parser.next() == Streaming::FoundTag) {
-            if (parser.tag() == Api::Wallet::TransactionId
-                    || parser.tag() == Api::Wallet::GenericByteData) {
-                addresses.push_back(parser.bytesData());
-            }
-            else if (parser.tag() == Api::Wallet::MinimalConfirmations)
-                minConf = boost::get<int>(parser.data());
-            else if (parser.tag() == Api::Wallet::MaximumConfirmations)
-                maxConf = boost::get<int>(parser.data());
-        }
-
-        if (!addresses.empty()) { // ensure we have useful min/max conf
-            minConf = std::max(minConf, 0);
-            if (maxConf == -1)
-                maxConf = 1E6;
-        }
-
-        if (minConf != -1)
-            output.push_back(std::make_pair("parameter 1", UniValue(minConf)));
-        if (maxConf != -1)
-            output.push_back(std::make_pair("parameter 2", UniValue(maxConf)));
-
-        UniValue list(UniValue::VOBJ);
-        for (const std::vector<char> &address : addresses) {
-            std::string addressString;
-            boost::algorithm::hex(address, back_inserter(addressString));
-            list.push_back(UniValue(UniValue::VSTR, addressString));
-        }
-        if (list.size() > 0)
-            output.push_back(std::make_pair("addresses", list));
-    }
-
-    virtual void buildReply(Streaming::MessageBuilder &builder, const UniValue &result) {
-        bool first = true;
-        for (const UniValue &item : result.getValues()) {
-            if (first) first = false;
-            else builder.add(Api::Wallet::Separator, true);
-            const UniValue &txid = find_value(item, "txid");
-            std::vector<char> bytearray;
-            boost::algorithm::unhex(txid.get_str(), back_inserter(bytearray));
-            builder.add(Api::Wallet::TransactionId, bytearray);
-            bytearray.clear();
-            const UniValue &vout = find_value(item, "vout");
-            builder.add(Api::Wallet::TXOutputIndex, vout.get_int());
-            const UniValue &address = find_value(item, "address");
-            builder.add(Api::Wallet::BitcoinAddress, address.get_str());
-            const UniValue &scriptPubKey = find_value(item, "scriptPubKey");
-            boost::algorithm::unhex(scriptPubKey.get_str(), back_inserter(bytearray));
-            builder.add(Api::Wallet::ScriptPubKey, bytearray);
-            bytearray.clear();
-            const UniValue &amount = find_value(item, "amount");
-            builder.add(Api::Wallet::Amount, (uint64_t) AmountFromValue(amount));
-            const UniValue &confirmations = find_value(item, "confirmations");
-            builder.add(Api::Wallet::ConfirmationCount, confirmations.get_int());
-        }
-    }
-};
-
-class GetNewAddress : public Api::RpcParser
-{
-public:
-    GetNewAddress() : RpcParser("getnewaddress", Api::Wallet::GetNewAddressReply, 50) {}
-    virtual void buildReply(Streaming::MessageBuilder &builder, const UniValue &result) {
-        builder.add(Api::Wallet::BitcoinAddress, result.get_str());
-    }
-};
-#endif
 
 // Util
 
@@ -854,13 +769,6 @@ Api::Parser *Api::createParser(const Message &message)
             return new GetBlockCount();
         }
         break;
-    case Api::ControlService:
-        switch (message.messageId()) {
-        case Api::Control::Stop:
-            return new RpcParser("stop", Api::Control::StopReply);
-            break;
-        }
-        break;
     case Api::RawTransactionService:
         switch (message.messageId()) {
         case Api::RawTransactions::GetRawTransaction:
@@ -871,16 +779,6 @@ Api::Parser *Api::createParser(const Message &message)
             return new SignRawTransaction();
         }
         break;
-#ifdef ENABLE_WALLET
-    case Api::WalletService:
-        switch (message.messageId()) {
-        case Api::Wallet::ListUnspent:
-            return new ListUnspent();
-        case Api::Wallet::GetNewAddress:
-            return new GetNewAddress();
-        }
-        break;
-#endif
     case Api::UtilService:
         switch (message.messageId()) {
         case Api::Util::CreateAddress:

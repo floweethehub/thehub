@@ -179,7 +179,7 @@ Api::Server::Connection::~Connection()
 
 void Api::Server::Connection::incomingMessage(const Message &message)
 {
-    if (message.serviceId() >= 40) // not a service we handle
+    if (message.serviceId() >= 16) // not a service we handle
         return;
     std::unique_ptr<Api::Parser> parser;
     try {
@@ -262,10 +262,10 @@ void Api::Server::Connection::sendFailedMessage(const Message &origin, const std
 {
     m_bufferPool.reserve(failReason.size() + 40);
     Streaming::MessageBuilder builder(m_bufferPool);
-    builder.add(Control::FailedReason, failReason);
-    builder.add(Control::FailedCommandServiceId, origin.serviceId());
-    builder.add(Control::FailedCommandId, origin.messageId());
-    Message answer = builder.message(ControlService, Control::CommandFailed);
+    builder.add(Failures::FailedReason, failReason);
+    builder.add(Failures::FailedCommandServiceId, origin.serviceId());
+    builder.add(Failures::FailedCommandId, origin.messageId());
+    Message answer = builder.message(FailuresService, Failures::CommandFailed);
     const int requestId = origin.headerInt(Api::RequestId);
     if (requestId != -1)
         answer.setHeaderInt(Api::RequestId, requestId);

@@ -112,17 +112,17 @@ void TxVulcano::disconnected()
 void TxVulcano::incomingMessage(const Message& message)
 {
     // logDebug() << message.serviceId() << message.messageId() << message.body().size();
-    if (message.serviceId() == Api::ControlService && message.messageId() == Api::Control::CommandFailed) {
+    if (message.serviceId() == Api::FailuresService && message.messageId() == Api::Failures::CommandFailed) {
         Streaming::MessageParser parser(message.body());
         int serviceId = -1;
         int messageId = -1;
         // std::string errorMessage;
         while (parser.next() == Streaming::FoundTag) {
-            if (parser.tag() == Api::Control::FailedCommandServiceId)
+            if (parser.tag() == Api::Failures::FailedCommandServiceId)
                 serviceId = parser.intData();
-            else if (parser.tag() == Api::Control::FailedCommandId)
+            else if (parser.tag() == Api::Failures::FailedCommandId)
                 messageId = parser.intData();
-            // else if (parser.tag() == Api::Control::FailedReason)
+            // else if (parser.tag() == Api::Failures::FailedReason)
             //     errorMessage = parser.stringData();
         }
         if (serviceId == Api::RawTransactionService && messageId == Api::RawTransactions::SendRawTransaction) {
