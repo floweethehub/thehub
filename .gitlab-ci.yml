@@ -89,7 +89,7 @@ flowee-the-hub-linux.zip:
   - build-static
   only:
     - master
-    - "2019.01"
+    - "2019.02"
 
 createHubDocker:
   stage: deploy
@@ -98,6 +98,8 @@ createHubDocker:
     - mv bin support/docker/hub
     - docker build --tag=$HUB_IMG:${CI_COMMIT_REF_NAME} support/docker/hub
     - docker image push $HUB_IMG:${CI_COMMIT_REF_NAME}
+    - docker tag $HUB_IMG:${CI_COMMIT_REF_NAME} $HUB_IMG:latest
+    - docker push $HUB_IMG:latest
   image: docker:latest
   services:
     - docker:dind
