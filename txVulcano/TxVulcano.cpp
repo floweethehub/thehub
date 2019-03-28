@@ -305,7 +305,7 @@ void TxVulcano::processNewBlock(const Message &message)
             txid = parser.uint256Data();
         } else if (parser.tag() == Api::BlockChain::Tx_Out_Amount) {
             amount = parser.longData();
-        } else if (parser.tag() == Api::BlockChain::Tx_Script) {
+        } else if (parser.tag() == Api::BlockChain::Tx_OutputScript) {
             auto constBuf = parser.bytesDataBuffer();
             script = CScript(reinterpret_cast<const unsigned char*>(constBuf.begin()),
                     reinterpret_cast<const unsigned char*>(constBuf.end()));

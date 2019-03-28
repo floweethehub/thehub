@@ -432,7 +432,7 @@ public:
                         builder.add(Api::BlockChain::Tx_IN_TxId, iter.uint256Data());
                     }
                     else if (m_returnInputs && type == Tx::TxInScript) {
-                        builder.add(Api::BlockChain::Tx_Script, iter.byteData());
+                        builder.add(Api::BlockChain::Tx_InputScript, iter.byteData());
                     }
                     else if (m_returnInputs && type == Tx::PrevTxIndex) {
                         builder.add(Api::BlockChain::Tx_IN_OutIndex, iter.intData());
@@ -445,7 +445,7 @@ public:
                         if (!m_returnOutputs && !m_returnOutputAddresses) // if not done before OutputValue
                             builder.add(Api::BlockChain::Tx_Out_Index, outIndex++);
                         if (m_returnOutputs || m_returnOutputScripts)
-                            builder.add(Api::BlockChain::Tx_Script, iter.byteData());
+                            builder.add(Api::BlockChain::Tx_OutputScript, iter.byteData());
                         if (m_returnOutputAddresses) {
                             CScript scriptPubKey(iter.byteData());
 

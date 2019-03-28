@@ -182,10 +182,11 @@ enum Tags {
     BlockHeight = Api::BlockHeight,
 
     // GetBlockReply tags
-    Tx_OffsetInBlock, // (rawTransactions should copy these)
+    Tx_OffsetInBlock,
     Tx_IN_TxId,
     Tx_IN_OutIndex,
-    Tx_Script, // TODO split into InputScript and OutputScript
+    Tx_InputScript,
+    Tx_OutputScript,
     Tx_Out_Index,
 
     // GetBlock-Request-tags
