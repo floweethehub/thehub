@@ -60,6 +60,8 @@ int TransactionBuilder::appendInput(const uint256 &txid, int outputIndex)
 
 int TransactionBuilder::selectInput(int index)
 {
+    assert(index >= 0);
+    if (index < 0) throw std::runtime_error("Index is a natural number");
     m_curInput = std::min(static_cast<int>(m_transaction.vin.size()) -1, index);
     return m_curInput;
 }
@@ -111,6 +113,8 @@ int TransactionBuilder::appendOutput(int64_t amount)
 
 int TransactionBuilder::selectOutput(int index)
 {
+    assert(index >= 0);
+    if (index < 0) throw std::runtime_error("Index is a natural number");
     m_curOutput = std::min(static_cast<int>(m_transaction.vout.size()) -1, index);
     return m_curOutput;
 }

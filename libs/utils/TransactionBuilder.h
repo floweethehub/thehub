@@ -168,6 +168,7 @@ public:
         RelativeSpendingLockOnTime
     };
 
+#if 0
     /**
      * Set the locking option on the current input.
      *
@@ -175,6 +176,7 @@ public:
      * are transaction-global options and will effect all outputs in one go.
      */
     void setLocking(LockingOptions option, uint32_t value);
+#endif
     /// delete an input based on index. Updates current input index.
     void deleteInput(int index);
 
