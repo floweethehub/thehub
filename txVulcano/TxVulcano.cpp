@@ -88,8 +88,11 @@ void TxVulcano::connectionEstablished(const EndPoint &)
 
     // fill the wallet with private keys
     int count = 100 - m_wallet.keyCount();
+    Message createAddressRequest(Api::UtilService, Api::Util::CreateAddress);
     while (--count > 0) {
-        m_connection.send(Message(Api::UtilService, Api::Util::CreateAddress));
+        if (count == 1)
+            createAddressRequest.setHeaderInt(Api::RequestId, 1);
+        m_connection.send(createAddressRequest);
     }
 
     m_pool.reserve(50);
@@ -107,6 +110,7 @@ void TxVulcano::connectionEstablished(const EndPoint &)
 void TxVulcano::disconnected()
 {
     logCritical() << "TxVulcano::disconnect received";
+    m_wallet.saveKeys();
 }
 
 void TxVulcano::incomingMessage(const Message& message)
@@ -147,6 +151,9 @@ void TxVulcano::incomingMessage(const Message& message)
                 if (key.IsValid()) {
                     QMutexLocker lock(&m_walletMutex);
                     m_wallet.addKey(key);
+                    if (message.headerInt(Api::RequestId) == 1) { // the last one
+                        m_wallet.saveKeys();
+                    }
                 } else  {
                     logCritical() << "Private address doesn't validate";
                 }
@@ -313,7 +320,7 @@ void TxVulcano::processNewBlock(const Message &message)
             outIndex = parser.intData();
         } else if (parser.tag() == Api::BlockChain::Tx_Out_Address) {
             address = base_blob<160>(parser.bytesDataBuffer().begin());
-            if (txOffsetInBlock > 0)
+            if (txOffsetInBlock > 0) {
                 /*
                 logDebug() << "Got Transaction in" << m_lastSeenBlock
                               << "@" << txOffsetInBlock
@@ -321,7 +328,8 @@ void TxVulcano::processNewBlock(const Message &message)
                               << "txid:" << txid
                               << "for address" << address;
                               */
-            m_wallet.addOutput(m_lastSeenBlock, txid, txOffsetInBlock, outIndex, amount, address, script);
+                m_wallet.addOutput(m_lastSeenBlock, txid, txOffsetInBlock, outIndex, amount, address, script);
+            }
         }
     }
     if (m_lastSeenBlock == m_highestBlock)
@@ -344,7 +352,6 @@ void TxVulcano::createTransactions(const boost::system::error_code& error)
 
 void TxVulcano::createTransactions_priv()
 {
-
     /*
      * TODO
      * The storage of unconfirmed UTXOs in the wallet is a bad idea. Lots of
@@ -450,8 +457,8 @@ void TxVulcano::buildGetBlockRequest(Streaming::MessageBuilder &builder, bool &f
     if (first) {
         for (auto i : m_wallet.publicKeys()) {
             const CKeyID id = m_wallet.publicKey(i).GetID();
-            builder.add(first ? Api::BlockChain::SetFilterAddress : Api::BlockChain::AddFilterAddress,
-                        std::vector<char>(id.begin(), id.end()));
+            builder.addByteArray(first ? Api::BlockChain::SetFilterAddress : Api::BlockChain::AddFilterAddress,
+                        id.begin(), id.size());
             first = false;
         }
     } else {
@@ -481,7 +488,7 @@ void TxVulcano::generate(int blockCount)
     int pkId = m_wallet.firstEmptyPubKey();
     assert(pkId >= 0);
     const CKeyID id = m_wallet.publicKey(pkId).GetID();
-    builder.add(Api::RegTest::BitcoinAddress, std::vector<char>(id.begin(), id.end()));
+    builder.addByteArray(Api::RegTest::BitcoinAddress, id.begin(), id.size());
     builder.add(Api::RegTest::Amount, blockCount);
     auto log = logCritical() << "  Sending generate";
     if (m_blockSizeLeft >= 1000)

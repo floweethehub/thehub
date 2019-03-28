@@ -137,6 +137,8 @@ std::vector<int> Wallet::publicKeys() const
 
 void Wallet::saveKeys()
 {
+    if (!m_privKeysNeedsSave)
+        return;
     BufferPool pool(m_keys.size() * 40);
     MessageBuilder builder(pool);
     for (auto &keyPair : m_keys) {
@@ -188,7 +190,7 @@ void Wallet::loadKeys()
             } else {
                 auto bytes = parser.unsignedBytesData();
                 CKey key;
-                key.Set(bytes.begin(), bytes.end(), false);
+                key.Set(bytes.begin(), bytes.end(), true);
                 if (key.IsValid())
                     addKey(key);
                 else
