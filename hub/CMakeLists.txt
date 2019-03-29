@@ -16,7 +16,7 @@
 
 project (hub)
 
-include_directories(. ${LIBS_INCLUDES})
+include_directories(${LIBAPI_INCLUDES} ${LIBCONSOLE_INCLUDES})
 
 set (HUB_LIBS
     flowee_api

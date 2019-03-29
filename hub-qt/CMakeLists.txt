@@ -23,7 +23,7 @@ set_property(SOURCE qrc_bitcoin.cpp PROPERTY SKIP_AUTOGEN ON)
 set_property(SOURCE paymentrequest.pb.cc PROPERTY SKIP_AUTOGEN ON)
 set_property(SOURCE paymentrequest.pb.h PROPERTY SKIP_AUTOGEN ON)
 
-include_directories(${LIBS_INCLUDES})
+include_directories(${LIBAPI_INCLUDES} ${LIBCONSOLE_INCLUDES})
 
 set (HUB_QT_LIBS
     flowee_api

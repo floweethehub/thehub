@@ -17,7 +17,7 @@
 set(CMAKE_INCLUDE_CURRENT_DIR ON)
 set(CMAKE_AUTOMOC ON)
 
-include_directories(${LIBS_INCLUDES}
+include_directories(${LIBAPI_INCLUDES} ${LIBCONSOLE_INCLUDES}
     ${CMAKE_CURRENT_BINARY_DIR}
     ${CMAKE_SOURCE_DIR}/testing/
     ${Qt5Core_INCLUDE_DIRS}
