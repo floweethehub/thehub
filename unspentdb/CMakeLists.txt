@@ -23,7 +23,7 @@ set(CMAKE_AUTOUIC ON)
 # set the default log section (for logDebug() with no args) to the POS value
 add_definitions(-DLOG_DEFAULT_SECTION=11000)
 
-include_directories(. ${LIBS_INCLUDES})
+include_directories(. ${LIBUTXO_INCLUDES} ${LIBSERVER_INCLUDES})
 
 add_executable(unspent-db
     main.cpp
