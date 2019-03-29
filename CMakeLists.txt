@@ -231,7 +231,7 @@ endif()
 
 find_package(Qt5Core)
 if (NOT ${Qt5Core_FOUND})
-    message("Missing qt5 (core) library, not building pos, hub-qt")
+    message("Missing qt5 (core) library, not building pos, hub-qt, txVulcano")
     set (enable_gui FALSE)
 else()
     message("-- Qt5 found, version ${Qt5Core_VERSION_STRING}")
@@ -260,6 +260,7 @@ find_package(Boost 1.56.0
 
 if (enable_wallet)
     find_package(BerkeleyDB REQUIRED)
+    message ("NOTICE: txVulcano is not compiled when wallet is enabled")
 endif ()
 
 # Since our 3rd party require this, lets give a nice warning here.
