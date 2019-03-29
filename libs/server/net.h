@@ -22,15 +22,15 @@
 #define FLOWEE_NET_H
 
 #include "bloom.h"
-#include "compat.h"
+#include <compat.h>
 #include "limitedmap.h"
-#include "netbase.h"
-#include "primitives/block.h"
+#include <netbase.h>
+#include <primitives/block.h>
 #include "protocol.h"
-#include "random.h"
-#include "streaming/streams.h"
-#include "sync.h"
-#include "uint256.h"
+#include <random.h>
+#include <streaming/streams.h>
+#include <sync.h>
+#include <uint256.h>
 
 #include <deque>
 

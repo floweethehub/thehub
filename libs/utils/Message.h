@@ -19,7 +19,7 @@
 #define MESSAGE_H
 
 #include "streaming/ConstBuffer.h"
-#include "networkmanager/NetworkEnums.h"
+#include <NetworkEnums.h>
 #include <map>
 #include <cassert>
 

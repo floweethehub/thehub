@@ -28,6 +28,7 @@ add_library(flowee_utils STATIC
     LogChannels.cpp
     Logger.cpp
     Message.cpp
+    netbase.cpp
     random.cpp
     rpcprotocol.cpp
     streaming/BufferPool.cpp

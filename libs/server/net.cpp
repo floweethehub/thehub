@@ -28,15 +28,15 @@
 
 #include "addrman.h"
 #include "chainparams.h"
-#include "clientversion.h"
+#include <clientversion.h>
 #include "consensus/consensus.h"
 #include "Application.h"
-#include "crypto/common.h"
-#include "hash.h"
-#include "primitives/transaction.h"
+#include <crypto/common.h>
+#include <hash.h>
+#include <primitives/transaction.h>
 #include "scheduler.h"
 #include "UiInterface.h"
-#include "utilstrencodings.h"
+#include <utilstrencodings.h>
 #include "thinblock.h"
 #include "policy/policy.h"
 

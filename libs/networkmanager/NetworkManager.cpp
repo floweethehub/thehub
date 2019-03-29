@@ -18,8 +18,8 @@
 #include "NetworkManager.h"
 #include "NetworkManager_p.h"
 #include "NetworkService.h"
-#include "networkmanager/NetworkEnums.h"
-#include  <APIProtocol.h>
+#include <NetworkEnums.h>
+#include <APIProtocol.h>
 
 #include <streaming/MessageBuilder.h>
 #include <streaming/MessageParser.h>

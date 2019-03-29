@@ -39,7 +39,6 @@ set (FLOWEE_SERVER_FILES
     main.cpp
     merkleblock.cpp
     miner.cpp
-    netbase.cpp
     net.cpp
     noui.cpp
     policy/fees.cpp
