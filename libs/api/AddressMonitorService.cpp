@@ -18,7 +18,7 @@
 #include "AddressMonitorService.h"
 #include "base58.h"
 #include <NetworkManager.h>
-#include <api/APIProtocol.h>
+#include <APIProtocol.h>
 
 #include <Logger.h>
 #include <Message.h>

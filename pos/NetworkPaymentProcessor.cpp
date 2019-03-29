@@ -16,7 +16,7 @@
  * along with this program.  If not, see <http://www.gnu.org/licenses/>.
  */
 #include "NetworkPaymentProcessor.h"
-#include <api/APIProtocol.h>
+#include <APIProtocol.h>
 
 #include "Logger.h"
 #include <streaming/MessageBuilder.h>

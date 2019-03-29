@@ -18,7 +18,7 @@
 #include "TxVulcano.h"
 
 #include <Application.h>
-#include <api/APIProtocol.h>
+#include <APIProtocol.h>
 #include <primitives/FastBlock.h>
 #include <TransactionBuilder.h>
 

@@ -19,7 +19,7 @@
 #include "NetworkManager_p.h"
 #include "NetworkService.h"
 #include "networkmanager/NetworkEnums.h"
-#include  <api/APIProtocol.h>
+#include  <APIProtocol.h>
 
 #include <streaming/MessageBuilder.h>
 #include <streaming/MessageParser.h>

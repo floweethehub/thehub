@@ -22,7 +22,7 @@
 
 #include <streaming/MessageBuilder.h>
 #include <streaming/MessageParser.h>
-#include <api/APIProtocol.h>
+#include <APIProtocol.h>
 #include <utilstrencodings.h>
 
 #include <QSqlQuery>

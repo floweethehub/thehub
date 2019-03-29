@@ -16,9 +16,7 @@
  * along with this program.  If not, see <http://www.gnu.org/licenses/>.
  */
 #include "BlockNotificationService.h"
-// #include "base58.h"
-// #include <NetworkManager.h>
-#include <api/APIProtocol.h>
+#include <APIProtocol.h>
 
 #include <Logger.h>
 #include <Message.h>
