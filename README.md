@@ -37,7 +37,7 @@ Then clone the repo and use cmake to create the makefile
 
 # More details
 
-* http://www.flowee.org
+* https://www.flowee.org
 * https://gitlab.com/FloweeTheHub/thehub
 
 # Social
