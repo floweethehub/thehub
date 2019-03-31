@@ -49,6 +49,7 @@ void WorkerThreads::startThreads()
 WorkerThreads::~WorkerThreads()
 {
     stopThreads();
+    joinAll();
 }
 
 void WorkerThreads::stopThreads()
