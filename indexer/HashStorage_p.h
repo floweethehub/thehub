@@ -31,10 +31,11 @@ class HashList {
 public:
     HashList(const QString &dbBase);
     ~HashList();
+    static HashList *createEmpty(const QString &dbBase);
 
-    int append(const uint256 &hash);
-    int find(const uint256 &hash) const;
-    const uint256 &at(int row) const;
+    int append(const uint160 &hash);
+    int find(const uint160 &hash) const;
+    const uint160 &at(int row) const;
     void finalize();
 
     // for the memmapped, sorted section.
@@ -44,7 +45,7 @@ public:
 
     // the unsorted part
     QFile *m_log = nullptr;
-    QMap<int, uint256> m_cacheMap;
+    QMap<int, uint160> m_cacheMap;
 
     // a id to row mapping to be (re)created at sort
     QMap<int, int> m_resortMap;
@@ -63,7 +64,7 @@ public:
     QList<HashList*> dbs;
     const QString basedir;
 
-    static uint256 s_null;
+    static uint160 s_null;
 };
 
 #endif

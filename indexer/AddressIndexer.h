@@ -15,30 +15,43 @@
  * You should have received a copy of the GNU General Public License
  * along with this program.  If not, see <http://www.gnu.org/licenses/>.
  */
-#ifndef TXINDEXER_H
-#define TXINDEXER_H
+#ifndef ADDRESSINDEXER_H
+#define ADDRESSINDEXER_H
 
-#include <UnspentOutputDatabase.h>
+#include <qsqldatabase.h>
+#include <qsqlquery.h>
+#include <streaming/ConstBuffer.h>
 
-class TxIndexer
+#include "HashStorage.h"
+
+class AddressIndexer
 {
 public:
-    TxIndexer(boost::asio::io_service &service, const boost::filesystem::path &basedir);
+    AddressIndexer(const boost::filesystem::path &basedir);
 
-    int blockheight() const;
-    uint256 blockId() const;
+    int blockheight();
     void blockFinished(int blockheight, const uint256 &blockId);
-    void insert(const uint256 &txid, int blockHeight, int offsetInBlock);
+    void insert(const Streaming::ConstBuffer &addressId, int outputIndex, int blockHeight, int offsetInBlock);
 
     struct TxData {
-        int blockHeight = -1;
         int offsetInBlock = 0;
+        short blockHeight = -1;
+        short outputIndex = -1;
     };
 
-    TxData find(const uint256 &txid) const;
+    std::vector<TxData> find(const uint160 &address) const;
 
 private:
-    UnspentOutputDatabase m_txdb;
+    void createTables();
+
+    // Streaming::BufferPool m_pool;
+    HashStorage m_addresses;
+
+    QSqlDatabase m_db;
+    QSqlQuery m_insertQuery;
+    QSqlQuery m_lastBlockHeightQuery;
+
+    int m_lastKnownHeight = -1;
 };
 
 #endif

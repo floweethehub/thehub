@@ -18,6 +18,7 @@
 #ifndef INDEXER_H
 #define INDEXER_H
 
+#include "AddressIndexer.h"
 #include "TxIndexer.h"
 
 #include <NetworkManager.h>
@@ -48,6 +49,7 @@ private:
     Streaming::BufferPool m_pool;
     WorkerThreads m_workers;
     TxIndexer m_txdb;
+    AddressIndexer m_addressdb;
     NetworkManager m_network;
     NetworkConnection m_serverConnection;
 };

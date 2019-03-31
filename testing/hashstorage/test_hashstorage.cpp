@@ -22,6 +22,15 @@
 
 #include <utiltime.h>
 
+namespace {
+inline uint160 uint160S(const char *str)
+{
+    uint160 rv;
+    rv.SetHex(str);
+    return rv;
+}
+}
+
 class OpenHashStorage {
 public:
     HashStoragePrivate *d;
@@ -41,9 +50,9 @@ void TestHashStorage::cleanup()
 
 void TestHashStorage::basic()
 {
-    uint256 hash1 = uint256S("00001e397a22a7262ae899550d85ae9cb4ac314510d55d32a31cf86a792ea7ea");
-    uint256 hash2 = uint256S("5123d8a19c8815f9395cd63abc796289ee7900135ed1b6674f76e7b5038e9a1d");
-    uint256 hash3 = uint256S("00001e397a22a7262ae899450d85ae9cb4ac314510d55d32a31cf86a792ea6ea");
+    uint160 hash1 = uint160S("00001e397a22a7262ae899550d85ae9cb4ac3145");
+    uint160 hash2 = uint160S("5123d8a19c8815f9395cd63abc796289ee790013");
+    uint160 hash3 = uint160S("00001e397a22a7262ae899450d85ae9cb4ac3155");
     HashIndexPoint index1, index2, index3;
     {
         HashStorage hs(m_testPath);
@@ -78,7 +87,7 @@ void TestHashStorage::basic()
         QCOMPARE(hs.find(hash1), index1);
     }
 
-    uint256 hash4 = uint256S("0e3e2357e806b6cdb1f70b54c3a3a17b6714ee1f0e68bebb44a74b1efd512098");
+    uint160 hash4 = uint160S("0e3e2357e806b6cdb1f70b54c3a3a17b6714ee1f");
     HashIndexPoint index4;
     {
         HashStorage hs(m_testPath);

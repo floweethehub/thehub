@@ -22,6 +22,8 @@ set(CMAKE_AUTOMOC ON)
 # set the default log section (for logDebug() with no args) to the POS value
 add_definitions(-DLOG_DEFAULT_SECTION=8000)
 
+find_package(Qt5Sql)
+
 include_directories(${LIBNETWORKMANAGER_INCLUDES} ${LIBUTXO_INCLUDES})
 
 set (IDX_LIBS
@@ -34,14 +36,17 @@ set (IDX_LIBS
     ${BOOST_THREAD_LIBRARY}
 )
 
-add_executable(indexer
-    main.cpp
-    FloweeServiceApplication.cpp
-    Indexer.cpp
-    TxIndexer.cpp
-)
+if (${Qt5Sql_FOUND})
+    add_executable(indexer
+        main.cpp
+        AddressIndexer.cpp
+        FloweeServiceApplication.cpp
+        HashStorage.cpp
+        Indexer.cpp
+        TxIndexer.cpp
+    )
 
-target_link_libraries(indexer ${IDX_LIBS} Qt5::Core
-)
+    target_link_libraries(indexer ${IDX_LIBS} Qt5::Core Qt5::Sql)
 
-install(PROGRAMS ${CMAKE_CURRENT_BINARY_DIR}/indexer DESTINATION bin)
+    install(PROGRAMS ${CMAKE_CURRENT_BINARY_DIR}/indexer DESTINATION bin)
+endif ()

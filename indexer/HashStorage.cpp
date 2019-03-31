@@ -24,11 +24,13 @@
 #include "HashStorage.h"
 #include "HashStorage_p.h"
 
-#define WIDTH 32
+#include <boost/filesystem.hpp>
+
+#define WIDTH 20
 
 namespace {
 struct SortCacheHelper {
-    QMap<int, uint256> cacheMap;
+    QMap<int, uint160> cacheMap;
     bool operator() (int i, int j) {
         return cacheMap.value(i).Compare(cacheMap.value(j)) <= 0;
     }
@@ -47,7 +49,7 @@ QMap<int, int> createResortReversed(const QMap<int, int> &map)
 }
 }
 
-uint256 HashStoragePrivate::s_null = uint256();
+uint160 HashStoragePrivate::s_null = uint160();
 
 HashStorage::HashStorage(const boost::filesystem::path &basedir)
     : d(new HashStoragePrivate(basedir))
@@ -59,7 +61,7 @@ HashStorage::~HashStorage()
     delete d;
 }
 
-HashIndexPoint HashStorage::append(const uint256 &hash)
+HashIndexPoint HashStorage::append(const uint160 &hash)
 {
     QList<HashList*> dbs(d->dbs);
     Q_ASSERT(!dbs.isEmpty());
@@ -80,7 +82,7 @@ HashIndexPoint HashStorage::append(const uint256 &hash)
     return HashIndexPoint(dbs.size() - 1, index);
 }
 
-const uint256 &HashStorage::at(HashIndexPoint point) const
+const uint160 &HashStorage::at(HashIndexPoint point) const
 {
     Q_ASSERT(point.db >= 0);
     Q_ASSERT(point.row >= 0);
@@ -90,7 +92,7 @@ const uint256 &HashStorage::at(HashIndexPoint point) const
     return dbs.at(point.db)->at(point.row);
 }
 
-HashIndexPoint HashStorage::find(const uint256 &hash) const
+HashIndexPoint HashStorage::find(const uint160 &hash) const
 {
     QList<HashList*> dbs(d->dbs);
     Q_ASSERT(!dbs.isEmpty());
@@ -137,7 +139,7 @@ HashList::HashList(const QString &dbBase)
     m_resortMapReversed = createResortReversed(m_resortMap);
 
     while(true) {
-        uint256 item;
+        uint160 item;
         auto byteCount = m_log->read(reinterpret_cast<char*>(item.begin()), WIDTH);
         if (byteCount == WIDTH) {
             m_cacheMap.insert(m_nextId++, item);
@@ -156,7 +158,14 @@ HashList::~HashList()
     delete m_sortedFile;
 }
 
-int HashList::append(const uint256 &hash)
+HashList *HashList::createEmpty(const QString &dbBase)
+{
+    HashList *answer = new HashList(dbBase);
+    answer->m_jumptables.fill(-1, 256);
+    return answer;
+}
+
+int HashList::append(const uint160 &hash)
 {
     QMutexLocker lock(&m_mutex);
     const int id = m_nextId++;
@@ -166,10 +175,10 @@ int HashList::append(const uint256 &hash)
     return id;
 }
 
-int HashList::find(const uint256 &hash) const
+int HashList::find(const uint160 &hash) const
 {
     QMutexLocker lock(&m_mutex);
-    QMapIterator<int, uint256> iter(m_cacheMap);
+    QMapIterator<int, uint160> iter(m_cacheMap);
     if (iter.findNext(hash)) {
         return m_resortMapReversed.value(iter.key());
     }
@@ -189,7 +198,7 @@ int HashList::find(const uint256 &hash) const
 
     while (pos <= endpos) {
         int m = (pos + endpos) / 2;
-        uint256 *item = (uint256*)(m_sorted + m * WIDTH);
+        uint160 *item = (uint160*)(m_sorted + m * WIDTH);
         int comp = item->Compare(hash);
         if (comp < 0)
             pos = m + 1;
@@ -202,7 +211,7 @@ int HashList::find(const uint256 &hash) const
     return -1;
 }
 
-const uint256 &HashList::at(int row) const
+const uint160 &HashList::at(int row) const
 {
     QMutexLocker lock(&m_mutex);
     auto iter = m_cacheMap.find(row);
@@ -213,7 +222,7 @@ const uint256 &HashList::at(int row) const
     if (resortIter != m_resortMap.end()) {
         row = resortIter.value();
     }
-    uint256 *dummy = (uint256*)(m_sorted + row * WIDTH);
+    uint160 *dummy = (uint160*)(m_sorted + row * WIDTH);
     return *dummy;
 }
 
@@ -237,11 +246,11 @@ void HashList::finalize()
     m_resortMap.clear();
     const int maxOldRow = m_sortedFile->size() / WIDTH;
     for (auto key : sortedKeys) {
-        const uint256 &hash = m_cacheMap.value(key);
+        const uint160 &hash = m_cacheMap.value(key);
 
         while (oldRow < maxOldRow) {
             const char *rowLocation = reinterpret_cast<char*>(m_sorted) + oldRow * WIDTH;
-            if (((uint256*)rowLocation)->Compare(hash) > 0)
+            if (((uint160*)rowLocation)->Compare(hash) > 0)
                 break;
 
             newFile.write(rowLocation, WIDTH);
@@ -308,6 +317,7 @@ void HashList::finalize()
 HashStoragePrivate::HashStoragePrivate(const boost::filesystem::path &basedir_)
     : basedir(QString::fromStdWString(basedir_.wstring()))
 {
+    boost::filesystem::create_directories(basedir_);
     int index = 1;
     const QString fileBase = QString("%1/data-%2").arg(basedir);
     while (true) {
@@ -318,8 +328,9 @@ HashStoragePrivate::HashStoragePrivate(const boost::filesystem::path &basedir_)
         dbs.append(new HashList(dbFilename));
         ++index;
     }
-    if (dbs.isEmpty())
-        dbs.append(new HashList(basedir + "/data-1"));
+    if (dbs.isEmpty()) {
+        dbs.append(HashList::createEmpty(basedir + "/data-1"));
+    }
 }
 
 HashStoragePrivate::~HashStoragePrivate()

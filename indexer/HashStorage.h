@@ -43,9 +43,9 @@ public:
     HashStorage(const boost::filesystem::path &basedir);
     ~HashStorage();
 
-    HashIndexPoint append(const uint256 &hash);
-    const uint256 &at(HashIndexPoint point) const;
-    HashIndexPoint find(const uint256 &hash) const;
+    HashIndexPoint append(const uint160 &hash);
+    const uint160 &at(HashIndexPoint point) const;
+    HashIndexPoint find(const uint160 &hash) const;
 
     /// Flush all caches and make lookup on-disk only
     void finalize();
