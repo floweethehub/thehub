@@ -291,7 +291,7 @@ void Streaming::MessageParser::debugMessage(int section, const Message &message)
         else if (parser.isBool())
             logCritical(section) << " +" << parser.tag() << "=" << parser.boolData();
         else if (parser.isByteArray())
-            logCritical(section) << " +" << parser.tag() << "=" << parser.bytesData();
+            logCritical(section) << " +" << parser.tag() << "=" << parser.bytesDataBuffer();
         else if (parser.isDouble())
             logCritical(section) << " +" << parser.tag() << "=" << parser.doubleData();
         else
