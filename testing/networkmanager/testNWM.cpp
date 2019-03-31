@@ -66,7 +66,7 @@ void TestNWM::testRingBuffer()
 {
     RingBuffer<int> buf;
 
-    QCOMPARE(buf.reserved(), 1000); // this makes sure the tests follows the implementation
+    QCOMPARE(buf.reserved(), 2000); // this makes sure the tests follows the implementation
     QCOMPARE(buf.isEmpty(), true);
     QCOMPARE(buf.count(), 0);
     QCOMPARE(buf.hasItemsMarkedRead(), false);

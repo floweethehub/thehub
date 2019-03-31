@@ -20,6 +20,8 @@ add_library(flowee_networkmanager STATIC
     NetworkConnection.cpp
     NetworkManager.cpp
     NetworkService.cpp
+    NetworkException.cpp
+    NetworkQueueFullError.cpp
 )
 
 target_link_libraries(flowee_networkmanager flowee_utils)

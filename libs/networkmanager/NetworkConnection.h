@@ -103,6 +103,8 @@ public:
     };
 
     /// send a message, automatically connecting if needed.
+    /// Throws NetworkException in case message was malformed
+    /// Throws NetworkQueueFullError in case there is no space
     void send(const Message &message, MessagePriority priority = NormalPriority);
 
     /// return true if this object can be operated on and represents a real connection

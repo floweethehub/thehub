@@ -107,6 +107,7 @@ public:
     inline bool isRead() const { return m_readIndex == m_next; }
     /// Return true if there are items inserted, but not yet marked read (inverse of isRead())
     inline bool hasUnread() const { return m_readIndex != m_next; }
+    inline bool isFull() const { return m_next + 1 == m_first; }
 
     inline bool hasItemsMarkedRead() const {
         return m_readIndex != m_first;
@@ -128,7 +129,7 @@ public:
 
 private:
     enum BufferSize {
-        NumItems = 1000
+        NumItems = 2000
     };
 
     /* We append at 'next', increasing it to point to the first unused one.
@@ -212,6 +213,8 @@ private:
     /// call then to start sending messages to remote. Will do noting if we are already sending messages.
     void runMessageQueue();
     void sentSomeBytes(const boost::system::error_code& error, std::size_t bytes_transferred);
+    void requestMoreBytes_callback(const boost::system::error_code &error);
+    void requestMoreBytes();
     void receivedSomeBytes(const boost::system::error_code& error, std::size_t bytes_transferred);
 
     bool processPacket(const std::shared_ptr<char> &buffer, const char *data);
@@ -257,6 +260,7 @@ private:
 
     // for these I write 'ping' but its 'pong' for server (incoming) connections.
     boost::asio::deadline_timer m_pingTimer;
+    boost::asio::deadline_timer m_sendTimer;
     Message m_pingMessage;
 
     // chunked messages can be recombined.

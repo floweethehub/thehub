@@ -17,6 +17,7 @@
  */
 #include "NetworkManager.h"
 #include "NetworkManager_p.h"
+#include "NetworkQueueFullError.h"
 #include "NetworkService.h"
 #include <NetworkEnums.h>
 #include <APIProtocol.h>
@@ -32,7 +33,7 @@
 
 // #define DEBUG_CONNECTIONS
 
-static const int RECEIVE_STREAM_SIZE = 41000;
+static const int RECEIVE_STREAM_SIZE = 200000;
 static const int CHUNK_SIZE = 8000;
 static const int MAX_MESSAGE_SIZE = 9000;
 
@@ -230,6 +231,7 @@ NetworkManagerConnection::NetworkManagerConnection(const std::shared_ptr<Network
     m_reconnectStep(0),
     m_reconnectDelay(parent->ioService),
     m_pingTimer(parent->ioService),
+    m_sendTimer(parent->ioService),
     m_chunkedServiceId(-1),
     m_chunkedMessageId(-1)
 {
@@ -242,7 +244,7 @@ NetworkManagerConnection::NetworkManagerConnection(const std::shared_ptr<Network
 NetworkManagerConnection::NetworkManagerConnection(const std::shared_ptr<NetworkManagerPrivate> &parent, const EndPoint &remote)
     : m_strand(parent->ioService),
     m_punishment(0),
-    m_remote(std::move(remote)),
+    m_remote(remote),
     d(parent),
     m_socket(parent->ioService),
     m_resolver(parent->ioService),
@@ -258,6 +260,7 @@ NetworkManagerConnection::NetworkManagerConnection(const std::shared_ptr<Network
     m_reconnectStep(0),
     m_reconnectDelay(parent->ioService),
     m_pingTimer(parent->ioService),
+    m_sendTimer(parent->ioService),
     m_chunkedServiceId(-1),
     m_chunkedMessageId(-1)
 {
@@ -340,14 +343,20 @@ void NetworkManagerConnection::onConnectComplete(const boost::system::error_code
         }
     }
 
-    // setup a callback for receiving.
-    m_receiveStream.reserve(MAX_MESSAGE_SIZE);
-    assert(m_receiveStream.capacity() > 0);
-    m_socket.async_receive(boost::asio::buffer(m_receiveStream.data(), static_cast<size_t>(m_receiveStream.capacity())),
-        m_strand.wrap(std::bind(&NetworkManagerConnection::receivedSomeBytes, this, std::placeholders::_1, std::placeholders::_2)));
+    Streaming::MessageBuilder builder(Streaming::HeaderOnly, 10);
+    builder.add(Network::ServiceId, Network::SystemServiceId);
+    if (m_remote.peerPort == m_remote.announcePort) // outgoing connections ping
+        builder.add(Network::Ping, true);
+    else
+        builder.add(Network::Pong, true);
+    builder.add(Network::HeaderEnd, true);
+    m_pingMessage = builder.message();
+
+    runMessageQueue();
+    requestMoreBytes(); // setup a callback for receiving.
 
     if (m_remote.peerPort == m_remote.announcePort) {
-        // for outgoing connections, ping.
+        // for outgoing connections, ping. Notice that I don't care if they pong, as long as the TCP connection stays open
         m_pingTimer.expires_from_now(boost::posix_time::seconds(90));
         m_pingTimer.async_wait(m_strand.wrap(std::bind(&NetworkManagerConnection::sendPing, this, std::placeholders::_1)));
     } else {
@@ -355,8 +364,6 @@ void NetworkManagerConnection::onConnectComplete(const boost::system::error_code
         m_pingTimer.expires_from_now(boost::posix_time::seconds(120));
         m_pingTimer.async_wait(m_strand.wrap(std::bind(&NetworkManagerConnection::pingTimeout, this, std::placeholders::_1)));
     }
-
-    runMessageQueue();
 }
 
 Streaming::ConstBuffer NetworkManagerConnection::createHeader(const Message &message)
@@ -406,6 +413,8 @@ void NetworkManagerConnection::runMessageQueue()
     while (m_priorityMessageQueue.hasUnread()) {
         const Message &message = m_priorityMessageQueue.unreadTip();
         int headerSize = message.header().size();
+        if (m_sendQHeaders.isFull())
+            break;
         if (!message.hasHeader()) { // build a simple header
             const Streaming::ConstBuffer constBuf = createHeader(message);
             headerSize = constBuf.size();
@@ -423,6 +432,8 @@ void NetworkManagerConnection::runMessageQueue()
 
     while (m_messageQueue.hasUnread()) {
         if (bytesLeft <= 0)
+            break;
+        if (m_sendQHeaders.isFull())
             break;
         const Message &message = m_messageQueue.unreadTip();
         if (message.rawData().size() > CHUNK_SIZE) {
@@ -496,7 +507,7 @@ void NetworkManagerConnection::runMessageQueue()
     }
     assert(m_messageBytesSend >= 0);
 
-    async_write(m_socket, socketQueue,
+    boost::asio::async_write(m_socket, socketQueue,
         m_strand.wrap(std::bind(&NetworkManagerConnection::sentSomeBytes, this, std::placeholders::_1, std::placeholders::_2)));
 }
 
@@ -549,6 +560,7 @@ void NetworkManagerConnection::sentSomeBytes(const boost::system::error_code& er
         else {
             if (!message.hasHeader()) {
                 auto header = m_sendQHeaders.tip();
+
                 bytesLeft -= header.size();
                 m_sendQHeaders.removeTip();
             }
@@ -623,8 +635,40 @@ void NetworkManagerConnection::receivedSomeBytes(const boost::system::error_code
             return;
         m_receiveStream.forget(packetLength);
     }
+    requestMoreBytes_callback(boost::system::error_code());
+}
 
+/*
+ * when we generate more messages than can be sent, we start throttling the incoming
+ * message flow. The basic thought is that more incoming messages means more outgoing
+ * messages will be generated.
+ * As such it makes sense to start slowing down what we sent in order to avoid memory buffers
+ * for send-queues growing out of proportion.
+ */
+void NetworkManagerConnection::requestMoreBytes_callback(const boost::system::error_code &error)
+{
+    if (error)
+        return;
+
+    const int backlog = m_messageQueue.size() + m_priorityMessageQueue.size();
+    if (backlog < 1000)
+        requestMoreBytes();
+    else if (isConnected()) {
+        int wait = 2;
+        if (backlog > 2000)
+            wait = 30;
+        else if (backlog > 1500)
+            wait = 10;
+        m_sendTimer.expires_from_now(boost::posix_time::milliseconds(wait));
+        m_sendTimer.async_wait(m_strand.wrap(std::bind(&NetworkManagerConnection::requestMoreBytes_callback, this, std::placeholders::_1)));
+        runMessageQueue();
+    }
+}
+
+void NetworkManagerConnection::requestMoreBytes()
+{
     m_receiveStream.reserve(MAX_MESSAGE_SIZE);
+    assert(m_receiveStream.capacity() > 0);
     m_socket.async_receive(boost::asio::buffer(m_receiveStream.data(), static_cast<size_t>(m_receiveStream.capacity())),
             m_strand.wrap(std::bind(&NetworkManagerConnection::receivedSomeBytes, this, std::placeholders::_1, std::placeholders::_2)));
 }
@@ -714,18 +758,17 @@ bool NetworkManagerConnection::processPacket(const std::shared_ptr<char> &buffer
 
     if (serviceId == Network::SystemServiceId) { // Handle System level messages
         if (isPing) {
-            if (m_pingMessage.rawData().size() == 0) {
-                Streaming::MessageBuilder builder(Streaming::HeaderOnly, 10);
-                builder.add(Network::ServiceId, Network::SystemServiceId);
-                builder.add(Network::Pong, true);
-                builder.add(Network::HeaderEnd, true);
-                m_pingMessage = builder.message();
+            if (m_remote.peerPort == m_remote.announcePort) {
+                // we should never get pings from a remote when we initiated the connection.
+                close();
+                return false;
             }
-            m_messageQueue.append(m_pingMessage);
             m_pingTimer.cancel();
-            runMessageQueue();
-            m_pingTimer.expires_from_now(boost::posix_time::seconds(120));
-            m_pingTimer.async_wait(m_strand.wrap(std::bind(&NetworkManagerConnection::pingTimeout, this, std::placeholders::_1)));
+            if (!m_messageQueue.isFull()) {
+                queueMessage(m_pingMessage, NetworkConnection::NormalPriority);
+                m_pingTimer.expires_from_now(boost::posix_time::seconds(120));
+                m_pingTimer.async_wait(m_strand.wrap(std::bind(&NetworkManagerConnection::pingTimeout, this, std::placeholders::_1)));
+            }
         }
         return true;
     }
@@ -787,6 +830,8 @@ bool NetworkManagerConnection::processPacket(const std::shared_ptr<char> &buffer
     for (auto callback : callbacks) {
         try {
             callback(message);
+        } catch (const NetworkQueueFullError &e) {
+            logDebug(Log::NWM) << "connection::onIncomingMessage tried to send, but failed (and didn't catch exception) dropping message" << e;
         } catch (const std::exception &ex) {
             logWarning(Log::NWM) << "connection::onIncomingMessage threw exception, ignoring:" << ex;
         }
@@ -833,42 +878,28 @@ void NetworkManagerConnection::addOnIncomingMessageCallback(int id, const std::f
 
 void NetworkManagerConnection::queueMessage(const Message &message, NetworkConnection::MessagePriority priority)
 {
-    if (!message.hasHeader() && message.serviceId() == -1) {
-        logWarning(Log::NWM) << "queueMessage: Can't deliver a message with unset service ID";
-#ifdef DEBUG_CONNECTIONS
-        assert(false);
-#endif
-        return;
-    }
-    if (message.hasHeader() && message.body().size() > CHUNK_SIZE) {
-        logWarning(Log::NWM) << "queueMessage: Can't send large message and can't auto-chunk because it already has a header";
-#ifdef DEBUG_CONNECTIONS
-        assert(false);
-#endif
-        return;
-    }
-    if (priority != NetworkConnection::NormalPriority && message.rawData().size() > CHUNK_SIZE) {
-        logWarning(Log::NWM) << "queueMessage: Can't send large message in the priority queue";
-#ifdef DEBUG_CONNECTIONS
-        assert(false);
-#endif
-        return;
-    }
+    if (!message.hasHeader() && message.serviceId() == -1)
+        throw NetworkException("queueMessage: Can't deliver a message with unset service ID");
+    if (message.hasHeader() && message.body().size() > CHUNK_SIZE)
+        throw NetworkException("queueMessage: Can't send large message and can't auto-chunk because it already has a header");
+    if (priority != NetworkConnection::NormalPriority && message.rawData().size() > CHUNK_SIZE)
+        throw NetworkException("queueMessage: Can't send large message in the priority queue");
+
     // we have a chunk size of 8K and a max message size of 9K. The 1000 bytes is for headers and worse case is around
     // 10 bytes per item plus some extra stuff. So we reject any messages with more than 95 header items.
-    if (message.headerData().size() > 95) {
-        logWarning(Log::NWM) << "queueMessage: Can't send message with too much header items";
-#ifdef DEBUG_CONNECTIONS
-        assert(false);
-#endif
-        return;
-    }
+    if (message.headerData().size() > 95)
+        NetworkException("queueMessage: Can't send message with too much header items");
 
     if (m_strand.running_in_this_thread()) {
-        if (priority == NetworkConnection::NormalPriority)
+        if (priority == NetworkConnection::NormalPriority) {
+            if (m_messageQueue.isFull())
+                throw NetworkQueueFullError("MessageQueue full");
             m_messageQueue.append(message);
-        else
+        } else {
+            if (m_priorityMessageQueue.isFull())
+                throw NetworkQueueFullError("PriorityMessageQueue full");
             m_priorityMessageQueue.append(message);
+        }
         if (isConnected())
             runMessageQueue();
         else
@@ -921,17 +952,16 @@ void NetworkManagerConnection::sendPing(const boost::system::error_code& error)
     assert(m_strand.running_in_this_thread());
     if (!m_socket.is_open())
         return;
-    if (m_pingMessage.rawData().size() == 0) {
-        Streaming::MessageBuilder builder(Streaming::HeaderOnly, 10);
-        builder.add(Network::ServiceId, Network::SystemServiceId);
-        builder.add(Network::Ping, true);
-        builder.add(Network::HeaderEnd, true);
-        m_pingMessage = builder.message();
+    int time = 90;
+    if (m_messageQueue.isFull()) {
+        if (m_priorityMessageQueue.isFull())
+            time = 2; // delay sending ping
+        else
+            queueMessage(m_pingMessage, NetworkConnection::HighPriority);
+    } else {
+        queueMessage(m_pingMessage, NetworkConnection::NormalPriority);
     }
-    m_messageQueue.append(m_pingMessage);
-    runMessageQueue();
-
-    m_pingTimer.expires_from_now(boost::posix_time::seconds(90));
+    m_pingTimer.expires_from_now(boost::posix_time::seconds(time));
     m_pingTimer.async_wait(m_strand.wrap(std::bind(&NetworkManagerConnection::sendPing, this, std::placeholders::_1)));
 }
 
