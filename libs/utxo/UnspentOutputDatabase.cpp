@@ -549,7 +549,7 @@ void DataFile::insert(const UODBPrivate *priv, const uint256 &txid, int firstOut
             bucket->saveAttempt = 0;
             bucket.unlock();
 
-            addChange(priv, lastOutput - firstOutput);
+            addChange(priv, lastOutput - firstOutput + 1);
 
             if (bucketId > MEMMASK && (bucketId & MEMMASK) <= lastCommittedBucketIndex) {
                 std::lock_guard<std::recursive_mutex> lock(m_lock);
