@@ -568,7 +568,7 @@ UniValue signrawtransaction(const UniValue& params, bool fHelp)
     CMutableTransaction mergedTx(txVariants[0]);
 
     // First, fish required transactions out of the mempool
-    typedef boost::unordered_map<uint256, Tx, Blocks::BlockHashShortener> TXMap;
+    typedef boost::unordered_map<uint256, Tx, HashShortener> TXMap;
     TXMap txMap;
     {
         CTxMemPool *mempool = flApp->mempool();

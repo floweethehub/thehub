@@ -28,6 +28,7 @@
 #include <memory>
 #include <list>
 
+#include <boost/unordered_map.hpp>
 #include <boost/iostreams/device/mapped_file.hpp>
 
 class CBlockIndex;
@@ -84,7 +85,7 @@ public:
 
     std::mutex blockIndexLock;
 
-    typedef boost::unordered_map<uint256, CBlockIndex*, BlockHashShortener> BlockMap;
+    typedef boost::unordered_map<uint256, CBlockIndex*, HashShortener> BlockMap;
     BlockMap indexMap;
 
     ReindexingState reindexing = NoReindex;

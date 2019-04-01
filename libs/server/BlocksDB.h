@@ -24,7 +24,6 @@
 #include "dbwrapper.h"
 
 #include <primitives/FastUndoBlock.h>
-#include <boost/unordered_map.hpp>
 #include <streaming/ConstBuffer.h>
 #include <string>
 #include <vector>
@@ -33,7 +32,6 @@ class CBlockFileInfo;
 class CBlockIndex;
 struct CDiskTxPos;
 struct CDiskBlockPos;
-class CChainParams;
 class uint256;
 class FastBlock;
 class CChain;
@@ -135,12 +133,6 @@ public:
 private:
     static DB *s_instance;
     std::shared_ptr<DBPrivate> d;
-};
-
-struct BlockHashShortener {
-    inline size_t operator()(const uint256& hash) const {
-        return hash.GetCheapHash();
-    }
 };
 
 /** Open a block file (blk?????.dat) */

@@ -28,7 +28,6 @@
 #include <chain.h>
 #include <bloom.h>
 #include <txmempool.h>
-#include <BlocksDB.h>
 
 #include <boost/thread.hpp>
 #include <interfaces/boost_compat.h>
@@ -180,12 +179,12 @@ public:
     // for validateOnly style we omit changing the UTXO. As such we need to
     // allow some way to do in-block tx spending. This structure does that.
     // we map txid to a pair of ints. The first int is the output index. The second int is the tx's offset in block.
-    typedef boost::unordered_map<uint256, std::deque<std::pair<int, int> >, Blocks::BlockHashShortener> UnspentMap;
+    typedef boost::unordered_map<uint256, std::deque<std::pair<int, int> >, HashShortener> UnspentMap;
     UnspentMap m_txMap;
 
     // when a block is being checked for validity only (not appended) we store changes
     // in this map to detect double-spends.
-    typedef boost::unordered_map<uint256, std::deque<int>, Blocks::BlockHashShortener> SpentMap;
+    typedef boost::unordered_map<uint256, std::deque<int>, HashShortener> SpentMap;
     SpentMap m_spentMap;
     //   ---------- only used when m_validateOnly is true.
 };

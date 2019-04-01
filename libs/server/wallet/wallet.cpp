@@ -23,7 +23,6 @@
 #include <SettingsDefaults.h>
 
 #include <Application.h>
-#include <BlocksDB.h>
 #include "base58.h"
 #include "checkpoints.h"
 #include "chain.h"
@@ -1224,7 +1223,7 @@ struct NewTxData {
     Tx tx;
     int indexInBlock = -1;
 };
-typedef boost::unordered_map<uint256, NewTxData, Blocks::BlockHashShortener> NewTxDataMap;
+typedef boost::unordered_map<uint256, NewTxData, HashShortener> NewTxDataMap;
 struct ScanContext {
     CBlockIndex *block = nullptr;
     std::list<uint256> txConflicted;

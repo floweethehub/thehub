@@ -184,6 +184,17 @@ inline uint256 uint256S(const std::string& str)
     return rv;
 }
 
+/**
+ * Useful structure to use for maps.
+ * For instance:
+ *
+ *  typedef boost::unordered_map<uint256, int, HashShortener> MyMap;
+ */
+struct HashShortener {
+    inline size_t operator()(const uint256& hash) const {
+        return hash.GetCheapHash();
+    }
+};
 
 template<unsigned int BITS>
 inline Log::Item operator<<(Log::Item item, const base_blob<BITS> &data) {

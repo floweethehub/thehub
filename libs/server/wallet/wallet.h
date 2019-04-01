@@ -29,7 +29,6 @@
 #include "crypter.h"
 #include "wallet_ismine.h"
 #include "walletdb.h"
-#include <BlocksDB.h>
 
 #include <stdexcept>
 
@@ -626,7 +625,7 @@ public:
         fBroadcastTransactions = false;
     }
 
-    boost::unordered_map<uint256, CWalletTx, Blocks::BlockHashShortener> mapWallet;
+    boost::unordered_map<uint256, CWalletTx, HashShortener> mapWallet;
     std::list<CAccountingEntry> laccentries;
 
     typedef std::pair<CWalletTx*, CAccountingEntry*> TxPair;
