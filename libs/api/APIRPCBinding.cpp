@@ -291,6 +291,8 @@ public:
                 filterOnKeys = true;
             } else if (parser.tag() == Api::BlockChain::FullTransactionData) {
                 fullTxData = parser.boolData();
+                if (!fullTxData)
+                    m_fullTxData = false;
             } else if (parser.tag() == Api::BlockChain::GetBlock_TxId) {
                 m_returnTxId = parser.boolData();
             } else if (parser.tag() == Api::BlockChain::GetBlock_OffsetInBlock) {
@@ -333,6 +335,8 @@ public:
         int matchedOutputScriptSizes = 0;
         while (true) {
             if (type == Tx::End) {
+                if (oneEnd) // then the second end means end of block
+                    break;
                 if (txMatched) {
                     Tx prevTx = iter.prevTx();
                     size += prevTx.size();
@@ -342,8 +346,6 @@ public:
                     m_transactions.push_back(std::make_pair(prevTx.offsetInBlock(m_block), prevTx.size()));
                     txMatched = !filterOnKeys;
                 }
-                if (oneEnd) // then the second end means end of block
-                    break;
                 oneEnd = true;
 
                 txInputSize = 0;
@@ -442,7 +444,7 @@ public:
                         builder.add(Api::BlockChain::Tx_Out_Amount, iter.longData());
                     }
                     else if ((m_returnOutputs || m_returnOutputScripts || m_returnOutputAddresses) && type == Tx::OutputScript) {
-                        if (!m_returnOutputs && !m_returnOutputAddresses) // if not done before OutputValue
+                        if (!m_returnOutputs && !m_returnOutputAmounts) // if not done before OutputValue
                             builder.add(Api::BlockChain::Tx_Out_Index, outIndex++);
                         if (m_returnOutputs || m_returnOutputScripts)
                             builder.add(Api::BlockChain::Tx_OutputScript, iter.byteData());
@@ -457,9 +459,10 @@ public:
                                     assert(vSolutions[0].size() == 20);
                                     builder.addByteArray(Api::BlockChain::Tx_Out_Address, vSolutions[0].data(), 20);
                                 } else if (whichType == TX_PUBKEY) {
-                                    unsigned char array[20];
-                                    CHash160().Write(vSolutions[0].data(), vSolutions[0].size()).Finalize(array);
-                                    builder.addByteArray(Api::BlockChain::Tx_Out_Address, array, 20);
+                                    CPubKey pubKey(vSolutions[0]);
+                                    assert (pubKey.IsValid());
+                                    CKeyID address = pubKey.GetID();
+                                    builder.addByteArray(Api::BlockChain::Tx_Out_Address, address.begin(), 20);
                                 }
                             }
                         }

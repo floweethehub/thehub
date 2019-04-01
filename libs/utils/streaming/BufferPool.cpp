@@ -1,6 +1,6 @@
 /*
  * This file is part of the Flowee project
- * Copyright (C) 2016,2018 Tom Zander <tomz@freedommail.ch>
+ * Copyright (C) 2016,2018-2019 Tom Zander <tomz@freedommail.ch>
  *
  * This program is free software: you can redistribute it and/or modify
  * it under the terms of the GNU General Public License as published by
@@ -141,9 +141,10 @@ void Streaming::BufferPool::change_capacity(int bytes)
         m_size = static_cast<int>(std::max<int64_t>(bytes + unprocessed,
               std::lrint(std::ceil(m_size * boost::math::double_constants::phi))));
     }
-    m_buffer = std::shared_ptr<char>(new char[m_size], std::default_delete<char[]>());
+    std::shared_ptr<char> newBuffer = std::shared_ptr<char>(new char[m_size], std::default_delete<char[]>());
 
-    std::memcpy(m_buffer.get(), m_readPointer, static_cast<size_t>(unprocessed)); // Read pointer still points to the old buffer
+    std::memcpy(newBuffer.get(), m_readPointer, static_cast<size_t>(unprocessed)); // Read pointer still points to the old buffer
+    m_buffer = newBuffer;
     m_readPointer = m_buffer.get();
     m_writePointer = m_readPointer + unprocessed;
 }
