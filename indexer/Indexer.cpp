@@ -23,8 +23,8 @@
 #include <APIProtocol.h>
 
 Indexer::Indexer(const boost::filesystem::path &basedir)
-    : m_network(m_workers.ioService()),
-    m_txdb(m_workers.ioService(), basedir / "txindex")
+    : m_txdb(m_workers.ioService(), basedir / "txindex"),
+    m_network(m_workers.ioService())
 {
     // TODO add some auto-save of the databases.
 }
@@ -32,7 +32,6 @@ Indexer::Indexer(const boost::filesystem::path &basedir)
 Indexer::~Indexer()
 {
     m_serverConnection.disconnect();
-    m_workers.stopThreads();
 }
 
 void Indexer::tryConnectHub(const EndPoint &ep)
@@ -48,9 +47,10 @@ void Indexer::tryConnectHub(const EndPoint &ep)
 
 void Indexer::hubConnected(const EndPoint &ep)
 {
-    logInfo() << "Connection to hub established";
 
     int blockHeight = m_txdb.blockheight();
+    logInfo() << "Connection to hub established, highest block we know:" << blockHeight
+        << "requesting next";
     requestBlock(blockHeight + 1);
 }
 
@@ -75,6 +75,8 @@ void Indexer::hubSentMessage(const Message &message)
         if (message.messageId() == Api::BlockChain::GetBlockReply) {
             int newHeight = processNewBlock(message);
             requestBlock(newHeight + 1);
+            if (newHeight % 1000 == 0)
+                logDebug() << "Finished block" << newHeight;
         }
     }
     else {
@@ -87,17 +89,15 @@ int Indexer::processNewBlock(const Message &message)
     int txOffsetInBlock = 0;
     uint256 blockId;
     uint256 txid;
-    // uint160 address;
     Streaming::MessageParser parser(message.body());
     int blockHeight = -1;
     while (parser.next() == Streaming::FoundTag) {
         if (parser.tag() == Api::BlockChain::BlockHeight) {
             blockHeight = parser.intData();
-            logInfo() << "Processing block" << blockHeight;
         } else if (parser.tag() == Api::BlockChain::BlockHash) {
             blockId = parser.uint256Data();
         } else if (parser.tag() == Api::BlockChain::Separator) {
-            if (txOffsetInBlock > 0) {
+            if (txOffsetInBlock > 0 && !txid.IsNull()) {
                 assert(blockHeight > 0);
                 assert(!txid.IsNull());
                 m_txdb.insert(txid, blockHeight, txOffsetInBlock);

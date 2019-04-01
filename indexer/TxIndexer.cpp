@@ -41,3 +41,14 @@ void TxIndexer::insert(const uint256 &txid, int blockHeight, int offsetInBlock)
 {
     m_txdb.insert(txid, 0, blockHeight, offsetInBlock);
 }
+
+TxIndexer::TxData TxIndexer::find(const uint256 &txid) const
+{
+    TxData answer;
+    auto item = m_txdb.find(txid, 0);
+    if (item.isValid()) {
+        answer.blockHeight = item.blockHeight();
+        answer.offsetInBlock = item.offsetInBlock();
+    }
+    return answer;
+}

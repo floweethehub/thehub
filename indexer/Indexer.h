@@ -22,6 +22,7 @@
 
 #include <NetworkManager.h>
 #include <WorkerThreads.h>
+#include <streaming/BufferPool.h>
 
 class Indexer
 {
@@ -41,14 +42,14 @@ private:
     void hubSentMessage(const Message &message);
 
     void requestBlock(int height);
+    int processNewBlock(const Message &message);
 
 private:
+    Streaming::BufferPool m_pool;
     WorkerThreads m_workers;
+    TxIndexer m_txdb;
     NetworkManager m_network;
     NetworkConnection m_serverConnection;
-    TxIndexer m_txdb;
-    Streaming::BufferPool m_pool;
-    int processNewBlock(const Message &message);
 };
 
 #endif
