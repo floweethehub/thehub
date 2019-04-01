@@ -28,6 +28,7 @@ if (${Qt5Core_FOUND})
         add_subdirectory(streaming)
         add_subdirectory(bitcoin-protocol)
         add_subdirectory(networkmanager)
+        add_subdirectory(hashstorage)
 
         add_custom_target(check COMMAND ${CMAKE_CTEST_COMMAND} DEPENDS
             test_utxo
@@ -37,6 +38,7 @@ if (${Qt5Core_FOUND})
             test_hub
             test_streaming
             test_networkmanager
+            test_hashstorage
         )
     else ()
         message("Missing qt5 (test) library, not building some tests")
