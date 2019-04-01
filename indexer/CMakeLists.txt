@@ -36,6 +36,7 @@ set (IDX_LIBS
 
 add_executable(indexer
     main.cpp
+    FloweeServiceApplication.cpp
     Indexer.cpp
     TxIndexer.cpp
 )

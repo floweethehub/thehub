@@ -16,26 +16,14 @@
  * along with this program.  If not, see <http://www.gnu.org/licenses/>.
  */
 
-#include <QCoreApplication>
-#include <QCommandLineParser>
+#include "FloweeServiceApplication.h"
 #include <QStandardPaths>
-
-#include <Logger.h>
-#include <NetworkEndPoint.h>
-#include <netbase.h> // for SplitHostPort
-
-#include <signal.h>
 
 #include "Indexer.h"
 
-void HandleSIGTERM(int)
-{
-    QCoreApplication::quit();
-}
-
 int main(int argc, char **argv)
 {
-    QCoreApplication app(argc, argv);
+    FloweeServiceApplication app(argc, argv);
     app.setOrganizationName("flowee");
     app.setOrganizationDomain("flowee.org");
     app.setApplicationName("indexer");
@@ -46,29 +34,9 @@ int main(int argc, char **argv)
     parser.addPositionalArgument("server", "server address with optional port");
     QCommandLineOption datadir(QStringList() << "datadir" << "d", "The directory to put the data in", "DIR");
     parser.addOption(datadir);
-
-    parser.process(app);
-    QStringList args = parser.positionalArguments();
-    if (args.isEmpty()) {
-        logFatal() << "No arguments given, connecting to localhost:1235";
-        args << "localhost:1235";
-    }
-
-    {QString logsconf = QStandardPaths::locate(QStandardPaths::AppConfigLocation, "logs.conf");
-    QString logFile = QStandardPaths::writableLocation(QStandardPaths::AppDataLocation) + "/indexer.log";
-    Log::Manager::instance()->parseConfig(logsconf.toLocal8Bit().toStdString(), logFile.toLocal8Bit().toStdString());
-    logFatal() << "Indexer starting. Connecting to:" << args.first();
-    if (logsconf.isEmpty())
-        logFatal() << "No logs config found (~/.config/flowee/indexer/logs.conf), using default settings";
-    else
-        logFatal() << "Logs config:" << logsconf;
-    }
-
-    EndPoint ep;
-    int port = 1234; // ep.announcePort is a short, SplitHostPort requires an int :(
-    SplitHostPort(args.first().toStdString(), port, ep.hostname);
-    ep.announcePort = port;
-    logFatal() << ep.hostname << ep.announcePort;
+    app.addStandardOptions(parser);
+    parser.process(app.arguments());
+    app.setup("indexer.log");
 
     QString basedir;
     if (parser.isSet(datadir))
@@ -76,14 +44,7 @@ int main(int argc, char **argv)
     else
         basedir = QStandardPaths::writableLocation(QStandardPaths::AppDataLocation);
     Indexer indexer(basedir.toStdString());
-    indexer.tryConnectHub(ep);
-
-    struct sigaction sa;
-    sa.sa_handler = HandleSIGTERM;
-    sigemptyset(&sa.sa_mask);
-    sa.sa_flags = 0;
-    sigaction(SIGTERM, &sa, NULL);
-    sigaction(SIGINT, &sa, NULL);
+    indexer.tryConnectHub(app.serverAddressFromArguments(parser.positionalArguments()));
 
     return app.exec();
 }
