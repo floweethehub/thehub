@@ -18,6 +18,7 @@
 
 #include <QString>
 #include <Logger.h>
+#include <QDataStream>
 
 #include "HashStorage.h"
 #include "HashStorage_p.h"
@@ -76,40 +77,47 @@ void HashStorage::finalize()
 }
 
 
+// -----------------------------------------------------------------
 
 HashList::HashList(const boost::filesystem::path &dbBase)
 {
-    // TODO load resortKeys
-
-    QString base = QString::fromStdWString(dbBase.wstring());
-    m_log = new QFile(base + ".log");
+    m_filebase = QString::fromStdWString(dbBase.wstring());
+    m_log = new QFile(m_filebase + ".log");
     if (!m_log->open(QIODevice::ReadWrite))
         throw std::runtime_error("HashList: failed to open log file");
 
-    m_sortedFile = new QFile(base + ".db");
+    m_sortedFile = new QFile(m_filebase + ".db");
     if (m_sortedFile->open(QIODevice::ReadOnly)) {
         m_sorted = m_sortedFile->map(0, m_sortedFile->size());
         m_sortedFile->close();
     }
 
-    int id = 0; // TODO get this offset from the info file.
+    QFile info(m_filebase + ".info");
+    if (info.open(QIODevice::ReadOnly)) {
+        QDataStream in(&info);
+        in >> m_nextId;
+        in >> m_jumptables;
+        in >> m_resortMap;
+    }
+
     while(true) {
         uint256 item;
         auto byteCount = m_log->read(reinterpret_cast<char*>(item.begin()), 32);
         if (byteCount == 32) {
-            m_cacheMap.insert(id++, item);
+            m_cacheMap.insert(m_nextId++, item);
         } else if (byteCount == 0) {
             break;
         }
     }
-    m_nextId = id;
 }
 
 HashList::~HashList()
 {
-    // TODO sync/save
     m_log->close();
     delete m_log;
+    if (m_sorted)
+        m_sortedFile->unmap(m_sorted);
+    delete m_sortedFile;
 }
 
 int HashList::append(const uint256 &hash)
@@ -128,6 +136,28 @@ int HashList::find(const uint256 &hash)
     QMapIterator<int, uint256> iter(m_cacheMap);
     if (iter.findNext(hash)) {
         return iter.key();
+    }
+
+    // TODO binary search
+    /*
+     function binary_search(A, n, T):
+        L := 0
+        R := n − 1
+        while L <= R:
+            m := floor((L + R) / 2)
+            if A[m] < T:
+                L := m + 1
+            else if A[m] > T:
+                R := m - 1
+            else:
+                return m
+        return unsuccessful
+    */
+    const int rowCount = m_sortedFile->size() / 32;
+    for (int row = 0; row < rowCount; ++row) {
+        uint256 *dummy = (uint256*)(m_sorted + row * 32);
+        if (dummy->Compare(hash) == 0)
+            return row;
     }
 
     return -1;
@@ -160,6 +190,7 @@ struct SortCacheHelper {
 
 void HashList::finalize()
 {
+    QMutexLocker lock(&m_mutex);
     QList<int> sortedKeys = m_cacheMap.keys();
     {
         SortCacheHelper helper { m_cacheMap };
@@ -170,19 +201,50 @@ void HashList::finalize()
     if (!newFile.open(QIODevice::ReadWrite | QIODevice::Truncate)) {
         throw std::runtime_error("Failed to open tmp file for writing");
     }
+    m_jumptables.clear();
+    m_jumptables.resize(256);
     int row = 0;
+    int oldRow = 0;
+    QMap<int, int> resortMap(m_resortMap);
+    m_resortMap.clear();
+    const int maxOldRow = m_sortedFile->size() / 32;
     for (auto key : sortedKeys) {
         const uint256 &hash = m_cacheMap.value(key);
-        // TODO if we had some data in the other file, we'd need to iterate now to get all the ones less than.
+
+        while (oldRow < maxOldRow) {
+            const char *rowLocation = reinterpret_cast<char*>(m_sorted) + oldRow * 32;
+            if (((uint256*)rowLocation)->Compare(hash) > 0)
+                break;
+
+            newFile.write(rowLocation, 32);
+
+            QMapIterator<int,int> mi(resortMap);
+            bool ok = mi.findNext(oldRow++);
+            Q_ASSERT(ok); Q_UNUSED(ok);
+            m_resortMap.insert(mi.key(), row++);
+            resortMap.remove(mi.key());
+        }
 
         newFile.write(reinterpret_cast<const char*>(hash.begin()), 32);
         m_resortMap.insert(key, row++);
     }
+    while (oldRow < maxOldRow) {
+        newFile.write(reinterpret_cast<char*>(m_sorted) + oldRow * 32, 32);
+
+        QMapIterator<int,int> mi(resortMap);
+        bool ok = mi.findNext(oldRow++);
+        Q_ASSERT(ok); Q_UNUSED(ok);
+        m_resortMap.insert(mi.key(), row++);
+        resortMap.remove(mi.key());
+    }
+    m_nextId = row; // do we need this?
     if (m_sorted)
         m_sortedFile->unmap(m_sorted);
+    m_sorted = nullptr;
     m_log->close();
     newFile.close();
-    if (!newFile.rename(m_sortedFile->fileName())) {
+    m_sortedFile->remove();
+    if (!newFile.rename(m_filebase + ".db")) {
         // TODO
         return;
     }
@@ -192,8 +254,18 @@ void HashList::finalize()
         m_sorted = m_sortedFile->map(0, m_sortedFile->size());
         m_sortedFile->close();
     }
+
+    QFile info(m_filebase + ".info");
+    if (info.open(QIODevice::WriteOnly | QIODevice::Truncate)) {
+        QDataStream out(&info);
+        out << m_nextId;
+        out << m_jumptables;
+        out << m_resortMap;
+    }
 }
 
+
+// -----------------------------------------------------------------
 
 HashStoragePrivate::HashStoragePrivate(const boost::filesystem::path &basedir)
     : basedir(basedir)

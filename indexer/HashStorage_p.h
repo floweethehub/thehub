@@ -18,6 +18,7 @@
 #ifndef HASHSTORAGE_p_H
 #define HASHSTORAGE_p_H
 
+#include <qvector.h>
 #include <uint256.h>
 
 #include <boost/unordered_map.hpp>
@@ -39,7 +40,7 @@ public:
     // for the memmapped, sorted section.
     uchar *m_sorted = nullptr;
     QFile *m_sortedFile = nullptr;
-    int m_jumptables[256];
+    QVector<int> m_jumptables;
 
     // the unsorted part
     QFile *m_log = nullptr;
@@ -49,6 +50,7 @@ public:
     QMap<int, int> m_resortMap;
     int m_nextId = 0;
     mutable QMutex m_mutex;
+    QString m_filebase;
 };
 
 class HashStoragePrivate
