@@ -35,9 +35,9 @@ void TestHashStorage::cleanup()
 
 void TestHashStorage::basic()
 {
-    uint256 hash1 = uint256S("00001e397a22a7262ae899450d85ae9cb4ac314510d55d32a31cf86a792ea6ea");
-    uint256 hash2 = uint256S("00001e397a22a7262ae899450d85ae9cb4ac314510d55d32a31cf86a792ea7ea");
-    uint256 hash3 = uint256S("5123d8a19c8815f9395cd63abc796289ee7900135ed1b6674f76e7b5038e9a1d");
+    uint256 hash1 = uint256S("00001e397a22a7262ae899550d85ae9cb4ac314510d55d32a31cf86a792ea7ea");
+    uint256 hash2 = uint256S("5123d8a19c8815f9395cd63abc796289ee7900135ed1b6674f76e7b5038e9a1d");
+    uint256 hash3 = uint256S("00001e397a22a7262ae899450d85ae9cb4ac314510d55d32a31cf86a792ea6ea");
     HashIndexPoint index1, index2, index3;
     {
         HashStorage hs(m_testPath);
@@ -62,6 +62,23 @@ void TestHashStorage::basic()
         QCOMPARE(hash3, hs.at(index3));
 
         QCOMPARE(hs.find(hash1), index1);
+
+        hs.finalize();
+
+        QCOMPARE(hash1, hs.at(index1));
+        QCOMPARE(hash2, hs.at(index2));
+        QCOMPARE(hash3, hs.at(index3));
+
+        QCOMPARE(hs.find(hash1), index1);
+    }
+    {
+        HashStorage hs(m_testPath);
+        QCOMPARE(hash1, hs.at(index1));
+        QCOMPARE(hash2, hs.at(index2));
+        QCOMPARE(hash3, hs.at(index3));
+        QCOMPARE(hs.find(hash1), index1);
+
+        // insert more and finalize again.
     }
 }
 

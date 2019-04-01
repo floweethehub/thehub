@@ -34,6 +34,7 @@ public:
     int append(const uint256 &hash);
     int find(const uint256 &hash);
     const uint256 &at(int row) const;
+    void finalize();
 
     // for the memmapped, sorted section.
     uchar *m_sorted = nullptr;

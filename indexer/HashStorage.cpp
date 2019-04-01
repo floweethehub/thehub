@@ -67,14 +67,30 @@ HashIndexPoint HashStorage::find(const uint256 &hash) const
     return HashIndexPoint();
 }
 
+void HashStorage::finalize()
+{
+    QList<HashList*> dbs(d->dbs);
+    for (auto db : dbs) {
+        db->finalize();
+    }
+}
+
 
 
 HashList::HashList(const boost::filesystem::path &dbBase)
 {
-    // TODO load
-    m_log = new QFile(QString::fromStdWString(dbBase.wstring()) + ".log");
+    // TODO load resortKeys
+
+    QString base = QString::fromStdWString(dbBase.wstring());
+    m_log = new QFile(base + ".log");
     if (!m_log->open(QIODevice::ReadWrite))
         throw std::runtime_error("HashList: failed to open log file");
+
+    m_sortedFile = new QFile(base + ".db");
+    if (m_sortedFile->open(QIODevice::ReadOnly)) {
+        m_sorted = m_sortedFile->map(0, m_sortedFile->size());
+        m_sortedFile->close();
+    }
 
     int id = 0; // TODO get this offset from the info file.
     while(true) {
@@ -124,8 +140,58 @@ const uint256 &HashList::at(int row) const
     if (iter != m_cacheMap.end()) {
         return iter.value();
     }
+    auto resortIter = m_resortMap.find(row);
+    if (resortIter != m_resortMap.end()) {
+        row = resortIter.value();
+    }
+    uint256 *dummy = (uint256*)(m_sorted + row * 32);
+    return *dummy;
+}
 
-    return HashStoragePrivate::s_null;
+namespace {
+struct SortCacheHelper {
+    QMap<int, uint256> cacheMap;
+    bool operator() (int i, int j) {
+        return cacheMap.value(i).Compare(cacheMap.value(j)) <= 0;
+    }
+};
+
+}
+
+void HashList::finalize()
+{
+    QList<int> sortedKeys = m_cacheMap.keys();
+    {
+        SortCacheHelper helper { m_cacheMap };
+        std::sort(sortedKeys.begin(), sortedKeys.end(), helper);
+    }
+    const QString tmpFile = m_sortedFile->fileName() + '~';
+    QFile newFile(tmpFile);
+    if (!newFile.open(QIODevice::ReadWrite | QIODevice::Truncate)) {
+        throw std::runtime_error("Failed to open tmp file for writing");
+    }
+    int row = 0;
+    for (auto key : sortedKeys) {
+        const uint256 &hash = m_cacheMap.value(key);
+        // TODO if we had some data in the other file, we'd need to iterate now to get all the ones less than.
+
+        newFile.write(reinterpret_cast<const char*>(hash.begin()), 32);
+        m_resortMap.insert(key, row++);
+    }
+    if (m_sorted)
+        m_sortedFile->unmap(m_sorted);
+    m_log->close();
+    newFile.close();
+    if (!newFile.rename(m_sortedFile->fileName())) {
+        // TODO
+        return;
+    }
+    m_cacheMap.clear();
+    m_log->open(QIODevice::Truncate | QIODevice::WriteOnly);
+    if (m_sortedFile->open(QIODevice::ReadOnly)) {
+        m_sorted = m_sortedFile->map(0, m_sortedFile->size());
+        m_sortedFile->close();
+    }
 }
 
 

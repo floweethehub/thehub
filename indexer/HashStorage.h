@@ -47,6 +47,9 @@ public:
     const uint256 &at(HashIndexPoint point) const;
     HashIndexPoint find(const uint256 &hash) const;
 
+    /// Flush all caches and make lookup on-disk only
+    void finalize();
+
 private:
     HashStoragePrivate *d;
 };
