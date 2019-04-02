@@ -119,22 +119,22 @@ public:
     std::string helpMessage() const;
 };
 
-class BitcoinCli : public AllowedArgs
+class HubCli : public AllowedArgs
 {
 public:
-    BitcoinCli();
+    HubCli();
 };
 
-class Bitcoind : public AllowedArgs
+class Hub : public AllowedArgs
 {
 public:
-    Bitcoind();
+    Hub();
 };
 
-class BitcoinQt : public AllowedArgs
+class HubQt : public AllowedArgs
 {
 public:
-    BitcoinQt();
+    HubQt();
 };
 
 class BitcoinTx : public AllowedArgs

@@ -108,13 +108,13 @@ BOOST_AUTO_TEST_CASE(util_ParseParameters)
 {
     const char *argv_test[] = {"-ignored", "-reindex", "-txindex", "-connect=argument", "-connect=multiple", "f", "-d=e"};
 
-    ParseParameters(0, (char**)argv_test, Settings::Bitcoind());
+    ParseParameters(0, (char**)argv_test, Settings::Hub());
     BOOST_CHECK(mapArgs.empty() && mapMultiArgs.empty());
 
-    ParseParameters(1, (char**)argv_test, Settings::Bitcoind());
+    ParseParameters(1, (char**)argv_test, Settings::Hub());
     BOOST_CHECK(mapArgs.empty() && mapMultiArgs.empty());
 
-    ParseParameters(5, (char**)argv_test, Settings::Bitcoind());
+    ParseParameters(5, (char**)argv_test, Settings::Hub());
     // expectation: -ignored is ignored (program name argument),
     // -reindex, -txindex and -connect end up in map, -d ignored because it is after
     // a non-option argument (non-GNU option parsing)

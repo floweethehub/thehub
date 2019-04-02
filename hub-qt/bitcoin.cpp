@@ -576,7 +576,7 @@ int main(int argc, char *argv[])
     /// 2. Parse command-line options. These take precedence over anything else.
     // Command-line options take precedence:
     try {
-        ParseParameters(argc, argv, Settings::BitcoinQt());
+        ParseParameters(argc, argv, Settings::HubQt());
     } catch (const std::exception& e) {
         QMessageBox::critical(0, QObject::tr("Flowee"),
                               QObject::tr("Error: Cannot parse program options: %1.").arg(e.what()));

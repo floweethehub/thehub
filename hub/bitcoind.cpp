@@ -72,7 +72,7 @@ bool AppInit(int argc, char* argv[])
     // Parameters
     //
     // If Qt is used, parameters/flowee.conf are parsed in qt/bitcoin.cpp's main()
-    Settings::Bitcoind allowedArgs;
+    Settings::Hub allowedArgs;
     try {
         ParseParameters(argc, argv, allowedArgs);
     } catch (const std::exception& e) {
@@ -87,7 +87,7 @@ bool AppInit(int argc, char* argv[])
 
         if (!mapArgs.count("-version")) {
             strUsage += "\n" + _("Usage:") + "\n" +
-                  "  bitcoind [options]                     " + _("Start Flowee the Hub") + "\n";
+                  "  hub [options]                          " + _("Start Flowee the Hub") + "\n";
 
             strUsage += "\n" + allowedArgs.helpMessage();
         }
@@ -205,7 +205,7 @@ int main(int argc, char* argv[])
 {
     SetupEnvironment();
 
-    // Connect bitcoind signal handlers
+    // Connect hub signal handlers
     noui_connect();
 
     return (AppInit(argc, argv) ? 0 : 1);
