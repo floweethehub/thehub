@@ -18,6 +18,8 @@
 #ifndef UNSPENTOUTPUTDATABASE_H
 #define UNSPENTOUTPUTDATABASE_H
 
+#include "UTXOInteralError.h"
+
 #include <uint256.h>
 
 #include <streaming/ConstBuffer.h>

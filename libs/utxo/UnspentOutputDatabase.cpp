@@ -135,7 +135,7 @@ UnspentOutput::UnspentOutput(uint64_t cheapHash, const Streaming::ConstBuffer &b
             break;
     }
     if (parser.next() == Streaming::Error)
-        throw std::runtime_error("Unparsable UTXO-record");
+        throw UTXOInternalError("Unparsable UTXO-record");
     assert(m_blockHeight > 0 && m_offsetInBlock >= 0);
 }
 
@@ -147,7 +147,7 @@ uint256 UnspentOutput::prevTxId() const
             if (parser.dataLength() == 32)
                 return parser.uint256Data();
             else if (parser.dataLength() != 24)
-                throw std::runtime_error("TXID of wrong length");
+                throw UTXOInternalError("TXID of wrong length");
             else { // pruned style, shorter hash, combine with our m_shortHash.
                 char fullHash[32];
                 WriteLE64(reinterpret_cast<unsigned char*>(fullHash), m_cheapHash);
@@ -156,7 +156,7 @@ uint256 UnspentOutput::prevTxId() const
             }
         }
     }
-    throw std::runtime_error("No txid in UnspentOutput buffer found");
+    throw UTXOInternalError("No txid in UnspentOutput buffer found");
 }
 
 bool UnspentOutput::isCoinbase() const
@@ -402,7 +402,7 @@ UODBPrivate::UODBPrivate(boost::asio::io_service &service, const boost::filesyst
             allEqual = true; // we assume they are until they are not.
             if (++tries > 9) {
                 // can't find a state all databases rely on. This is a fatal problem.
-                throw std::runtime_error("Can't find a usable UTXO state");
+                throw UTXOInternalError("Can't find a usable UTXO state");
             }
             int lastBlock = -1;
             for (int i = 0; i < dataFiles.size(); ++i) {
@@ -477,7 +477,7 @@ DataFile::DataFile(const boost::filesystem::path &filename)
     dbFile.concat(".db");
     m_file.open(dbFile, std::ios_base::binary | std::ios_base::in | std::ios_base::out);
     if (!m_file.is_open())
-        throw std::runtime_error("Failed to open UTXO DB file read/write");
+        throw UTXOInternalError("Failed to open UTXO DB file read/write");
     m_buffer = std::shared_ptr<char>(const_cast<char*>(m_file.const_data()), nothing);
     m_writeBuffer = Streaming::BufferPool(m_buffer, static_cast<int>(m_file.size()), true);
 
@@ -558,7 +558,7 @@ void DataFile::insert(const UODBPrivate *priv, const uint256 &txid, int firstOut
             return;
         }
         if (bucketId >= m_file.size()) // data corruption
-            throw std::runtime_error("Bucket points past end of file.");
+            throw UTXOInternalError("Bucket points past end of file.");
     }
 
     // if we are still here that means that the bucket is stored on disk, we need to load it first.
@@ -655,7 +655,7 @@ UnspentOutput DataFile::find(const uint256 &txid, int index) const
         bucket.operator=(*bucketRef);
     }
     else if (bucketId >= m_file.size()) // disk based bucket, data corruption
-        throw std::runtime_error("Bucket points past end of file.");
+        throw UTXOInternalError("Bucket points past end of file.");
     bucketHolder.unlock();
 
     if ((bucketId & MEMBIT) == 0) { // copy from disk
@@ -1337,7 +1337,7 @@ DataFile *DataFile::createDatafile(const boost::filesystem::path &filename, int 
             bool removed = boost::filesystem::remove(dbFile);
             if (!removed) {
                 logFatal(Log::UTXO) << "Failed to create datafile, removing non-file failed";
-                throw std::runtime_error("Failed to replace non-file");
+                throw UTXOInternalError("Failed to replace non-file");
             }
         }
         // now create the file.
@@ -1433,7 +1433,7 @@ std::string DataFileCache::writeInfoFile(DataFile *source)
     std::string outFile = filenameFor(newIndex).string();
     std::ofstream out(outFile, std::ios::binary | std::ios::out | std::ios::trunc);
     if (!out.is_open())
-        throw std::runtime_error("Failed to open UTXO info file for writing");
+        throw UTXOInternalError("Failed to open UTXO info file for writing");
 
     Streaming::MessageBuilder builder(Streaming::NoHeader, 256);
     builder.add(UODB::FirstBlockHeight, source->m_initialBlockHeight);

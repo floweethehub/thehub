@@ -21,6 +21,7 @@ add_library(flowee_utxo STATIC
     DataFileList.cpp
     Pruner.cpp
     UnspentOutputDatabase.cpp
+    UTXOInteralError.cpp
 )
 add_definitions(-DLOG_DEFAULT_SECTION=1100)
 
