@@ -21,13 +21,14 @@
 #define FLOWEE_CHAIN_H
 
 #include "arith_uint256.h"
-#include "primitives/block.h"
 #include "pow.h"
-#include "tinyformat.h"
-#include "uint256.h"
-#include "Logger.h"
+#include <primitives/block.h>
+#include <tinyformat.h>
+#include <uint256.h>
+#include <Logger.h>
 
 #include <vector>
+#include <atomic>
 
 struct CDiskBlockPos
 {
@@ -363,8 +364,11 @@ public:
 class CChain {
 private:
     std::vector<CBlockIndex*> vChain;
+    std::atomic<CBlockIndex *> m_tip;
 
 public:
+    CChain();
+    CChain(const CChain &o);
     /** Returns the index entry for the genesis block of this chain, or NULL if none. */
     CBlockIndex *Genesis() const {
         return vChain.size() > 0 ? vChain[0] : NULL;
@@ -372,7 +376,7 @@ public:
 
     /** Returns the index entry for the tip of this chain, or NULL if none. */
     CBlockIndex *Tip() const {
-        return vChain.size() > 0 ? vChain[vChain.size() - 1] : NULL;
+        return m_tip;
     }
 
     /** Returns the index entry at a particular height in this chain, or NULL if no such height exists. */
@@ -403,7 +407,10 @@ public:
 
     /** Return the maximal height in the chain. Is equal to chain.Tip() ? chain.Tip()->nHeight : -1. */
     int Height() const {
-        return vChain.size() - 1;
+        auto tip = m_tip.load();
+        if (tip)
+            return tip->nHeight;
+        return -1;
     }
 
     /** Set/initialize a chain with a given tip. */
