@@ -162,8 +162,8 @@ set (WORDS_BIGENDIAN ${CMAKE_WORDS_BIGENDIAN})
 include (TestBigEndian)
 test_big_endian(CMAKE_WORDS_BIGENDIAN)
 
-include(CheckCXXSourceCompiles)
-check_cxx_source_compiles(
+include(CheckCSourceCompiles)
+check_c_source_compiles(
     "#include <string.h>
     int main() {
         char buffer[1];
@@ -177,7 +177,7 @@ check_cxx_source_compiles(
 set (_V "CPP11_ARGS")
 foreach (ARG "" "-std=gnu++11" "-std=c++11")
     set (CMAKE_REQUIRED_FLAGS ${ARG})
-    check_cxx_source_compiles(
+    check_c_source_compiles(
         "#if __cplusplus < 201103L
         # error
         #endif
@@ -191,19 +191,6 @@ foreach (ARG "" "-std=gnu++11" "-std=c++11")
     set (_V "${_V}_")
 endforeach()
 
-include(CheckCXXCompilerFlag)
-check_cxx_compiler_flag("-msse4 -msse4.1" SSE41)
-if (${SSE41})
-    set(CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS} -msse4 -msse4.1 -DENABLE_SSE41")
-endif()
-check_cxx_compiler_flag("-msse4 -msha" SHANI)
-if (${SHANI})
-    set(CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS} -msse4 -msha -DENABLE_SHANI")
-endif()
-check_cxx_compiler_flag("-mavx -mavx2" AVX2)
-if (${AVX2})
-    set(CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS} -mavx -mavx2 -DENABLE_AVX2")
-endif()
 
 message ("===== Find optional dependencies")
 
