@@ -30,8 +30,8 @@
 namespace Settings {
 
 enum HelpMessageMode {
-    HMM_BITCOIND,
-    HMM_BITCOIN_QT
+    HMM_HUB,
+    HMM_HUB_QT
 };
 
 static const int screenWidth = 79;
@@ -225,7 +225,7 @@ static void addGeneralOptions(AllowedArgs& allowedArgs, HelpMessageMode mode)
         ;
 
 #ifndef WIN32
-    if (mode == HMM_BITCOIND)
+    if (mode == HMM_HUB)
         allowedArgs.addArg("daemon", optionalBool, _("Run in the background as a daemon and accept commands"));
 #endif
 
@@ -463,11 +463,11 @@ static void addAllNodeOptions(AllowedArgs& allowedArgs, HelpMessageMode mode)
     addBlockCreationOptions(allowedArgs);
     addRpcServerOptions(allowedArgs);
     addApiServerOptions(allowedArgs);
-    if (mode == HMM_BITCOIN_QT)
+    if (mode == HMM_HUB_QT)
         addUiOptions(allowedArgs);
 }
 
-BitcoinCli::BitcoinCli()
+HubCli::HubCli()
 {
     addHelpOptions(*this);
     addChainSelectionOptions(*this);
@@ -483,14 +483,14 @@ BitcoinCli::BitcoinCli()
         ;
 }
 
-Bitcoind::Bitcoind()
+Hub::Hub()
 {
-    addAllNodeOptions(*this, HMM_BITCOIND);
+    addAllNodeOptions(*this, HMM_HUB);
 }
 
-BitcoinQt::BitcoinQt()
+HubQt::HubQt()
 {
-    addAllNodeOptions(*this, HMM_BITCOIN_QT);
+    addAllNodeOptions(*this, HMM_HUB_QT);
 }
 
 BitcoinTx::BitcoinTx()
@@ -508,18 +508,18 @@ BitcoinTx::BitcoinTx()
 
 ConfigFile::ConfigFile()
 {
-    // Merges all allowed args from BitcoinCli, Bitcoind, and BitcoinQt.
+    // Merges all allowed args from hub-cli, hub, and hub-qt.
     // Excludes args from BitcoinTx, because bitcoin-tx does not read
     // from the config file. Does not set a help message, because the
     // program does not output a config file help message anywhere.
 
-    BitcoinCli bitcoinCli;
-    Bitcoind bitcoind;
-    BitcoinQt bitcoinQt;
+    HubCli hubCli;
+    Hub hub;
+    HubQt hubQt;
 
-    m_args.insert(bitcoinCli.getArgs().begin(), bitcoinCli.getArgs().end());
-    m_args.insert(bitcoind.getArgs().begin(), bitcoind.getArgs().end());
-    m_args.insert(bitcoinQt.getArgs().begin(), bitcoinQt.getArgs().end());
+    m_args.insert(hubCli.getArgs().begin(), hubCli.getArgs().end());
+    m_args.insert(hub.getArgs().begin(), hub.getArgs().end());
+    m_args.insert(hubQt.getArgs().begin(), hubQt.getArgs().end());
 }
 
 }
