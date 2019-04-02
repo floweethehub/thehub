@@ -23,6 +23,8 @@
 #include "HashStorage.h"
 #include "HashStorage_p.h"
 
+#define WIDTH 32
+
 uint256 HashStoragePrivate::s_null = uint256();
 
 HashStorage::HashStorage(const boost::filesystem::path &basedir)
@@ -102,8 +104,8 @@ HashList::HashList(const boost::filesystem::path &dbBase)
 
     while(true) {
         uint256 item;
-        auto byteCount = m_log->read(reinterpret_cast<char*>(item.begin()), 32);
-        if (byteCount == 32) {
+        auto byteCount = m_log->read(reinterpret_cast<char*>(item.begin()), WIDTH);
+        if (byteCount == WIDTH) {
             m_cacheMap.insert(m_nextId++, item);
         } else if (byteCount == 0) {
             break;
@@ -125,12 +127,12 @@ int HashList::append(const uint256 &hash)
     QMutexLocker lock(&m_mutex);
     const int id = m_nextId++;
     m_cacheMap.insert(id, hash);
-    m_log->write(reinterpret_cast<const char*>(hash.begin()), 32);
+    m_log->write(reinterpret_cast<const char*>(hash.begin()), WIDTH);
 
     return id;
 }
 
-int HashList::find(const uint256 &hash)
+int HashList::find(const uint256 &hash) const
 {
     QMutexLocker lock(&m_mutex);
     QMapIterator<int, uint256> iter(m_cacheMap);
@@ -138,26 +140,30 @@ int HashList::find(const uint256 &hash)
         return iter.key();
     }
 
-    // TODO binary search
-    /*
-     function binary_search(A, n, T):
-        L := 0
-        R := n − 1
-        while L <= R:
-            m := floor((L + R) / 2)
-            if A[m] < T:
-                L := m + 1
-            else if A[m] > T:
-                R := m - 1
-            else:
-                return m
-        return unsuccessful
-    */
-    const int rowCount = m_sortedFile->size() / 32;
-    for (int row = 0; row < rowCount; ++row) {
-        uint256 *dummy = (uint256*)(m_sorted + row * 32);
-        if (dummy->Compare(hash) == 0)
-            return row;
+    const quint8 byte = hash.begin()[WIDTH - 1];
+    int pos = m_jumptables[byte];
+    if (pos == -1) // nothing starting with this byte-sequence in the file.
+        return -1;
+    int endpos = m_sortedFile->size() / WIDTH;
+    Q_ASSERT(pos < endpos);
+    for (quint32 x = byte + 1; x < 256; ++x) {
+        if (m_jumptables.at(x) >= 0) {
+            endpos = m_jumptables.at(x);
+            break;
+        }
+    }
+
+    while (pos <= endpos) {
+        int m = (pos + endpos) / 2;
+        uint256 *item = (uint256*)(m_sorted + m * WIDTH);
+        int comp = item->Compare(hash);
+        if (comp < 0)
+            pos = m + 1;
+        else if (comp > 0)
+            endpos = m - 1;
+        else
+            // TODO somehow run through the resort map
+            return m;
     }
 
     return -1;
@@ -174,7 +180,7 @@ const uint256 &HashList::at(int row) const
     if (resortIter != m_resortMap.end()) {
         row = resortIter.value();
     }
-    uint256 *dummy = (uint256*)(m_sorted + row * 32);
+    uint256 *dummy = (uint256*)(m_sorted + row * WIDTH);
     return *dummy;
 }
 
@@ -201,22 +207,24 @@ void HashList::finalize()
     if (!newFile.open(QIODevice::ReadWrite | QIODevice::Truncate)) {
         throw std::runtime_error("Failed to open tmp file for writing");
     }
-    m_jumptables.clear();
-    m_jumptables.resize(256);
+    m_jumptables = QVector<int>(256, -1);
     int row = 0;
     int oldRow = 0;
     QMap<int, int> resortMap(m_resortMap);
     m_resortMap.clear();
-    const int maxOldRow = m_sortedFile->size() / 32;
+    const int maxOldRow = m_sortedFile->size() / WIDTH;
     for (auto key : sortedKeys) {
         const uint256 &hash = m_cacheMap.value(key);
 
         while (oldRow < maxOldRow) {
-            const char *rowLocation = reinterpret_cast<char*>(m_sorted) + oldRow * 32;
+            const char *rowLocation = reinterpret_cast<char*>(m_sorted) + oldRow * WIDTH;
             if (((uint256*)rowLocation)->Compare(hash) > 0)
                 break;
 
-            newFile.write(rowLocation, 32);
+            newFile.write(rowLocation, WIDTH);
+
+            int &jump = m_jumptables[(quint8) rowLocation[WIDTH - 1]];
+            if (jump == -1) jump = row;
 
             QMapIterator<int,int> mi(resortMap);
             bool ok = mi.findNext(oldRow++);
@@ -224,12 +232,18 @@ void HashList::finalize()
             m_resortMap.insert(mi.key(), row++);
             resortMap.remove(mi.key());
         }
+        int &jump = m_jumptables[hash.begin()[WIDTH - 1]];
+        if (jump == -1) jump = row;
 
-        newFile.write(reinterpret_cast<const char*>(hash.begin()), 32);
+        newFile.write(reinterpret_cast<const char*>(hash.begin()), WIDTH);
         m_resortMap.insert(key, row++);
     }
     while (oldRow < maxOldRow) {
-        newFile.write(reinterpret_cast<char*>(m_sorted) + oldRow * 32, 32);
+        const char *rowLocation = reinterpret_cast<char*>(m_sorted) + oldRow * WIDTH;
+        newFile.write(rowLocation, WIDTH);
+
+        int &jump = m_jumptables[(quint8) rowLocation[WIDTH - 1]];
+        if (jump == -1) jump = row;
 
         QMapIterator<int,int> mi(resortMap);
         bool ok = mi.findNext(oldRow++);

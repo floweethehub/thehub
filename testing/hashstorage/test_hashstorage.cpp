@@ -87,7 +87,7 @@ void TestHashStorage::basic()
         QCOMPARE(hash2, hs.at(index2));
         QCOMPARE(hash3, hs.at(index3));
         QCOMPARE(hash4, hs.at(index4));
-        QCOMPARE(hs.find(hash2), index2);
+        QCOMPARE(hs.find(hash3), index3);
 
         // second round.
         hs.finalize();
@@ -95,7 +95,23 @@ void TestHashStorage::basic()
         QCOMPARE(hash2, hs.at(index2));
         QCOMPARE(hash3, hs.at(index3));
         QCOMPARE(hash4, hs.at(index4));
-        QCOMPARE(hs.find(hash2), index2);
+        QCOMPARE(hs.find(hash3), index3);
+    }
+    QFile info(QString::fromStdString((m_testPath / "data-1.info").string()));
+    QVector<int> jumptables;
+    if (info.open(QIODevice::ReadOnly)) {
+        int id;
+        QDataStream in(&info);
+        in >> id;
+        in >> jumptables;
+    }
+    QCOMPARE(jumptables.length(), 256);
+    for (int i = 0; i < 256; ++i) {
+        int expected = -1;
+        if (i == 0) expected = 0;
+        if (i == 0xe) expected = 2;
+        if (i == 0x51) expected = 3;
+        QCOMPARE(jumptables.at(i), expected);
     }
 
     {
@@ -104,7 +120,7 @@ void TestHashStorage::basic()
         QCOMPARE(hash2, hs.at(index2));
         QCOMPARE(hash3, hs.at(index3));
         QCOMPARE(hash4, hs.at(index4));
-        QCOMPARE(hs.find(hash2), index2);
+        QCOMPARE(hs.find(hash1), index1);
     }
 }
 

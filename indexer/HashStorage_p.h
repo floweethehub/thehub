@@ -33,7 +33,7 @@ public:
     ~HashList();
 
     int append(const uint256 &hash);
-    int find(const uint256 &hash);
+    int find(const uint256 &hash) const;
     const uint256 &at(int row) const;
     void finalize();
 
