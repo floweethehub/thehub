@@ -1473,6 +1473,8 @@ void BlockValidationState::updateUtxoAndStartValidation()
             Application::instance()->ioService().post(std::bind(&BlockValidationState::checkSignaturesChunk,
                                                                 shared_from_this()));
         }
+    } catch(const UTXOInternalError &ex) {
+        parent->fatal(ex.what());
     } catch(const Exception &ex) {
         blockFailed(ex.punishment(), ex.what(), ex.rejectCode(), ex.corruptionPossible());
         finishUp();
@@ -1659,6 +1661,8 @@ void BlockValidationState::checkSignaturesChunk()
                 }
             }
         }
+    } catch(const UTXOInternalError &ex) {
+        parent->fatal(ex.what());
     } catch (const Exception &e) {
         DEBUGBV << "Failed validation due to" << e.what();
         blockFailed(e.punishment(), e.what(), e.rejectCode(), e.corruptionPossible());

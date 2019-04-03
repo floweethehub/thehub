@@ -240,7 +240,13 @@ void Api::Server::Connection::incomingMessage(const Message &message)
     auto *directParser = dynamic_cast<Api::DirectParser*>(parser.get());
     assert(directParser);
     if (directParser) {
-        m_bufferPool.reserve(directParser->calculateMessageSize(message));
+        try {
+            m_bufferPool.reserve(directParser->calculateMessageSize(message));
+        } catch (const ParserException &e) {
+            logWarning(Log::ApiServer) << "calculateMessageSize() threw:" << e;
+            sendFailedMessage(message, e.what());
+            return;
+        }
         logInfo(Log::ApiServer) << message.serviceId() << '/' << message.messageId();
         Streaming::MessageBuilder builder(m_bufferPool);
         try {

@@ -1,5 +1,5 @@
 # This file is part of the Flowee project
-# Copyright (C) 2018 Tom Zander <tomz@freedommail.ch>
+# Copyright (C) 2018-2019 Tom Zander <tomz@freedommail.ch>
 #
 # This program is free software: you can redistribute it and/or modify
 # it under the terms of the GNU General Public License as published by
@@ -16,15 +16,53 @@
 
 include_directories(${LIBCRYPTO_INCLUDES})
 
-add_library(flowee_crypto STATIC
+set (FLOWEE_LIBRARY_SOURCES
     aes.cpp
     hmac_sha256.cpp
     hmac_sha512.cpp
     ripemd160.cpp
     sha1.cpp
-    sha256_avx2.cpp
-    sha256_shani.cpp
-    sha256_sse41.cpp
     sha256.cpp
     sha512.cpp
 )
+
+include(CheckCSourceRuns)
+set (CMAKE_REQUIRED_FLAGS "-msse4 -msse4.1")
+check_c_source_runs("#include <stdint.h>
+#include <immintrin.h>
+int main() { __m128i l = _mm_set1_epi32(0); return _mm_extract_epi32(l, 3); }" SSE41)
+if (${SSE41})
+    set(CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS} -msse4 -msse4.1 -DENABLE_SSE41")
+    list(APPEND FLOWEE_LIBRARY_SOURCES sha256_sse41.cpp)
+endif()
+
+
+option(reproducable_build "Turn off special CPU features even if available" OFF)
+if (reproducable_build)
+    message ("* Reproductable builds turned on, not compiling in fast hashing")
+else ()
+    set (CMAKE_REQUIRED_FLAGS "-msse4 -msha")
+    check_c_source_runs("#include <stdint.h>
+    #include <immintrin.h>
+    int main() {
+      __m128i i = _mm_set1_epi32(0);
+      __m128i j = _mm_set1_epi32(1);
+      __m128i k = _mm_set1_epi32(2);
+      return _mm_extract_epi32(_mm_sha256rnds2_epu32(i, i, k), 0);
+    }" SHANI)
+    if (${SHANI})
+        set(CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS} -msse4 -msha -DENABLE_SHANI")
+        list(APPEND FLOWEE_LIBRARY_SOURCES sha256_shani.cpp)
+    endif()
+
+    set (CMAKE_REQUIRED_FLAGS "-mavx -mavx2")
+    check_c_source_runs("#include <stdint.h>
+    #include <immintrin.h>
+        int main() {__m256i l = _mm256_set1_epi32(0); return _mm256_extract_epi32(l, 7);}" AVX2)
+    if (${AVX2})
+        set(CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS} -mavx -mavx2 -DENABLE_AVX2")
+        list(APPEND FLOWEE_LIBRARY_SOURCES sha256_avx2.cpp)
+    endif()
+endif()
+
+add_library(flowee_crypto STATIC ${FLOWEE_LIBRARY_SOURCES})

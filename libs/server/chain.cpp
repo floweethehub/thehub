@@ -22,12 +22,25 @@
 /**
  * CChain implementation
  */
+CChain::CChain()
+    : m_tip(nullptr)
+{
+}
+
+CChain::CChain(const CChain &o)
+    : vChain(o.vChain),
+      m_tip(o.m_tip.load())
+{
+}
+
 void CChain::SetTip(CBlockIndex *pindex) {
-    if (pindex == NULL) {
+    if (pindex == nullptr) {
         vChain.clear();
+        m_tip = nullptr;
         return;
     }
     vChain.resize(pindex->nHeight + 1);
+    m_tip = pindex;
     while (pindex && vChain[pindex->nHeight] != pindex) {
         vChain[pindex->nHeight] = pindex;
         pindex = pindex->pprev;

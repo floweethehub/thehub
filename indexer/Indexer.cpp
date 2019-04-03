@@ -49,7 +49,7 @@ void Indexer::hubConnected(const EndPoint &ep)
 {
 
     int blockHeight = m_txdb.blockheight();
-    logInfo() << "Connection to hub established, highest block we know:" << blockHeight
+    logCritical() << "Connection to hub established, highest block we know:" << blockHeight
         << "requesting next";
     requestBlock(blockHeight + 1);
 }
@@ -66,7 +66,7 @@ void Indexer::requestBlock(int height)
 
 void Indexer::hubDisconnected()
 {
-    logInfo() << "Hub disconnected";
+    logCritical() << "Hub disconnected";
 }
 
 void Indexer::hubSentMessage(const Message &message)
@@ -75,8 +75,22 @@ void Indexer::hubSentMessage(const Message &message)
         if (message.messageId() == Api::BlockChain::GetBlockReply) {
             int newHeight = processNewBlock(message);
             requestBlock(newHeight + 1);
-            if (newHeight % 1000 == 0)
+            if (newHeight % 500 == 0)
                 logDebug() << "Finished block" << newHeight;
+        }
+    }
+    else if (message.serviceId() == Api::FailuresService && message.messageId() == Api::Failures::CommandFailed) {
+        Streaming::MessageParser parser(message.body());
+        int serviceId = -1;
+        int messageId = -1;
+        while (parser.next() == Streaming::FoundTag) {
+            if (parser.tag() == Api::Failures::FailedCommandServiceId)
+                serviceId = parser.intData();
+            else if (parser.tag() == Api::Failures::FailedCommandId)
+                messageId = parser.intData();
+        }
+        if (serviceId == Api::BlockChainService && messageId == Api::BlockChain::GetBlock) {
+            logCritical() << "Failed to get block, assuming we are at 'top' of chain";
         }
     }
     else {
