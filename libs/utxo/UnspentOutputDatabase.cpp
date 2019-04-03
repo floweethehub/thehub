@@ -297,7 +297,6 @@ void UnspentOutputDatabase::blockFinished(int blockheight, const uint256 &blockI
             int db = d->dataFiles.size() - 2; // we skip the last DB file
             int jump = 1; // we don't do all DBs every time, this creates a nice sequence.
             do {
-                if (db <= 0) break;
                 auto dbFilename = d->dataFiles.at(db)->m_path;
                 Pruner pruner(dbFilename.string() + ".db", infoFilenames.at(static_cast<size_t>(db)),
                               jump == 1 ? Pruner::MostActiveDB : Pruner::OlderDB);
