@@ -26,20 +26,21 @@ set (FLOWEE_LIBRARY_SOURCES
     sha512.cpp
 )
 
+include(CheckCSourceRuns)
+set (CMAKE_REQUIRED_FLAGS "-msse4 -msse4.1")
+check_c_source_runs("#include <stdint.h>
+#include <immintrin.h>
+int main() { __m128i l = _mm_set1_epi32(0); return _mm_extract_epi32(l, 3); }" SSE41)
+if (${SSE41})
+    set(CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS} -msse4 -msse4.1 -DENABLE_SSE41")
+    list(APPEND FLOWEE_LIBRARY_SOURCES sha256_sse41.cpp)
+endif()
+
+
 option(reproducable_build "Turn off special CPU features even if available" OFF)
 if (reproducable_build)
     message ("* Reproductable builds turned on, not compiling in fast hashing")
 else ()
-    include(CheckCSourceRuns)
-    set (CMAKE_REQUIRED_FLAGS "-msse4 -msse4.1")
-    check_c_source_runs("#include <stdint.h>
-    #include <immintrin.h>
-    int main() { __m128i l = _mm_set1_epi32(0); return _mm_extract_epi32(l, 3); }" SSE41)
-    if (${SSE41})
-        set(CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS} -msse4 -msse4.1 -DENABLE_SSE41")
-        list(APPEND FLOWEE_LIBRARY_SOURCES sha256_sse41.cpp)
-    endif()
-
     set (CMAKE_REQUIRED_FLAGS "-msse4 -msha")
     check_c_source_runs("#include <stdint.h>
     #include <immintrin.h>
