@@ -446,7 +446,7 @@ bool CTxMemPool::insertTx(const CTxMemPoolEntry &entry)
         auto oldTx = mapNextTx.find(txin.prevout);
         if (oldTx != mapNextTx.end()) { // double spend detected!
             ValidationNotifier().DoubleSpendFound(oldTx->second.tx, entry.tx);
-            throw Validation::Exception("txn-mempool-conflict", Validation::RejectConflict);
+            throw Validation::Exception("txn-mempool-conflict", Validation::RejectConflict, 0);
         }
 
         auto iter = mapTx.find(txin.prevout.hash);
