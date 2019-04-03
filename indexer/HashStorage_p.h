@@ -48,6 +48,7 @@ public:
 
     // a id to row mapping to be (re)created at sort
     QMap<int, int> m_resortMap;
+    QMap<int, int> m_resortMapReversed;
     int m_nextId = 0;
     mutable QMutex m_mutex;
     QString m_filebase;

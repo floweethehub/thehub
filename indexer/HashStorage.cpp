@@ -25,6 +25,27 @@
 
 #define WIDTH 32
 
+namespace {
+struct SortCacheHelper {
+    QMap<int, uint256> cacheMap;
+    bool operator() (int i, int j) {
+        return cacheMap.value(i).Compare(cacheMap.value(j)) <= 0;
+    }
+};
+
+QMap<int, int> createResortReversed(const QMap<int, int> &map)
+{
+    QMap<int, int> answer;
+    QMapIterator<int, int> iter(map);
+    while (iter.hasNext()) {
+        iter.next();
+        Q_ASSERT(!answer.contains(iter.value()));
+        answer.insert(iter.value(), iter.key());
+    }
+    return answer;
+}
+}
+
 uint256 HashStoragePrivate::s_null = uint256();
 
 HashStorage::HashStorage(const boost::filesystem::path &basedir)
@@ -101,6 +122,7 @@ HashList::HashList(const boost::filesystem::path &dbBase)
         in >> m_jumptables;
         in >> m_resortMap;
     }
+    m_resortMapReversed = createResortReversed(m_resortMap);
 
     while(true) {
         uint256 item;
@@ -137,7 +159,7 @@ int HashList::find(const uint256 &hash) const
     QMutexLocker lock(&m_mutex);
     QMapIterator<int, uint256> iter(m_cacheMap);
     if (iter.findNext(hash)) {
-        return iter.key();
+        return m_resortMapReversed.value(iter.key());
     }
 
     const quint8 byte = hash.begin()[WIDTH - 1];
@@ -162,8 +184,7 @@ int HashList::find(const uint256 &hash) const
         else if (comp > 0)
             endpos = m - 1;
         else
-            // TODO somehow run through the resort map
-            return m;
+            return m_resortMapReversed.value(m);
     }
 
     return -1;
@@ -182,16 +203,6 @@ const uint256 &HashList::at(int row) const
     }
     uint256 *dummy = (uint256*)(m_sorted + row * WIDTH);
     return *dummy;
-}
-
-namespace {
-struct SortCacheHelper {
-    QMap<int, uint256> cacheMap;
-    bool operator() (int i, int j) {
-        return cacheMap.value(i).Compare(cacheMap.value(j)) <= 0;
-    }
-};
-
 }
 
 void HashList::finalize()
@@ -276,6 +287,7 @@ void HashList::finalize()
         out << m_jumptables;
         out << m_resortMap;
     }
+    m_resortMapReversed = createResortReversed(m_resortMap);
 }
 
 

@@ -32,7 +32,7 @@ struct HashIndexPoint
 
 inline bool operator==(const HashIndexPoint &a, const HashIndexPoint &b)
 {
-    return a.db == b.db;
+    return a.db == b.db && a.row == b.row;
 }
 
 class HashStoragePrivate;

@@ -122,6 +122,7 @@ void TestHashStorage::basic()
         QCOMPARE(hash4, hs.at(index4));
         QCOMPARE(hs.find(hash1), index1);
     }
+
 }
 
 QTEST_MAIN(TestHashStorage)
