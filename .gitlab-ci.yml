@@ -62,6 +62,12 @@ test_networkmanager:
   dependencies:
   - build-debian-stable
 
+test_hashstorage:
+  stage: test
+  script: build/testing/hashstorage/test_hashstorage
+  dependencies:
+  - build-debian-stable
+
 #####  Static build (Linux)
 
 build-static:
