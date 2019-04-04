@@ -45,6 +45,17 @@ int reconnectTimeoutForStep(short step) {
     return 44;
 }
 
+Message buildPingMessage(bool outgoingConnection) {
+    Streaming::MessageBuilder builder(Streaming::HeaderOnly, 10);
+    builder.add(Network::ServiceId, Network::SystemServiceId);
+    if (outgoingConnection) // outgoing connections ping
+        builder.add(Network::Ping, true);
+    else
+        builder.add(Network::Pong, true);
+    builder.add(Network::HeaderEnd, true);
+    return builder.message();
+}
+
 }
 
 
@@ -239,6 +250,8 @@ NetworkManagerConnection::NetworkManagerConnection(const std::shared_ptr<Network
     m_remote.announcePort = m_socket.remote_endpoint().port();
     m_remote.peerPort = 0;
     m_remote.connectionId = connectionId;
+
+    m_pingMessage = buildPingMessage(m_remote.peerPort == m_remote.announcePort);
 }
 
 NetworkManagerConnection::NetworkManagerConnection(const std::shared_ptr<NetworkManagerPrivate> &parent, const EndPoint &remote)
@@ -266,6 +279,7 @@ NetworkManagerConnection::NetworkManagerConnection(const std::shared_ptr<Network
 {
     if (m_remote.peerPort == 0)
         m_remote.peerPort = m_remote.announcePort;
+    m_pingMessage = buildPingMessage(m_remote.peerPort == m_remote.announcePort);
 }
 
 void NetworkManagerConnection::connect()
@@ -342,15 +356,6 @@ void NetworkManagerConnection::onConnectComplete(const boost::system::error_code
             logWarning(Log::NWM) << "onConnected threw exception, ignoring:" << ex.what();
         }
     }
-
-    Streaming::MessageBuilder builder(Streaming::HeaderOnly, 10);
-    builder.add(Network::ServiceId, Network::SystemServiceId);
-    if (m_remote.peerPort == m_remote.announcePort) // outgoing connections ping
-        builder.add(Network::Ping, true);
-    else
-        builder.add(Network::Pong, true);
-    builder.add(Network::HeaderEnd, true);
-    m_pingMessage = builder.message();
 
     runMessageQueue();
     requestMoreBytes(); // setup a callback for receiving.

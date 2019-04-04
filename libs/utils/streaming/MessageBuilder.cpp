@@ -235,8 +235,10 @@ Message Streaming::MessageBuilder::message(int serviceId, int messageId)
         setMessageSize(m_buffer->size());
         m_beforeHeader = true;
         Message answer(m_buffer->internal_buffer(), m_buffer->begin(), m_buffer->begin() + m_headerSize, m_buffer->end());
-        answer.setMessageId(messageId);
-        answer.setServiceId(serviceId);
+        if (serviceId != -1)
+            answer.setServiceId(serviceId);
+        if (messageId != -1)
+            answer.setMessageId(messageId);
         m_buffer->commit();
         return answer;
     }
