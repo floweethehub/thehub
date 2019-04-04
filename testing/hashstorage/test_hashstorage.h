@@ -33,6 +33,8 @@ private slots:
 
     void basic();
 
+    void multipleDbs();
+
 private:
     boost::filesystem::path m_testPath;
 };

@@ -29,7 +29,7 @@
 
 class HashList {
 public:
-    HashList(const boost::filesystem::path &dbBase);
+    HashList(const QString &dbBase);
     ~HashList();
 
     int append(const uint256 &hash);
@@ -61,7 +61,7 @@ public:
     ~HashStoragePrivate();
 
     QList<HashList*> dbs;
-    const boost::filesystem::path basedir;
+    const QString basedir;
 
     static uint256 s_null;
 };

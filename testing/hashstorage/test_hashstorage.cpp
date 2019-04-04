@@ -18,8 +18,14 @@
 #include "test_hashstorage.h"
 
 #include "../../indexer/HashStorage.h"
+#include "../../indexer/HashStorage_p.h"
 
 #include <utiltime.h>
+
+class OpenHashStorage {
+public:
+    HashStoragePrivate *d;
+};
 
 void TestHashStorage::init()
 {
@@ -122,7 +128,14 @@ void TestHashStorage::basic()
         QCOMPARE(hash4, hs.at(index4));
         QCOMPARE(hs.find(hash1), index1);
     }
+}
 
+void TestHashStorage::multipleDbs()
+{
+    HashStorage hs(m_testPath);
+    HashStoragePrivate *d = reinterpret_cast<OpenHashStorage*>(&hs)->d;
+    Q_ASSERT(d);
+    QCOMPARE(d->dbs.length(), 1);
 }
 
 QTEST_MAIN(TestHashStorage)

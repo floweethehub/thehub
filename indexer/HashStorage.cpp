@@ -19,6 +19,7 @@
 #include <QString>
 #include <Logger.h>
 #include <QDataStream>
+#include <qfileinfo.h>
 
 #include "HashStorage.h"
 #include "HashStorage_p.h"
@@ -62,9 +63,20 @@ HashIndexPoint HashStorage::append(const uint256 &hash)
 {
     QList<HashList*> dbs(d->dbs);
     Q_ASSERT(!dbs.isEmpty());
-    int index = dbs.last()->append(hash);
+    auto db = dbs.last();
+    int index = db->append(hash);
     Q_ASSERT(index >= 0);
-    // TODO check if db is full etc.
+    if (db->m_cacheMap.size() > 400000) {
+        db->finalize();
+        if (db->m_sortedFile->size() > 1300000000) { // > 1.3GB
+            QString newFilename = d->basedir + QString("/data-%1").arg(dbs.length() + 1);
+            HashList *hl = new HashList(newFilename);
+
+            // technically not reentrant! Just ok-ish
+            if (dbs == d->dbs)
+                d->dbs.append(hl);
+        }
+    }
     return HashIndexPoint(dbs.size() - 1, index);
 }
 
@@ -102,9 +114,9 @@ void HashStorage::finalize()
 
 // -----------------------------------------------------------------
 
-HashList::HashList(const boost::filesystem::path &dbBase)
+HashList::HashList(const QString &dbBase)
+    : m_filebase(dbBase)
 {
-    m_filebase = QString::fromStdWString(dbBase.wstring());
     m_log = new QFile(m_filebase + ".log");
     if (!m_log->open(QIODevice::ReadWrite))
         throw std::runtime_error("HashList: failed to open log file");
@@ -293,10 +305,21 @@ void HashList::finalize()
 
 // -----------------------------------------------------------------
 
-HashStoragePrivate::HashStoragePrivate(const boost::filesystem::path &basedir)
-    : basedir(basedir)
+HashStoragePrivate::HashStoragePrivate(const boost::filesystem::path &basedir_)
+    : basedir(QString::fromStdWString(basedir_.wstring()))
 {
-    dbs.append(new HashList(basedir / "data-1"));
+    int index = 1;
+    const QString fileBase = QString("%1/data-%2").arg(basedir);
+    while (true) {
+        QString dbFilename = fileBase.arg(index);
+        QFileInfo info(dbFilename + ".log");
+        if (!info.exists())
+            break;
+        dbs.append(new HashList(dbFilename));
+        ++index;
+    }
+    if (dbs.isEmpty())
+        dbs.append(new HashList(basedir + "/data-1"));
 }
 
 HashStoragePrivate::~HashStoragePrivate()
