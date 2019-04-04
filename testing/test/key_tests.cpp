@@ -192,26 +192,4 @@ BOOST_AUTO_TEST_CASE(key_test1)
     BOOST_CHECK(detsigc == ParseHex("2052d8a32079c11e79db95af63bb9600c5b04f21a9ca33dc129c2bfa8ac9dc1cd561d8ae5e0f6c1a16bde3719c64c2fd70e404b6428ab9a69566962e8771b5944d"));
 }
 
-BOOST_AUTO_TEST_CASE(key_test2)
-{
-    BOOST_CHECK(Application::uahfChainState() != Application::UAHFDisabled);
-
-    CBitcoinAddress legacy("1P5WXpDysYaGCPq8B3zdAxWVyKaAk6oET7");
-    BOOST_CHECK(legacy.IsValid());
-
-    CBitcoinAddress cash("CeYQ6ra3kbYo6XjYroKYkU8XbSnacHyPYg");
-    BOOST_CHECK(!cash.IsValid());
-    BOOST_CHECK(cash.IsValid(CBitcoinAddress::BCHVersions));
-
-    CKeyID key;
-    bool ok = cash.GetKeyID(key);
-    BOOST_CHECK(!ok);
-    ok = cash.GetKeyID(key, CBitcoinAddress::BCHVersions);
-    BOOST_CHECK(ok);
-
-    CBitcoinAddress convertedFromCash(key);
-    BOOST_CHECK(convertedFromCash.IsValid());
-    BOOST_CHECK_EQUAL(convertedFromCash.ToString(), legacy.ToString());
-}
-
 BOOST_AUTO_TEST_SUITE_END()

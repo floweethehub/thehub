@@ -110,10 +110,5 @@ QValidator::State BitcoinAddressCheckValidator::validate(QString &input, int &po
     if (addr.IsValid())
         return QValidator::Acceptable;
 
-    if (Application::uahfChainState() != Application::UAHFDisabled) {
-        if (addr.IsValid(CBitcoinAddress::BCHVersions))
-            return QValidator::Acceptable;
-    }
-
     return QValidator::Invalid;
 }
