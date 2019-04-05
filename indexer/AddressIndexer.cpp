@@ -16,6 +16,7 @@
  * along with this program.  If not, see <http://www.gnu.org/licenses/>.
  */
 #include "AddressIndexer.h"
+#include <uint256.h>
 
 #include <qsqlerror.h>
 #include <qvariant.h>
@@ -25,7 +26,6 @@
 AddressIndexer::AddressIndexer(const boost::filesystem::path &basedir)
     : m_addresses(basedir),
     m_db( QSqlDatabase::addDatabase("QSQLITE")),
-    m_insertQuery(m_db),
     m_lastBlockHeightQuery(m_db)
 {
     if (!m_db.isValid()) {
@@ -76,20 +76,37 @@ void AddressIndexer::insert(const Streaming::ConstBuffer &addressId, int outputI
     assert(addressId.size() == 20);
 
     const uint160 *address = reinterpret_cast<const uint160*>(addressId.begin());
-    auto result = m_addresses.find(*address);
+    auto result = m_addresses.lookup(*address);
     if (result.db == -1)
         result = m_addresses.append(*address);
     assert(result.db >= 0);
     assert(result.row >= 0);
+    while (result.db >= m_insertQuery.size()) {
+        const QString table = QString("AddressUsage%1").arg(qlonglong(m_insertQuery.size()), 2, 10, QChar('_'));
+        QSqlQuery query(m_db);
+        if (!query.exec(QString("select count(*) from ") + table)) {
+            static QString q("create table %1 ("
+                      "address_row INTEGER, "
+                      "block_height INTEGER, offset_in_block INTEGER, out_index INTEGER)");
+            if (!query.exec(q.arg(table))) {
+                logFatal() << "Failed to create table" << query.lastError().text();
+                throw std::runtime_error("Failed to create table");
+            }
+        }
+        m_insertQuery.append(QSqlQuery(m_db));
+        m_insertQuery.last().prepare(QString("insert into ") + table
+              + " (address_row, block_height, offset_in_block, out_index) VALUES ("
+                              ":row, :bh, :oib, :idx)");
+    }
 
-    m_insertQuery.bindValue(":db", result.db);
-    m_insertQuery.bindValue(":row", result.row);
-    m_insertQuery.bindValue(":bh", blockHeight);
-    m_insertQuery.bindValue(":oib", offsetInBlock);
-    m_insertQuery.bindValue(":idx", outputIndex);
-    if (!m_insertQuery.exec()) {
-        logFatal() << "Failed to insert addressusage" << m_insertQuery.lastError().text();
-        logDebug() << m_insertQuery.lastQuery();
+    QSqlQuery &q = m_insertQuery[result.db];
+    q.bindValue(":row", result.row);
+    q.bindValue(":bh", blockHeight);
+    q.bindValue(":oib", offsetInBlock);
+    q.bindValue(":idx", outputIndex);
+    if (!q.exec()) {
+        logFatal() << "Failed to insert addressusage" << q.lastError().text();
+        logDebug() << q.lastQuery();
         throw std::runtime_error("Failed to insert");
     }
 }
@@ -97,19 +114,20 @@ void AddressIndexer::insert(const Streaming::ConstBuffer &addressId, int outputI
 std::vector<AddressIndexer::TxData> AddressIndexer::find(const uint160 &address) const
 {
     std::vector<TxData> answer;
-    auto result = m_addresses.find(address);
+    auto result = m_addresses.lookup(address);
     if (result.db == -1)
         return answer;
 
     QSqlQuery query(m_db);
-    query.prepare("select offset_in_block, block_height, out_index "
-                  "FROM AddressUsage WHERE "
-                  "address_db=:db AND address_row=:row");
-    query.bindValue(":db", result.db);
+    const QString select = QString("select offset_in_block, block_height, out_index "
+                                  "FROM AddressUsage%1 "
+                                  "WHERE address_row=:row").arg(result.db, 2, 10, QChar('_'));
+    query.prepare(select);
     query.bindValue(":row", result.row);
     if (!query.exec()) {
         logFatal() << "Failed to select" << query.lastError().text();
-        throw std::runtime_error("Failed to create table");
+        logDebug() << "Failed with" << select;
+        throw std::runtime_error("Failed to select");
     }
     const int size = query.size();
     if (size > 0)
@@ -127,7 +145,7 @@ std::vector<AddressIndexer::TxData> AddressIndexer::find(const uint160 &address)
 void AddressIndexer::createTables()
 {
     /* Tables
-     * AddressUsage
+     * AddressUsage_N
      *  address_db      INTEGER   (the db that the hashStorage provided us with)
      *  address_row     INTEGER   (the row that the hashStorage provided us with)
      *  block_height    INTEGER    \
@@ -139,15 +157,6 @@ void AddressIndexer::createTables()
      */
 
     QSqlQuery query(m_db);
-    if (!query.exec("select count(*) from AddressUsage")) {
-        QString q("create table AddressUsage ("
-                  "address_db INTEGER, address_row INTEGER, "
-                  "block_height INTEGER, offset_in_block INTEGER, out_index INTEGER)");
-        if (!query.exec(q)) {
-            logFatal() << "Failed to create table" << query.lastError().text();
-            throw std::runtime_error("Failed to create table");
-        }
-    }
     if (!query.exec("select count(*) from LastKnownState")) {
         QString q("create table LastKnownState ("
                   "blockHeight INTEGER)");
@@ -160,9 +169,6 @@ void AddressIndexer::createTables()
             throw std::runtime_error("Failed to insert row");
         }
     }
-    m_insertQuery.prepare("insert into AddressUsage (address_db, address_row, "
-       "block_height, offset_in_block, out_index) VALUES ("
-                          ":db, :row, :bh, :oib, :idx)");
 
     m_lastBlockHeightQuery.prepare("update LastKnownState set blockHeight=:bh");
 }

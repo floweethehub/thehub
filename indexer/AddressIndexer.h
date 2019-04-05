@@ -18,6 +18,7 @@
 #ifndef ADDRESSINDEXER_H
 #define ADDRESSINDEXER_H
 
+#include <QList>
 #include <qsqldatabase.h>
 #include <qsqlquery.h>
 #include <streaming/ConstBuffer.h>
@@ -48,7 +49,7 @@ private:
     HashStorage m_addresses;
 
     QSqlDatabase m_db;
-    QSqlQuery m_insertQuery;
+    QList<QSqlQuery> m_insertQuery;
     QSqlQuery m_lastBlockHeightQuery;
 
     int m_lastKnownHeight = -1;

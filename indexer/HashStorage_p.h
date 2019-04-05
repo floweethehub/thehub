@@ -27,6 +27,14 @@
 #include <qmap.h>
 #include <qmutex.h>
 
+inline uint32_t qHash(const uint160 &key, uint32_t seed) {
+    return *reinterpret_cast<const uint32_t*>(key.begin() + (seed % 5));
+}
+
+inline bool sortHashPointers(const uint160 *a, const uint160 *b) {
+    return a->Compare(*b) <= 0;
+}
+
 class HashList {
 public:
     HashList(const QString &dbBase);
@@ -45,7 +53,7 @@ public:
 
     // the unsorted part
     QFile *m_log = nullptr;
-    QMap<int, uint160> m_cacheMap;
+    QHash<uint160, int> m_cacheMap;
 
     // a id to row mapping to be (re)created at sort
     QMap<int, int> m_resortMap;

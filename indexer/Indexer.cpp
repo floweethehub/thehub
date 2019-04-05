@@ -30,20 +30,6 @@ Indexer::Indexer(const boost::filesystem::path &basedir)
     m_network(m_workers.ioService())
 {
     // TODO add some auto-save of the databases.
-
-    uint256 txid = uint256S("0e3e2357e806b6cdb1f70b54c3a3a17b6714ee1f0e68bebb44a74b1efd512098");
-    auto item = m_txdb.find(txid);
-    logFatal() << "Found txid at height" << item.blockHeight << "pos:" << item.offsetInBlock;
-
-    QByteArray data = QByteArray::fromHex("BB7F084E57F4F250CAB45F73C62841F83BF1D5F6");
-    const uint160 *address = reinterpret_cast<uint160*>(data.data());
-    // auto item = m_txdb.find(txid);
-    std::vector<AddressIndexer::TxData> x = m_addressdb.find(*address);
-    for (auto i : x) {
-        logFatal() << "Address" << data.toHex().toStdString() << "found in tx in block" << i.blockHeight
-                   << "offsetinblock" << i.offsetInBlock
-                   << "output" << i.outputIndex;
-    }
 }
 
 Indexer::~Indexer()
@@ -126,18 +112,24 @@ int Indexer::processNewBlock(const Message &message)
     uint256 txid;
     Streaming::MessageParser parser(message.body());
     int blockHeight = -1;
+
+    bool updateTxDb = false;
+    bool updateAddressDb = false;
     while (parser.next() == Streaming::FoundTag) {
         if (parser.tag() == Api::BlockChain::BlockHeight) {
             if (blockHeight != -1) Streaming::MessageParser::debugMessage(message);
             assert(blockHeight == -1);
             blockHeight = parser.intData();
+            updateTxDb = blockHeight == m_txdb.blockheight() + 1;
+            updateAddressDb = blockHeight == m_addressdb.blockheight() + 1;
         } else if (parser.tag() == Api::BlockChain::BlockHash) {
             blockId = parser.uint256Data();
         } else if (parser.tag() == Api::BlockChain::Separator) {
-            if (txOffsetInBlock > 0 && !txid.IsNull()) {
+            if (updateTxDb && txOffsetInBlock > 0 && !txid.IsNull()) {
                 assert(blockHeight > 0);
                 assert(blockHeight > m_txdb.blockheight());
                 m_txdb.insert(txid, blockHeight, txOffsetInBlock);
+
             }
             txOffsetInBlock = 0;
             outputIndex = -1;
@@ -147,7 +139,7 @@ int Indexer::processNewBlock(const Message &message)
             txid = parser.uint256Data();
         } else if (parser.tag() == Api::BlockChain::Tx_Out_Index) {
             outputIndex = parser.intData();
-        } else if (parser.tag() == Api::BlockChain::Tx_Out_Address) {
+        } else if (updateAddressDb && parser.tag() == Api::BlockChain::Tx_Out_Address) {
             assert(parser.dataLength() == 20);
             assert(outputIndex >= 0);
             assert(blockHeight > 0);
@@ -157,7 +149,9 @@ int Indexer::processNewBlock(const Message &message)
     }
     assert(blockHeight > 0);
     assert(!blockId.IsNull());
-    m_txdb.blockFinished(blockHeight, blockId);
-    m_addressdb.blockFinished(blockHeight, blockId);
+    if (updateTxDb)
+        m_txdb.blockFinished(blockHeight, blockId);
+    if (updateAddressDb)
+        m_addressdb.blockFinished(blockHeight, blockId);
     return blockHeight;
 }

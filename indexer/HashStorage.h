@@ -37,15 +37,24 @@ inline bool operator==(const HashIndexPoint &a, const HashIndexPoint &b)
 
 class HashStoragePrivate;
 
+/// A fast lookup storage of hashes.
 class HashStorage
 {
 public:
     HashStorage(const boost::filesystem::path &basedir);
     ~HashStorage();
 
+    /// return the amount of databases
+    /// @see HashIndexPoint::db
+    int databaseCount() const;
+
+    /// Append the hash and return its unique point.
+    /// Please note behaviour is not defined if the same hash is appended twice.
     HashIndexPoint append(const uint160 &hash);
-    const uint160 &at(HashIndexPoint point) const;
-    HashIndexPoint find(const uint160 &hash) const;
+    /// Find in the collection the hash by point. This is an expensive operation!
+    const uint160 &find(HashIndexPoint point) const;
+    /// return the point given to the hash.
+    HashIndexPoint lookup(const uint160 &hash) const;
 
     /// Flush all caches and make lookup on-disk only
     void finalize();
