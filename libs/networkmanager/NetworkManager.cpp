@@ -535,6 +535,8 @@ void NetworkManagerConnection::sentSomeBytes(const boost::system::error_code& er
         return;
     }
     assert(m_strand.running_in_this_thread());
+    if (!m_socket.is_open())
+        return;
     logDebug(Log::NWM) << "Managed to send" << bytes_transferred << "bytes";
     m_reconnectStep = 0;
 
@@ -606,7 +608,6 @@ void NetworkManagerConnection::receivedSomeBytes(const boost::system::error_code
             }
         }
         close();
-        m_firstPacket = true;
         return;
     }
     assert(m_strand.running_in_this_thread());
@@ -622,7 +623,7 @@ void NetworkManagerConnection::receivedSomeBytes(const boost::system::error_code
             m_firstPacket = false;
             if (data.begin()[2] != 8) { // Positive integer (0) and Network::ServiceId (1 << 3)
                 logWarning(Log::NWM) << "receive; Data error from server - this is NOT an NWM server. Disconnecting";
-                close();
+                disconnect();
                 return;
             }
         }
@@ -740,7 +741,7 @@ bool NetworkManagerConnection::processPacket(const std::shared_ptr<char> &buffer
         default:
             if (parser.isInt() && parser.tag() < 0xFFFFFF) {
                 if (parser.tag() <= 10) { // illegal header tag for users.
-                    logInfo(Log::NWM) << "  header uses illegal tag. Malformed: disconnecting";
+                    logInfo(Log::NWM) << "  header uses illegal tag. Malformed: re-connecting";
                     close();
                     return false;
                 }
@@ -752,7 +753,7 @@ bool NetworkManagerConnection::processPacket(const std::shared_ptr<char> &buffer
         type = parser.next();
     }
     if (inHeader) {
-        logDebug(Log::NWM) << "  header malformed, disconnecting";
+        logDebug(Log::NWM) << "  header malformed, re-connecting";
         close();
         return false;
     }
@@ -767,7 +768,7 @@ bool NetworkManagerConnection::processPacket(const std::shared_ptr<char> &buffer
         if (isPing) {
             if (m_remote.peerPort == m_remote.announcePort) {
                 // we should never get pings from a remote when we initiated the connection.
-                close();
+                disconnect();
                 return false;
             }
             m_pingTimer.cancel();
@@ -931,8 +932,6 @@ void NetworkManagerConnection::close(bool reconnect)
     m_messageBytesSend = 0;
     m_messageBytesSent = 0;
 
-    m_priorityMessageQueue.clear();
-    m_messageQueue.clear();
     m_sendQHeaders.clear();
 
     m_socket.close();
@@ -946,6 +945,7 @@ void NetworkManagerConnection::close(bool reconnect)
             connect_priv();
         }
     }
+    m_firstPacket = true;
 }
 
 void NetworkManagerConnection::sendPing(const boost::system::error_code& error)
@@ -976,7 +976,7 @@ void NetworkManagerConnection::pingTimeout(const boost::system::error_code &erro
 {
     if (!error) {
         logWarning(Log::NWM) << "Didn't receive a ping from peer for too long, disconnecting dead connection";
-        close(false);
+        disconnect();
     }
 }
 

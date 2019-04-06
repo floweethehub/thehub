@@ -189,6 +189,8 @@ public:
 
     inline void disconnect() {
         close(false);
+        m_priorityMessageQueue.clear();
+        m_messageQueue.clear();
     }
 
     BoostCompatStrand m_strand;
