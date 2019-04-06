@@ -1,6 +1,6 @@
 /*
  * This file is part of the Flowee project
- * Copyright (C) 2016 Tom Zander <tomz@freedommail.ch>
+ * Copyright (C) 2016, 2019 Tom Zander <tomz@freedommail.ch>
  *
  * This program is free software: you can redistribute it and/or modify
  * it under the terms of the GNU General Public License as published by
@@ -19,6 +19,8 @@
 #include "NetworkManager.h"
 #include "NetworkManager_p.h"
 #include "Message.h"
+
+#include <util.h>
 
 
 NetworkConnection::NetworkConnection()
@@ -64,6 +66,11 @@ NetworkConnection& NetworkConnection::operator=(NetworkConnection && other)
     return *this;
 }
 
+void NetworkConnection::dummy() const
+{
+    // intentionally empty
+}
+
 void NetworkConnection::clear()
 {
     auto d = m_parent.lock();
@@ -81,7 +88,16 @@ void NetworkConnection::clear()
 
 NetworkConnection::~NetworkConnection()
 {
-    clear();
+    auto d = m_parent.lock();
+    if (d) {
+        assert(!d->m_strand.running_in_this_thread()); // unpredictable behavior, and you should really not do that...
+        clear(); // makes sure no more callbacks are made to me.
+
+        // but some may already have been scheduled on a different thread.
+        // so schedule and wait for a new event to happen we place at the end of the queue
+        WaitUntilFinishedHelper helper(std::bind(&NetworkConnection::dummy, this), &d->m_strand);
+        helper.run();
+    }
 }
 
 bool NetworkConnection::isValid() const

@@ -160,6 +160,7 @@ public:
 private:
     NetworkConnection(const NetworkConnection&);
     NetworkConnection& operator=(NetworkConnection&);
+    void dummy() const;
 
     std::weak_ptr<NetworkManagerConnection> m_parent;
     int m_id;

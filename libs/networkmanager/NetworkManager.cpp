@@ -520,6 +520,8 @@ void NetworkManagerConnection::sentSomeBytes(const boost::system::error_code& er
 {
     if (error.value() == boost::asio::error::connection_aborted) // assume instance already deleted
         return;
+    if (m_isClosingDown)
+        return;
 
     m_sendingInProgress = false;
     if (error) {
