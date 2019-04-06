@@ -18,30 +18,55 @@
 #include "AddressIndexer.h"
 #include <uint256.h>
 
+#include <qsettings.h>
 #include <qsqlerror.h>
 #include <qvariant.h>
 
 #include <boost/filesystem.hpp>
+namespace {
+QString valueFromSettings(const QSettings &settings, const QString &key) {
+    QVariant x = settings.value(QString("addressdb/") + key);
+    if (x.isNull())
+        x = settings.value(key);
+    return x.toString();
+}
+}
 
 AddressIndexer::AddressIndexer(const boost::filesystem::path &basedir)
     : m_addresses(basedir),
-    m_db( QSqlDatabase::addDatabase("QSQLITE")),
-    m_lastBlockHeightQuery(m_db)
+      m_basedir(QString::fromStdWString(basedir.wstring()))
 {
+}
+
+void AddressIndexer::loadSetting(const QSettings &settings)
+{
+    auto db = valueFromSettings(settings, "db_driver");
+    m_db = QSqlDatabase::addDatabase(db);
     if (!m_db.isValid()) {
-        logFatal() << "Failed to open a SQLITE databse, missing Qt plugin?";
-        logCritical() << m_db.lastError().text();
+        if (QSqlDatabase::drivers().contains(db)) {
+            logFatal().nospace() << "Failed to open a databse (" << db << "), missing libs?";
+        } else {
+            logFatal() << "The configured database is not known. Please select from this list:";
+            logFatal() << QSqlDatabase::drivers().toStdList();
+        }
+        logCritical() << "Error reported:" << m_db.lastError().text();
         throw std::runtime_error("Failed to read database");
     }
 
-    boost::filesystem::create_directories(basedir);
-    QString dbFile = QString::fromStdWString(basedir.wstring()) + "/addresses.db";
-    m_db.setDatabaseName(dbFile);
+    if (db == "QPSQL") {
+        m_db.setDatabaseName(valueFromSettings(settings, "db_database"));
+        m_db.setUserName(valueFromSettings(settings, "db_username"));
+        m_db.setPassword(valueFromSettings(settings, "db_password"));
+        m_db.setHostName(valueFromSettings(settings, "db_hostname"));
+    } else if (db == "QSQLITE") {
+        m_db.setDatabaseName(m_basedir + "/addresses.db");
+    }
+
     if (m_db.isValid() && m_db.open()) {
         createTables();
     } else {
         logFatal() << "Failed opening the database-connection" << m_db.lastError().text();
-        throw std::runtime_error("Failed top en database connection");
+        throw std::runtime_error("Failed to open database connection");
     }
 }
 
@@ -64,7 +89,8 @@ void AddressIndexer::blockFinished(int blockheight, const uint256 &)
 {
     m_lastBlockHeightQuery.bindValue(":bh", blockheight);
     if (!m_lastBlockHeightQuery.exec()) {
-        logFatal() << "Failed to insert addressusage" << m_lastBlockHeightQuery.lastError().text();
+        logFatal() << "Failed to update blockheight" << m_lastBlockHeightQuery.lastError().text();
+        logDebug() << " q" << m_lastBlockHeightQuery.lastQuery();
         throw std::runtime_error("Failed to update");
     }
     m_lastKnownHeight = blockheight;
@@ -105,8 +131,7 @@ void AddressIndexer::insert(const Streaming::ConstBuffer &addressId, int outputI
     q.bindValue(":oib", offsetInBlock);
     q.bindValue(":idx", outputIndex);
     if (!q.exec()) {
-        logFatal() << "Failed to insert addressusage" << q.lastError().text();
-        logDebug() << q.lastQuery();
+        logFatal() << "Failed to insert AddressUsage_" << result.db << q.lastError().text();
         throw std::runtime_error("Failed to insert");
     }
 }
@@ -170,5 +195,6 @@ void AddressIndexer::createTables()
         }
     }
 
+    m_lastBlockHeightQuery = QSqlQuery(m_db);
     m_lastBlockHeightQuery.prepare("update LastKnownState set blockHeight=:bh");
 }

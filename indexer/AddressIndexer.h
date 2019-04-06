@@ -25,10 +25,13 @@
 
 #include "HashStorage.h"
 
+class QSettings;
+
 class AddressIndexer
 {
 public:
     AddressIndexer(const boost::filesystem::path &basedir);
+    void loadSetting(const QSettings &settings);
 
     int blockheight();
     void blockFinished(int blockheight, const uint256 &blockId);
@@ -45,8 +48,8 @@ public:
 private:
     void createTables();
 
-    // Streaming::BufferPool m_pool;
     HashStorage m_addresses;
+    QString m_basedir;
 
     QSqlDatabase m_db;
     QList<QSqlQuery> m_insertQuery;

@@ -37,6 +37,8 @@ public:
     /// listen to server others.
     // TODO void bind(const EndPoint &ep);
 
+    void loadConfig(const QString &filename);
+
 private:
     void hubConnected(const EndPoint &ep);
     void hubDisconnected();
@@ -52,6 +54,8 @@ private:
     AddressIndexer m_addressdb;
     NetworkManager m_network;
     NetworkConnection m_serverConnection;
+
+    bool m_enableTxDB = true, m_enableAddressDb = false;
 };
 
 #endif

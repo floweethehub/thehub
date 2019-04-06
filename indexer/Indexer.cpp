@@ -22,7 +22,10 @@
 #include <streaming/MessageParser.h>
 #include <APIProtocol.h>
 #include <qbytearray.h>
+#include <qsettings.h>
 #include <primitives/pubkey.h>
+
+#include <qfile.h>
 
 Indexer::Indexer(const boost::filesystem::path &basedir)
     : m_txdb(m_workers.ioService(), basedir / "txindex"),
@@ -48,6 +51,24 @@ void Indexer::tryConnectHub(const EndPoint &ep)
     m_serverConnection.connect();
 }
 
+void Indexer::loadConfig(const QString &filename)
+{
+    if (!QFile::exists(filename))
+        return;
+    QSettings settings(filename, QSettings::IniFormat);
+
+    const QStringList groups = settings.childGroups();
+    if (groups.contains("addressdb")) {
+        m_enableAddressDb = settings.value("addressdb/enabled", "true").toBool();
+        if (m_enableAddressDb)
+            m_addressdb.loadSetting(settings);
+    }
+    if (groups.contains("txdb")) {
+        m_enableTxDB = settings.value("txdb/enabled", "true").toBool();
+        // no config there yet
+    }
+}
+
 void Indexer::hubConnected(const EndPoint &ep)
 {
 
@@ -59,12 +80,14 @@ void Indexer::hubConnected(const EndPoint &ep)
 
 void Indexer::requestBlock(int height)
 {
+    if (!m_enableAddressDb && !m_enableTxDB)
+        return;
     m_pool.reserve(20);
     Streaming::MessageBuilder builder(m_pool);
     builder.add(Api::BlockChain::BlockHeight, height);
-    if (m_txdb.blockheight() < height)
+    if (m_enableTxDB && m_txdb.blockheight() < height)
         builder.add(Api::BlockChain::GetBlock_TxId, true);
-    if (m_addressdb.blockheight() < height)
+    if (m_enableAddressDb && m_addressdb.blockheight() < height)
         builder.add(Api::BlockChain::GetBlock_OutputAddresses, true);
     builder.add(Api::BlockChain::GetBlock_OffsetInBlock, true);
     m_serverConnection.send(builder.message(Api::BlockChainService, Api::BlockChain::GetBlock));
@@ -120,16 +143,19 @@ int Indexer::processNewBlock(const Message &message)
             if (blockHeight != -1) Streaming::MessageParser::debugMessage(message);
             assert(blockHeight == -1);
             blockHeight = parser.intData();
-            updateTxDb = blockHeight == m_txdb.blockheight() + 1;
-            updateAddressDb = blockHeight == m_addressdb.blockheight() + 1;
+            updateTxDb = m_enableTxDB && blockHeight == m_txdb.blockheight() + 1;
+            updateAddressDb = m_enableAddressDb && blockHeight == m_addressdb.blockheight() + 1;
         } else if (parser.tag() == Api::BlockChain::BlockHash) {
             blockId = parser.uint256Data();
         } else if (parser.tag() == Api::BlockChain::Separator) {
             if (updateTxDb && txOffsetInBlock > 0 && !txid.IsNull()) {
                 assert(blockHeight > 0);
                 assert(blockHeight > m_txdb.blockheight());
-                m_txdb.insert(txid, blockHeight, txOffsetInBlock);
-
+                try {
+                    m_txdb.insert(txid, blockHeight, txOffsetInBlock);
+                } catch(...) {
+                    m_enableTxDB = false;
+                }
             }
             txOffsetInBlock = 0;
             outputIndex = -1;
@@ -144,14 +170,26 @@ int Indexer::processNewBlock(const Message &message)
             assert(outputIndex >= 0);
             assert(blockHeight > 0);
             assert(txOffsetInBlock > 0);
-            m_addressdb.insert(parser.bytesDataBuffer(), outputIndex, blockHeight, txOffsetInBlock);
+            try {
+                m_addressdb.insert(parser.bytesDataBuffer(), outputIndex, blockHeight, txOffsetInBlock);
+            } catch(...) {
+                m_enableAddressDb = false;
+            }
         }
     }
     assert(blockHeight > 0);
     assert(!blockId.IsNull());
-    if (updateTxDb)
-        m_txdb.blockFinished(blockHeight, blockId);
-    if (updateAddressDb)
-        m_addressdb.blockFinished(blockHeight, blockId);
+    try {
+        if (updateTxDb)
+            m_txdb.blockFinished(blockHeight, blockId);
+    } catch(...) {
+        m_enableTxDB = false;
+    }
+    try {
+        if (updateAddressDb)
+            m_addressdb.blockFinished(blockHeight, blockId);
+    } catch(...) {
+        m_enableAddressDb = false;
+    }
     return blockHeight;
 }

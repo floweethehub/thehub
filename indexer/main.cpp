@@ -34,6 +34,8 @@ int main(int argc, char **argv)
     parser.addPositionalArgument("server", "server address with optional port");
     QCommandLineOption datadir(QStringList() << "datadir" << "d", "The directory to put the data in", "DIR");
     parser.addOption(datadir);
+    QCommandLineOption conf(QStringList() << "conf", "config file", "FILENAME");
+    parser.addOption(conf);
     app.addStandardOptions(parser);
     parser.process(app.arguments());
     app.setup("indexer.log");
@@ -44,7 +46,14 @@ int main(int argc, char **argv)
     else
         basedir = QStandardPaths::writableLocation(QStandardPaths::AppDataLocation);
     Indexer indexer(basedir.toStdString());
-    indexer.tryConnectHub(app.serverAddressFromArguments(parser.positionalArguments()));
 
+    QString confFile;
+    if (parser.isSet(conf))
+        confFile = parser.value(conf);
+    else
+        confFile = QStandardPaths::locate(QStandardPaths::AppConfigLocation, "indexer.conf");
+    indexer.loadConfig(confFile);
+
+    indexer.tryConnectHub(app.serverAddressFromArguments(parser.positionalArguments()));
     return app.exec();
 }
