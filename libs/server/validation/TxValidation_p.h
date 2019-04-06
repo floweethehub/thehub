@@ -19,6 +19,17 @@
 #ifndef TXVALIDATION_P_H
 #define TXVALIDATION_P_H
 
+/*
+ * WARNING USAGE OF THIS HEADER IS RESTRICTED.
+ * This Header file is part of the private API and is meant to be used solely by the validation component.
+ *
+ * Usage of this API will likely mean your code will break in interesting ways in the future,
+ * or even stop to compile.
+ *
+ * YOU HAVE BEEN WARNED!!
+ */
+
+
 #include "BlockValidation_p.h"
 #include <primitives/FastTransaction.h>
 #include <mutex>
