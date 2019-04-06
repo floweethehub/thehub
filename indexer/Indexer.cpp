@@ -26,6 +26,7 @@
 #include <primitives/pubkey.h>
 
 #include <qfile.h>
+#include <qcoreapplication.h>
 
 Indexer::Indexer(const boost::filesystem::path &basedir)
     : m_txdb(m_workers.ioService(), basedir / "txindex"),
@@ -33,6 +34,7 @@ Indexer::Indexer(const boost::filesystem::path &basedir)
     m_network(m_workers.ioService())
 {
     // TODO add some auto-save of the databases.
+    connect (&m_addressdb, SIGNAL(finishedProcessingBlock()), SLOT(addressDbFinishedProcessingBlock()));
 }
 
 Indexer::~Indexer()
@@ -69,25 +71,35 @@ void Indexer::loadConfig(const QString &filename)
     }
 }
 
-void Indexer::hubConnected(const EndPoint &ep)
+void Indexer::addressDbFinishedProcessingBlock()
 {
-
-    int blockHeight = std::min(m_txdb.blockheight(), m_addressdb.blockheight());
-    logCritical() << "Connection to hub established, highest block we know:" << blockHeight
-        << "requesting next";
-    requestBlock(blockHeight + 1);
+    requestBlock();
 }
 
-void Indexer::requestBlock(int height)
+void Indexer::hubConnected(const EndPoint &ep)
 {
-    if (!m_enableAddressDb && !m_enableTxDB)
+    logCritical() << "Connection to hub established. TxDB:" << m_txdb.blockheight()
+                  << "addressDB:" << m_addressdb.blockheight();
+    if (!m_addressdb.isCommitting())
+        requestBlock();
+}
+
+void Indexer::requestBlock()
+{
+    int blockHeight = -1;
+    if (m_enableAddressDb)
+        blockHeight = m_addressdb.blockheight();
+    if (m_enableTxDB)
+        blockHeight = std::min(blockHeight, m_txdb.blockheight());
+    if (blockHeight == -1)
         return;
+    blockHeight++; // request the next one
     m_pool.reserve(20);
     Streaming::MessageBuilder builder(m_pool);
-    builder.add(Api::BlockChain::BlockHeight, height);
-    if (m_enableTxDB && m_txdb.blockheight() < height)
+    builder.add(Api::BlockChain::BlockHeight, blockHeight);
+    if (m_enableTxDB && m_txdb.blockheight() < blockHeight)
         builder.add(Api::BlockChain::GetBlock_TxId, true);
-    if (m_enableAddressDb && m_addressdb.blockheight() < height)
+    if (m_enableAddressDb && m_addressdb.blockheight() < blockHeight)
         builder.add(Api::BlockChain::GetBlock_OutputAddresses, true);
     builder.add(Api::BlockChain::GetBlock_OffsetInBlock, true);
     m_serverConnection.send(builder.message(Api::BlockChainService, Api::BlockChain::GetBlock));
@@ -102,10 +114,7 @@ void Indexer::hubSentMessage(const Message &message)
 {
     if (message.serviceId() == Api::BlockChainService) {
         if (message.messageId() == Api::BlockChain::GetBlockReply) {
-            int newHeight = processNewBlock(message);
-            requestBlock(newHeight + 1);
-            if (newHeight % 500 == 0)
-                logDebug() << "Finished block" << newHeight;
+            processNewBlock(message);
         }
     }
     else if (message.serviceId() == Api::FailuresService && message.messageId() == Api::Failures::CommandFailed) {
@@ -127,7 +136,7 @@ void Indexer::hubSentMessage(const Message &message)
     }
 }
 
-int Indexer::processNewBlock(const Message &message)
+void Indexer::processNewBlock(const Message &message)
 {
     int txOffsetInBlock = 0;
     int outputIndex = -1;
@@ -145,6 +154,8 @@ int Indexer::processNewBlock(const Message &message)
             blockHeight = parser.intData();
             updateTxDb = m_enableTxDB && blockHeight == m_txdb.blockheight() + 1;
             updateAddressDb = m_enableAddressDb && blockHeight == m_addressdb.blockheight() + 1;
+            if (blockHeight % 500 == 0)
+                logCritical() << "Processing block" << blockHeight;
         } else if (parser.tag() == Api::BlockChain::BlockHash) {
             blockId = parser.uint256Data();
         } else if (parser.tag() == Api::BlockChain::Separator) {
@@ -179,17 +190,17 @@ int Indexer::processNewBlock(const Message &message)
     }
     assert(blockHeight > 0);
     assert(!blockId.IsNull());
-    try {
-        if (updateTxDb)
-            m_txdb.blockFinished(blockHeight, blockId);
+    if (updateTxDb) try {
+        m_txdb.blockFinished(blockHeight, blockId);
     } catch(...) {
         m_enableTxDB = false;
     }
-    try {
-        if (updateAddressDb)
-            m_addressdb.blockFinished(blockHeight, blockId);
+    if (updateAddressDb) try {
+        m_addressdb.blockFinished(blockHeight, blockId);
     } catch(...) {
         m_enableAddressDb = false;
     }
-    return blockHeight;
+    // if not updating addressDB, go to next block directly instead of waiting on its signal
+    if (!updateAddressDb && updateTxDb)
+        requestBlock();
 }

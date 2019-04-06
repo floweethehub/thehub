@@ -258,11 +258,9 @@ void HashList::finalize()
             int &jump = m_jumptables[(quint8) rowLocation[WIDTH - 1]];
             if (jump == -1) jump = row;
 
-            QMapIterator<int,int> mi(resortMap);
-            bool ok = mi.findNext(oldRow++);
-            Q_ASSERT(ok); Q_UNUSED(ok);
-            m_resortMap.insert(mi.key(), row++);
-            resortMap.remove(mi.key());
+            int mappedRow = m_resortMapReversed.value(oldRow++);
+            m_resortMap.insert(mappedRow, row++);
+            resortMap.remove(mappedRow);
         }
         int &jump = m_jumptables[hash.begin()[WIDTH - 1]];
         if (jump == -1) jump = row;
@@ -277,11 +275,9 @@ void HashList::finalize()
         int &jump = m_jumptables[(quint8) rowLocation[WIDTH - 1]];
         if (jump == -1) jump = row;
 
-        QMapIterator<int,int> mi(resortMap);
-        bool ok = mi.findNext(oldRow++);
-        Q_ASSERT(ok); Q_UNUSED(ok);
-        m_resortMap.insert(mi.key(), row++);
-        resortMap.remove(mi.key());
+        int mappedRow = m_resortMapReversed.value(oldRow++);
+        m_resortMap.insert(mappedRow, row++);
+        resortMap.remove(mappedRow);
     }
     m_nextId = row; // do we need this?
     if (m_sorted)

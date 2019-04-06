@@ -18,8 +18,10 @@
 #include "AddressIndexer.h"
 #include <uint256.h>
 
+#include <QTime>
 #include <qsettings.h>
 #include <qsqlerror.h>
+#include <qtimer.h>
 #include <qvariant.h>
 
 #include <boost/filesystem.hpp>
@@ -30,6 +32,11 @@ QString valueFromSettings(const QSettings &settings, const QString &key) {
         x = settings.value(key);
     return x.toString();
 }
+
+QString addressTable(int index) {
+    return QString("AddressUsage%1").arg(index, 2, 10, QChar('_'));
+}
+
 }
 
 AddressIndexer::AddressIndexer(const boost::filesystem::path &basedir)
@@ -68,6 +75,8 @@ void AddressIndexer::loadSetting(const QSettings &settings)
         logFatal() << "Failed opening the database-connection" << m_db.lastError().text();
         throw std::runtime_error("Failed to open database connection");
     }
+    Q_ASSERT(m_dirtyData == nullptr);
+    QTimer::singleShot(0, this, SLOT(createNewDirtyData())); // do this on the proper thread
 }
 
 int AddressIndexer::blockheight()
@@ -87,13 +96,20 @@ int AddressIndexer::blockheight()
 
 void AddressIndexer::blockFinished(int blockheight, const uint256 &)
 {
-    m_lastBlockHeightQuery.bindValue(":bh", blockheight);
-    if (!m_lastBlockHeightQuery.exec()) {
-        logFatal() << "Failed to update blockheight" << m_lastBlockHeightQuery.lastError().text();
-        logDebug() << " q" << m_lastBlockHeightQuery.lastQuery();
-        throw std::runtime_error("Failed to update");
+    DirtyData *dd = m_dirtyData;
+    if (++dd->m_uncommittedCount > 150000) {
+        dd->setHeight(blockheight);
+        connect(dd, SIGNAL(finished(int)), this, SLOT(commitFinished(int)));
+        Q_ASSERT(m_isCommitting == false); // if not, then the caller failed to use our isCommitting() output :(
+        m_isCommitting = true;
+        m_dirtyData = nullptr; // it deletes itself
+        QTimer::singleShot(0, this, SLOT(createNewDirtyData())); // do this on the proper thread
+        QTimer::singleShot(0, dd, SLOT(commitAllData())); // more work there too
     }
-    m_lastKnownHeight = blockheight;
+    else {
+        m_lastKnownHeight = blockheight;
+        emit finishedProcessingBlock();
+    }
 }
 
 void AddressIndexer::insert(const Streaming::ConstBuffer &addressId, int outputIndex, int blockHeight, int offsetInBlock)
@@ -107,33 +123,14 @@ void AddressIndexer::insert(const Streaming::ConstBuffer &addressId, int outputI
         result = m_addresses.append(*address);
     assert(result.db >= 0);
     assert(result.row >= 0);
-    while (result.db >= m_insertQuery.size()) {
-        const QString table = QString("AddressUsage%1").arg(qlonglong(m_insertQuery.size()), 2, 10, QChar('_'));
-        QSqlQuery query(m_db);
-        if (!query.exec(QString("select count(*) from ") + table)) {
-            static QString q("create table %1 ("
-                      "address_row INTEGER, "
-                      "block_height INTEGER, offset_in_block INTEGER, out_index INTEGER)");
-            if (!query.exec(q.arg(table))) {
-                logFatal() << "Failed to create table" << query.lastError().text();
-                throw std::runtime_error("Failed to create table");
-            }
-        }
-        m_insertQuery.append(QSqlQuery(m_db));
-        m_insertQuery.last().prepare(QString("insert into ") + table
-              + " (address_row, block_height, offset_in_block, out_index) VALUES ("
-                              ":row, :bh, :oib, :idx)");
-    }
 
-    QSqlQuery &q = m_insertQuery[result.db];
-    q.bindValue(":row", result.row);
-    q.bindValue(":bh", blockHeight);
-    q.bindValue(":oib", offsetInBlock);
-    q.bindValue(":idx", outputIndex);
-    if (!q.exec()) {
-        logFatal() << "Failed to insert AddressUsage_" << result.db << q.lastError().text();
-        throw std::runtime_error("Failed to insert");
-    }
+    if (result.db >= m_dirtyData->m_uncommittedData.size())
+        m_dirtyData->m_uncommittedData.resize(result.db + 1);
+
+    std::deque<DirtyData::Entry> &data = m_dirtyData->m_uncommittedData[result.db];
+    assert(outputIndex < 0x7FFF);
+    data.push_back({(short) outputIndex, blockHeight, result.row, offsetInBlock});
+    ++m_dirtyData->m_uncommittedCount;
 }
 
 std::vector<AddressIndexer::TxData> AddressIndexer::find(const uint160 &address) const
@@ -167,11 +164,24 @@ std::vector<AddressIndexer::TxData> AddressIndexer::find(const uint160 &address)
     return answer;
 }
 
+void AddressIndexer::commitFinished(int blockHeight)
+{
+    m_isCommitting = false;
+    if (m_lastKnownHeight < blockHeight) {
+        m_lastKnownHeight = blockHeight;
+        emit finishedProcessingBlock();
+    }
+}
+
+void AddressIndexer::createNewDirtyData()
+{
+    m_dirtyData = new DirtyData(this, &m_db);
+}
+
 void AddressIndexer::createTables()
 {
     /* Tables
      * AddressUsage_N
-     *  address_db      INTEGER   (the db that the hashStorage provided us with)
      *  address_row     INTEGER   (the row that the hashStorage provided us with)
      *  block_height    INTEGER    \
      *  offset_in_block INTEGER    /-- together give the transaction
@@ -182,6 +192,7 @@ void AddressIndexer::createTables()
      */
 
     QSqlQuery query(m_db);
+    bool doInsert = false;
     if (!query.exec("select count(*) from LastKnownState")) {
         QString q("create table LastKnownState ("
                   "blockHeight INTEGER)");
@@ -189,12 +200,101 @@ void AddressIndexer::createTables()
             logFatal() << "Failed to create table" << query.lastError().text();
             throw std::runtime_error("Failed to create table");
         }
+        doInsert = true;
+    }
+    if (doInsert || query.next() && query.value(0).toInt() < 1) {
         if (!query.exec("insert into LastKnownState values (0)")) {
             logFatal() << "Failed to insert row" << query.lastError().text();
             throw std::runtime_error("Failed to insert row");
         }
     }
+}
 
-    m_lastBlockHeightQuery = QSqlQuery(m_db);
-    m_lastBlockHeightQuery.prepare("update LastKnownState set blockHeight=:bh");
+bool AddressIndexer::isCommitting() const
+{
+    return m_isCommitting;
+}
+
+
+DirtyData::DirtyData(QObject *parent, QSqlDatabase *db)
+    : QObject(parent),
+      m_db(db)
+{
+}
+
+void DirtyData::commitAllData()
+{
+    QTime time;
+    time.start();
+    int rowsInserted = 0;
+    logCritical() << "AddressDB sending data to SQL DB";
+    // create tables outside of transaction
+    for (size_t db = 0; db < m_uncommittedData.size(); ++db) {
+        const std::deque<Entry> &list = m_uncommittedData.at(db);
+        if (!list.empty()) {
+            const QString table = addressTable(db);
+            QSqlQuery query(*m_db);
+            if (!query.exec(QString("select count(*) from ") + table)) {
+                static QString q("create table %1 ("
+                          "address_row INTEGER, "
+                          "block_height INTEGER, offset_in_block INTEGER, out_index INTEGER)");
+                if (!query.exec(q.arg(table))) {
+                    logFatal() << "Failed to create table" << query.lastError().text();
+                    throw std::runtime_error("Failed to create table");
+                }
+            }
+        }
+    }
+
+    m_db->transaction();
+    for (size_t db = 0; db < m_uncommittedData.size(); ++db) {
+        const std::deque<Entry> &list = m_uncommittedData.at(db);
+        if (!list.empty()) {
+            const QString table = addressTable(db);
+            QSqlQuery query(*m_db);
+            query.prepare("insert into " + table + " values (?, ?, ?, ?)");
+            logDebug() << "bulk insert of" << list.size() << "rows into" << table;
+            QVariantList row;
+            row.reserve(list.size());
+            QVariantList height;
+            height.reserve(list.size());
+            QVariantList offsetInBlock;
+            offsetInBlock.reserve(list.size());
+            QVariantList outIndex;
+            outIndex.reserve(list.size());
+            for (auto entry : list) {
+                row.append(entry.row);
+                height.append(entry.height);
+                offsetInBlock.append(entry.offsetInBlock);
+                outIndex.append(entry.outIndex);
+            }
+            query.addBindValue(row);
+            query.addBindValue(height);
+            query.addBindValue(offsetInBlock);
+            query.addBindValue(outIndex);
+            if (!query.execBatch()) {
+                logFatal() << "Failed to insert into" << table << "reason:" << query.lastError().text();
+                throw std::runtime_error("Failed to update");
+            }
+            rowsInserted += list.size();
+        }
+    }
+    m_uncommittedData.clear();
+    QSqlQuery query(*m_db);
+    query.prepare("update LastKnownState set blockHeight=:bh");
+    query.bindValue(":bh", m_height);
+    if (!query.exec()) {
+        logFatal() << "Failed to update blockheight" << query.lastError().text();
+        logDebug() << " q" << query.lastQuery();
+    }
+
+    m_db->commit();
+    deleteLater();
+    logCritical().nospace() << "AddressDB: SQL-DB took " << time.elapsed() << "ms to insert " << rowsInserted << " rows";
+    emit finished(m_height);
+}
+
+void DirtyData::setHeight(int height)
+{
+    m_height = height;
 }

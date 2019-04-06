@@ -25,8 +25,9 @@
 #include <WorkerThreads.h>
 #include <streaming/BufferPool.h>
 
-class Indexer
+class Indexer : public QObject
 {
+    Q_OBJECT
 public:
     Indexer(const boost::filesystem::path &basedir);
     ~Indexer();
@@ -39,13 +40,16 @@ public:
 
     void loadConfig(const QString &filename);
 
+private slots:
+    void addressDbFinishedProcessingBlock();
+
 private:
     void hubConnected(const EndPoint &ep);
     void hubDisconnected();
     void hubSentMessage(const Message &message);
 
-    void requestBlock(int height);
-    int processNewBlock(const Message &message);
+    void requestBlock();
+    void processNewBlock(const Message &message);
 
 private:
     Streaming::BufferPool m_pool;

@@ -19,6 +19,7 @@
 #define ADDRESSINDEXER_H
 
 #include <QList>
+#include <qobject.h>
 #include <qsqldatabase.h>
 #include <qsqlquery.h>
 #include <streaming/ConstBuffer.h>
@@ -26,9 +27,11 @@
 #include "HashStorage.h"
 
 class QSettings;
+class DirtyData;
 
-class AddressIndexer
+class AddressIndexer : public QObject
 {
+    Q_OBJECT
 public:
     AddressIndexer(const boost::filesystem::path &basedir);
     void loadSetting(const QSettings &settings);
@@ -45,17 +48,54 @@ public:
 
     std::vector<TxData> find(const uint160 &address) const;
 
+    bool isCommitting() const;
+
+signals:
+    void finishedProcessingBlock();
+
+private slots:
+    void commitFinished(int blockHeight);
+    void createNewDirtyData();
+
 private:
     void createTables();
+
+    DirtyData *m_dirtyData = nullptr;
+
 
     HashStorage m_addresses;
     QString m_basedir;
 
     QSqlDatabase m_db;
     QList<QSqlQuery> m_insertQuery;
-    QSqlQuery m_lastBlockHeightQuery;
 
     int m_lastKnownHeight = -1;
+    bool m_isCommitting = false; // if there is DirtyData running in another thread committing stuff
+};
+
+class DirtyData : public QObject {
+    Q_OBJECT
+public:
+    DirtyData(QObject *parent, QSqlDatabase *db);
+
+    struct Entry {
+        short outIndex;
+        int height, row, offsetInBlock;
+    };
+    std::vector<std::deque<Entry> > m_uncommittedData;
+    int m_uncommittedCount = 0;
+
+    void setHeight(int height);
+
+public slots:
+    void commitAllData();
+
+signals:
+    void finished(int height);
+
+private:
+    int m_height;
+    QSqlDatabase *m_db;
 };
 
 #endif
