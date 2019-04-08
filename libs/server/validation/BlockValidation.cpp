@@ -398,7 +398,7 @@ void ValidationEnginePrivate::createBlockIndexFor(const std::shared_ptr<BlockVal
         if (index->pprev->nStatus & BLOCK_FAILED_MASK) {
             DEBUGBV << "      + Which failed!";
             index->nStatus |= BLOCK_FAILED_CHILD;
-            state->blockFailed(0, "bad-parent", Validation::RejectInvalid);
+            state->blockFailed(10, "bad-parent", Validation::RejectInvalid);
         }
     }
     else if (index->pprev == nullptr && block.createHash() == Params().GetConsensus().hashGenesisBlock) {
