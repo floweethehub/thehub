@@ -72,17 +72,17 @@ void TestHashStorage::basic()
     }
     {
         HashStorage hs(m_testPath);
-        QCOMPARE(hash1, hs.find(index1));
-        QCOMPARE(hash2, hs.find(index2));
-        QCOMPARE(hash3, hs.find(index3));
+        QCOMPARE(hs.find(index1), hash1);
+        QCOMPARE(hs.find(index2), hash2);
+        QCOMPARE(hs.find(index3), hash3);
 
-        QCOMPARE(hs.lookup(hash1), index1);
+        QCOMPARE(index1, hs.lookup(hash1));
 
         hs.finalize();
 
-        QCOMPARE(hash1, hs.find(index1));
-        QCOMPARE(hash2, hs.find(index2));
-        QCOMPARE(hash3, hs.find(index3));
+        QCOMPARE(hs.find(index1), hash1);
+        QCOMPARE(hs.find(index2), hash2);
+        QCOMPARE(hs.find(index3), hash3);
 
         QCOMPARE(hs.lookup(hash1), index1);
     }
@@ -91,44 +91,27 @@ void TestHashStorage::basic()
     HashIndexPoint index4;
     {
         HashStorage hs(m_testPath);
-        QCOMPARE(hash1, hs.find(index1));
-        QCOMPARE(hash2, hs.find(index2));
-        QCOMPARE(hash3, hs.find(index3));
+        QCOMPARE(hs.find(index1), hash1);
+        QCOMPARE(hs.find(index2), hash2);
+        QCOMPARE(hs.find(index3), hash3);
         QCOMPARE(hs.lookup(hash1), index1);
 
         // insert more and finalize again.
         index4 = hs.append(hash4);
-        QCOMPARE(hash1, hs.find(index1));
-        QCOMPARE(hash2, hs.find(index2));
-        QCOMPARE(hash3, hs.find(index3));
-        QCOMPARE(hash4, hs.find(index4));
+        QCOMPARE(hs.find(index1), hash1);
+        QCOMPARE(hs.find(index2), hash2);
+        QCOMPARE(hs.find(index3), hash3);
+        QCOMPARE(hs.find(index4), hash4);
         QCOMPARE(hs.lookup(hash3), index3);
 
         // second round.
         hs.finalize();
-        QCOMPARE(hash1, hs.find(index1));
-        QCOMPARE(hash2, hs.find(index2));
-        QCOMPARE(hash3, hs.find(index3));
-        QCOMPARE(hash4, hs.find(index4));
+        QCOMPARE(hs.find(index1), hash1);
+        QCOMPARE(hs.find(index2), hash2);
+        QCOMPARE(hs.find(index3), hash3);
+        QCOMPARE(hs.find(index4), hash4);
         QCOMPARE(hs.lookup(hash3), index3);
     }
-    QFile info(QString::fromStdString((m_testPath / "data-1.info").string()));
-    QVector<int> jumptables;
-    if (info.open(QIODevice::ReadOnly)) {
-        int id;
-        QDataStream in(&info);
-        in >> id;
-        in >> jumptables;
-    }
-    QCOMPARE(jumptables.length(), 256);
-    for (int i = 0; i < 256; ++i) {
-        int expected = -1;
-        if (i == 0) expected = 0;
-        if (i == 0xe) expected = 2;
-        if (i == 0x51) expected = 3;
-        QCOMPARE(jumptables.at(i), expected);
-    }
-
     {
         HashStorage hs(m_testPath);
         QCOMPARE(hash1, hs.find(index1));

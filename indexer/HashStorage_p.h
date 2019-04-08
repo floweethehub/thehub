@@ -41,36 +41,31 @@ inline uint32_t qHash(const uint160 &key, uint32_t seed) {
     return *reinterpret_cast<const uint32_t*>(key.begin() + (seed % 5));
 }
 
-inline bool sortHashPointers(const uint160 *a, const uint160 *b) {
-    return a->Compare(*b) <= 0;
-}
-
 class HashList {
 public:
     HashList(const QString &dbBase);
     ~HashList();
-    static HashList *createEmpty(const QString &dbBase);
+    static HashList *createEmpty(const QString &dbBase, int index);
 
     int append(const uint160 &hash);
     int find(const uint160 &hash) const;
-    const uint160 &at(int row) const;
+    const uint160 &at(int index) const;
     void finalize();
+
+    const QString m_filebase;
 
     // for the memmapped, sorted section.
     uchar *m_sorted = nullptr;
-    QFile *m_sortedFile = nullptr;
-    QVector<int> m_jumptables;
+    QFile m_sortedFile;
+    uchar *m_reverseLookup = nullptr;
+    QFile m_reverseLookupFile;
 
     // the unsorted part
     QFile *m_log = nullptr;
     QHash<uint160, int> m_cacheMap;
 
-    // a id to row mapping to be (re)created at sort
-    QMap<int, int> m_resortMap;
-    QMap<int, int> m_resortMapReversed;
     int m_nextId = 0;
     mutable QMutex m_mutex;
-    QString m_filebase;
 };
 
 class HashStoragePrivate

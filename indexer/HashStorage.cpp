@@ -40,6 +40,29 @@ QMap<int, int> createResortReversed(const QMap<int, int> &map)
     }
     return answer;
 }
+
+struct Pair {
+    Pair(const uint160 *h, int i) : hash(h), index(i) {}
+    const uint160 *hash;
+    int index;
+};
+
+struct PairSorter {
+    PairSorter(const QHash<uint160, int> &orig) {
+        pairs.reserve(orig.size());
+        QHashIterator<uint160, int> iter(orig);
+        while (iter.hasNext()) {
+            iter.next();
+            pairs.push_back(Pair(&iter.key(), iter.value()));
+        }
+    }
+
+    std::vector<Pair> pairs;
+
+    bool operator()(const Pair &a, const Pair &b) {
+        return a.hash->Compare(*b.hash) <= 0;
+    }
+};
 }
 
 uint160 HashStoragePrivate::s_null = uint160();
@@ -68,7 +91,7 @@ HashIndexPoint HashStorage::append(const uint160 &hash)
     Q_ASSERT(index >= 0);
     if (db->m_cacheMap.size() > 400000) {
         db->finalize();
-        if (db->m_sortedFile->size() > 1300000000) { // > 1.3GB
+        if (db->m_sortedFile.size() > 1300000000) { // > 1.3GB
             QString newFilename = d->basedir + QString("/data-%1").arg(dbs.length() + 1);
             HashList *hl = new HashList(newFilename);
 
@@ -105,62 +128,65 @@ HashIndexPoint HashStorage::lookup(const uint160 &hash) const
 
 void HashStorage::finalize()
 {
-    QList<HashList*> dbs(d->dbs);
-    for (auto db : dbs) {
-        db->finalize();
-    }
+    d->dbs.last()->finalize();
+    d->dbs.append(HashList::createEmpty(d->basedir, d->dbs.size() + 1));
 }
 
 
 // -----------------------------------------------------------------
 
 HashList::HashList(const QString &dbBase)
-    : m_filebase(dbBase)
+    : m_filebase(dbBase),
+      m_sortedFile(m_filebase + ".db"),
+      m_reverseLookupFile(m_filebase + ".index")
 {
-    m_log = new QFile(m_filebase + ".log");
-    if (!m_log->open(QIODevice::ReadWrite))
-        throw std::runtime_error("HashList: failed to open log file");
-
-    m_sortedFile = new QFile(m_filebase + ".db");
-    if (m_sortedFile->open(QIODevice::ReadOnly)) {
-        m_sorted = m_sortedFile->map(0, m_sortedFile->size());
-        m_sortedFile->close();
-    }
-
     QFile info(m_filebase + ".info");
     if (info.open(QIODevice::ReadOnly)) {
         QDataStream in(&info);
         in >> m_nextId;
-        in >> m_jumptables;
-        in >> m_resortMap;
     }
-    if (m_jumptables.size() != 256)
-        m_jumptables.fill(-1, 256);
-    m_resortMapReversed = createResortReversed(m_resortMap);
 
-    while(true) {
-        uint160 item;
-        auto byteCount = m_log->read(reinterpret_cast<char*>(item.begin()), WIDTH);
-        if (byteCount == WIDTH) {
-            m_cacheMap.insert(item, m_nextId++);
-        } else if (byteCount == 0) {
-            break;
+    // is it finalized?
+    if (m_sortedFile.open(QIODevice::ReadOnly)) {
+        m_sorted = m_sortedFile.map(0, m_sortedFile.size());
+        m_sortedFile.close();
+        if (m_reverseLookupFile.open(QIODevice::ReadOnly)) {
+            m_reverseLookup = m_reverseLookupFile.map(0, m_reverseLookupFile.size());
+            m_reverseLookupFile.close();
+        }
+    }
+    else { // We are not finalized, so we should have a log
+        m_log = new QFile(m_filebase + ".log");
+        if (!m_log->open(QIODevice::ReadWrite))
+            throw std::runtime_error("HashList: failed to open log file");
+        while(true) {
+            uint160 item;
+            auto byteCount = m_log->read(reinterpret_cast<char*>(item.begin()), WIDTH);
+            if (byteCount == WIDTH) {
+                m_cacheMap.insert(item, m_nextId++);
+            } else if (byteCount == 0) {
+                break;
+            }
         }
     }
 }
 
 HashList::~HashList()
 {
-    m_log->close();
-    delete m_log;
+    if (m_log) {
+        m_log->close();
+        delete m_log;
+    }
     if (m_sorted)
-        m_sortedFile->unmap(m_sorted);
-    delete m_sortedFile;
+        m_sortedFile.unmap(m_sorted);
+    if (m_reverseLookup)
+        m_reverseLookupFile.unmap(m_reverseLookup);
 }
 
-HashList *HashList::createEmpty(const QString &dbBase)
+HashList *HashList::createEmpty(const QString &dbBase, int index)
 {
-    HashList *answer = new HashList(dbBase);
+    QString name("/data-%1");
+    HashList *answer = new HashList(dbBase + name.arg(index, 3, 10, QChar('0')));
     return answer;
 }
 
@@ -169,6 +195,7 @@ int HashList::append(const uint160 &hash)
     QMutexLocker lock(&m_mutex);
     const int id = m_nextId++;
     m_cacheMap.insert(hash, id);
+    Q_ASSERT(m_log);
     m_log->write(reinterpret_cast<const char*>(hash.begin()), WIDTH);
 
     return id;
@@ -181,130 +208,89 @@ int HashList::find(const uint160 &hash) const
     if (item != m_cacheMap.end())
         return item.value();
 
-    const quint8 byte = hash.begin()[WIDTH - 1];
-    int pos = m_jumptables[byte];
-    if (pos == -1) // nothing starting with this byte-sequence in the file.
-        return -1;
-    int endpos = m_sortedFile->size() / WIDTH;
-    Q_ASSERT(pos < endpos);
-    for (quint32 x = byte + 1; x < 256; ++x) {
-        if (m_jumptables.at(x) >= 0) {
-            endpos = m_jumptables.at(x);
-            break;
-        }
-    }
-    Q_ASSERT(pos < endpos);
-
+    int pos = 0;
+    int endpos = m_sortedFile.size() / WIDTH - 1;
     while (pos <= endpos) {
         int m = (pos + endpos) / 2;
-        uint160 *item = (uint160*)(m_sorted + m * WIDTH);
+        uint160 *item = (uint160*)(m_sorted + m * (WIDTH + sizeof(int)));
         int comp = item->Compare(hash);
         if (comp < 0)
             pos = m + 1;
         else if (comp > 0)
             endpos = m - 1;
         else
-            return m_resortMapReversed.value(m);
+            return *reinterpret_cast<int*>(m_sorted + m * (WIDTH + sizeof(int)) + WIDTH);
     }
 
     return -1;
 }
 
-const uint160 &HashList::at(int row) const
+const uint160 &HashList::at(int index) const
 {
+    Q_ASSERT(index >= 0);
     QMutexLocker lock(&m_mutex);
+    if (m_reverseLookup) {
+        if (m_reverseLookupFile.size() / sizeof(int) < index)
+            throw std::runtime_error("row out of bounds");
+
+        // map index to row
+        int row = *reinterpret_cast<int*>(m_reverseLookup + index * sizeof(int));
+        const uint160 *dummy = reinterpret_cast<uint160*>(m_sorted + row * (WIDTH + sizeof(int)));
+        return *dummy;
+    }
+
+    // also check the dirty cache. Do this at end as this is a slow lookup
     QHashIterator<uint160, int> iter(m_cacheMap);
-    if (iter.findNext(row)) {
+    if (iter.findNext(index)) {
         return iter.key();
     }
-    auto resortIter = m_resortMap.find(row);
-    if (resortIter != m_resortMap.end()) {
-        row = resortIter.value();
-    }
-    uint160 *dummy = (uint160*)(m_sorted + row * WIDTH);
-    return *dummy;
+    return HashStoragePrivate::s_null;
 }
 
 void HashList::finalize()
 {
+    Q_ASSERT(!m_sortedFile.exists());
+    Q_ASSERT(!m_sorted);
+    Q_ASSERT(!m_reverseLookup);
     QMutexLocker lock(&m_mutex);
-    const QString tmpFile = m_sortedFile->fileName() + '~';
-    QFile newFile(tmpFile);
-    if (!newFile.open(QIODevice::ReadWrite | QIODevice::Truncate)) {
-        throw std::runtime_error("Failed to open tmp file for writing");
+    if (!m_sortedFile.open(QIODevice::ReadWrite | QIODevice::Truncate)) {
+        throw std::runtime_error("Failed to open db file for writing");
     }
-    m_jumptables = QVector<int>(256, -1);
-    int row = 0;
-    int oldRow = 0;
-    QMap<int, int> resortMap(m_resortMap);
-    m_resortMap.clear();
-
-    QList<const uint160*> sorted;
-    sorted.reserve(m_cacheMap.size());
-    for (auto iter = m_cacheMap.begin(); iter != m_cacheMap.end(); ++iter) {
-        sorted.append(&iter.key());
+    if (!m_reverseLookupFile.open(QIODevice::ReadWrite | QIODevice::Truncate)) {
+        throw std::runtime_error("Failed to open index file for writing");
     }
-    std::sort(sorted.begin(), sorted.end(), &sortHashPointers);
-    const int maxOldRow = m_sortedFile->size() / WIDTH;
-    for (auto iter = sorted.begin(); iter != sorted.end(); ++iter) {
-        const uint160 &hash = **iter;
-        while (oldRow < maxOldRow) {
-            const char *rowLocation = reinterpret_cast<char*>(m_sorted) + oldRow * WIDTH;
-            if (((uint160*)rowLocation)->Compare(hash) > 0)
-                break;
 
-            newFile.write(rowLocation, WIDTH);
-
-            int &jump = m_jumptables[(quint8) rowLocation[WIDTH - 1]];
-            if (jump == -1) jump = row;
-
-            int mappedRow = m_resortMapReversed.value(oldRow++);
-            m_resortMap.insert(mappedRow, row++);
-            resortMap.remove(mappedRow);
-        }
-        int &jump = m_jumptables[hash.begin()[WIDTH - 1]];
-        if (jump == -1) jump = row;
-
-        newFile.write(reinterpret_cast<const char*>(hash.begin()), WIDTH);
-        m_resortMap.insert(m_cacheMap.value(hash), row++);
+    PairSorter sorted(m_cacheMap);
+    std::sort(sorted.pairs.begin(), sorted.pairs.end(), sorted);
+    QMap<int, int> lookupTable;
+    for (auto iter = sorted.pairs.begin(); iter != sorted.pairs.end(); ++iter) {
+        assert(iter->index >= 0); // no negative numbers, please.
+        m_sortedFile.write(reinterpret_cast<const char*>(iter->hash->begin()), WIDTH);
+        m_sortedFile.write(reinterpret_cast<const char*>(&iter->index), sizeof(int));
+        lookupTable.insert(iter->index, lookupTable.size());
     }
-    while (oldRow < maxOldRow) {
-        const char *rowLocation = reinterpret_cast<char*>(m_sorted) + oldRow * WIDTH;
-        newFile.write(rowLocation, WIDTH);
-
-        int &jump = m_jumptables[(quint8) rowLocation[WIDTH - 1]];
-        if (jump == -1) jump = row;
-
-        int mappedRow = m_resortMapReversed.value(oldRow++);
-        m_resortMap.insert(mappedRow, row++);
-        resortMap.remove(mappedRow);
-    }
-    m_nextId = row; // do we need this?
-    if (m_sorted)
-        m_sortedFile->unmap(m_sorted);
-    m_sorted = nullptr;
-    m_log->close();
-    newFile.close();
-    m_sortedFile->remove();
-    if (!newFile.rename(m_filebase + ".db")) {
-        // TODO
-        return;
-    }
+    sorted.pairs.clear();
     m_cacheMap.clear();
-    m_log->open(QIODevice::Truncate | QIODevice::WriteOnly);
-    if (m_sortedFile->open(QIODevice::ReadOnly)) {
-        m_sorted = m_sortedFile->map(0, m_sortedFile->size());
-        m_sortedFile->close();
+    m_sortedFile.close();
+    for (auto iter = lookupTable.begin(); iter != lookupTable.end(); ++iter) {
+        m_reverseLookupFile.write(reinterpret_cast<const char*>(&iter.value()), sizeof(int));
     }
+    lookupTable.clear();
+    m_reverseLookupFile.close();
+    m_log->close();
+    bool ok = m_log->remove();
+    Q_ASSERT(ok); Q_UNUSED(ok);
+    delete m_log;
+    m_log = nullptr;
 
-    QFile info(m_filebase + ".info");
-    if (info.open(QIODevice::WriteOnly | QIODevice::Truncate)) {
-        QDataStream out(&info);
-        out << m_nextId;
-        out << m_jumptables;
-        out << m_resortMap;
+    if (m_sortedFile.open(QIODevice::ReadOnly)) {
+        m_sorted = m_sortedFile.map(0, m_sortedFile.size());
+        m_sortedFile.close();
     }
-    m_resortMapReversed = createResortReversed(m_resortMap);
+    if (m_reverseLookupFile.open(QIODevice::ReadOnly)) {
+        m_reverseLookup = m_reverseLookupFile.map(0, m_reverseLookupFile.size());
+        m_reverseLookupFile.close();
+    }
 }
 
 
@@ -317,15 +303,19 @@ HashStoragePrivate::HashStoragePrivate(const boost::filesystem::path &basedir_)
     int index = 1;
     const QString fileBase = QString("%1/data-%2").arg(basedir);
     while (true) {
-        QString dbFilename = fileBase.arg(index);
-        QFileInfo info(dbFilename + ".log");
-        if (!info.exists())
-            break;
+        QString dbFilename = fileBase.arg(index, 3, 10, QChar('0'));
+        QFileInfo dbInfo(dbFilename + ".db");
+        if (!dbInfo.exists()) {
+            // not finalized yet only has a log
+            QFileInfo dbLog(dbFilename + ".log");
+            if (!dbLog.exists())
+                break;
+        }
         dbs.append(new HashList(dbFilename));
         ++index;
     }
     if (dbs.isEmpty()) {
-        dbs.append(HashList::createEmpty(basedir + "/data-1"));
+        dbs.append(HashList::createEmpty(basedir, 1));
     }
 }
 
