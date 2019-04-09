@@ -18,8 +18,9 @@
 #ifndef APISERVER_H
 #define APISERVER_H
 
-#include "streaming/BufferPool.h"
-#include "networkmanager/NetworkManager.h"
+#include <streaming/BufferPool.h>
+#include <networkmanager/NetworkManager.h>
+#include <networkmanager/NetworkService.h>
 
 #include <univalue.h>
 #include <vector>

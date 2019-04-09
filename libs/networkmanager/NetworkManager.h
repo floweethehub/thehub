@@ -1,6 +1,6 @@
 /*
  * This file is part of the Flowee project
- * Copyright (C) 2016 Tom Zander <tomz@freedommail.ch>
+ * Copyright (C) 2016, 2019 Tom Zander <tomz@freedommail.ch>
  *
  * This program is free software: you can redistribute it and/or modify
  * it under the terms of the GNU General Public License as published by
@@ -28,7 +28,7 @@
 #include "NetworkConnection.h"
 
 class NetworkManagerPrivate;
-class NetworkService;
+class NetworkServiceBase;
 
 /**
  * The NetworkManager is the main entry-point of this library.
@@ -71,8 +71,8 @@ public:
      */
     void bind(boost::asio::ip::tcp::endpoint endpoint, const std::function<void(NetworkConnection&)> &callback);
 
-    void addService(NetworkService *service);
-    void removeService(NetworkService *service);
+    void addService(NetworkServiceBase *service);
+    void removeService(NetworkServiceBase *service);
 
     std::weak_ptr<NetworkManagerPrivate> priv(); ///< \internal
 

@@ -21,7 +21,7 @@
 #include <primitives/pubkey.h>
 
 #include <validationinterface.h>
-#include <NetworkSubscriptionService.h>
+#include <NetworkService.h>
 #include <NetworkConnection.h>
 #include <primitives/FastTransaction.h>
 #include <script/standard.h>
@@ -30,7 +30,7 @@
 
 class CTxMemPool;
 
-class AddressMonitorService : public ValidationInterface, public NetworkSubscriptionService
+class AddressMonitorService : public ValidationInterface, public NetworkService
 {
 public:
     AddressMonitorService();
@@ -42,6 +42,8 @@ public:
     // void SetBestChain(const CBlockLocator &locator) override;
     void DoubleSpendFound(const Tx &first, const Tx &duplicate) override;
 
+    void onIncomingMessage(Remote *con, const Message &message, const EndPoint &ep) override;
+
     inline void setMempool(CTxMemPool *mempool) {
         m_mempool = mempool;
     }
@@ -52,7 +54,7 @@ protected:
         std::set<CKeyID> keys;
     };
 
-    // NetworkSubscriptionService interface
+    // NetworkService interface
     Remote *createRemote() override {
         return new RemoteWithKeys();
     }
@@ -64,12 +66,8 @@ private:
         Conflicted
     };
 
-    void handle(Remote *con, const Message &message, const EndPoint &ep) override;
-
     void findTransactions(Tx::Iterator && iter, FindReason findReason);
-
     void updateBools();
-
     void findTxInMempool(int connectionId, const CKeyID &keyId);
 
     Streaming::BufferPool m_pool;

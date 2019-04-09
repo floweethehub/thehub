@@ -1,6 +1,6 @@
 /*
  * This file is part of the Flowee project
- * Copyright (C) 2018 Tom Zander <tomz@freedommail.ch>
+ * Copyright (C) 2019 Tom Zander <tomz@freedommail.ch>
  *
  * This program is free software: you can redistribute it and/or modify
  * it under the terms of the GNU General Public License as published by
@@ -18,23 +18,58 @@
 #include "NetworkService.h"
 #include "NetworkManager.h"
 
-NetworkService::NetworkService(int id)
-    : m_id(id)
+NetworkService::NetworkService(int serviceId)
+    : NetworkServiceBase(serviceId)
 {
 }
 
 NetworkService::~NetworkService()
 {
-    if (m_manager)
-        m_manager->removeService(this);
+    for (auto r : m_remotes) {
+        delete r;
+    }
 }
 
-NetworkManager *NetworkService::manager() const
+void NetworkService::onIncomingMessage(const Message &message, const EndPoint &ep)
 {
-    return m_manager;
+    for (auto remote : m_remotes) {
+        if (remote->connection.endPoint().connectionId == ep.connectionId) {
+            onIncomingMessage(remote, message, ep);
+            return;
+        }
+    }
+    for (auto remote : m_remotes) {
+        if (remote->connection.endPoint().announcePort == ep.announcePort && remote->connection.endPoint().hostname == ep.hostname) {
+            onIncomingMessage(remote, message, ep);
+            return;
+        }
+    }
+    NetworkConnection con = manager()->connection(ep, NetworkManager::OnlyExisting);
+    if (!con.isValid())
+        return;
+    con.setOnDisconnected(std::bind(&NetworkService::onDisconnected, this, std::placeholders::_1));
+    Remote *r = createRemote();
+    r->connection = std::move(con);
+    m_remotes.push_back(r);
+    onIncomingMessage(r, message, ep);
 }
 
-void NetworkService::setManager(NetworkManager *manager)
+void NetworkService::onDisconnected(const EndPoint &endPoint)
 {
-    m_manager = manager;
+    for (auto iter = m_remotes.begin(); iter != m_remotes.end(); ++iter) {
+        if ((*iter)->connection.endPoint().connectionId == endPoint.connectionId) {
+            delete (*iter);
+            m_remotes.erase(iter);
+            return;
+        }
+    }
+}
+
+NetworkService::Remote *NetworkService::createRemote()
+{
+    return new Remote();
+}
+
+NetworkService::Remote::~Remote()
+{
 }

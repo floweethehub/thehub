@@ -30,7 +30,7 @@
 #include "txmempool.h"
 
 AddressMonitorService::AddressMonitorService()
-    : NetworkSubscriptionService(Api::AddressMonitorService)
+    : NetworkService(Api::AddressMonitorService)
 {
     ValidationNotifier().addListener(this);
 }
@@ -127,7 +127,7 @@ void AddressMonitorService::DoubleSpendFound(const Tx &first, const Tx &duplicat
 
 }
 
-void AddressMonitorService::handle(Remote *remote_, const Message &message, const EndPoint &ep)
+void AddressMonitorService::onIncomingMessage(Remote *remote_, const Message &message, const EndPoint &ep)
 {
     assert(dynamic_cast<RemoteWithKeys*>(remote_));
     RemoteWithKeys *remote = static_cast<RemoteWithKeys*>(remote_);
@@ -171,8 +171,8 @@ void AddressMonitorService::handle(Remote *remote_, const Message &message, cons
         } else {
             error = "no address passed";
         }
-        m_pool.reserve(10 + error.size());
-        Streaming::MessageBuilder builder(m_pool);
+        remote->pool.reserve(10 + error.size());
+        Streaming::MessageBuilder builder(remote->pool);
         builder.add(Api::AddressMonitor::Result, error.empty());
         if (!error.empty())
             builder.add(Api::AddressMonitor::ErrorMessage, error);

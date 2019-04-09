@@ -19,11 +19,9 @@
 #define BLOCKNOTIFICATIONSERVICE_H
 
 #include <validationinterface.h>
-#include <NetworkSubscriptionService.h>
+#include <NetworkService.h>
 
-#include <streaming/BufferPool.h>
-
-class BlockNotificationService : public ValidationInterface, public NetworkSubscriptionService
+class BlockNotificationService : public ValidationInterface, public NetworkService
 {
 public:
     BlockNotificationService();
@@ -31,9 +29,9 @@ public:
 
     // the hub pushed a transaction into its mempool
     void SyncAllTransactionsInBlock(const FastBlock &block, CBlockIndex *index) override;
+    void onIncomingMessage(Remote *con, const Message &message, const EndPoint &ep) override;
 
 protected:
-
     class RemoteSubscriptionInfo : public Remote {
     public:
         bool m_wantsNewBlockHashes = false;
@@ -44,8 +42,6 @@ protected:
     }
 
 private:
-    void handle(Remote *con, const Message &message, const EndPoint &ep) override;
-
     Streaming::BufferPool m_pool;
 };
 

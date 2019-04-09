@@ -19,6 +19,7 @@ include_directories(${LIBNETWORKMANAGER_INCLUDES})
 add_library(flowee_networkmanager STATIC
     NetworkConnection.cpp
     NetworkManager.cpp
+    NetworkServiceBase.cpp
     NetworkService.cpp
     NetworkException.cpp
     NetworkQueueFullError.cpp

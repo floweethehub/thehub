@@ -18,7 +18,7 @@
 #include "NetworkManager.h"
 #include "NetworkManager_p.h"
 #include "NetworkQueueFullError.h"
-#include "NetworkService.h"
+#include "NetworkServiceBase.h"
 #include <NetworkEnums.h>
 #include <APIProtocol.h>
 
@@ -136,7 +136,7 @@ void NetworkManager::bind(tcp::endpoint endpoint, const std::function<void(Netwo
         d->cronHourly(boost::system::error_code());
 }
 
-void NetworkManager::addService(NetworkService *service)
+void NetworkManager::addService(NetworkServiceBase *service)
 {
     assert(service);
     if (!service) return;
@@ -145,7 +145,7 @@ void NetworkManager::addService(NetworkService *service)
     service->setManager(this);
 }
 
-void NetworkManager::removeService(NetworkService *service)
+void NetworkManager::removeService(NetworkServiceBase *service)
 {
     assert(service);
     if (!service) return;
@@ -846,7 +846,7 @@ bool NetworkManagerConnection::processPacket(const std::shared_ptr<char> &buffer
         if (!m_socket.is_open())
             break;
     }
-    std::list<NetworkService*> servicesCopy;
+    std::list<NetworkServiceBase*> servicesCopy;
     {
         boost::recursive_mutex::scoped_lock lock(d->mutex);
         servicesCopy = d->services;

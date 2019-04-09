@@ -28,7 +28,7 @@
 // #include "Application.h"
 
 BlockNotificationService::BlockNotificationService()
-    : NetworkSubscriptionService(Api::BlockNotificationService)
+    : NetworkService(Api::BlockNotificationService)
 {
     ValidationNotifier().addListener(this);
 }
@@ -55,7 +55,7 @@ void BlockNotificationService::SyncAllTransactionsInBlock(const FastBlock &, CBl
     }
 }
 
-void BlockNotificationService::handle(Remote *remote_, const Message &message, const EndPoint &ep)
+void BlockNotificationService::onIncomingMessage(Remote *remote_, const Message &message, const EndPoint &ep)
 {
     assert(dynamic_cast<RemoteSubscriptionInfo*>(remote_));
     RemoteSubscriptionInfo *remote = static_cast<RemoteSubscriptionInfo*>(remote_);

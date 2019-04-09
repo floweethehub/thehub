@@ -19,7 +19,6 @@ include_directories(${LIBAPI_INCLUDES})
 add_library(flowee_api STATIC
     APIRPCBinding.cpp
     APIServer.cpp
-    NetworkSubscriptionService.cpp
 
     AddressMonitorService.cpp
     BlockNotificationService.cpp

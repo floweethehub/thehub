@@ -40,7 +40,7 @@
 #include <interfaces/boost_compat.h>
 
 class NetworkConnection;
-class NetworkService;
+class NetworkServiceBase;
 
 using boost::asio::ip::tcp;
 
@@ -315,7 +315,7 @@ public:
     std::vector<NetworkManagerServer *> servers;
 
     std::list<BannedNode> banned;
-    std::list<NetworkService*> services;
+    std::list<NetworkServiceBase*> services;
     boost::asio::deadline_timer m_cronHourly;
 };
 
