@@ -227,7 +227,7 @@ void DirtyData::commitAllData()
     QTime time;
     time.start();
     int rowsInserted = 0;
-    logCritical() << "AddressDB sending data to SQL DB";
+    logInfo() << "AddressDB sending data to SQL DB";
     // create tables outside of transaction
     for (size_t db = 0; db < m_uncommittedData.size(); ++db) {
         const std::deque<Entry> &list = m_uncommittedData.at(db);
@@ -290,7 +290,7 @@ void DirtyData::commitAllData()
 
     m_db->commit();
     deleteLater();
-    logCritical().nospace() << "AddressDB: SQL-DB took " << time.elapsed() << "ms to insert " << rowsInserted << " rows";
+    logInfo().nospace() << "AddressDB: SQL-DB took " << time.elapsed() << "ms to insert " << rowsInserted << " rows";
     emit finished(m_height);
 }
 

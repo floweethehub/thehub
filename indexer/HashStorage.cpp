@@ -20,6 +20,7 @@
 #include <Logger.h>
 #include <QDataStream>
 #include <qfileinfo.h>
+#include <QMapIterator>
 
 #include "HashStorage.h"
 #include "HashStorage_p.h"
@@ -164,11 +165,17 @@ HashListPart::HashListPart(const QString &partBase)
     : sortedFile(partBase + ".db"),
     reverseLookupFile(partBase + ".index")
 {
-    openFiles();
+}
+
+HashListPart::~HashListPart()
+{
+    closeFiles();
 }
 
 void HashListPart::openFiles()
 {
+    Q_ASSERT(sorted == nullptr);
+    Q_ASSERT(reverseLookup == nullptr);
     if (sortedFile.open(QIODevice::ReadOnly)) {
         sorted = sortedFile.map(0, sortedFile.size());
         sortedFile.close();
@@ -182,10 +189,14 @@ void HashListPart::openFiles()
 void HashListPart::closeFiles()
 {
     // technically speaking, the files are not actually open. They are just mapped.
-    sortedFile.unmap(sorted);
-    sorted = nullptr;
-    reverseLookupFile.unmap(reverseLookup);
-    reverseLookup = nullptr;
+    if (sorted) {
+        sortedFile.unmap(sorted);
+        sorted = nullptr;
+    }
+    if (reverseLookup) {
+        reverseLookupFile.unmap(reverseLookup);
+        reverseLookup = nullptr;
+    }
 }
 
 
@@ -215,7 +226,7 @@ HashIndexPoint HashStorage::append(const uint160 &hash)
     Q_ASSERT(index >= 0);
     if (db->m_cacheMap.size() > 833333)
         db->stabilize();
-    else if (db->m_parts.size() > 75 && dbs == d->dbs)
+    else if (db->m_parts.size() > 10 && dbs == d->dbs)
         finalize();
     return HashIndexPoint(dbs.size() - 1, index);
 }
@@ -235,7 +246,7 @@ HashIndexPoint HashStorage::lookup(const uint160 &hash) const
     QList<HashList*> dbs(d->dbs);
     Q_ASSERT(!dbs.isEmpty());
     for (int i = 0; i < dbs.length(); ++i) {
-        int result = dbs.at(i)->find(hash);
+        int result = dbs.at(i)->lookup(hash);
         if (result >= 0) {
             return HashIndexPoint(i, result);
         }
@@ -292,6 +303,7 @@ HashList::HashList(const QString &dbBase)
         for (int i = 0; i < partCount; ++i) {
             m_parts.append(new HashListPart(QString("%1_%2").arg(m_filebase)
                                   .arg(i, 2, 10, QChar('0'))));
+            m_parts.last()->openFiles();
         }
     }
 }
@@ -326,7 +338,7 @@ int HashList::append(const uint160 &hash)
     return id;
 }
 
-int HashList::find(const uint160 &hash) const
+int HashList::lookup(const uint160 &hash) const
 {
     QMutexLocker lock(&m_mutex);
     auto item = m_cacheMap.find(hash);
@@ -334,11 +346,11 @@ int HashList::find(const uint160 &hash) const
         return item.value();
 
     int pos = 0;
-    int endpos = m_sortedFile.size() / WIDTH - 1;
+    int endpos = m_sortedFile.size() / (WIDTH + sizeof(int)) - 1;
     while (pos <= endpos) {
         int m = (pos + endpos) / 2;
         uint160 *item = (uint160*)(m_sorted + m * (WIDTH + sizeof(int)));
-        int comp = item->Compare(hash);
+        const int comp = item->Compare(hash);
         if (comp < 0)
             pos = m + 1;
         else if (comp > 0)
@@ -347,12 +359,14 @@ int HashList::find(const uint160 &hash) const
             return *reinterpret_cast<int*>(m_sorted + m * (WIDTH + sizeof(int)) + WIDTH);
     }
     for (auto part : m_parts) {
-        int pos = 0;
-        int endpos = part->sortedFile.size() / WIDTH - 1;
+        Q_ASSERT(part->reverseLookup);
+        Q_ASSERT(part->sorted);
+        pos = 0;
+        endpos = part->sortedFile.size() / (WIDTH + sizeof(int)) - 1;
         while (pos <= endpos) {
             int m = (pos + endpos) / 2;
             uint160 *item = (uint160*)(part->sorted + m * (WIDTH + sizeof(int)));
-            int comp = item->Compare(hash);
+            const int comp = item->Compare(hash);
             if (comp < 0)
                 pos = m + 1;
             else if (comp > 0)

@@ -45,7 +45,7 @@ class HashListPart
 {
 public:
     HashListPart(const QString &partBase);
-    ~HashListPart() { closeFiles(); }
+    ~HashListPart();
     void openFiles();
     void closeFiles();
     int find(const uint160 &hash) const;
@@ -65,7 +65,7 @@ public:
     static HashList *createEmpty(const QString &dbBase, int index);
 
     int append(const uint160 &hash);
-    int find(const uint160 &hash) const;
+    int lookup(const uint160 &hash) const;
     const uint160 &at(int index) const;
     void writeInfoFile() const;
 
