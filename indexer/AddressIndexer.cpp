@@ -23,6 +23,7 @@
 #include <qsqlerror.h>
 #include <qtimer.h>
 #include <qvariant.h>
+#include <qcoreapplication.h>
 
 #include <boost/filesystem.hpp>
 namespace {
@@ -86,7 +87,7 @@ int AddressIndexer::blockheight()
         query.prepare("select blockHeight from LastKnownState");
         if (!query.exec()) {
             logFatal() << "Failed to select" << query.lastError().text();
-            throw std::runtime_error("Failed to select");
+            QCoreApplication::exit(1);
         }
         query.next();
         m_lastKnownHeight = query.value(0).toInt();
@@ -149,7 +150,7 @@ std::vector<AddressIndexer::TxData> AddressIndexer::find(const uint160 &address)
     if (!query.exec()) {
         logFatal() << "Failed to select" << query.lastError().text();
         logDebug() << "Failed with" << select;
-        throw std::runtime_error("Failed to select");
+        QCoreApplication::exit(1);
     }
     const int size = query.size();
     if (size > 0)
@@ -240,7 +241,7 @@ void DirtyData::commitAllData()
                           "block_height INTEGER, offset_in_block INTEGER, out_index INTEGER)");
                 if (!query.exec(q.arg(table))) {
                     logFatal() << "Failed to create table" << query.lastError().text();
-                    throw std::runtime_error("Failed to create table");
+                    QCoreApplication::exit(1);
                 }
             }
         }
@@ -274,7 +275,7 @@ void DirtyData::commitAllData()
             query.addBindValue(outIndex);
             if (!query.execBatch()) {
                 logFatal() << "Failed to insert into" << table << "reason:" << query.lastError().text();
-                throw std::runtime_error("Failed to update");
+                QCoreApplication::exit(1);
             }
             rowsInserted += list.size();
         }
