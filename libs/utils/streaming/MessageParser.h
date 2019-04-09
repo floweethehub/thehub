@@ -19,6 +19,7 @@
 #define MESSAGEPARSER_H
 
 #include "ConstBuffer.h"
+#include "../Message.h"
 
 #include <uint256.h>
 
@@ -69,6 +70,7 @@ class MessageParser
 {
 public:
     MessageParser(const ConstBuffer &buffer);
+    inline MessageParser(const Message &message) : MessageParser(message.body()) {}
 
     ParsedType next();
     uint32_t peekNext(bool *success = 0) const;

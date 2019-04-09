@@ -21,9 +21,11 @@
 
 #include <QCoreApplication>
 #include <QCommandLineParser>
+#include <QList>
 
 #include <Logger.h>
 #include <NetworkEndPoint.h>
+#include <boost/asio/ip/tcp.hpp>
 
 void HandleSIGTERM(int);
 void HandleSIGHUP(int);
@@ -38,11 +40,13 @@ public:
     void setup(const char *logFilename);
 
     EndPoint serverAddressFromArguments(QStringList args) const;
+    QList<boost::asio::ip::tcp::endpoint> bindingEndPoints(QCommandLineParser &parser, int defaultPort) const;
 
     void handleSigHub() const;
 
 private:
     QCommandLineOption m_conf;
+    QCommandLineOption m_bindAddress;
     QString m_logsconf;
     QString m_logFile;
     int m_appLogSection = -1;

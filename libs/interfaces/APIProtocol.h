@@ -39,6 +39,9 @@ enum ServiceIds {
     /// Connections can subscribe to bitcoin-address usage notifications
     AddressMonitorService = 17,
     BlockNotificationService,
+
+    /// The service ID reserved for the Flowee Indexer. Runs as a stand-alone cloud-server.
+    IndexerService,
 };
 
 enum ApiTags {
@@ -330,6 +333,29 @@ enum Tags {
     GenericByteData = Api::GenericByteData,
     BlockHash = Api::BlockHash,
     BlockHeight = Api::BlockHeight
+};
+}
+
+namespace Indexer {
+enum MessageIds {
+    GetAvailableIndexers,
+    GetAvailableIndexersReply,
+    FindTransaction,
+    FindTransactionReply,
+    FindAddress,
+    FindAddressReply
+};
+
+enum Tags {
+    Separator = Api::Separator,
+    BitcoinAddress = Api::BitcoinAddress,
+    TxId = Api::TxId,
+    BlockHeight = Api::BlockHeight,
+    OffsetInBlock,
+    OutIndex,
+
+    AddressIndexer,
+    TxIdIndexer
 };
 }
 }

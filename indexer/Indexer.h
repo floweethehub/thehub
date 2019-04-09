@@ -22,10 +22,10 @@
 #include "TxIndexer.h"
 
 #include <NetworkManager.h>
+#include <NetworkService.h>
 #include <WorkerThreads.h>
-#include <streaming/BufferPool.h>
 
-class Indexer : public QObject
+class Indexer : public QObject, public NetworkService
 {
     Q_OBJECT
 public:
@@ -35,10 +35,13 @@ public:
     /// connect to server
     void tryConnectHub(const EndPoint &ep);
 
-    /// listen to server others.
-    // TODO void bind(const EndPoint &ep);
+    /// listen to incoming requests
+    void bind(boost::asio::ip::tcp::endpoint endpoint);
 
     void loadConfig(const QString &filename);
+
+    // network service API
+    void onIncomingMessage(Remote *con, const Message &message, const EndPoint &ep) override;
 
 private slots:
     void addressDbFinishedProcessingBlock();
@@ -47,6 +50,8 @@ private:
     void hubConnected(const EndPoint &ep);
     void hubDisconnected();
     void hubSentMessage(const Message &message);
+
+    void clientConnected();
 
     void requestBlock();
     void processNewBlock(const Message &message);

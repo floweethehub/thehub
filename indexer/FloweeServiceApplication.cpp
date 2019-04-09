@@ -31,6 +31,7 @@ void HandleSIGTERM(int) {
 FloweeServiceApplication::FloweeServiceApplication(int &argc, char **argv, int appLogSection)
     : QCoreApplication(argc, argv),
       m_conf(QStringList() << "conf", "Config filename", "PATH"),
+      m_bindAddress(QStringList() << "bind", "Bind to this IP:port", "IP-ADDRESS"),
       m_appLogSection(appLogSection)
 {
 }
@@ -43,6 +44,7 @@ FloweeServiceApplication::~FloweeServiceApplication()
 void FloweeServiceApplication::addStandardOptions(QCommandLineParser &parser)
 {
     parser.addOption(m_conf);
+    parser.addOption(m_bindAddress);
 }
 
 void FloweeServiceApplication::setup(const char *logFilename) {
@@ -88,6 +90,22 @@ EndPoint FloweeServiceApplication::serverAddressFromArguments(QStringList args) 
     SplitHostPort(args.first().toStdString(), port, ep.hostname);
     ep.announcePort = port;
     return ep;
+}
+
+QList<boost::asio::ip::tcp::endpoint> FloweeServiceApplication::bindingEndPoints(QCommandLineParser &parser, int defaultPort) const
+{
+    QList<boost::asio::ip::tcp::endpoint> answer;
+    for (const QString &address : parser.values(m_bindAddress)) {
+        std::string hostname;
+        int port = defaultPort;
+        SplitHostPort(address.toStdString(), port, hostname);
+        try {
+            answer.append(boost::asio::ip::tcp::endpoint(boost::asio::ip::address::from_string(hostname), port));
+        } catch (std::runtime_error &e) {
+            logFatal().nospace() << "Bind address didn't parse: `" << address << "'. Skipping.";
+        }
+    }
+    return answer;
 }
 
 void FloweeServiceApplication::handleSigHub() const

@@ -54,6 +54,21 @@ int main(int argc, char **argv)
         confFile = QStandardPaths::locate(QStandardPaths::AppConfigLocation, "indexer.conf");
     indexer.loadConfig(confFile);
 
+    // become a server
+    bool server = false;
+    try {
+        for (auto ep : app.bindingEndPoints(parser, 1234)) {
+            indexer.bind(ep);
+            logCritical().nospace() << "Bound to " << ep.address().to_string().c_str() << ":" << ep.port();
+            server = true;
+        }
+    } catch (std::exception &e) {
+        logCritical() << e << "Shutting down.";
+        return 1;
+    }
+    if (!server)
+        logCritical() << "Please note you need pass 'bind' to the commandline to be a server";
+
     indexer.tryConnectHub(app.serverAddressFromArguments(parser.positionalArguments()));
     return app.exec();
 }

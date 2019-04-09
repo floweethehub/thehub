@@ -29,7 +29,8 @@
 #include <qcoreapplication.h>
 
 Indexer::Indexer(const boost::filesystem::path &basedir)
-    : m_txdb(m_workers.ioService(), basedir / "txindex"),
+    : NetworkService(Api::IndexerService),
+    m_txdb(m_workers.ioService(), basedir / "txindex"),
     m_addressdb(basedir / "addresses"),
     m_network(m_workers.ioService())
 {
@@ -53,6 +54,12 @@ void Indexer::tryConnectHub(const EndPoint &ep)
     m_serverConnection.connect();
 }
 
+void Indexer::bind(boost::asio::ip::tcp::endpoint endpoint)
+{
+    // m_network.bind(ep, std::bind(&Indexer::clientConnected, this, std::placeholders::_1));
+    m_network.bind(endpoint, std::bind(&Indexer::clientConnected, this));
+}
+
 void Indexer::loadConfig(const QString &filename)
 {
     if (!QFile::exists(filename))
@@ -68,6 +75,81 @@ void Indexer::loadConfig(const QString &filename)
     if (groups.contains("txdb")) {
         m_enableTxDB = settings.value("txdb/enabled", "true").toBool();
         // no config there yet
+    }
+}
+
+void Indexer::onIncomingMessage(NetworkService::Remote *con, const Message &message, const EndPoint &)
+{
+    Q_ASSERT(message.serviceId() == Api::IndexerService);
+    if (message.messageId() == Api::Indexer::GetAvailableIndexers) {
+        con->pool.reserve(10);
+        Streaming::MessageBuilder builder(con->pool);
+        if (m_enableTxDB)
+            builder.add(Api::Indexer::TxIdIndexer, true);
+        if (m_enableAddressDb)
+            builder.add(Api::Indexer::AddressIndexer, true);
+        con->connection.send(builder.message(Api::IndexerService,
+                                             Api::Indexer::GetAvailableIndexersReply));
+    }
+    else if (message.messageId() == Api::Indexer::FindTransaction) {
+        if (!m_enableTxDB) {
+            con->connection.disconnect();
+            return;
+        }
+
+        Streaming::MessageParser parser(message.body());
+        while (parser.next() == Streaming::FoundTag) {
+            if (parser.tag() == Api::Indexer::TxId) {
+                if (parser.dataLength() != 32) {
+                    con->connection.disconnect();
+                    return;
+                }
+                const uint256 *txid = reinterpret_cast<const uint256*>(parser.bytesDataBuffer().begin());
+                auto data = m_txdb.find(*txid);
+                con->pool.reserve(20);
+                Streaming::MessageBuilder builder(con->pool);
+                builder.add(Api::Indexer::BlockHeight, data.blockHeight);
+                builder.add(Api::Indexer::OffsetInBlock, data.offsetInBlock);
+                Message m = builder.message(Api::IndexerService, Api::Indexer::FindTransactionReply);
+                int requestId = message.headerInt(Api::RequestId);
+                if (requestId != -1)
+                    m.setHeaderInt(Api::RequestId, requestId);
+                con->connection.send(m);
+                return; // just one item per message
+            }
+        }
+    }
+    else if (message.messageId() == Api::Indexer::FindAddress) {
+        if (!m_enableAddressDb) {
+            con->connection.disconnect();
+            return;
+        }
+
+        Streaming::MessageParser parser(message);
+        while (parser.next() == Streaming::FoundTag) {
+            if (parser.tag() == Api::Indexer::BitcoinAddress) {
+                if (parser.dataLength() != 20) {
+                    con->connection.disconnect();
+                    return;
+                }
+                const uint160 *a = reinterpret_cast<const uint160*>(parser.bytesDataBuffer().begin());
+                auto data = m_addressdb.find(*a);
+                con->pool.reserve(data.size() * 25);
+                Streaming::MessageBuilder builder(con->pool);
+                for (auto item : data) {
+                    builder.add(Api::Indexer::BlockHeight, item.blockHeight);
+                    builder.add(Api::Indexer::OffsetInBlock, item.offsetInBlock);
+                    builder.add(Api::Indexer::OutIndex, item.outputIndex);
+                }
+
+                Message m = builder.message(Api::IndexerService, Api::Indexer::FindAddressReply);
+                int requestId = message.headerInt(Api::RequestId);
+                if (requestId != -1)
+                    m.setHeaderInt(Api::RequestId, requestId);
+                con->connection.send(m);
+                return; // just one request per message
+            }
+        }
     }
 }
 
@@ -134,6 +216,11 @@ void Indexer::hubSentMessage(const Message &message)
     else {
         Streaming::MessageParser::debugMessage(message);
     }
+}
+
+void Indexer::clientConnected()
+{
+    logCritical() << "A client connected";
 }
 
 void Indexer::processNewBlock(const Message &message)
