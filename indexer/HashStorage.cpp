@@ -58,11 +58,11 @@ struct PairSorter {
     }
 
     std::vector<Pair> pairs;
-
-    bool operator()(const Pair &a, const Pair &b) {
-        return a.hash->Compare(*b.hash) <= 0;
-    }
 };
+
+bool sortPairs(const Pair &a, const Pair &b) {
+    return a.hash->Compare(*b.hash) <= 0;
+}
 
 struct PartHashTip {
     int partIndex;
@@ -401,7 +401,7 @@ void HashList::stabilize()
     m_parts.append(part);
 
     PairSorter sorted(m_cacheMap);
-    std::sort(sorted.pairs.begin(), sorted.pairs.end(), sorted);
+    std::sort(sorted.pairs.begin(), sorted.pairs.end(), &sortPairs);
     QMap<int, int> lookupTable;
     for (auto iter = sorted.pairs.begin(); iter != sorted.pairs.end(); ++iter) {
         assert(iter->index >= 0); // no negative numbers, please.
