@@ -41,6 +41,23 @@ inline uint32_t qHash(const uint160 &key, uint32_t seed) {
     return *reinterpret_cast<const uint32_t*>(key.begin() + (seed % 5));
 }
 
+class HashListPart
+{
+public:
+    HashListPart(const QString &partBase);
+    ~HashListPart() { closeFiles(); }
+    void openFiles();
+    void closeFiles();
+    int find(const uint160 &hash) const;
+    const uint160 &at(int index) const;
+
+    uchar *sorted = nullptr;
+    QFile sortedFile;
+
+    uchar *reverseLookup = nullptr;
+    QFile reverseLookupFile;
+};
+
 class HashList {
 public:
     HashList(const QString &dbBase);
@@ -50,9 +67,16 @@ public:
     int append(const uint160 &hash);
     int find(const uint160 &hash) const;
     const uint160 &at(int index) const;
+    void writeInfoFile() const;
+
+    // write the m_cache to disk (sorted) and start a new one.
+    void stabilize();
+
+    // copy all parts into one file and switch to (single) file lookups only
     void finalize();
 
     const QString m_filebase;
+    QList<HashListPart*> m_parts;
 
     // for the memmapped, sorted section.
     uchar *m_sorted = nullptr;

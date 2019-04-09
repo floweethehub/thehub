@@ -124,10 +124,44 @@ void TestHashStorage::basic()
 
 void TestHashStorage::multipleDbs()
 {
+    uint160 hash1 = uint160S("00001e397a22a7262ae899550d85ae9cb4ac3145");
+    uint160 hash2 = uint160S("5123d8a19c8815f9395cd63abc796289ee790013");
+    uint160 hash3 = uint160S("00001e397a22a7262ae899450d85ae9cb4ac3155");
+    uint160 hash4 = uint160S("0e3e2357e806b6cdb1f70b54c3a3a17b6714ee1f");
+    {
+        HashStorage hs(m_testPath);
+        HashStoragePrivate *d = reinterpret_cast<OpenHashStorage*>(&hs)->d;
+        Q_ASSERT(d);
+        QCOMPARE(d->dbs.length(), 1);
+
+        hs.append(hash1);
+        hs.append(hash2);
+        hs.append(hash3);
+        QCOMPARE(d->dbs.size(), 1);
+        auto db = d->dbs.first();
+        QCOMPARE(db->m_parts.size(), 0);
+        db->stabilize();
+        QCOMPARE(db->m_parts.size(), 1);
+
+        hs.append(hash4);
+        QCOMPARE(hs.lookup(hash1).db, 0);
+        QCOMPARE(hs.lookup(hash2).db, 0);
+        QCOMPARE(hs.lookup(hash3).db, 0);
+        QCOMPARE(hs.lookup(hash4).db, 0);
+    }
     HashStorage hs(m_testPath);
+    QCOMPARE(hs.lookup(hash1).db, 0);
+    QCOMPARE(hs.lookup(hash2).db, 0);
+    QCOMPARE(hs.lookup(hash3).db, 0);
+    QCOMPARE(hs.lookup(hash4).db, 0);
+
+    hs.finalize();
     HashStoragePrivate *d = reinterpret_cast<OpenHashStorage*>(&hs)->d;
     Q_ASSERT(d);
-    QCOMPARE(d->dbs.length(), 1);
+    QCOMPARE(d->dbs.length(), 2);
+    for (auto db : d->dbs) {
+        QCOMPARE(db->m_parts.size(), 0);
+    }
 }
 
 QTEST_MAIN(TestHashStorage)
