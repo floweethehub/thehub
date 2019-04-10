@@ -37,7 +37,7 @@ public:
     ~FloweeServiceApplication();
 
     void addStandardOptions(QCommandLineParser &parser);
-    void setup(const char *logFilename);
+    void setup(const char *logFilename = nullptr);
 
     EndPoint serverAddressFromArguments(QStringList args) const;
     QList<boost::asio::ip::tcp::endpoint> bindingEndPoints(QCommandLineParser &parser, int defaultPort) const;
@@ -45,7 +45,6 @@ public:
     void handleSigHub() const;
 
 private:
-    QCommandLineOption m_conf;
     QCommandLineOption m_bindAddress;
     QString m_logsconf;
     QString m_logFile;

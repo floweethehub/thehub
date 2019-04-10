@@ -26,7 +26,7 @@ int main(int argc, char **argv)
     FloweeServiceApplication app(argc, argv);
     app.setOrganizationName("flowee");
     app.setOrganizationDomain("flowee.org");
-    app.setApplicationName("indexer");
+    app.setApplicationName("indexer-cli");
 
     QCommandLineParser parser;
     parser.setApplicationDescription("Indexing client");
@@ -43,7 +43,7 @@ int main(int argc, char **argv)
     if (args.size() == 1) // nothing to lookup
         return 0;
 
-    app.setup("indexer-cli.log");
+    app.setup();
 
     IndexerClient client;
     client.tryConnectIndexer(app.serverAddressFromArguments(args));

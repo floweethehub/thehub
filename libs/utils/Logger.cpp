@@ -316,7 +316,12 @@ void Log::Manager::parseConfig(const boost::filesystem::path &configfile, const 
         }
     } else {
         // default.
-        d->channels.push_back(new FileLogChannel(logfilename));
+        if (logfilename.has_filename()) {
+            d->channels.push_back(new FileLogChannel(logfilename));
+        } else {
+            d->channels.push_back(new ConsoleLogChannel());
+            loadedConsoleLog = true;
+        }
         d->enabledSections[0] = Log::WarningLevel;
 #ifndef NDEBUG
         d->enabledSections[0] = Log::DebugLevel;

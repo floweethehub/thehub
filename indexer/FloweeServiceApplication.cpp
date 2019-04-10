@@ -28,7 +28,6 @@ void HandleSIGTERM(int) {
 
 FloweeServiceApplication::FloweeServiceApplication(int &argc, char **argv, int appLogSection)
     : QCoreApplication(argc, argv),
-      m_conf(QStringList() << "conf", "Config filename", "PATH"),
       m_bindAddress(QStringList() << "bind", "Bind to this IP:port", "IP-ADDRESS"),
       m_appLogSection(appLogSection)
 {
@@ -36,28 +35,41 @@ FloweeServiceApplication::FloweeServiceApplication(int &argc, char **argv, int a
 
 FloweeServiceApplication::~FloweeServiceApplication()
 {
-    logFatal(m_appLogSection) << "Shutdown";
+    if (!m_logFile.isEmpty()) // only log when a logfile was passed to the setup()
+        logFatal(m_appLogSection) << "Shutdown";
 }
 
 void FloweeServiceApplication::addStandardOptions(QCommandLineParser &parser)
 {
-    parser.addOption(m_conf);
     parser.addOption(m_bindAddress);
 }
 
 void FloweeServiceApplication::setup(const char *logFilename) {
-    // TODO check command line option
     // TODO use org-name/app-name etc to get the example dir.
 
-    m_logsconf = QStandardPaths::locate(QStandardPaths::AppConfigLocation, "logs.conf");
-    m_logFile = QStandardPaths::writableLocation(QStandardPaths::AppDataLocation)
-        + QString("/%1").arg(logFilename);
-    Log::Manager::instance()->parseConfig(m_logsconf.toLocal8Bit().toStdString(), m_logFile.toLocal8Bit().toStdString());
-    logFatal() << applicationName() << "starting.";
-    if (m_logsconf.isEmpty())
-        logFatal(m_appLogSection) << "No logs config found (~/.config/flowee/indexer/logs.conf), using default settings";
-    else
-        logFatal(m_appLogSection) << "Logs config:" << m_logsconf;
+    if (logFilename) {
+        m_logsconf = QStandardPaths::locate(QStandardPaths::AppConfigLocation, "logs.conf");
+        m_logFile = QStandardPaths::writableLocation(QStandardPaths::AppDataLocation)
+            + QString("/%1").arg(logFilename);
+        Log::Manager::instance()->parseConfig(m_logsconf.toLocal8Bit().toStdString(), m_logFile.toLocal8Bit().toStdString());
+        logFatal() << applicationName() << "starting.";
+        if (m_logsconf.isEmpty()) {
+            QString path("~/.config/%1/%2/%3");
+            path = path.arg(organizationName())
+                    .arg(applicationName())
+                    .arg(logFilename);
+            logFatal(m_appLogSection) << "No logs config found" << path << "Using default settings";
+        } else {
+            logFatal(m_appLogSection) << "Logs config:" << m_logsconf;
+        }
+
+        // Reopen log on SIGHUP (to allow for log-rotate)
+        struct sigaction sa_hup;
+        sa_hup.sa_handler = HandleSIGHUP;
+        sigemptyset(&sa_hup.sa_mask);
+        sa_hup.sa_flags = 0;
+        sigaction(SIGHUP, &sa_hup, NULL);
+    }
 
     struct sigaction sa;
     sa.sa_handler = HandleSIGTERM;
@@ -66,12 +78,6 @@ void FloweeServiceApplication::setup(const char *logFilename) {
     sigaction(SIGTERM, &sa, NULL);
     sigaction(SIGINT, &sa, NULL);
 
-    // Reopen hub.log on SIGHUP
-    struct sigaction sa_hup;
-    sa_hup.sa_handler = HandleSIGHUP;
-    sigemptyset(&sa_hup.sa_mask);
-    sa_hup.sa_flags = 0;
-    sigaction(SIGHUP, &sa_hup, NULL);
 
     // Ignore SIGPIPE, otherwise it will bring the daemon down if the client closes unexpectedly
     signal(SIGPIPE, SIG_IGN);
