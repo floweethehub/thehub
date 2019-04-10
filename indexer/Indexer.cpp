@@ -233,6 +233,7 @@ void Indexer::hubSentMessage(const Message &message)
             if (serviceId == Api::BlockChainService && messageId == Api::BlockChain::GetBlock) {
                 logCritical() << "Failed to get block, assuming we are at 'top' of chain";
                 m_indexingFinished = true;
+                m_addressdb.flush();
             }
         }
     }

@@ -216,6 +216,22 @@ bool AddressIndexer::isCommitting() const
     return m_isCommitting;
 }
 
+void AddressIndexer::flush()
+{
+    if (m_isCommitting) // we are flushing right now!
+        return;
+    if (m_dirtyData->m_uncommittedCount == 0)
+        return;
+
+    DirtyData *dd = m_dirtyData;
+    Q_ASSERT(dd);
+    connect(m_dirtyData, SIGNAL(finished(int)), this, SLOT(commitFinished(int)));
+    m_isCommitting = true;
+    m_dirtyData = nullptr; // it deletes itself
+    QTimer::singleShot(0, this, SLOT(createNewDirtyData())); // do this on the proper thread
+    QTimer::singleShot(0, dd, SLOT(commitAllData())); // more work there too
+}
+
 
 DirtyData::DirtyData(QObject *parent, QSqlDatabase *db)
     : QObject(parent),

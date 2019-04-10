@@ -50,6 +50,8 @@ public:
 
     bool isCommitting() const;
 
+    void flush();
+
 signals:
     void finishedProcessingBlock();
 
