@@ -24,6 +24,7 @@
 #include <NetworkManager.h>
 #include <NetworkService.h>
 #include <WorkerThreads.h>
+#include <qtimer.h>
 
 class Indexer : public QObject, public NetworkService
 {
@@ -45,18 +46,20 @@ public:
 
 private slots:
     void addressDbFinishedProcessingBlock();
+    void poll4Block();
 
 private:
+    void requestBlock();
     void hubConnected(const EndPoint &ep);
     void hubDisconnected();
     void hubSentMessage(const Message &message);
 
     void clientConnected(NetworkConnection &con);
 
-    void requestBlock();
     void processNewBlock(const Message &message);
 
 private:
+    QTimer m_pollingTimer;
     Streaming::BufferPool m_pool;
     WorkerThreads m_workers;
     TxIndexer m_txdb;
@@ -65,6 +68,7 @@ private:
     NetworkConnection m_serverConnection;
 
     bool m_enableTxDB = true, m_enableAddressDb = false;
+    bool m_indexingFinished = false;
 };
 
 #endif

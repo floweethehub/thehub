@@ -38,6 +38,8 @@ Indexer::Indexer(const boost::filesystem::path &basedir)
 
     // TODO add some auto-save of the databases.
     connect (&m_addressdb, SIGNAL(finishedProcessingBlock()), SLOT(addressDbFinishedProcessingBlock()));
+    connect (&m_pollingTimer, SIGNAL(timeout()), SLOT(poll4Block()));
+    m_pollingTimer.start(2 * 60 * 1000);
 }
 
 Indexer::~Indexer()
@@ -159,6 +161,12 @@ void Indexer::addressDbFinishedProcessingBlock()
     requestBlock();
 }
 
+void Indexer::poll4Block()
+{
+    if (m_indexingFinished)
+        requestBlock();
+}
+
 void Indexer::hubConnected(const EndPoint &ep)
 {
     int txHeight = m_enableTxDB ? m_txdb.blockheight() : -1;
@@ -166,6 +174,7 @@ void Indexer::hubConnected(const EndPoint &ep)
     logCritical() << "Connection to hub established. TxDB:" << txHeight
                   << "addressDB:" << adHeight;
     m_serverConnection.send(Message(Api::APIService, Api::Meta::Version));
+    m_serverConnection.send(Message(Api::BlockNotificationService, Api::BlockNotification::Subscribe));
     if (!m_addressdb.isCommitting())
         requestBlock();
 }
@@ -203,18 +212,43 @@ void Indexer::hubSentMessage(const Message &message)
             processNewBlock(message);
         }
     }
-    else if (message.serviceId() == Api::APIService && message.messageId() == Api::Meta::CommandFailed) {
-        Streaming::MessageParser parser(message.body());
-        int serviceId = -1;
-        int messageId = -1;
-        while (parser.next() == Streaming::FoundTag) {
-            if (parser.tag() == Api::Meta::FailedCommandServiceId)
-                serviceId = parser.intData();
-            else if (parser.tag() == Api::Meta::FailedCommandId)
-                messageId = parser.intData();
+    else if (message.serviceId() == Api::APIService) {
+        if (message.messageId() == Api::Meta::VersionReply) {
+            Streaming::MessageParser parser(message.body());
+            while (parser.next() == Streaming::FoundTag) {
+                if (parser.tag() == Api::Meta::GenericByteData)
+                    logInfo() << "Server is at version" << parser.stringData();
+            }
         }
-        if (serviceId == Api::BlockChainService && messageId == Api::BlockChain::GetBlock) {
-            logCritical() << "Failed to get block, assuming we are at 'top' of chain";
+        else if (message.messageId() == Api::Meta::CommandFailed) {
+            Streaming::MessageParser parser(message.body());
+            int serviceId = -1;
+            int messageId = -1;
+            while (parser.next() == Streaming::FoundTag) {
+                if (parser.tag() == Api::Meta::FailedCommandServiceId)
+                    serviceId = parser.intData();
+                else if (parser.tag() == Api::Meta::FailedCommandId)
+                    messageId = parser.intData();
+            }
+            if (serviceId == Api::BlockChainService && messageId == Api::BlockChain::GetBlock) {
+                logCritical() << "Failed to get block, assuming we are at 'top' of chain";
+                m_indexingFinished = true;
+            }
+        }
+    }
+    else if (message.serviceId() == Api::BlockNotificationService && message.messageId() == Api::BlockNotification::NewBlockOnChain) {
+        Streaming::MessageParser parser(message.body());
+        while (parser.next() == Streaming::FoundTag) {
+            if (parser.tag() == Api::BlockNotification::BlockHeight) {
+                if (!m_enableAddressDb && !m_enableTxDB) return; // user likes to torture us. :(
+                int blockHeight = 9999999;
+                if (m_enableAddressDb)
+                    blockHeight = m_addressdb.blockheight();
+                if (m_enableTxDB)
+                    blockHeight = std::min(blockHeight, m_txdb.blockheight());
+                if (parser.intData() == blockHeight + 1)
+                    requestBlock();
+            }
         }
     }
     else {
@@ -230,6 +264,7 @@ void Indexer::clientConnected(NetworkConnection &con)
 
 void Indexer::processNewBlock(const Message &message)
 {
+    m_indexingFinished = false;
     int txOffsetInBlock = 0;
     int outputIndex = -1;
     uint256 blockId;
