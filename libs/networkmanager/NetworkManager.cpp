@@ -360,15 +360,9 @@ void NetworkManagerConnection::onConnectComplete(const boost::system::error_code
     runMessageQueue();
     requestMoreBytes(); // setup a callback for receiving.
 
-    if (m_remote.peerPort == m_remote.announcePort) {
-        // for outgoing connections, ping. Notice that I don't care if they pong, as long as the TCP connection stays open
-        m_pingTimer.expires_from_now(boost::posix_time::seconds(90));
-        m_pingTimer.async_wait(m_strand.wrap(std::bind(&NetworkManagerConnection::sendPing, this, std::placeholders::_1)));
-    } else {
-        // for incoming connections, take action when no ping comes in.
-        m_pingTimer.expires_from_now(boost::posix_time::seconds(120));
-        m_pingTimer.async_wait(m_strand.wrap(std::bind(&NetworkManagerConnection::pingTimeout, this, std::placeholders::_1)));
-    }
+    // for outgoing connections, ping. Notice that I don't care if they pong, as long as the TCP connection stays open
+    m_pingTimer.expires_from_now(boost::posix_time::seconds(90));
+    m_pingTimer.async_wait(m_strand.wrap(std::bind(&NetworkManagerConnection::sendPing, this, std::placeholders::_1)));
 }
 
 Streaming::ConstBuffer NetworkManagerConnection::createHeader(const Message &message)
@@ -1027,6 +1021,10 @@ void NetworkManagerConnection::accept()
     // setup a callback for receiving.
     m_socket.async_receive(boost::asio::buffer(m_receiveStream.data(), static_cast<size_t>(m_receiveStream.capacity())),
         m_strand.wrap(std::bind(&NetworkManagerConnection::receivedSomeBytes, this, std::placeholders::_1, std::placeholders::_2)));
+
+    // for incoming connections, take action when no ping comes in.
+    m_pingTimer.expires_from_now(boost::posix_time::seconds(120));
+    m_pingTimer.async_wait(m_strand.wrap(std::bind(&NetworkManagerConnection::pingTimeout, this, std::placeholders::_1)));
 }
 
 void NetworkManagerConnection::runOnStrand(const std::function<void()> &function)
@@ -1103,4 +1101,8 @@ void NetworkManagerServer::acceptConnection(boost::system::error_code error)
     setupCallback(); // only after we std::move socket, to avoid an "Already open" error
     NetworkConnection con(connection, conId);
     onIncomingConnection(con);
+
+    // someone needs to call accept(), if they didn't we shall disconnect
+    if (!connection->acceptedConnection())
+        connection->m_strand.post(std::bind(&NetworkManagerConnection::disconnect, connection));
 }

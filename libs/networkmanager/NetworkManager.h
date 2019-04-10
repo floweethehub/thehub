@@ -68,6 +68,9 @@ public:
     /**
      * Listen for incoming connections.
      * Adds a callback that will be called when a new connection comes in.
+     *
+     * New connections can be vetted in this callback and you need to call NetworkConnection::accept() on
+     * the new connection in your callback handler method.
      */
     void bind(boost::asio::ip::tcp::endpoint endpoint, const std::function<void(NetworkConnection&)> &callback);
 

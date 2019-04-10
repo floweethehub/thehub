@@ -71,34 +71,34 @@ void NetworkConnection::dummy() const
     // intentionally empty
 }
 
-void NetworkConnection::clear()
+void NetworkConnection::clear(ClearOption clear)
 {
     auto d = m_parent.lock();
     if (d) {
         if (m_callbacksId >= 0) {
-            if (d->m_strand.running_in_this_thread())
+            if (d->m_strand.running_in_this_thread()) {
                 d->removeAllCallbacksFor(m_callbacksId);
-            else
-                d->m_strand.post(std::bind(&NetworkManagerConnection::removeAllCallbacksFor, d, m_callbacksId));
+            } else {
+                if (clear == ClearAndWait) {
+                    WaitUntilFinishedHelper helper(std::bind(&NetworkConnection::dummy, this), &d->m_strand);
+                    helper.run();
+                } else {
+                    d->m_strand.post(std::bind(&NetworkManagerConnection::removeAllCallbacksFor, d, m_callbacksId));
+                }
+            }
         }
         m_callbacksId = -1;
         m_parent.reset();
     }
 }
 
+
+
 NetworkConnection::~NetworkConnection()
 {
-    auto d = m_parent.lock();
-    if (d) {
-        assert(!d->m_strand.running_in_this_thread()); // unpredictable behavior, and you should really not do that...
-        clear(); // makes sure no more callbacks are made to me.
-
-        // but some may already have been scheduled on a different thread.
-        // so schedule and wait for a new event to happen we place at the end of the queue
-        WaitUntilFinishedHelper helper(std::bind(&NetworkConnection::dummy, this), &d->m_strand);
-        helper.run();
-    }
+    clear();
 }
+
 
 bool NetworkConnection::isValid() const
 {
