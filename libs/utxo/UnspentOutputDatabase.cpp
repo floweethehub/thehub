@@ -297,6 +297,11 @@ void UnspentOutputDatabase::blockFinished(int blockheight, const uint256 &blockI
             int db = d->dataFiles.size() - 2; // we skip the last DB file
             int jump = 1; // we don't do all DBs every time, this creates a nice sequence.
             do {
+                if (d->dataFiles.at(db)->m_changesSincePrune < 10000) {
+                    // not worth pruning, skip
+                    --db;
+                    continue;
+                }
                 auto dbFilename = d->dataFiles.at(db)->m_path;
                 Pruner pruner(dbFilename.string() + ".db", infoFilenames.at(static_cast<size_t>(db)),
                               jump == 1 ? Pruner::MostActiveDB : Pruner::OlderDB);
@@ -1031,6 +1036,7 @@ void DataFile::flushSomeNodesToDisk(ForceBool force)
         m_fileFull.compare_exchange_strong(notFull, 1);
     }
     m_changesSinceJumptableWritten += flushedToDiskCount;
+    m_changesSincePrune += flushedToDiskCount;
 }
 
 std::string DataFile::flushAll()
@@ -1439,6 +1445,7 @@ std::string DataFileCache::writeInfoFile(DataFile *source)
     builder.add(UODB::LastBlockHeight, source->m_lastBlockHeight);
     builder.add(UODB::LastBlockId, source->m_lastBlockHash);
     builder.add(UODB::PositionInFile, source->m_writeBuffer.offset());
+    builder.add(UODB::ChangesSincePrune, source->m_changesSincePrune);
     CHash256 ctx;
     ctx.Write(reinterpret_cast<const unsigned char*>(source->m_jumptables), sizeof(source->m_jumptables));
     uint256 result;
@@ -1476,6 +1483,8 @@ bool DataFileCache::load(const DataFileCache::InfoFile &info, DataFile *target)
                 target->m_lastBlockHash = parser.uint256Data();
             else if (parser.tag() == UODB::JumpTableHash)
                 checksum = parser.uint256Data();
+            else if (parser.tag() == UODB::ChangesSincePrune)
+                target->m_changesSincePrune = parser.intData();
             else if (parser.tag() == UODB::PositionInFile) {
                 target->m_writeBuffer = Streaming::BufferPool(target->m_buffer, static_cast<int>(target->m_file.size()), true);
                 target->m_writeBuffer.markUsed(parser.intData());

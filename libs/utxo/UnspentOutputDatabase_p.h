@@ -104,7 +104,10 @@ namespace UODB {
         // Additional bucket-positioning tags
         LeafPosOn512MB,
         LeafPosFromPrevLeaf,
-        LeafPosRepeat
+        LeafPosRepeat,
+
+        // Additional tags for the jump-index
+        ChangesSincePrune
 
     };
 }
@@ -201,6 +204,7 @@ public:
     // Amount of inserts/deletes since last flush
     std::atomic_int m_changeCount;
     int m_changesSinceJumptableWritten = 0;
+    int m_changesSincePrune = 0;
     std::atomic_bool m_flushScheduled;
 
     // --- rollback info ---
