@@ -750,6 +750,13 @@ public:
     }
 };
 
+class GetTransaction : public Api::DirectParser {
+public:
+    void buildReply(const Message &request, Streaming::MessageBuilder &builder) override {
+
+    }
+};
+
 }
 
 

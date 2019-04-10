@@ -35,6 +35,7 @@
 #include "UnspentOutputData.h"
 #include <txmempool.h>
 #include <utxo/UnspentOutputDatabase.h>
+#include <Application.h>
 
 #include <boost/algorithm/string.hpp>
 #include <boost/dynamic_bitset.hpp>
@@ -378,8 +379,7 @@ static bool rest_tx(HTTPRequest* req, const std::string& strURIPart)
         return RESTERR(req, HTTP_BAD_REQUEST, "Invalid hash: " + hashStr);
 
     CTransaction tx;
-    uint256 hashBlock = uint256();
-    if (!GetTransaction(hash, tx, hashBlock))
+    if (!flApp->mempool()->lookup(hash, tx))
         return RESTERR(req, HTTP_NOT_FOUND, hashStr + " not found");
 
     CDataStream ssTx(SER_NETWORK, PROTOCOL_VERSION);
@@ -402,6 +402,7 @@ static bool rest_tx(HTTPRequest* req, const std::string& strURIPart)
 
     case RF_JSON: {
         UniValue objTx(UniValue::VOBJ);
+        uint256 hashBlock;
         TxToJSON(tx, hashBlock, objTx);
         std::string strJSON = objTx.write() + "\n";
         req->WriteHeader("Content-Type", "application/json");

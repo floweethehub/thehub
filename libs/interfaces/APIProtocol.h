@@ -164,11 +164,10 @@ enum MessageIds {
     GetBlockHeaderReply,
     GetBlockCount,
     GetBlockCountReply,
-//   getblockhash index // maybe not needed as we add a height to GetBlock and GetBlockHeader?
+    GetTransaction,
+    GetTransactionReply,
 //   getchaintips
 //   getdifficulty
-//   getmempoolinfo
-//   getrawmempool ( verbose )
 //   gettxout "txid" n ( includemempool )
 //   verifychain ( checklevel numblocks )
 };
@@ -250,6 +249,9 @@ enum MessageIds {
 //   getpeerinfo
 //   listbanned
 //   setban "ip(/netmask)" "add|remove" (bantime) (absolute)
+//   == blockchain ==
+//   getmempoolinfo
+//   getrawmempool ( verbose )
 };
 
 enum Tags {
