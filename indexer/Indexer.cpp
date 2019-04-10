@@ -165,6 +165,7 @@ void Indexer::hubConnected(const EndPoint &ep)
     int adHeight = m_enableAddressDb ? m_addressdb.blockheight() : -1;
     logCritical() << "Connection to hub established. TxDB:" << txHeight
                   << "addressDB:" << adHeight;
+    m_serverConnection.send(Message(Api::APIService, Api::Meta::Version));
     if (!m_addressdb.isCommitting())
         requestBlock();
 }
@@ -183,10 +184,10 @@ void Indexer::requestBlock()
     Streaming::MessageBuilder builder(m_pool);
     builder.add(Api::BlockChain::BlockHeight, blockHeight);
     if (m_enableTxDB && m_txdb.blockheight() < blockHeight)
-        builder.add(Api::BlockChain::GetBlock_TxId, true);
+        builder.add(Api::BlockChain::Include_TxId, true);
     if (m_enableAddressDb && m_addressdb.blockheight() < blockHeight)
-        builder.add(Api::BlockChain::GetBlock_OutputAddresses, true);
-    builder.add(Api::BlockChain::GetBlock_OffsetInBlock, true);
+        builder.add(Api::BlockChain::Include_OutputAddresses, true);
+    builder.add(Api::BlockChain::Include_OffsetInBlock, true);
     m_serverConnection.send(builder.message(Api::BlockChainService, Api::BlockChain::GetBlock));
 }
 
@@ -202,14 +203,14 @@ void Indexer::hubSentMessage(const Message &message)
             processNewBlock(message);
         }
     }
-    else if (message.serviceId() == Api::FailuresService && message.messageId() == Api::Failures::CommandFailed) {
+    else if (message.serviceId() == Api::APIService && message.messageId() == Api::Meta::CommandFailed) {
         Streaming::MessageParser parser(message.body());
         int serviceId = -1;
         int messageId = -1;
         while (parser.next() == Streaming::FoundTag) {
-            if (parser.tag() == Api::Failures::FailedCommandServiceId)
+            if (parser.tag() == Api::Meta::FailedCommandServiceId)
                 serviceId = parser.intData();
-            else if (parser.tag() == Api::Failures::FailedCommandId)
+            else if (parser.tag() == Api::Meta::FailedCommandId)
                 messageId = parser.intData();
         }
         if (serviceId == Api::BlockChainService && messageId == Api::BlockChain::GetBlock) {

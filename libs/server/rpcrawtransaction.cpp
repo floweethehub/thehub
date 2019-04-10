@@ -202,8 +202,7 @@ UniValue getrawtransaction(const UniValue& params, bool fHelp)
         fVerbose = (params[1].get_int() != 0);
 
     CTransaction tx;
-    uint256 hashBlock;
-    if (!GetTransaction(hash, tx, hashBlock))
+    if (!flApp->mempool()->lookup(hash, tx))
         throw JSONRPCError(RPC_INVALID_ADDRESS_OR_KEY, "No information available about transaction");
 
     std::string strHex = EncodeHexTx(tx);
@@ -213,6 +212,7 @@ UniValue getrawtransaction(const UniValue& params, bool fHelp)
 
     UniValue result(UniValue::VOBJ);
     result.push_back(Pair("hex", strHex));
+    uint256 hashBlock;
     TxToJSON(tx, hashBlock, result);
     return result;
 }

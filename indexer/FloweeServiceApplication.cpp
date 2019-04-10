@@ -21,6 +21,7 @@
 #include <QStandardPaths>
 #include <netbase.h> // for SplitHostPort
 #include <signal.h>
+#include <algorithm>
 
 void HandleSIGTERM(int) {
     QCoreApplication::quit();
@@ -28,6 +29,7 @@ void HandleSIGTERM(int) {
 
 FloweeServiceApplication::FloweeServiceApplication(int &argc, char **argv, int appLogSection)
     : QCoreApplication(argc, argv),
+      m_debug(QStringList() << "debug", "use debug level logging"),
       m_bindAddress(QStringList() << "bind", "Bind to this IP:port", "IP-ADDRESS"),
       m_appLogSection(appLogSection)
 {
@@ -39,15 +41,27 @@ FloweeServiceApplication::~FloweeServiceApplication()
         logFatal(m_appLogSection) << "Shutdown";
 }
 
-void FloweeServiceApplication::addStandardOptions(QCommandLineParser &parser)
+void FloweeServiceApplication::addServerOptions(QCommandLineParser &parser)
 {
+    m_parser = &parser;
     parser.addOption(m_bindAddress);
+    parser.addOption(m_debug);
+}
+
+void FloweeServiceApplication::addClientOptions(QCommandLineParser &parser)
+{
+    m_parser = &parser;
+    parser.addOption(m_debug);
 }
 
 void FloweeServiceApplication::setup(const char *logFilename) {
-    // TODO use org-name/app-name etc to get the example dir.
-
-    if (logFilename) {
+    if (m_parser && m_parser->isSet(m_debug)) {
+        auto *logger = Log::Manager::instance();
+        logger->clearChannels();
+        logger->clearLogLevels(Log::DebugLevel);
+        logger->addConsoleChannel();
+    }
+    else if (logFilename) {
         m_logsconf = QStandardPaths::locate(QStandardPaths::AppConfigLocation, "logs.conf");
         m_logFile = QStandardPaths::writableLocation(QStandardPaths::AppDataLocation)
             + QString("/%1").arg(logFilename);
@@ -83,14 +97,14 @@ void FloweeServiceApplication::setup(const char *logFilename) {
     signal(SIGPIPE, SIG_IGN);
 }
 
-EndPoint FloweeServiceApplication::serverAddressFromArguments(QStringList args) const
+EndPoint FloweeServiceApplication::serverAddressFromArguments(QStringList args, short defaultPort) const
 {
     if (args.isEmpty()) {
         logFatal() << "No arguments given, attempting localhost:1235";
-        args << "localhost:1235";
+        args << QString("localhost:%1").arg(defaultPort);
     }
     EndPoint ep;
-    int port = 1234; // ep.announcePort is a short, SplitHostPort requires an int :(
+    int port = defaultPort; // ep.announcePort is a short, SplitHostPort requires an int :(
     SplitHostPort(args.first().toStdString(), port, ep.hostname);
     ep.announcePort = port;
     return ep;
@@ -103,10 +117,17 @@ QList<boost::asio::ip::tcp::endpoint> FloweeServiceApplication::bindingEndPoints
         std::string hostname;
         int port = defaultPort;
         SplitHostPort(address.toStdString(), port, hostname);
-        try {
-            answer.append(boost::asio::ip::tcp::endpoint(boost::asio::ip::address::from_string(hostname), port));
-        } catch (std::runtime_error &e) {
-            logFatal().nospace() << "Bind address didn't parse: `" << address << "'. Skipping.";
+        std::transform(hostname.begin(), hostname.end(), hostname.begin(), ::tolower);
+        if (hostname.empty() || hostname == "localhost") {
+            answer.push_back(boost::asio::ip::tcp::endpoint(boost::asio::ip::address::from_string("127.0.0.1"), port));
+            answer.push_back(boost::asio::ip::tcp::endpoint(boost::asio::ip::address::from_string("::1"), port));
+        }
+        else {
+            try {
+                answer.append(boost::asio::ip::tcp::endpoint(boost::asio::ip::address::from_string(hostname), port));
+            } catch (std::runtime_error &e) {
+                logFatal().nospace() << "Bind address didn't parse: `" << address << "'. Skipping.";
+            }
         }
     }
     return answer;

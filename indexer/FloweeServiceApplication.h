@@ -36,19 +36,23 @@ public:
     FloweeServiceApplication(int &argc, char **argv, int appLogSection = LOG_DEFAULT_SECTION);
     ~FloweeServiceApplication();
 
-    void addStandardOptions(QCommandLineParser &parser);
+    void addServerOptions(QCommandLineParser &parser);
+    void addClientOptions(QCommandLineParser &parser);
     void setup(const char *logFilename = nullptr);
 
-    EndPoint serverAddressFromArguments(QStringList args) const;
+    EndPoint serverAddressFromArguments(QStringList args, short defaultPort) const;
     QList<boost::asio::ip::tcp::endpoint> bindingEndPoints(QCommandLineParser &parser, int defaultPort) const;
 
     void handleSigHub() const;
 
 private:
+    QCommandLineOption m_debug;
     QCommandLineOption m_bindAddress;
     QString m_logsconf;
     QString m_logFile;
     int m_appLogSection = -1;
+
+    QCommandLineParser *m_parser = nullptr;
 };
 
 #endif

@@ -32,6 +32,7 @@
 #include <list>
 
 #include <primitives/FastBlock.h>
+#include <primitives/FastTransaction.h>
 
 namespace {
 
@@ -246,6 +247,68 @@ public:
     }
 };
 
+struct TransactionSerializationOptions
+{
+    void serialize(Streaming::MessageBuilder &builder, Tx::Iterator &iter)
+    {
+        int outIndex = 0;
+        auto type = iter.next();
+        while (type != Tx::End) {
+            if (returnInputs && type == Tx::PrevTxHash) {
+                builder.add(Api::BlockChain::Tx_IN_TxId, iter.uint256Data());
+            }
+            else if (returnInputs && type == Tx::TxInScript) {
+                builder.add(Api::BlockChain::Tx_InputScript, iter.byteData());
+            }
+            else if (returnInputs && type == Tx::PrevTxIndex) {
+                builder.add(Api::BlockChain::Tx_IN_OutIndex, iter.intData());
+            }
+            else if ((returnOutputs || returnOutputAmounts) && type == Tx::OutputValue) {
+                builder.add(Api::BlockChain::Tx_Out_Index, outIndex++);
+                builder.add(Api::BlockChain::Tx_Out_Amount, iter.longData());
+            }
+            else if ((returnOutputs || returnOutputScripts || returnOutputAddresses) && type == Tx::OutputScript) {
+                if (!returnOutputs && !returnOutputAmounts) // if not done before OutputValue
+                    builder.add(Api::BlockChain::Tx_Out_Index, outIndex++);
+                if (returnOutputs || returnOutputScripts)
+                    builder.add(Api::BlockChain::Tx_OutputScript, iter.byteData());
+                if (returnOutputAddresses) {
+                    CScript scriptPubKey(iter.byteData());
+
+                    std::vector<std::vector<unsigned char> > vSolutions;
+                    txnouttype whichType;
+                    bool recognizedTx = Solver(scriptPubKey, whichType, vSolutions);
+                    if (recognizedTx && (whichType == TX_PUBKEY || whichType == TX_PUBKEYHASH)) {
+                        if (whichType == TX_PUBKEYHASH) {
+                            assert(vSolutions[0].size() == 20);
+                            builder.addByteArray(Api::BlockChain::Tx_Out_Address, vSolutions[0].data(), 20);
+                        } else if (whichType == TX_PUBKEY) {
+                            CPubKey pubKey(vSolutions[0]);
+                            assert (pubKey.IsValid());
+                            CKeyID address = pubKey.GetID();
+                            builder.addByteArray(Api::BlockChain::Tx_Out_Address, address.begin(), 20);
+                        }
+                    }
+                }
+            }
+
+            type = iter.next();
+        }
+    }
+
+    // return true only if serialize would actually export anything
+    bool shouldRun() const {
+        const bool partialTxData = returnInputs || returnOutputs || returnOutputAmounts
+                || returnOutputScripts || returnOutputAddresses;
+        return partialTxData;
+    }
+    bool returnInputs = false;
+    bool returnOutputs = false;
+    bool returnOutputAmounts = false;
+    bool returnOutputScripts = false;
+    bool returnOutputAddresses = false;
+};
+
 class GetBlock : public Api::DirectParser
 {
 public:
@@ -293,27 +356,25 @@ public:
                 fullTxData = parser.boolData();
                 if (!fullTxData)
                     m_fullTxData = false;
-            } else if (parser.tag() == Api::BlockChain::GetBlock_TxId) {
+            } else if (parser.tag() == Api::BlockChain::Include_TxId) {
                 m_returnTxId = parser.boolData();
-            } else if (parser.tag() == Api::BlockChain::GetBlock_OffsetInBlock) {
+            } else if (parser.tag() == Api::BlockChain::Include_OffsetInBlock) {
                 m_returnOffsetInBlock = parser.boolData();
-            } else if (parser.tag() == Api::BlockChain::GetBlock_Inputs) {
-                m_returnInputs = parser.boolData();
-            } else if (parser.tag() == Api::BlockChain::GetBlock_Outputs) {
-                m_returnOutputs = parser.boolData();
-            } else if (parser.tag() == Api::BlockChain::GetBlock_OutputAmounts) {
-                m_returnOutputAmounts = parser.boolData();
-            } else if (parser.tag() == Api::BlockChain::GetBlock_OutputScripts) {
-                m_returnOutputScripts = parser.boolData();
-            } else if (parser.tag() == Api::BlockChain::GetBlock_OutputAddresses) {
-                m_returnOutputAddresses = parser.boolData();
+            } else if (parser.tag() == Api::BlockChain::Include_Inputs) {
+                opt.returnInputs = parser.boolData();
+            } else if (parser.tag() == Api::BlockChain::Include_Outputs) {
+                opt.returnOutputs = parser.boolData();
+            } else if (parser.tag() == Api::BlockChain::Include_OutputAmounts) {
+                opt.returnOutputAmounts = parser.boolData();
+            } else if (parser.tag() == Api::BlockChain::Include_OutputScripts) {
+                opt.returnOutputScripts = parser.boolData();
+            } else if (parser.tag() == Api::BlockChain::Include_OutputAddresses) {
+                opt.returnOutputAddresses = parser.boolData();
             }
         }
         if (fullTxData) // if explicitly asked.
             m_fullTxData = true;
-        else if (m_returnTxId || m_returnInputs || m_returnOutputs || m_returnOutputAmounts
-                || m_returnOutputScripts || m_returnOutputAddresses)
-            // we imply false if they want a subset.
+        else if (m_returnTxId || opt.shouldRun()); // we imply false if they want a subset.
             m_fullTxData = false;
 
         if (index == nullptr)
@@ -358,7 +419,7 @@ public:
             if (type == Tx::PrevTxHash) {
                 txInputSize += 42; // prevhash: 32 + 3 +  prevIndex; 6 + 1
             }
-            else if (m_returnInputs && type == Tx::TxInScript) {
+            else if (opt.returnInputs && type == Tx::TxInScript) {
                 txInputSize += iter.dataLength() + 3;
             }
             else if (type == Tx::OutputValue) {
@@ -392,16 +453,16 @@ public:
         if (m_fullTxData)  bytesPerTx += 5; // actual tx-data is in 'size'
 
         int bytesPerOutput = 5;
-        if (m_returnOutputAmounts || m_returnOutputs) bytesPerOutput += 10;
-        if (m_returnOutputAddresses || m_returnOutputs) bytesPerOutput += 23;
+        if (opt.returnOutputAmounts || opt.returnOutputs) bytesPerOutput += 10;
+        if (opt.returnOutputAddresses || opt.returnOutputs) bytesPerOutput += 23;
 
         int total = 45 + m_transactions.size() * bytesPerTx;
         if (m_fullTxData) total += size;
-        if (m_returnOutputs || m_returnOutputScripts)
+        if (opt.returnOutputs || opt.returnOutputScripts)
             total += matchedOutputScriptSizes;
-        if (m_returnInputs)
+        if (opt.returnInputs)
             total += matchedInputsSize;
-        if (m_returnOutputs || m_returnOutputAddresses || m_returnOutputAmounts)
+        if (opt.returnOutputs || opt.returnOutputAddresses || opt.returnOutputAmounts)
             total += matchedOutputs * bytesPerOutput;
 
         logDebug(Log::ApiServer) << "GetBlock calculated to need at most" << total << "bytes";
@@ -416,60 +477,16 @@ public:
         builder.add(Api::BlockChain::BlockHeight, m_height);
         builder.add(Api::BlockChain::BlockHash, m_block.createHash());
 
-        const bool partialTxData = m_returnTxId  || m_returnInputs  || m_returnOutputs  || m_returnOutputAmounts
-                || m_returnOutputScripts  || m_returnOutputAddresses;
         for (auto posAndSize : m_transactions) {
             if (m_returnOffsetInBlock)
                 builder.add(Api::BlockChain::Tx_OffsetInBlock, posAndSize.first);
-            if (partialTxData) {
-                int outIndex = 0;
-                if (m_returnTxId) {
-                    Tx tx(m_block.data().mid(posAndSize.first, posAndSize.second));
-                    builder.add(Api::BlockChain::TxId, tx.createHash());
-                }
+            if (m_returnTxId) {
+                Tx tx(m_block.data().mid(posAndSize.first, posAndSize.second));
+                builder.add(Api::BlockChain::TxId, tx.createHash());
+            }
+            if (opt.shouldRun()) {
                 Tx::Iterator iter(m_block, posAndSize.first);
-                auto type = iter.next();
-                while (type != Tx::End) {
-                    if (m_returnInputs && type == Tx::PrevTxHash) {
-                        builder.add(Api::BlockChain::Tx_IN_TxId, iter.uint256Data());
-                    }
-                    else if (m_returnInputs && type == Tx::TxInScript) {
-                        builder.add(Api::BlockChain::Tx_InputScript, iter.byteData());
-                    }
-                    else if (m_returnInputs && type == Tx::PrevTxIndex) {
-                        builder.add(Api::BlockChain::Tx_IN_OutIndex, iter.intData());
-                    }
-                    else if ((m_returnOutputs || m_returnOutputAmounts) && type == Tx::OutputValue) {
-                        builder.add(Api::BlockChain::Tx_Out_Index, outIndex++);
-                        builder.add(Api::BlockChain::Tx_Out_Amount, iter.longData());
-                    }
-                    else if ((m_returnOutputs || m_returnOutputScripts || m_returnOutputAddresses) && type == Tx::OutputScript) {
-                        if (!m_returnOutputs && !m_returnOutputAmounts) // if not done before OutputValue
-                            builder.add(Api::BlockChain::Tx_Out_Index, outIndex++);
-                        if (m_returnOutputs || m_returnOutputScripts)
-                            builder.add(Api::BlockChain::Tx_OutputScript, iter.byteData());
-                        if (m_returnOutputAddresses) {
-                            CScript scriptPubKey(iter.byteData());
-
-                            std::vector<std::vector<unsigned char> > vSolutions;
-                            txnouttype whichType;
-                            bool recognizedTx = Solver(scriptPubKey, whichType, vSolutions);
-                            if (recognizedTx && (whichType == TX_PUBKEY || whichType == TX_PUBKEYHASH)) {
-                                if (whichType == TX_PUBKEYHASH) {
-                                    assert(vSolutions[0].size() == 20);
-                                    builder.addByteArray(Api::BlockChain::Tx_Out_Address, vSolutions[0].data(), 20);
-                                } else if (whichType == TX_PUBKEY) {
-                                    CPubKey pubKey(vSolutions[0]);
-                                    assert (pubKey.IsValid());
-                                    CKeyID address = pubKey.GetID();
-                                    builder.addByteArray(Api::BlockChain::Tx_Out_Address, address.begin(), 20);
-                                }
-                            }
-                        }
-                    }
-
-                    type = iter.next();
-                }
+                opt.serialize(builder, iter);
             }
             if (m_fullTxData)
                 builder.add(Api::BlockChain::GenericByteData,
@@ -484,12 +501,8 @@ public:
     bool m_fullTxData = true;
     bool m_returnTxId = false;
     bool m_returnOffsetInBlock = true;
-    bool m_returnInputs = false;
-    bool m_returnOutputs = false;
-    bool m_returnOutputAmounts = false;
-    bool m_returnOutputScripts = false;
-    bool m_returnOutputAddresses = false;
     int m_height = -1;
+    TransactionSerializationOptions opt;
 };
 class GetBlockCount : public Api::DirectParser
 {
@@ -752,9 +765,93 @@ public:
 
 class GetTransaction : public Api::DirectParser {
 public:
-    void buildReply(const Message &request, Streaming::MessageBuilder &builder) override {
+    GetTransaction() : DirectParser(Api::BlockChain::GetTransactionReply) {}
+    int calculateMessageSize(const Message &request) override {
+        Streaming::MessageParser parser(request);
+        CBlockIndex *index = nullptr;
+        bool fullTxData = false;
+        while (parser.next() == Streaming::FoundTag) {
+            if (parser.tag() == Api::BlockChain::BlockHeight) {
+                index = Blocks::DB::instance()->headerChain()[parser.intData()];
+                if (!index)
+                    throw Api::ParserException("Unknown blockheight");
+            } else if (parser.tag() == Api::BlockChain::BlockHash) {
+                index = Blocks::Index::get(parser.uint256Data());
+                if (!index)
+                    throw Api::ParserException("Unknown block hash");
+            } else if (parser.tag() == Api::BlockChain::Tx_OffsetInBlock) {
+                m_offsetInBlock = parser.intData();
+                if (m_offsetInBlock < 81)
+                    throw Api::ParserException("OffsetInBlock should be a positive number");
+            } else if (parser.tag() == Api::BlockChain::FullTransactionData) {
+                fullTxData = parser.boolData();
+                if (!fullTxData)
+                    m_fullTxData = false;
+            } else if (parser.tag() == Api::BlockChain::Include_TxId) {
+                m_returnTxId = parser.boolData();
+            } else if (parser.tag() == Api::BlockChain::Include_OffsetInBlock) {
+                m_returnOffsetInBlock = parser.boolData();
+            } else if (parser.tag() == Api::BlockChain::Include_Inputs) {
+                opt.returnInputs = parser.boolData();
+            } else if (parser.tag() == Api::BlockChain::Include_Outputs) {
+                opt.returnOutputs = parser.boolData();
+            } else if (parser.tag() == Api::BlockChain::Include_OutputAmounts) {
+                opt.returnOutputAmounts = parser.boolData();
+            } else if (parser.tag() == Api::BlockChain::Include_OutputScripts) {
+                opt.returnOutputScripts = parser.boolData();
+            } else if (parser.tag() == Api::BlockChain::Include_OutputAddresses) {
+                opt.returnOutputAddresses = parser.boolData();
+            }
+        }
+        if (fullTxData) // if explicitly asked.
+            m_fullTxData = true;
+        else if (m_returnTxId || opt.shouldRun()) // we imply false if they want a subset.
+            m_fullTxData = false;
 
+        if (!index || m_offsetInBlock < 81)
+            throw Api::ParserException("Incomplete request.");
+        if (index->nDataPos < 4 || (index->nStatus & BLOCK_HAVE_DATA) == 0)
+            throw Api::ParserException("Block known but data not available");
+
+        FastBlock block;
+        try {
+            block = Blocks::DB::instance()->loadBlock(index->GetBlockPos());
+            assert(block.isFullBlock());
+        } catch (...) {
+            throw Api::ParserException("Blockdata not present on this Hub");
+        }
+        if (m_offsetInBlock > block.size())
+            throw Api::ParserException("OffsetInBlock larger than block");
+        Tx::Iterator iter(block, m_offsetInBlock);
+        if (iter.next(Tx::End) == Tx::End)
+            m_tx = iter.prevTx();
+
+        int amount = m_fullTxData ? m_tx.size() + 10 : 0;
+        if (m_returnTxId) amount += 40;
+        if (m_returnOffsetInBlock) amount += 10;
+        if (opt.shouldRun()) amount += m_tx.size();
+        return amount;
     }
+    void buildReply(const Message &, Streaming::MessageBuilder &builder) override {
+        if (m_returnTxId)
+            builder.add(Api::BlockChain::TxId, m_tx.createHash());
+        if (m_returnOffsetInBlock)
+            builder.add(Api::BlockChain::Tx_OffsetInBlock, m_offsetInBlock);
+        if (opt.shouldRun()) {
+            Tx::Iterator iter(m_tx);
+            opt.serialize(builder, iter);
+        }
+        if (m_fullTxData)
+            builder.add(Api::BlockChain::GenericByteData, m_tx.data());
+    }
+
+private:
+    bool m_fullTxData = true;
+    bool m_returnTxId = false;
+    bool m_returnOffsetInBlock = false;
+    int m_offsetInBlock = 0;
+    Tx m_tx;
+    TransactionSerializationOptions opt;
 };
 
 }
@@ -777,6 +874,8 @@ Api::Parser *Api::createParser(const Message &message)
             return new GetBlockHeader();
         case Api::BlockChain::GetBlockCount:
             return new GetBlockCount();
+        case Api::BlockChain::GetTransaction:
+            return new GetTransaction();
         }
         break;
     case Api::RawTransactionService:

@@ -71,6 +71,7 @@ void IndexerClient::tryConnectHub(const EndPoint &ep)
 void IndexerClient::hubConnected(const EndPoint &)
 {
     logDebug() << "Hub connection established";
+    m_hubConnection.send(Message(Api::APIService, Api::Meta::Version));
 }
 
 void IndexerClient::hubDisconnected()
@@ -80,11 +81,24 @@ void IndexerClient::hubDisconnected()
 
 void IndexerClient::onIncomingHubMessage(const Message &message)
 {
-
+    if (message.serviceId() == Api::BlockChainService) {
+        if (message.messageId() == Api::BlockChain::GetTransactionReply) {
+            Streaming::MessageParser parser(message);
+            while (parser.next() == Streaming::FoundTag) {
+                if (parser.tag() == Api::BlockChain::GenericByteData) {
+                    auto blob = parser.bytesDataBuffer();
+                    QByteArray tx(blob.begin(), blob.size());
+                    logFatal() << tx.toHex().constData();
+                    QCoreApplication::quit();
+                }
+            }
+        }
+    }
 }
 
 void IndexerClient::indexerConnected(const EndPoint &ep)
 {
+    m_indexConnection.send(Message(Api::IndexerService, Api::Indexer::GetAvailableIndexers));
     logDebug() << "Indexer connection established";
 }
 
@@ -108,13 +122,26 @@ void IndexerClient::onIncomingIndexerMessage(const Message &message)
             }
 
             logFatal().nospace() << "Transaction location is: [block=" << blockHeight << "+" << offsetInBlock << "]";
-            /*if (blockHeight > 0 && offsetInBlock > 80 && m_hubConnection.isValid()) {
+            if (blockHeight > 0 && offsetInBlock > 80 && m_hubConnection.isValid()) {
                 Streaming::MessageBuilder builder(Streaming::NoHeader, 20);
                 builder.add(Api::BlockChain::BlockHeight, blockHeight);
-                builder.add(Api::BlockChain::OffsetInBlock, offsetInBlock);
+                builder.add(Api::BlockChain::Tx_OffsetInBlock, offsetInBlock);
                 m_hubConnection.send(builder.message(Api::BlockChainService, Api::BlockChain::GetTransaction));
-            } else */
-            QCoreApplication::quit();
+            }
+            else
+                QCoreApplication::quit();
         }
     }
+    else if (message.serviceId() == Api::BlockChainService && message.messageId() == Api::BlockChain::GetTransactionReply) {
+        Streaming::MessageParser parser(message);
+        while (parser.next() == Streaming::FoundTag) {
+            if (parser.tag() == Api::BlockChain::GenericByteData) {
+                logFatal() << parser.unsignedBytesData();
+                QCoreApplication::quit();
+                return;
+            }
+        }
+    }
+    else
+        Streaming::MessageParser::debugMessage(message);
 }

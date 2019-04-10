@@ -36,6 +36,7 @@ int main(int argc, char **argv)
 
     QCommandLineOption hub(QStringList() << "hub", "Hub server address", "HOSTNAME");
     parser.addOption(hub);
+    app.addClientOptions(parser);
     parser.process(app.arguments());
     auto args = parser.positionalArguments();
     if (args.isEmpty())
@@ -46,7 +47,7 @@ int main(int argc, char **argv)
     app.setup();
 
     IndexerClient client;
-    client.tryConnectIndexer(app.serverAddressFromArguments(args));
+    client.tryConnectIndexer(app.serverAddressFromArguments(args, 1234));
     for (auto a : args.mid(1)) {
         client.resolve(a);
     }

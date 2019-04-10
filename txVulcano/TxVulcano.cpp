@@ -116,15 +116,15 @@ void TxVulcano::disconnected()
 void TxVulcano::incomingMessage(const Message& message)
 {
     // logDebug() << message.serviceId() << message.messageId() << message.body().size();
-    if (message.serviceId() == Api::FailuresService && message.messageId() == Api::Failures::CommandFailed) {
+    if (message.serviceId() == Api::APIService && message.messageId() == Api::Meta::CommandFailed) {
         Streaming::MessageParser parser(message.body());
         int serviceId = -1;
         int messageId = -1;
         // std::string errorMessage;
         while (parser.next() == Streaming::FoundTag) {
-            if (parser.tag() == Api::Failures::FailedCommandServiceId)
+            if (parser.tag() == Api::Meta::FailedCommandServiceId)
                 serviceId = parser.intData();
-            else if (parser.tag() == Api::Failures::FailedCommandId)
+            else if (parser.tag() == Api::Meta::FailedCommandId)
                 messageId = parser.intData();
             // else if (parser.tag() == Api::Failures::FailedReason)
             //     errorMessage = parser.stringData();
@@ -465,11 +465,11 @@ void TxVulcano::buildGetBlockRequest(Streaming::MessageBuilder &builder, bool &f
         builder.add(Api::BlockChain::ReuseAddressFilter, true);
     }
 
-    builder.add(Api::BlockChain::GetBlock_TxId, true);
-    builder.add(Api::BlockChain::GetBlock_OffsetInBlock, true);
-    builder.add(Api::BlockChain::GetBlock_OutputAmounts, true);
-    builder.add(Api::BlockChain::GetBlock_OutputAddresses, true);
-    builder.add(Api::BlockChain::GetBlock_OutputScripts, true);
+    builder.add(Api::BlockChain::Include_TxId, true);
+    builder.add(Api::BlockChain::Include_OffsetInBlock, true);
+    builder.add(Api::BlockChain::Include_OutputAmounts, true);
+    builder.add(Api::BlockChain::Include_OutputAddresses, true);
+    builder.add(Api::BlockChain::Include_OutputScripts, true);
 }
 
 void TxVulcano::nowCurrent()

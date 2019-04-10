@@ -20,7 +20,7 @@
 
 namespace Api {
 enum ServiceIds {
-    FailuresService,
+    APIService,
     BlockChainService,
     RawTransactionService,
     UtilService,
@@ -58,10 +58,12 @@ enum ApiTags {
 };
 
 
-//  FailuresService (owned by APIServer)
-namespace Failures {
+//  API (owned by APIServer)
+namespace Meta {
 
 enum MessageIds {
+    Version,
+    VersionReply,
     CommandFailed,
 };
 
@@ -183,7 +185,7 @@ enum Tags {
     Tx_Out_Amount = Api::Amount,
     BlockHeight = Api::BlockHeight,
 
-    // GetBlockReply tags
+    // GetBlockReply  / GetTransactionReply tags
     Tx_OffsetInBlock,
     Tx_IN_TxId,
     Tx_IN_OutIndex,
@@ -198,14 +200,14 @@ enum Tags {
     SetFilterAddress,        ///< Followed with one bytearray address. Clears and sets one address in filter.
     AddFilterAddress,        ///< Add one bytearray address.
     // for each individual transaction you can select how they should be returned.
-    GetBlock_TxId,           ///< bool.
-    GetBlock_OffsetInBlock,  ///< bool.
+    Include_TxId,           ///< bool.
+    Include_OffsetInBlock,  ///< bool.
     FullTransactionData,     ///< bool. When true, return full tx data even when interpeted data is sent.
-    GetBlock_Inputs,         ///< bool. Return all inputs for selected tx.
-    GetBlock_OutputAmounts,  ///< bool. Return the amounts field for selected transactions.
-    GetBlock_OutputScripts,  ///< bool. Return full output Scripts.
-    GetBlock_Outputs,        ///< bool. Return all parts of outputs, overriding the previous 2 options.
-    GetBlock_OutputAddresses,///< bool. If the output is a p2pkh, return the hash160 of the address paid to.
+    Include_Inputs,         ///< bool. Return all inputs for selected tx.
+    Include_OutputAmounts,  ///< bool. Return the amounts field for selected transactions.
+    Include_OutputScripts,  ///< bool. Return full output Scripts.
+    Include_Outputs,        ///< bool. Return all parts of outputs, overriding the previous 2 options.
+    Include_OutputAddresses,///< bool. If the output is a p2pkh, return the hash160 of the address paid to.
 
     Verbose,    // bool
     Size,       // int

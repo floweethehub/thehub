@@ -357,6 +357,32 @@ void Log::Manager::clearChannels()
     d->channels.clear();
 }
 
+void Log::Manager::addConsoleChannel(bool printSections)
+{
+    auto channel = new ConsoleLogChannel();
+    channel->setPrintSection(printSections);
+    d->channels.push_back(channel);
+}
+
+void Log::Manager::addFileChannel(const boost::filesystem::path &logfilename, bool printSections)
+{
+    auto channel = new FileLogChannel(logfilename);
+    channel->setPrintSection(printSections);
+    d->channels.push_back(channel);
+}
+
+void Log::Manager::clearLogLevels(Log::Verbosity defaultVerbosity)
+{
+    d->enabledSections.clear();
+    for (short i = 0; i <= 20000; i+=1000)
+        d->enabledSections[i] = defaultVerbosity;
+}
+
+void Log::Manager::setLogLevel(short section, Log::Verbosity verbosity)
+{
+    d->enabledSections[section] = verbosity;
+}
+
 /////////////////////////////////////////////////
 
 Log::MessageLogger::MessageLogger()

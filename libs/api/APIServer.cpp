@@ -121,16 +121,18 @@ void Api::Server::incomingMessage(const Message &message)
     con.setOnDisconnected(std::bind(&Api::Server::connectionRemoved, this, std::placeholders::_1));
 
     Connection *handler = new Connection(std::move(con));
-    boost::mutex::scoped_lock lock(m_mutex);
-    m_connections.push_back(handler);
+    {
+        boost::mutex::scoped_lock lock(m_mutex);
+        m_connections.push_back(handler);
 
-    auto iter = m_newConnections.begin();
-    while (iter != m_newConnections.end()) {
-        if (iter->connection.connectionId() == message.remote) {
-            m_newConnections.erase(iter);
-            break;
+        auto iter = m_newConnections.begin();
+        while (iter != m_newConnections.end()) {
+            if (iter->connection.connectionId() == message.remote) {
+                m_newConnections.erase(iter);
+                break;
+            }
+            ++iter;
         }
-        ++iter;
     }
     handler->incomingMessage(message);
 }
@@ -181,6 +183,16 @@ void Api::Server::Connection::incomingMessage(const Message &message)
 {
     if (message.serviceId() >= 16) // not a service we handle
         return;
+    if (message.serviceId() == APIService && message.messageId() == Meta::Version) {
+        Streaming::MessageBuilder builder(m_bufferPool);
+        std::ostringstream ss;
+        ss << "Flowee:" << HUB_SERIES << " (" << CLIENT_VERSION_MAJOR << "-" << CLIENT_VERSION_MINOR
+           << "." << CLIENT_VERSION_REVISION << ")";;
+        builder.add(Meta::GenericByteData, ss.str());
+        m_connection.send(builder.message(APIService, Meta::VersionReply));
+        return;
+    }
+
     std::unique_ptr<Api::Parser> parser;
     try {
         parser.reset(Api::createParser(message));
@@ -268,13 +280,13 @@ void Api::Server::Connection::sendFailedMessage(const Message &origin, const std
 {
     m_bufferPool.reserve(failReason.size() + 40);
     Streaming::MessageBuilder builder(m_bufferPool);
-    builder.add(Failures::FailedReason, failReason);
-    builder.add(Failures::FailedCommandServiceId, origin.serviceId());
-    builder.add(Failures::FailedCommandId, origin.messageId());
-    Message answer = builder.message(FailuresService, Failures::CommandFailed);
-    const int requestId = origin.headerInt(Api::RequestId);
+    builder.add(Meta::FailedReason, failReason);
+    builder.add(Meta::FailedCommandServiceId, origin.serviceId());
+    builder.add(Meta::FailedCommandId, origin.messageId());
+    Message answer = builder.message(APIService, Meta::CommandFailed);
+    const int requestId = origin.headerInt(RequestId);
     if (requestId != -1)
-        answer.setHeaderInt(Api::RequestId, requestId);
+        answer.setHeaderInt(RequestId, requestId);
     m_connection.send(answer);
 }
 

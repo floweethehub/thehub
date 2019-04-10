@@ -197,9 +197,22 @@ public:
 
     static const std::string &sectionString(short section);
 
-private:
+    /**
+     * remove all logging channels.
+     * @see addConsoleChannel()
+     * @see addFileChannel()
+     */
     void clearChannels();
 
+    /// add a console output channel.
+    void addConsoleChannel(bool printSections = true);
+    /// add a file logging channel
+    void addFileChannel(const boost::filesystem::path &logfilename, bool printSections = true);
+
+    void clearLogLevels(Log::Verbosity defaultVerbosity = Log::WarningLevel);
+    void setLogLevel(short section, Log::Verbosity verbosity);
+
+private:
     ManagerPrivate *d;
 };
 
