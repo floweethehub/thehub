@@ -22,8 +22,6 @@
 #include <netbase.h> // for SplitHostPort
 #include <signal.h>
 
-#include "Indexer.h"
-
 void HandleSIGTERM(int) {
     QCoreApplication::quit();
 }

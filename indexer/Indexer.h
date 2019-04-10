@@ -51,7 +51,7 @@ private:
     void hubDisconnected();
     void hubSentMessage(const Message &message);
 
-    void clientConnected();
+    void clientConnected(NetworkConnection &con);
 
     void requestBlock();
     void processNewBlock(const Message &message);

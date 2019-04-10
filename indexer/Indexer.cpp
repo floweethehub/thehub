@@ -34,13 +34,15 @@ Indexer::Indexer(const boost::filesystem::path &basedir)
     m_addressdb(basedir / "addresses"),
     m_network(m_workers.ioService())
 {
+    m_network.addService(this);
+
     // TODO add some auto-save of the databases.
     connect (&m_addressdb, SIGNAL(finishedProcessingBlock()), SLOT(addressDbFinishedProcessingBlock()));
 }
 
 Indexer::~Indexer()
 {
-    m_serverConnection.disconnect();
+    m_serverConnection.clear(NetworkConnection::ClearAndWait);
 }
 
 void Indexer::tryConnectHub(const EndPoint &ep)
@@ -56,8 +58,7 @@ void Indexer::tryConnectHub(const EndPoint &ep)
 
 void Indexer::bind(boost::asio::ip::tcp::endpoint endpoint)
 {
-    // m_network.bind(ep, std::bind(&Indexer::clientConnected, this, std::placeholders::_1));
-    m_network.bind(endpoint, std::bind(&Indexer::clientConnected, this));
+    m_network.bind(endpoint, std::bind(&Indexer::clientConnected, this, std::placeholders::_1));
 }
 
 void Indexer::loadConfig(const QString &filename)
@@ -160,21 +161,23 @@ void Indexer::addressDbFinishedProcessingBlock()
 
 void Indexer::hubConnected(const EndPoint &ep)
 {
-    logCritical() << "Connection to hub established. TxDB:" << m_txdb.blockheight()
-                  << "addressDB:" << m_addressdb.blockheight();
+    int txHeight = m_enableTxDB ? m_txdb.blockheight() : -1;
+    int adHeight = m_enableAddressDb ? m_addressdb.blockheight() : -1;
+    logCritical() << "Connection to hub established. TxDB:" << txHeight
+                  << "addressDB:" << adHeight;
     if (!m_addressdb.isCommitting())
         requestBlock();
 }
 
 void Indexer::requestBlock()
 {
-    int blockHeight = -1;
+    if (!m_enableAddressDb && !m_enableTxDB)
+        return;
+    int blockHeight = 9999999;
     if (m_enableAddressDb)
         blockHeight = m_addressdb.blockheight();
     if (m_enableTxDB)
         blockHeight = std::min(blockHeight, m_txdb.blockheight());
-    if (blockHeight == -1)
-        return;
     blockHeight++; // request the next one
     m_pool.reserve(20);
     Streaming::MessageBuilder builder(m_pool);
@@ -218,9 +221,10 @@ void Indexer::hubSentMessage(const Message &message)
     }
 }
 
-void Indexer::clientConnected()
+void Indexer::clientConnected(NetworkConnection &con)
 {
     logCritical() << "A client connected";
+    con.accept();
 }
 
 void Indexer::processNewBlock(const Message &message)

@@ -34,6 +34,7 @@ set (IDX_LIBS
     ${OPENSSL_LIBRARIES}
     ${Boost_LIBRARIES}
     ${BOOST_THREAD_LIBRARY}
+    Qt5::Core
 )
 
 if (${Qt5Sql_FOUND})
@@ -46,7 +47,13 @@ if (${Qt5Sql_FOUND})
         TxIndexer.cpp
     )
 
-    target_link_libraries(indexer ${IDX_LIBS} Qt5::Core Qt5::Sql)
-
+    target_link_libraries(indexer ${IDX_LIBS} Qt5::Sql)
     install(PROGRAMS ${CMAKE_CURRENT_BINARY_DIR}/indexer DESTINATION bin)
 endif ()
+
+add_executable(indexer-cli cli.cpp
+    IndexerClient.cpp
+    FloweeServiceApplication.cpp
+)
+target_link_libraries(indexer-cli ${IDX_LIBS})
+install(PROGRAMS ${CMAKE_CURRENT_BINARY_DIR}/indexer-cli DESTINATION bin)
