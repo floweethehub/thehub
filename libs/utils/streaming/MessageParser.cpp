@@ -276,6 +276,7 @@ void Streaming::MessageParser::consume(int bytes)
 
 void Streaming::MessageParser::debugMessage(int section, const Message &message)
 {
+    logCritical(section) << "--" << message.serviceId() << "/" << message.messageId();
     MessageParser parser(message.body());
     Streaming::ParsedType type;
     while(true) {

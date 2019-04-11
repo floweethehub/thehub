@@ -23,6 +23,7 @@
 #include <APIProtocol.h>
 #include <qbytearray.h>
 #include <qsettings.h>
+#include <qdatetime.h>
 #include <primitives/pubkey.h>
 
 #include <qfile.h>
@@ -38,7 +39,7 @@ Indexer::Indexer(const boost::filesystem::path &basedir)
 
     // TODO add some auto-save of the databases.
     connect (&m_addressdb, SIGNAL(finishedProcessingBlock()), SLOT(addressDbFinishedProcessingBlock()));
-    connect (&m_pollingTimer, SIGNAL(timeout()), SLOT(poll4Block()));
+    connect (&m_pollingTimer, SIGNAL(timeout()), SLOT(checkBlockArrived()));
     m_pollingTimer.start(2 * 60 * 1000);
 }
 
@@ -136,13 +137,20 @@ void Indexer::onIncomingMessage(NetworkService::Remote *con, const Message &mess
                     return;
                 }
                 const uint160 *a = reinterpret_cast<const uint160*>(parser.bytesDataBuffer().begin());
+                logDebug() << "FindAddress on address:" << *a;
                 auto data = m_addressdb.find(*a);
                 con->pool.reserve(data.size() * 25);
                 Streaming::MessageBuilder builder(con->pool);
+                int bh = -1, oib = -1;
                 for (auto item : data) {
-                    builder.add(Api::Indexer::BlockHeight, item.blockHeight);
-                    builder.add(Api::Indexer::OffsetInBlock, item.offsetInBlock);
+                    if (item.blockHeight != bh) // avoid repeating oneself (makes the message smaller).
+                        builder.add(Api::Indexer::BlockHeight, item.blockHeight);
+                    bh = item.blockHeight;
+                    if (item.offsetInBlock != oib)
+                        builder.add(Api::Indexer::OffsetInBlock, item.offsetInBlock);
+                    oib = item.offsetInBlock;
                     builder.add(Api::Indexer::OutIndex, item.outputIndex);
+                    builder.add(Api::Indexer::Separator, true);
                 }
 
                 Message m = builder.message(Api::IndexerService, Api::Indexer::FindAddressReply);
@@ -161,10 +169,16 @@ void Indexer::addressDbFinishedProcessingBlock()
     requestBlock();
 }
 
-void Indexer::poll4Block()
+void Indexer::checkBlockArrived()
 {
-    if (m_indexingFinished)
+    if (!m_serverConnection.isConnected())
+        return;
+    if (m_lastRequestedBlock != 0 && QDateTime::currentSecsSinceEpoch() - m_timeLastRequest > 20) {
+        logDebug() << "repeating block request";
+        // Hub never sent the block to us :(
+        m_lastRequestedBlock = 0;
         requestBlock();
+    }
 }
 
 void Indexer::hubConnected(const EndPoint &ep)
@@ -189,6 +203,10 @@ void Indexer::requestBlock()
     if (m_enableTxDB)
         blockHeight = std::min(blockHeight, m_txdb.blockheight());
     blockHeight++; // request the next one
+    if (m_lastRequestedBlock == blockHeight)
+        return;
+    m_lastRequestedBlock = blockHeight;
+    m_timeLastRequest = QDateTime::currentSecsSinceEpoch();
     m_pool.reserve(20);
     Streaming::MessageBuilder builder(m_pool);
     builder.add(Api::BlockChain::BlockHeight, blockHeight);
@@ -209,7 +227,12 @@ void Indexer::hubSentMessage(const Message &message)
 {
     if (message.serviceId() == Api::BlockChainService) {
         if (message.messageId() == Api::BlockChain::GetBlockReply) {
-            processNewBlock(message);
+            try {
+                processNewBlock(message);
+            } catch (const std::exception &e) {
+                logFatal() << "processing block failed due to:" << e;
+                QCoreApplication::exit(4);
+            }
         }
     }
     else if (message.serviceId() == Api::APIService) {
@@ -229,12 +252,21 @@ void Indexer::hubSentMessage(const Message &message)
                     serviceId = parser.intData();
                 else if (parser.tag() == Api::Meta::FailedCommandId)
                     messageId = parser.intData();
+                else if (parser.tag() == Api::Meta::FailedReason)
+                    logDebug() << "failed reason:" << parser.stringData();
             }
             if (serviceId == Api::BlockChainService && messageId == Api::BlockChain::GetBlock) {
-                logCritical() << "Failed to get block, assuming we are at 'top' of chain";
+                logDebug() << "Failed to get block, assuming we are at 'top' of chain";
+                if (m_enableAddressDb)
+                    logDebug() << "AddressDB now at:" << m_addressdb.blockheight();
+                if (m_enableTxDB)
+                    logDebug() << "txDb now at:" << m_txdb.blockheight();
                 m_indexingFinished = true;
+                m_lastRequestedBlock = 0;
                 m_addressdb.flush();
+                m_txdb.saveCaches();
             }
+            else logCritical() << "Failure detected" << serviceId << messageId;
         }
     }
     else if (message.serviceId() == Api::BlockNotificationService && message.messageId() == Api::BlockNotification::NewBlockOnChain) {
@@ -247,8 +279,11 @@ void Indexer::hubSentMessage(const Message &message)
                     blockHeight = m_addressdb.blockheight();
                 if (m_enableTxDB)
                     blockHeight = std::min(blockHeight, m_txdb.blockheight());
-                if (parser.intData() == blockHeight + 1)
+                if (m_indexingFinished || parser.intData() == blockHeight + 1) {
+                    m_indexingFinished = false;
+                    m_lastRequestedBlock = 0;
                     requestBlock();
+                }
             }
         }
     }
@@ -284,17 +319,15 @@ void Indexer::processNewBlock(const Message &message)
             updateAddressDb = m_enableAddressDb && blockHeight == m_addressdb.blockheight() + 1;
             if (blockHeight % 500 == 0)
                 logCritical() << "Processing block" << blockHeight;
+            if (m_lastRequestedBlock <= blockHeight)
+                m_lastRequestedBlock= 0;
         } else if (parser.tag() == Api::BlockChain::BlockHash) {
             blockId = parser.uint256Data();
         } else if (parser.tag() == Api::BlockChain::Separator) {
             if (updateTxDb && txOffsetInBlock > 0 && !txid.IsNull()) {
                 assert(blockHeight > 0);
                 assert(blockHeight > m_txdb.blockheight());
-                try {
-                    m_txdb.insert(txid, blockHeight, txOffsetInBlock);
-                } catch(...) {
-                    m_enableTxDB = false;
-                }
+                m_txdb.insert(txid, blockHeight, txOffsetInBlock);
             }
             txOffsetInBlock = 0;
             outputIndex = -1;
@@ -309,25 +342,15 @@ void Indexer::processNewBlock(const Message &message)
             assert(outputIndex >= 0);
             assert(blockHeight > 0);
             assert(txOffsetInBlock > 0);
-            try {
-                m_addressdb.insert(parser.bytesDataBuffer(), outputIndex, blockHeight, txOffsetInBlock);
-            } catch(...) {
-                m_enableAddressDb = false;
-            }
+            m_addressdb.insert(parser.bytesDataBuffer(), outputIndex, blockHeight, txOffsetInBlock);
         }
     }
     assert(blockHeight > 0);
     assert(!blockId.IsNull());
-    if (updateTxDb) try {
+    if (m_enableTxDB)
         m_txdb.blockFinished(blockHeight, blockId);
-    } catch(...) {
-        m_enableTxDB = false;
-    }
-    if (updateAddressDb) try {
+    if (m_enableAddressDb)
         m_addressdb.blockFinished(blockHeight, blockId);
-    } catch(...) {
-        m_enableAddressDb = false;
-    }
     // if not updating addressDB, go to next block directly instead of waiting on its signal
     if (!updateAddressDb && updateTxDb)
         requestBlock();

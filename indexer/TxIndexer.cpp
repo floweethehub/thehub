@@ -42,6 +42,11 @@ void TxIndexer::insert(const uint256 &txid, int blockHeight, int offsetInBlock)
     m_txdb.insert(txid, 0, blockHeight, offsetInBlock);
 }
 
+void TxIndexer::saveCaches()
+{
+    m_txdb.saveCaches();
+}
+
 TxIndexer::TxData TxIndexer::find(const uint256 &txid) const
 {
     TxData answer;

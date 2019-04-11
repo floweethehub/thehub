@@ -158,7 +158,7 @@ std::vector<AddressIndexer::TxData> AddressIndexer::find(const uint160 &address)
     while (query.next()) {
         TxData txData;
         txData.offsetInBlock = query.value(0).toInt();
-        txData.blockHeight = (short) query.value(1).toInt();
+        txData.blockHeight = query.value(1).toInt();
         txData.outputIndex = (short) query.value(2).toInt();
         answer.push_back(txData);
     }
@@ -220,7 +220,7 @@ void AddressIndexer::flush()
 {
     if (m_isCommitting) // we are flushing right now!
         return;
-    if (m_dirtyData->m_uncommittedCount == 0)
+    if (m_dirtyData == nullptr || m_dirtyData->m_uncommittedCount == 0)
         return;
 
     DirtyData *dd = m_dirtyData;

@@ -46,7 +46,7 @@ public:
 
 private slots:
     void addressDbFinishedProcessingBlock();
-    void poll4Block();
+    void checkBlockArrived();
 
 private:
     void requestBlock();
@@ -69,6 +69,9 @@ private:
 
     bool m_enableTxDB = true, m_enableAddressDb = false;
     bool m_indexingFinished = false;
+
+    int m_lastRequestedBlock = 0;
+    quint64 m_timeLastRequest = 0;
 };
 
 #endif

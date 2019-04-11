@@ -45,4 +45,5 @@ private:
     NetworkManager m_network;
     NetworkConnection m_indexConnection;
     NetworkConnection m_hubConnection;
+    int m_txIdsRequested = 0;
 };

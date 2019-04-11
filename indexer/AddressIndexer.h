@@ -42,7 +42,7 @@ public:
 
     struct TxData {
         int offsetInBlock = 0;
-        short blockHeight = -1;
+        int blockHeight = -1;
         short outputIndex = -1;
     };
 

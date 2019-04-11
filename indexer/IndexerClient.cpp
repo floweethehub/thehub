@@ -25,6 +25,9 @@
 #include <streaming/MessageBuilder.h>
 #include <streaming/MessageParser.h>
 
+#include <base58.h>
+#include <cashaddr.h>
+
 IndexerClient::IndexerClient()
     : m_network(m_workers.ioService())
 {
@@ -40,7 +43,24 @@ void IndexerClient::resolve(const QString &lookup)
         m_indexConnection.send(builder.message(Api::IndexerService,
                                                Api::Indexer::FindTransaction));
     }
-    // TODO address
+
+    CBase58Data old; // legacy address encoding
+    if (old.SetString(lookup.toStdString())) {
+        if (old.isMainnetPkh() || old.isMainnetSh()) {
+            Streaming::MessageBuilder builder(Streaming::NoHeader, 40);
+            builder.addByteArray(Api::Indexer::BitcoinAddress, old.data().data(), 20);
+            m_indexConnection.send(builder.message(Api::IndexerService,
+                                                   Api::Indexer::FindAddress));
+        }
+    }
+
+    CashAddress::Content c = CashAddress::decodeCashAddrContent(lookup.toStdString(), "bitcoincash");
+    if (c.type == CashAddress::PUBKEY_TYPE && c.hash.size() == 20) {
+        Streaming::MessageBuilder builder(Streaming::NoHeader, 40);
+        builder.addByteArray(Api::Indexer::BitcoinAddress, c.hash.data(), 20);
+        m_indexConnection.send(builder.message(Api::IndexerService,
+                                               Api::Indexer::FindAddress));
+    }
 }
 
 void IndexerClient::tryConnectIndexer(const EndPoint &ep)
@@ -91,6 +111,11 @@ void IndexerClient::onIncomingHubMessage(const Message &message)
                     logFatal() << tx.toHex().constData();
                     QCoreApplication::quit();
                 }
+                else if (parser.tag() == Api::BlockChain::TxId) {
+                    logFatal() << message.headerInt(Api::RequestId) << " -> " << parser.uint256Data();
+                    if (--m_txIdsRequested == 0)
+                        QCoreApplication::quit();
+                }
             }
         }
     }
@@ -117,7 +142,7 @@ void IndexerClient::onIncomingIndexerMessage(const Message &message)
             while (parser.next() == Streaming::FoundTag) {
                 if (parser.tag() == Api::Indexer::BlockHeight)
                     blockHeight = parser.intData();
-                if (parser.tag() == Api::Indexer::OffsetInBlock)
+                else if (parser.tag() == Api::Indexer::OffsetInBlock)
                     offsetInBlock = parser.intData();
             }
 
@@ -131,6 +156,37 @@ void IndexerClient::onIncomingIndexerMessage(const Message &message)
             else
                 QCoreApplication::quit();
         }
+        else if (message.messageId() == Api::Indexer::FindAddressReply) {
+            int blockHeight = -1, offsetInBlock = 0, index = 0;
+            int usageId = 0;
+            Streaming::MessageParser parser(message);
+            while (parser.next() == Streaming::FoundTag) {
+                if (parser.tag() == Api::Indexer::BlockHeight)
+                    blockHeight = parser.intData();
+                else if (parser.tag() == Api::Indexer::OffsetInBlock)
+                    offsetInBlock = parser.intData();
+                else if (parser.tag() == Api::Indexer::OutIndex)
+                    index = parser.intData();
+                else if (parser.tag() == Api::Indexer::Separator) {
+                    logFatal().nospace() << ++usageId << "] Address touches [block=" << blockHeight << "+" << offsetInBlock
+                                         << "|" << index << "]";
+                    if (blockHeight > 0 && offsetInBlock > 80 && m_hubConnection.isValid()) {
+                        Streaming::MessageBuilder builder(Streaming::NoHeader, 20);
+                        builder.add(Api::BlockChain::BlockHeight, blockHeight);
+                        builder.add(Api::BlockChain::Tx_OffsetInBlock, offsetInBlock);
+                        builder.add(Api::BlockChain::Include_TxId, true);
+                        Message m = builder.message(Api::BlockChainService, Api::BlockChain::GetTransaction);
+                        m.setHeaderInt(Api::RequestId, usageId);
+                        m_hubConnection.send(m);
+                    }
+                }
+            }
+            if (!m_hubConnection.isValid())
+                QCoreApplication::quit();
+            m_txIdsRequested = usageId;
+        }
+        else
+            Streaming::MessageParser::debugMessage(message);
     }
     else if (message.serviceId() == Api::BlockChainService && message.messageId() == Api::BlockChain::GetTransactionReply) {
         Streaming::MessageParser parser(message);
