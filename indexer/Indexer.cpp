@@ -173,7 +173,7 @@ void Indexer::checkBlockArrived()
 {
     if (!m_serverConnection.isConnected())
         return;
-    if (m_lastRequestedBlock != 0 && QDateTime::currentSecsSinceEpoch() - m_timeLastRequest > 20) {
+    if (m_lastRequestedBlock != 0 && QDateTime::currentMSecsSinceEpoch() - m_timeLastRequest > 20000) {
         logDebug() << "repeating block request";
         // Hub never sent the block to us :(
         m_lastRequestedBlock = 0;
@@ -206,7 +206,7 @@ void Indexer::requestBlock()
     if (m_lastRequestedBlock == blockHeight)
         return;
     m_lastRequestedBlock = blockHeight;
-    m_timeLastRequest = QDateTime::currentSecsSinceEpoch();
+    m_timeLastRequest = QDateTime::currentMSecsSinceEpoch();
     m_pool.reserve(20);
     Streaming::MessageBuilder builder(m_pool);
     builder.add(Api::BlockChain::BlockHeight, blockHeight);
