@@ -20,7 +20,6 @@ set (FLOWEE_SERVER_FILES
     addrman.cpp
     Application.cpp
     arith_uint256.cpp
-    base58.cpp
     BlocksDB.cpp
     bloom.cpp
     chain.cpp
@@ -32,6 +31,7 @@ set (FLOWEE_SERVER_FILES
     core_write.cpp
     CrashCatcher.cpp
     dbwrapper.cpp
+    encodings_legacy.cpp
     httprpc.cpp
     httpserver.cpp
     init.cpp

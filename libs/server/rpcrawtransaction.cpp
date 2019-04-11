@@ -19,7 +19,7 @@
  */
 
 #include <Application.h>
-#include "base58.h"
+#include "encodings_legacy.h"
 #include "chain.h"
 #include <validation/Engine.h>
 #include "consensus/validation.h"

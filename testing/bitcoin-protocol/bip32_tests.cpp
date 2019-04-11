@@ -18,7 +18,7 @@
 
 #include "bip32_tests.h"
 
-#include "base58.h"
+#include <encodings_legacy.h>
 #include <primitives/key.h>
 #include "uint256.h"
 #include "util.h"
@@ -78,22 +78,6 @@ void TestBip32::RunTest(const TestVector &test) {
         unsigned char data[74];
         key.Encode(data);
         pubkey.Encode(data);
-
-        // Test private key
-        CBitcoinExtKey b58key; b58key.SetKey(key);
-        QVERIFY(b58key.ToString() == derive.prv);
-
-        CBitcoinExtKey b58keyDecodeCheck(derive.prv);
-        CExtKey checkKey = b58keyDecodeCheck.GetKey();
-        QVERIFY(checkKey == key); //ensure a base58 decoded key also matches
-
-        // Test public key
-        CBitcoinExtPubKey b58pubkey; b58pubkey.SetKey(pubkey);
-        QVERIFY(b58pubkey.ToString() == derive.pub);
-
-        CBitcoinExtPubKey b58PubkeyDecodeCheck(derive.pub);
-        CExtPubKey checkPubKey = b58PubkeyDecodeCheck.GetKey();
-        QVERIFY(checkPubKey == pubkey); //ensure a base58 decoded pubkey also matches
 
         // Derive new keys
         CExtKey keyNew;

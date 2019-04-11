@@ -16,13 +16,13 @@
  * along with this program.  If not, see <http://www.gnu.org/licenses/>.
  */
 #include "APIRPCBinding.h"
-#include "APIProtocol.h"
 
-#include "streaming/MessageBuilder.h"
-#include "BlocksDB.h"
-#include "main.h"
-#include "rpcserver.h"
-#include "base58.h"
+#include <APIProtocol.h>
+#include <streaming/MessageBuilder.h>
+#include <BlocksDB.h>
+#include <main.h>
+#include <rpcserver.h>
+#include <encodings_legacy.h>
 #include <univalue.h>
 
 #include <boost/algorithm/hex.hpp>

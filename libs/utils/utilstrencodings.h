@@ -1,7 +1,7 @@
 /*
  * This file is part of the Flowee project
  * Copyright (C) 2009-2010 Satoshi Nakamoto
- * Copyright (C) 2009-2015 The Bitcoin Core developers
+ * Copyright (C) 2009-2016 The Bitcoin Core developers
  *
  * This program is free software: you can redistribute it and/or modify
  * it under the terms of the GNU General Public License as published by
@@ -143,5 +143,40 @@ bool TimingResistantEqual(const T& a, const T& b)
  * @note The result must be in the range (-10^18,10^18), otherwise an overflow error will trigger.
  */
 bool ParseFixedPoint(const std::string &val, int decimals, int64_t *amount_out);
+
+/**
+ * Convert from one power-of-2 number base to another.
+ *
+ * If padding is enabled, this always return true. If not, then it returns true
+ * of all the bits of the input are encoded in the output.
+ */
+template <int frombits, int tobits, bool pad, typename O, typename I>
+bool ConvertBits(O &out, I it, I end) {
+    size_t acc = 0;
+    size_t bits = 0;
+    constexpr size_t maxv = (1 << tobits) - 1;
+    constexpr size_t max_acc = (1 << (frombits + tobits - 1)) - 1;
+    while (it != end) {
+        acc = ((acc << frombits) | *it) & max_acc;
+        bits += frombits;
+        while (bits >= tobits) {
+            bits -= tobits;
+            out.push_back((acc >> bits) & maxv);
+        }
+        ++it;
+    }
+
+    // We have remaining bits to encode but do not pad.
+    if (!pad && bits) {
+        return false;
+    }
+
+    // We have remaining bits to encode so we do pad.
+    if (pad && bits) {
+        out.push_back((acc << (tobits - bits)) & maxv);
+    }
+
+    return true;
+}
 
 #endif

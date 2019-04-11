@@ -21,7 +21,7 @@
 
 #include "paymentrequest.pb.h"
 
-#include "base58.h"
+#include <encodings_legacy.h>
 
 #include <openssl/x509.h>
 

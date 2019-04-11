@@ -23,7 +23,7 @@
 #include <SettingsDefaults.h>
 
 #include <Application.h>
-#include "base58.h"
+#include "encodings_legacy.h"
 #include "checkpoints.h"
 #include "chain.h"
 #include "coincontrol.h"

@@ -18,7 +18,7 @@
  * along with this program.  If not, see <http://www.gnu.org/licenses/>.
  */
 
-#include "base58.h"
+#include "encodings_legacy.h"
 #include "clientversion.h"
 #include "init.h"
 #include "main.h"

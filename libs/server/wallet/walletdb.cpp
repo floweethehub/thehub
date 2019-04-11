@@ -23,7 +23,7 @@
 #include "walletdb.h"
 
 #include "SettingsDefaults.h"
-#include "base58.h"
+#include "encodings_legacy.h"
 #include "consensus/validation.h"
 #include "main.h" // For CheckTransaction
 #include "protocol.h"

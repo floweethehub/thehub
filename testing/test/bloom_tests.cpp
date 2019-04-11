@@ -18,7 +18,7 @@
 
 #include "bloom.h"
 
-#include "base58.h"
+#include <encodings_legacy.h>
 #include "merkleblock.h"
 #include "random.h"
 #include "test/test_bitcoin.h"

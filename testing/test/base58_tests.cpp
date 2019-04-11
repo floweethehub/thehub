@@ -16,7 +16,7 @@
  * along with this program.  If not, see <http://www.gnu.org/licenses/>.
  */
 
-#include "base58.h"
+#include <encodings_legacy.h>
 
 #include "data/base58_encode_decode.json.h"
 #include "data/base58_keys_invalid.json.h"

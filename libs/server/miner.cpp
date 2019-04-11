@@ -25,7 +25,7 @@
 #include "primitives/FastBlock.h"
 #include "streaming/BufferPool.h"
 #include "serialize.h"
-#include "base58.h"
+#include "encodings_legacy.h"
 #include "miner.h"
 #include <primitives/pubkey.h>
 

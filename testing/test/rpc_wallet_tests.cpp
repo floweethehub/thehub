@@ -18,7 +18,7 @@
 
 #include "rpcserver.h"
 
-#include "base58.h"
+#include <encodings_legacy.h>
 #include "wallet/wallet.h"
 
 #include "test/test_bitcoin.h"

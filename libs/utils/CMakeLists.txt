@@ -19,6 +19,8 @@ include_directories(${LIBUTILS_INCLUDES})
 add_library(flowee_utils STATIC
     amount.cpp
     allowed_args.cpp
+    base58.cpp
+    cashaddr.cpp
     chainparamsbase.cpp
     clientversion.cpp
     compat/glibc_sanity.cpp

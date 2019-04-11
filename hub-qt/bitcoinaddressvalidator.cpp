@@ -19,7 +19,7 @@
 
 #include "bitcoinaddressvalidator.h"
 
-#include "base58.h"
+#include <encodings_legacy.h>
 
 #include <Application.h>
 
