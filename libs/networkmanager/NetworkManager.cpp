@@ -534,46 +534,10 @@ void NetworkManagerConnection::sentSomeBytes(const boost::system::error_code& er
     logDebug(Log::NWM) << "Managed to send" << bytes_transferred << "bytes";
     m_reconnectStep = 0;
 
-    assert(bytes_transferred < 0x7FFFFFFF);
-    int bytesLeft = static_cast<int>(bytes_transferred);
-    while (bytesLeft > 0) {
-        assert (!(m_messageQueue.isEmpty() && m_priorityMessageQueue.isEmpty())); // then WTF did we sent!
+    m_messageQueue.removeAllRead();
+    m_priorityMessageQueue.removeAllRead();
+    m_sendQHeaders.clear();
 
-        const Message &message = m_priorityMessageQueue.hasItemsMarkedRead() ? m_priorityMessageQueue.tip() : m_messageQueue.tip();
-        const int messageSize = message.rawData().size();
-        if (messageSize > CHUNK_SIZE) {
-            assert(!message.hasHeader()); // as defined by queuemessage()
-            // also defined by queuemessage() is that priority messages are always smaller than chunk size.
-            assert(!m_priorityMessageQueue.hasItemsMarkedRead()); // its a messageQueue item.
-            assert(m_messageBytesSent < messageSize);
-            while (bytesLeft > 0 && messageSize > m_messageBytesSent) {
-                auto header = m_sendQHeaders.tip();
-                bytesLeft -= header.size();
-                m_sendQHeaders.removeTip();
-                const int chunkSize = std::min(CHUNK_SIZE, messageSize - m_messageBytesSent);
-                m_messageBytesSent += chunkSize;
-                bytesLeft -= chunkSize;
-            }
-
-            if (messageSize == m_messageBytesSent) {
-                m_messageBytesSent = 0;
-                m_messageQueue.removeTip();
-            }
-        }
-        else {
-            if (!message.hasHeader()) {
-                auto header = m_sendQHeaders.tip();
-
-                bytesLeft -= header.size();
-                m_sendQHeaders.removeTip();
-            }
-            bytesLeft -= message.rawData().size();
-            if (m_priorityMessageQueue.hasItemsMarkedRead())
-                m_priorityMessageQueue.removeTip();
-            else
-                m_messageQueue.removeTip();
-        }
-    }
     runMessageQueue();
 }
 

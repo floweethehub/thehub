@@ -97,6 +97,14 @@ public:
         assert(m_first < m_next && m_readIndex >= m_first && m_readIndex <= m_next
                || (m_first > m_next && (m_readIndex >= m_first || m_readIndex <= m_next)));
     }
+
+    inline void removeAllRead() {
+        while (m_first != m_readIndex) {
+            m_array[m_first] = V();
+            if (++m_first >= NumItems)
+                m_first = 0;
+        }
+    }
     /// first not yet read item.
     inline const V &unreadTip() const {
         assert(m_first < m_next && m_readIndex >= m_first && m_readIndex < m_next
