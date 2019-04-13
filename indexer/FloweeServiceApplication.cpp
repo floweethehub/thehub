@@ -19,9 +19,12 @@
 
 #include <QCommandLineParser>
 #include <QStandardPaths>
-#include <netbase.h> // for SplitHostPort
 #include <signal.h>
 #include <algorithm>
+
+#include <netbase.h> // for SplitHostPort
+#include <clientversion.h>
+#include <qtextstream.h>
 
 void HandleSIGTERM(int) {
     QCoreApplication::quit();
@@ -29,7 +32,8 @@ void HandleSIGTERM(int) {
 
 FloweeServiceApplication::FloweeServiceApplication(int &argc, char **argv, int appLogSection)
     : QCoreApplication(argc, argv),
-      m_debug(QStringList() << "debug", "use debug level logging"),
+      m_debug(QStringList() << "debug", "Use debug level logging"),
+      m_version(QStringList() << "version", "Display version"),
       m_bindAddress(QStringList() << "bind", "Bind to this IP:port", "IP-ADDRESS"),
       m_appLogSection(appLogSection)
 {
@@ -46,15 +50,26 @@ void FloweeServiceApplication::addServerOptions(QCommandLineParser &parser)
     m_parser = &parser;
     parser.addOption(m_bindAddress);
     parser.addOption(m_debug);
+    parser.addOption(m_version);
 }
 
 void FloweeServiceApplication::addClientOptions(QCommandLineParser &parser)
 {
     m_parser = &parser;
     parser.addOption(m_debug);
+    parser.addOption(m_version);
 }
 
 void FloweeServiceApplication::setup(const char *logFilename) {
+    if (m_parser && m_parser->isSet(m_version)) {
+        QTextStream out(stdout);
+        out << applicationName() << " " << FormatFullVersion().c_str() << endl;
+        out << "License GPLv3+: GNU GPL version 3 or later" << endl;
+        out << "This is free software: you are free to change and redistribute it." << endl << endl;
+
+        ::exit(0);
+        return;
+    }
     if (m_parser && m_parser->isSet(m_debug)) {
         auto *logger = Log::Manager::instance();
         logger->clearChannels();

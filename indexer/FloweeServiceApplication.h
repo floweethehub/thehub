@@ -47,6 +47,7 @@ public:
 
 private:
     QCommandLineOption m_debug;
+    QCommandLineOption m_version;
     QCommandLineOption m_bindAddress;
     QString m_logsconf;
     QString m_logFile;

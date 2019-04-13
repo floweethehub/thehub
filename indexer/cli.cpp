@@ -38,13 +38,13 @@ int main(int argc, char **argv)
     parser.addOption(hub);
     app.addClientOptions(parser);
     parser.process(app.arguments());
+    app.setup();
+
     auto args = parser.positionalArguments();
     if (args.isEmpty())
         parser.showHelp(1);
     if (args.size() == 1) // nothing to lookup
         return 0;
-
-    app.setup();
 
     IndexerClient client;
     client.tryConnectIndexer(app.serverAddressFromArguments(args, 1234));
