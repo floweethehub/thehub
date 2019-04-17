@@ -57,6 +57,7 @@ struct ValidationFlags {
     bool hf201708Active;
     bool hf201805Active;
     bool hf201811Active;
+    bool hf201905Active;
 
     uint32_t scriptValidationFlags() const;
 
