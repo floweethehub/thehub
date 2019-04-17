@@ -974,7 +974,7 @@ ValidationFlags::ValidationFlags()
 {
 }
 
-uint32_t ValidationFlags::scriptValidationFlags() const
+uint32_t ValidationFlags::scriptValidationFlags(bool requireStandard) const
 {
     uint32_t flags = strictPayToScriptHash ? SCRIPT_VERIFY_P2SH : SCRIPT_VERIFY_NONE;
     if (scriptVerifyDerSig)
@@ -994,7 +994,9 @@ uint32_t ValidationFlags::scriptValidationFlags() const
         flags |= SCRIPT_VERIFY_P2SH; // implied requirement by CLEANSTACK (normally present, but not in unit tests)
     }
     if (hf201905Active) {
-        flags |= SCRIPT_ALLOW_SEGWIT_RECOVERY;
+        if (!requireStandard)
+            flags |= SCRIPT_ALLOW_SEGWIT_RECOVERY;
+        flags |= SCRIPT_ENABLE_SCHNORR;
     }
     return flags;
 }
@@ -1645,7 +1647,8 @@ void BlockValidationState::checkSignaturesChunk()
                     throw Exception("bad-txns-nonfinal");
 
                 bool spendsCoinBase;
-                ValidationPrivate::validateTransactionInputs(old, unspents, m_blockIndex->nHeight, flags, fees, sigops, spendsCoinBase);
+                ValidationPrivate::validateTransactionInputs(old, unspents, m_blockIndex->nHeight, flags, fees,
+                                                             sigops, spendsCoinBase, /* requireStandard */ false);
                 chunkSigops += sigops;
                 chunkFees += fees;
             }

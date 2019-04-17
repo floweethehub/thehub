@@ -285,32 +285,43 @@ bool IsValidSignatureEncodingWithoutSigHash(const valtype &sig) {
 }
 
 enum CheckType {
-    CheckSigHash,
-    NoCheckSigHash
+    NoCheckSigHash = 0,
+    CheckSigHash = 1,
+    ECDSAOnly = 2,
+
+    CheckDataSigChecks = NoCheckSigHash,
+    TransactionCheckSigChecks = CheckSigHash,
+    MultiSigChecks = CheckSigHash | ECDSAOnly
 };
 
 bool static IsLowDERSignature(const valtype &vchSig, ScriptError *serror, const CheckType type)
 {
-    if (type == CheckSigHash) {
+    if (type & CheckSigHash) {
         if (!IsValidSignatureEncoding(vchSig))
             return set_error(serror, SCRIPT_ERR_SIG_DER);
     } else if (!IsValidSignatureEncodingWithoutSigHash(vchSig)) {
         return set_error(serror, SCRIPT_ERR_SIG_DER);
     }
-    std::vector<unsigned char> vchSigCopy(vchSig.begin(), vchSig.begin() + vchSig.size() - (type  == CheckSigHash ? 1 : 0));
+    std::vector<unsigned char> vchSigCopy(vchSig.begin(), vchSig.begin() + vchSig.size() - ((type  & CheckSigHash) ? 1 : 0));
     if (!CPubKey::CheckLowS(vchSigCopy))
         return set_error(serror, SCRIPT_ERR_SIG_HIGH_S);
     return true;
 }
 
-static bool CheckSignatureEncodingSigHashChoice(const std::vector<unsigned char> &vchSig, unsigned int flags, ScriptError *serror, const CheckType type) {
-    // Empty signature. Not strictly DER encoded, but allowed to provide a
-    // compact way to provide an invalid signature for use with CHECK(MULTI)SIG
+static bool CheckSignatureEncoding(const std::vector<unsigned char> &vchSig, unsigned int flags, ScriptError *serror, const CheckType type) {
+    if ((flags & SCRIPT_ENABLE_SCHNORR) && (vchSig.size() == 64)) {
+        // In a generic-signature context, 64-byte signatures are interpreted
+        // as Schnorr signatures (always correctly encoded) when flag set.
+        if (type & ECDSAOnly)
+            return set_error(serror, SCRIPT_ERR_SIG_BADLENGTH);
+        return true;
+    }
+
     if (vchSig.size() == 0)
         return true;
 
     if ((flags & (SCRIPT_VERIFY_DERSIG | SCRIPT_VERIFY_LOW_S | SCRIPT_VERIFY_STRICTENC)) != 0) {
-        if (type == CheckSigHash) {
+        if (type & CheckSigHash) {
             if (!IsValidSignatureEncoding(vchSig))
                 return set_error(serror, SCRIPT_ERR_SIG_DER);
         } else {
@@ -318,7 +329,7 @@ static bool CheckSignatureEncodingSigHashChoice(const std::vector<unsigned char>
                 return set_error(serror, SCRIPT_ERR_SIG_DER);
         }
     }
-    if (type == CheckSigHash) {
+    if (type & CheckSigHash) {
         const bool usesForkId = GetHashType(vchSig) & SIGHASH_FORKID;
         const bool forkIdEnabled = flags & SCRIPT_ENABLE_SIGHASH_FORKID;
         if (!forkIdEnabled && usesForkId)
@@ -331,7 +342,7 @@ static bool CheckSignatureEncodingSigHashChoice(const std::vector<unsigned char>
         // serror is set
         return false;
     }
-    else if (type  == CheckSigHash && ((flags & SCRIPT_VERIFY_STRICTENC) != 0) && !IsDefinedHashtypeSignature(vchSig)) {
+    else if ((type & CheckSigHash) && ((flags & SCRIPT_VERIFY_STRICTENC) != 0) && !IsDefinedHashtypeSignature(vchSig)) {
         return set_error(serror, SCRIPT_ERR_SIG_HASHTYPE);
     }
     return true;
@@ -390,16 +401,9 @@ bool static IsCompressedOrUncompressedPubKey(const valtype &vchPubKey) {
     return true;
 }
 
-// For CHECKSIG etc.
-bool CheckSignatureEncoding(const std::vector<unsigned char> &vchSig, unsigned int flags, ScriptError *serror)
+bool CheckTransactionSignatureEncoding(const std::vector<unsigned char> &vchSig, unsigned int flags, ScriptError *serror)
 {
-    return CheckSignatureEncodingSigHashChoice(vchSig, flags, serror, CheckSigHash);
-}
-
-// For CHECKDATASIG / CHECKDATASIGVERIFY
-bool CheckDataSignatureEncoding(const std::vector<uint8_t> &vchSig, uint32_t flags, ScriptError *serror)
-{
-    return CheckSignatureEncodingSigHashChoice(vchSig, flags, serror, NoCheckSigHash);
+    return CheckSignatureEncoding(vchSig, flags, serror, TransactionCheckSigChecks);
 }
 
 bool static CheckPubKeyEncoding(const valtype &vchSig, unsigned int flags, ScriptError* serror) {
@@ -1100,7 +1104,7 @@ bool EvalScript(std::vector<std::vector<unsigned char> >& stack, const CScript& 
                     valtype& vchSig    = stacktop(-2);
                     valtype& vchPubKey = stacktop(-1);
 
-                    if (!CheckSignatureEncoding(vchSig, flags, serror) ||
+                    if (!CheckSignatureEncoding(vchSig, flags, serror, TransactionCheckSigChecks) ||
                         !CheckPubKeyEncoding(vchPubKey, flags, serror)) {
                         // serror is set
                         return false;
@@ -1178,7 +1182,7 @@ bool EvalScript(std::vector<std::vector<unsigned char> >& stack, const CScript& 
                         // Note how this makes the exact order of pubkey/signature evaluation
                         // distinguishable by CHECKMULTISIG NOT if the STRICTENC flag is set.
                         // See the script_(in)valid tests for details.
-                        if (!CheckSignatureEncoding(vchSig, flags, serror) || !CheckPubKeyEncoding(vchPubKey, flags, serror)) {
+                        if (!CheckSignatureEncoding(vchSig, flags, serror, MultiSigChecks) || !CheckPubKeyEncoding(vchPubKey, flags, serror)) {
                             // serror is set
                             return false;
                         }
@@ -1249,7 +1253,7 @@ bool EvalScript(std::vector<std::vector<unsigned char> >& stack, const CScript& 
                     valtype &vchMessage = stacktop(-2);
                     valtype &vchPubKey = stacktop(-1);
 
-                    if (!CheckDataSignatureEncoding(vchSig, flags, serror)
+                    if (!CheckSignatureEncoding(vchSig, flags, serror, CheckDataSigChecks)
                             || !CheckPubKeyEncoding(vchPubKey, flags, serror)) // serror is set
                         return false;
 
@@ -1260,7 +1264,7 @@ bool EvalScript(std::vector<std::vector<unsigned char> >& stack, const CScript& 
                         uint256 messagehash(vchHash);
 
                         CPubKey pubkey(vchPubKey);
-                        fSuccess = pubkey.Verify(messagehash, vchSig);
+                        fSuccess = pubkey.verifyECDSA(messagehash, vchSig);
                     }
 
                     if (!fSuccess && (flags & SCRIPT_VERIFY_NULLFAIL) && vchSig.size())
@@ -1603,9 +1607,13 @@ uint256 SignatureHash(const CScript& scriptCode, const CTransaction& txTo, unsig
     return ss.GetHash();
 }
 
-bool TransactionSignatureChecker::VerifySignature(const std::vector<unsigned char>& vchSig, const CPubKey& pubkey, const uint256& sighash) const
+bool TransactionSignatureChecker::VerifySignature(const std::vector<unsigned char>& vchSig, const CPubKey& pubkey, const uint256& sighash, uint32_t flags) const
 {
-    return pubkey.Verify(sighash, vchSig);
+    if ((flags & SCRIPT_ENABLE_SCHNORR) && (vchSig.size() == 64)) {
+        return pubkey.verifySchnorr(sighash, vchSig);
+    } else {
+        return pubkey.verifyECDSA(sighash, vchSig);
+    }
 }
 
 bool TransactionSignatureChecker::CheckSig(const std::vector<unsigned char>& vchSigIn, const std::vector<unsigned char>& vchPubKey, const CScript& scriptCode, uint32_t flags) const
@@ -1623,7 +1631,7 @@ bool TransactionSignatureChecker::CheckSig(const std::vector<unsigned char>& vch
 
     uint256 sighash = SignatureHash(scriptCode, *txTo, nIn, amount, nHashType, flags);
 
-    if (!VerifySignature(vchSig, pubkey, sighash))
+    if (!VerifySignature(vchSig, pubkey, sighash, flags))
         return false;
 
     return true;

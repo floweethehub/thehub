@@ -59,7 +59,7 @@ struct ValidationFlags {
     bool hf201811Active;
     bool hf201905Active;
 
-    uint32_t scriptValidationFlags() const;
+    uint32_t scriptValidationFlags(bool requireStandard) const;
 
     /// based on the assumption that the index is after this Flags object, update it based on chain properties
     void updateForBlock(CBlockIndex *index, const uint256 &blkHash);
@@ -74,7 +74,7 @@ struct UnspentOutput {
     bool isCoinbase = false;
 };
 void validateTransactionInputs(CTransaction &tx, const std::vector<UnspentOutput> &unspents, int blockHeight,
-                                      ValidationFlags flags, int64_t &fees, uint32_t &txSigops, bool &spendsCoinbase);
+                                      ValidationFlags flags, int64_t &fees, uint32_t &txSigops, bool &spendsCoinbase, bool requireStandard);
 }
 
 struct Output {

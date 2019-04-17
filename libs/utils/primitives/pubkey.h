@@ -189,7 +189,13 @@ public:
      * Verify a DER signature (~72 bytes).
      * If this public key is not fully valid, the return value will be false.
      */
-    bool Verify(const uint256& hash, const std::vector<unsigned char>& vchSig) const;
+    bool verifyECDSA(const uint256& hash, const std::vector<unsigned char>& vchSig) const;
+
+    /**
+     * Verify a Schnorr signature (=64 bytes).
+     * If this public key is not fully valid, the return value will be false.
+     */
+    bool verifySchnorr(const uint256 &hash, const std::vector<uint8_t> &vchSig) const;
 
     /**
      * Check whether a signature is normalized (lower-S).

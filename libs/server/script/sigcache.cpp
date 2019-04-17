@@ -94,13 +94,13 @@ void InitSignatureCache() {
         (nMaxCacheSize >> 20) << "requested for signature cache, able to store" << nElems << "elements";
 }
 
-bool CachingTransactionSignatureChecker::VerifySignature(const std::vector<unsigned char>& vchSig, const CPubKey& pubkey, const uint256& sighash) const
+bool CachingTransactionSignatureChecker::VerifySignature(const std::vector<unsigned char>& vchSig, const CPubKey& pubkey, const uint256& sighash, uint32_t flags) const
 {
     uint256 entry;
     signatureCache.ComputeEntry(entry, sighash, vchSig, pubkey);
     if (signatureCache.Get(entry, !store))
         return true;
-    if (!TransactionSignatureChecker::VerifySignature(vchSig, pubkey, sighash))
+    if (!TransactionSignatureChecker::VerifySignature(vchSig, pubkey, sighash, flags))
         return false;
     if (store)
         signatureCache.Set(entry);
