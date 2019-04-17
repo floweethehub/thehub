@@ -993,6 +993,9 @@ uint32_t ValidationFlags::scriptValidationFlags() const
         flags |= SCRIPT_VERIFY_CLEANSTACK;
         flags |= SCRIPT_VERIFY_P2SH; // implied requirement by CLEANSTACK (normally present, but not in unit tests)
     }
+    if (hf201905Active) {
+        flags |= SCRIPT_ALLOW_SEGWIT_RECOVERY;
+    }
     return flags;
 }
 

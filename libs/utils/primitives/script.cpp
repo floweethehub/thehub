@@ -251,6 +251,19 @@ bool CScript::isCommitment(const std::vector<unsigned char> &data) const
     return true;
 }
 
+// A witness program is any valid CScript that consists of a 1-byte push opcode
+// followed by a data push between 2 and 40 bytes.
+bool CScript::IsWitnessProgram() const
+{
+    if (this->size() < 4 || this->size() > 42)
+        return false;
+    if ((*this)[0] != OP_0 && ((*this)[0] < OP_1 || (*this)[0] > OP_16))
+        return false;
+    if (size_t((*this)[1] + 2) == this->size())
+        return true;
+    return false;
+}
+
 bool CScript::IsPushOnly(const_iterator pc) const
 {
     while (pc < end())

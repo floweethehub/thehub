@@ -632,6 +632,10 @@ public:
     /// returns true if the appended data is equivalent to the OP_RETURN value.
     bool isCommitment(const std::vector<unsigned char> &data) const;
 
+    // BTC SegWit detection code.
+    bool IsWitnessProgram() const;
+
+
     /** Called by IsStandardTx and P2SH/BIP62 VerifyScript (which makes it consensus-critical). */
     bool IsPushOnly(const_iterator pc) const;
     bool IsPushOnly() const;
