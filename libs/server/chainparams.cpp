@@ -269,8 +269,8 @@ public:
         consensus.hf201708Height = 1155876;
         consensus.hf201708BlockId = uint256S("0x00000000000e38fef93ed9582a7df43815d5c2ba9fd37ef70c9a0ea4a285b8f5");
         consensus.hf201711Height = 1188697;
-        consensus.hf201805Height = 1;
-        consensus.hf201811Height = 1;
+        consensus.hf201805Height = 1267994;
+        consensus.hf201811Height = 1267997;
 
         checkpointData = CCheckpointData {
             boost::assign::map_list_of
