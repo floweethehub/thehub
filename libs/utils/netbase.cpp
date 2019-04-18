@@ -448,7 +448,7 @@ bool static ConnectSocketDirectly(const CService &addrConnect, SOCKET& hSocketRe
     struct sockaddr_storage sockaddr;
     socklen_t len = sizeof(sockaddr);
     if (!addrConnect.GetSockAddr((struct sockaddr*)&sockaddr, &len)) {
-        logWarning(Log::Net) << "Cannot connect to" << addrConnect << "unsupported network";
+        logInfo(Log::Net) << "Cannot connect to" << addrConnect << "unsupported network";
         return false;
     }
 
@@ -486,13 +486,13 @@ bool static ConnectSocketDirectly(const CService &addrConnect, SOCKET& hSocketRe
             int nRet = select(hSocket + 1, NULL, &fdset, NULL, &timeout);
             if (nRet == 0)
             {
-                logWarning(Log::Net) << "connection to" << addrConnect << "timeout";
+                logInfo(Log::Net) << "connection to" << addrConnect << "timeout";
                 CloseSocket(hSocket);
                 return false;
             }
             if (nRet == SOCKET_ERROR)
             {
-                logWarning(Log::Net) << "select() for" << addrConnect << "failed:" << NetworkErrorString(WSAGetLastError());
+                logInfo(Log::Net) << "select() for" << addrConnect << "failed:" << NetworkErrorString(WSAGetLastError());
                 CloseSocket(hSocket);
                 return false;
             }
@@ -503,13 +503,13 @@ bool static ConnectSocketDirectly(const CService &addrConnect, SOCKET& hSocketRe
             if (getsockopt(hSocket, SOL_SOCKET, SO_ERROR, &nRet, &nRetSize) == SOCKET_ERROR)
 #endif
             {
-                logWarning(Log::Net) << "getsockopt() for" << addrConnect << "failed:" << NetworkErrorString(WSAGetLastError());
+                logInfo(Log::Net) << "getsockopt() for" << addrConnect << "failed:" << NetworkErrorString(WSAGetLastError());
                 CloseSocket(hSocket);
                 return false;
             }
             if (nRet != 0)
             {
-                logWarning(Log::Net) << "connect() to" << addrConnect << "failed after select():" << NetworkErrorString(nRet);
+                logInfo(Log::Net) << "connect() to" << addrConnect << "failed after select():" << NetworkErrorString(nRet);
                 CloseSocket(hSocket);
                 return false;
             }
@@ -520,7 +520,7 @@ bool static ConnectSocketDirectly(const CService &addrConnect, SOCKET& hSocketRe
         else
 #endif
         {
-            logWarning(Log::Net) << "connect() to" << addrConnect << "failed:" << NetworkErrorString(WSAGetLastError());
+            logInfo(Log::Net) << "connect() to" << addrConnect << "failed:" << NetworkErrorString(WSAGetLastError());
             CloseSocket(hSocket);
             return false;
         }
