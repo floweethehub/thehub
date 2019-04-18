@@ -176,7 +176,7 @@ uint32_t GetNextWorkRequired(const CBlockIndex *pindexPrev, const CBlockHeader *
     if (params.fPowNoRetargeting)
         return pindexPrev->nBits;
 
-    if (Application::uahfChainState() >= Application::UAHFActive && pindexPrev->GetMedianTimePast() >= params.daa3ActivationTime)
+    if (pindexPrev->nHeight >= params.hf201711Height)
         return CalculateNextCashWorkRequired(pindexPrev, pblock, params);
 
     return GetNextEDAWorkRequired(pindexPrev, pblock, params);
