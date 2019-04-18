@@ -274,7 +274,7 @@ public:
         consensus.hf201711Height = 1;
         consensus.hf201805Height = 1;
         consensus.hf201811Height = 1;
-        consensus.hf201905Time = 1557921600;
+        consensus.hf201905Time = GetArg("-hf201905-activationtime", 1557921600);
 
         checkpointData = CCheckpointData {
             boost::assign::map_list_of
