@@ -465,8 +465,7 @@ Log::Item &Log::Item::operator<<(Log::StreamAlteration alteration)
 
 Log::Item operator<<(Log::Item item, const std::exception &ex) {
     if (item.isEnabled()) item << ex.what();
-    // TODO configure if we want a stacktrace?
-    return item.space();
+    return item;
 }
 
 Log::__Precision Log::precision(int amount)
