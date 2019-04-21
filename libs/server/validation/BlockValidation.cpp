@@ -796,7 +796,6 @@ void ValidationEnginePrivate::prepareChain()
         if (!disconnectTip(block, index))
             fatal("Failed to disconnect block");
 
-        blockchain->SetTip(index->pprev);
         tip.store(index->pprev);
     }
     mempool->removeForReorg(blockchain->Tip()->nHeight + 1, STANDARD_LOCKTIME_VERIFY_FLAGS);
@@ -932,6 +931,14 @@ bool ValidationEnginePrivate::disconnectTip(const FastBlock &tip, CBlockIndex *i
     }
 
     UnspentOutputDatabase *utxo = mempool->utxo();
+    while (true) {
+        FastUndoBlock::Item item = blockUndoFast.nextItem();
+        if (!item.isValid())
+            break;
+        if (!item.isInsert())
+            utxo->insert(item.prevTxId, item.outputIndex, item.blockHeight, item.offsetInBlock);
+    }
+    blockUndoFast.restartStream();
     bool clean = true;
     while (true) {
         FastUndoBlock::Item item = blockUndoFast.nextItem();
@@ -941,13 +948,11 @@ bool ValidationEnginePrivate::disconnectTip(const FastBlock &tip, CBlockIndex *i
             if (!utxo->remove(item.prevTxId, item.outputIndex).isValid())
                 clean = false;
         }
-        else {
-            utxo->insert(item.prevTxId, item.outputIndex, item.blockHeight, item.offsetInBlock);
-        }
     }
 
     // move best block pointer to prevout block
     utxo->blockFinished(index->pprev->nHeight, index->pprev->GetBlockHash());
+    blockchain->SetTip(index->pprev);
     if (userClean) {
         *userClean = clean;
         return true;
@@ -1518,8 +1523,6 @@ void BlockValidationState::checkSignaturesChunk()
 
     try {
         for (;blockValid && txIndex < txMax; ++txIndex) {
-            // ordered Tx are only checked when type == CheckOrdered
-            // We only process ordered transactions when type is CheckOrdered
             CAmount fees = 0;
             uint32_t sigops = 0;
             Tx tx = m_block.transactions().at(static_cast<size_t>(txIndex));
@@ -1646,7 +1649,7 @@ void BlockValidationState::checkSignaturesChunk()
 
             if (!m_checkValidityOnly) {
                 DEBUGBV << "add outputs from TX " << txIndex;
-                // Find the outputs to be added to the unspentOutputDB
+                // Find the outputs added to the unspentOutputDB
                 int outputCount = 0;
                 const int offsetInBlock = static_cast<int>(tx.offsetInBlock(m_block));
                 auto content = txIter.tag();
@@ -1654,10 +1657,10 @@ void BlockValidationState::checkSignaturesChunk()
                     if (content == Tx::OutputValue) {
                         if (txIter.longData() == 0)
                             logDebug(Log::BlockValidation) << "Output with zero value";
-                        undoItems->push_back(FastUndoBlock::Item(hash, outputCount, m_blockIndex->nHeight, offsetInBlock));
+                        undoItems->push_back(FastUndoBlock::Item(hash, outputCount));
                         outputCount++;
                     }
-                    content = txIter.next();
+                    content = txIter.next(Tx::OutputValue + Tx::End);
                 }
             }
         }

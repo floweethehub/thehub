@@ -1,6 +1,6 @@
 /*
  * This file is part of the flowee project
- * Copyright (C) 2017 Tom Zander <tomz@freedommail.ch>
+ * Copyright (C) 2017-2019 Tom Zander <tomz@freedommail.ch>
  *
  * This program is free software: you can redistribute it and/or modify
  * it under the terms of the GNU General Public License as published by
@@ -18,10 +18,12 @@
 
 #include "blockvalidation_tests.h"
 
+#include <TransactionBuilder.h>
 #include <util.h>
 #include <validation/BlockValidation_p.h>
 #include <server/BlocksDB.h>
 #include <server/script/interpreter.h>
+#include <utxo/UnspentOutputDatabase.h>
 
 #include <boost/foreach.hpp>
 
@@ -246,7 +248,7 @@ CTransaction TestBlockValidation::splitCoins(const Tx &inTx, int inIndex, const 
 {
     assert(outputCount > 0);
     assert(inIndex >= 0);
-logInfo() << inTx.createHash();
+// logInfo() << inTx.createHash();
 
     Tx::Output prevOut = inTx.output(inIndex);
     assert(prevOut.outputValue > 0);
@@ -323,6 +325,99 @@ void TestBlockValidation::CTOR()
     // I intended the actual validation to go fully Ok, but I get some signature failures.
     QVERIFY("tx-ordering-not-CTOR" != future.error());
     QVERIFY("missing-inputs" != future.error());
+}
+
+void TestBlockValidation::rollback()
+{
+    auto priv = bv->priv().lock(); // enable CTOR
+    priv->tipFlags.hf201811Active = true;
+
+    CKey myKey;
+    // create a chain of 101 blocks.
+    std::vector<FastBlock> blocks = bv->appendChain(110, myKey, MockBlockValidation::FullOutScript);
+    assert(blocks.size() == 110);
+
+    FastBlock block1 = blocks.at(1);
+    block1.findTransactions();
+
+    // mine block to create some more inputs that are not coinbases
+    std::vector<CTransaction> txs;
+    CTransaction root = splitCoins(block1.transactions().at(0), 0, myKey, myKey, 3);
+    txs.push_back(root);
+
+    // dummy coinbasekey
+    CScript scriptPubKey;
+    scriptPubKey << OP_TRUE;
+    FastBlock block = bv->createBlock(bv->blockchain()->Tip(),  scriptPubKey, txs);
+    auto future = bv->addBlock(block, Validation::SaveGoodToDisk).start();
+    future.waitUntilFinished();
+    QCOMPARE(future.error(), std::string());
+    QCOMPARE(bv->blockchain()->Height(), 111);
+
+    // now, make a block that spends those 3 outputs just created but also spends various
+    // outputs created in the same block.
+    txs.clear();
+    const CKeyID bitcoinAddress = myKey.GetPubKey().GetID();
+    for (size_t i = 0; i < root.vout.size(); ++i) {
+        {
+            TransactionBuilder builder;
+            builder.appendInput(root.GetHash(), i);
+            builder.pushInputSignature(myKey, root.vout[i].scriptPubKey, root.vout[i].nValue);
+            builder.appendOutput(root.vout[i].nValue - 1000);
+            builder.pushOutputPay2Address(bitcoinAddress);
+            txs.push_back(builder.createTransaction().createOldTransaction());
+        }
+        for (int x = qrand() % 4; x > 0; --x) {
+            TransactionBuilder builder;
+            auto lastTx = txs.back();
+            builder.appendInput(lastTx.GetHash(), 0);
+            builder.pushInputSignature(myKey, lastTx.vout[0].scriptPubKey, lastTx.vout[0].nValue);
+            builder.appendOutput(lastTx.vout[0].nValue - 1000);
+            builder.pushOutputPay2Address(bitcoinAddress);
+            txs.push_back(builder.createTransaction().createOldTransaction());
+        }
+    }
+
+    auto utxo = bv->mempool()->utxo();
+    // the same code we use to check at the end of the method.
+    QCOMPARE(bv->blockchain()->Height(), 111);
+    for (size_t i = 0; i < root.vout.size(); ++i) {
+        auto result = utxo->find(root.GetHash(), i);
+        QVERIFY(result.isValid());
+    }
+    for (size_t i = 0; i < txs.size(); ++i) {
+        auto result = utxo->find(txs[i].GetHash(), 0);
+        QVERIFY(!result.isValid());
+    }
+
+    // append tx's as block
+    std::sort(txs.begin(), txs.end(), &CTransaction::sortTxByTxId);
+    block = bv->createBlock(bv->blockchain()->Tip(),  scriptPubKey, txs);
+    future = bv->addBlock(block, Validation::SaveGoodToDisk).start();
+    future.waitUntilFinished();
+    QCOMPARE(future.error(), std::string());
+    QCOMPARE(bv->blockchain()->Height(), 112);
+
+    // now, the rollback should realize which inputs come from the same block and make sure those are not
+    // re-added to the mempool.
+    block.findTransactions();
+    QCOMPARE(block.transactions().size(), txs.size() + 1);
+    bool clean = false, error = false;
+    priv->strand.post(std::bind(&ValidationEnginePrivate::disconnectTip, priv, block, bv->blockchain()->Tip(), &clean, &error));
+    waitForStrand(*bv);
+    QCOMPARE(clean, true);
+    QCOMPARE(error, false);
+
+    // same code to check as above before we added the block
+    QCOMPARE(bv->blockchain()->Height(), 111);
+    for (size_t i = 0; i < root.vout.size(); ++i) {
+        auto result = utxo->find(root.GetHash(), i);
+        QVERIFY(result.isValid());
+    }
+    for (size_t i = 0; i < txs.size(); ++i) {
+        auto result = utxo->find(txs[i].GetHash(), 0);
+        QVERIFY(!result.isValid());
+    }
 }
 
 QTEST_MAIN(TestBlockValidation)

@@ -33,6 +33,7 @@ private slots:
     void detectOrder2();
     void duplicateInput();
     void CTOR();
+    void rollback();
 
 private:
     FastBlock createHeader(const FastBlock &full) const;
