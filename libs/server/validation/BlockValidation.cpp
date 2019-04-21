@@ -864,7 +864,7 @@ void ValidationEnginePrivate::findMoreJobs()
     while (true) {
         CBlockIndex *index = Blocks::DB::instance()->headerChain()[lastFullBlockScheduled + 1];
         DEBUGBV << "  next:" << index;
-        if (index) DEBUGBV << "  has data:" << (bool) (index->nStatus & BLOCK_HAVE_DATA);
+        if (index) DEBUGBV << "  " << index->GetBlockHash() << "has data:" << (bool) (index->nStatus & BLOCK_HAVE_DATA);
         if (!(index && (index->nStatus & BLOCK_HAVE_DATA)))
             return;
         assert(index->pprev);
