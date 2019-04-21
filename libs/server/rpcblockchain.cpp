@@ -2,6 +2,7 @@
  * This file is part of the Flowee project
  * Copyright (C) 2010 Satoshi Nakamoto
  * Copyright (C) 2009-2015 The Bitcoin Core developers
+ * Copyright (C) 2018-2019 Tom Zander <tomz@freedommail.ch>
  *
  * This program is free software: you can redistribute it and/or modify
  * it under the terms of the GNU General Public License as published by
@@ -819,9 +820,15 @@ UniValue reconsiderblock(const UniValue& params, bool fHelp)
         throw JSONRPCError(RPC_INVALID_ADDRESS_OR_KEY, "Block not found");
     Blocks::Index::reconsiderBlock(pblockindex);
 
-    auto future = Application::instance()->validation()->addBlock(pblockindex->GetBlockPos());
+    auto future = Application::instance()->validation()->addBlock(pblockindex->GetBlockPos()).start();
     future.waitUntilFinished();
-    if (future.error().empty())
+
+    auto acceptedBlock = Blocks::DB::instance()->headerChain()[pblockindex->nHeight];
+    if (acceptedBlock != pblockindex)
+        logCritical(Log::RPC) << "Reconsider block done on block and alternate chain still wins. Consider invalidating block:"
+            << acceptedBlock->GetBlockHash();
+
+    if (!future.error().empty())
         throw JSONRPCError(RPC_DATABASE_ERROR, future.error());
     return NullUniValue;
 }
