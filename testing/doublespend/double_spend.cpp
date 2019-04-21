@@ -49,7 +49,7 @@ void TestDoubleSpend::test()
     QVERIFY(!myValidatioInterface.duplicate.isValid());
 
     CKey key;
-    std::vector<FastBlock> blocks = bv.appendChain(101, key);
+    std::vector<FastBlock> blocks = bv->appendChain(101, key);
 
     CBasicKeyStore keystore;
     keystore.AddKey(key);
@@ -68,7 +68,7 @@ void TestDoubleSpend::test()
     mutableFirst.vout[0].scriptPubKey << ToByteVector(key.GetPubKey()) << OP_CHECKSIG;
     SignSignature(keystore, coinbase.createOldTransaction(), mutableFirst, 0, SIGHASH_ALL | SIGHASH_FORKID);
     Tx first = Tx::fromOldTransaction(mutableFirst);
-    auto future = bv.addTransaction(first);
+    auto future = bv->addTransaction(first);
     std::string result = future.get();
     QCOMPARE(result, std::string());
     QVERIFY(!myValidatioInterface.first.isValid());
@@ -85,7 +85,7 @@ void TestDoubleSpend::test()
     mutableDuplicate.vout[0].scriptPubKey << ToByteVector(key.GetPubKey()) << OP_CHECKSIG;
     SignSignature(keystore, coinbase.createOldTransaction(), mutableDuplicate, 0, SIGHASH_ALL | SIGHASH_FORKID);
     Tx duplicate = Tx::fromOldTransaction(mutableDuplicate);
-    future = bv.addTransaction(duplicate);
+    future = bv->addTransaction(duplicate);
     result = future.get();
     QCOMPARE(result, std::string("258: txn-mempool-conflict"));
     QVERIFY(myValidatioInterface.first.isValid());

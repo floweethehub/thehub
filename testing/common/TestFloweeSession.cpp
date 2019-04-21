@@ -1,7 +1,7 @@
 /*
  * This file is part of the Flowee project
  * Copyright (C) 2011-2015 The Bitcoin Core developers
- * Copyright (C) 2017-2018 Tom Zander <tomz@freedommail.ch>
+ * Copyright (C) 2017-2019 Tom Zander <tomz@freedommail.ch>
  *
  * This program is free software: you can redistribute it and/or modify
  * it under the terms of the GNU General Public License as published by
@@ -37,12 +37,10 @@ CClientUIInterface uiInterface; // Declared but not defined in UiInterface.h
 
 UnspentOutputDatabase *g_utxo = nullptr;
 
-TestFloweeSession::TestFloweeSession(const std::string& chainName) : TestFloweeEnvPlusNet(chainName)
+void TestFloweeSession::init()
 {
-    InitSignatureCache();
-    if (chainName == CBaseChainParams::REGTEST)
-        Application::setUahfChainState(Application::UAHFActive);
-
+    logFatal();
+    bv.reset(new MockBlockValidation());
 #ifdef ENABLE_WALLET
     bitdb.MakeMock();
 #endif
@@ -55,9 +53,9 @@ TestFloweeSession::TestFloweeSession(const std::string& chainName) : TestFloweeE
     UnspentOutputDatabase::setSmallLimits();
     g_utxo = new UnspentOutputDatabase(Application::instance()->ioService(), GetDataDir(true) / "unspent");
 
-    bv.initSingletons();
-    bv.appendGenesis();
-    MockApplication::setValidationEngine(&bv);
+    bv->initSingletons();
+    bv->appendGenesis();
+    MockApplication::setValidationEngine(bv.get());
 
 #ifdef ENABLE_WALLET
     bool fFirstRun;
@@ -69,10 +67,17 @@ TestFloweeSession::TestFloweeSession(const std::string& chainName) : TestFloweeE
     RegisterNodeSignals(GetNodeSignals());
 }
 
-TestFloweeSession::~TestFloweeSession()
+TestFloweeSession::TestFloweeSession(const std::string& chainName) : TestFloweeEnvPlusNet(chainName)
+{
+    InitSignatureCache();
+    if (chainName == CBaseChainParams::REGTEST)
+        Application::setUahfChainState(Application::UAHFActive);
+}
+
+void TestFloweeSession::cleanup()
 {
     MockApplication::setValidationEngine(nullptr);
-    bv.shutdown();
+    bv->shutdown();
     Blocks::Index::unload();
 
     UnregisterNodeSignals(GetNodeSignals());
@@ -88,4 +93,8 @@ TestFloweeSession::~TestFloweeSession()
     bitdb.Reset();
 #endif
     boost::filesystem::remove_all(pathTemp);
+}
+
+TestFloweeSession::~TestFloweeSession()
+{
 }

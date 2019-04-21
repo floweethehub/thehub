@@ -1,7 +1,7 @@
 /*
  * This file is part of the Flowee project
  * Copyright (c) 2015 The Bitcoin Core developers
- * Copyright (C) 2017-2018 Tom Zander <tomz@freedommail.ch>
+ * Copyright (C) 2017-2019 Tom Zander <tomz@freedommail.ch>
  *
  * This program is free software: you can redistribute it and/or modify
  * it under the terms of the GNU General Public License as published by
@@ -31,7 +31,7 @@ class TestFloweeSession : public TestFloweeEnvPlusNet
 {
     Q_OBJECT
 public:
-    MockBlockValidation bv;
+    std::unique_ptr<MockBlockValidation> bv;
     boost::filesystem::path pathTemp;
 
     enum BlocksDb {
@@ -41,6 +41,12 @@ public:
 
     TestFloweeSession(const std::string& chainName = CBaseChainParams::REGTEST);
     ~TestFloweeSession();
+
+protected slots:
+    /// called before each test
+    void init();
+    /// called after each test
+    void cleanup();
 };
 
 class MainnetTestFloweeSession : TestFloweeSession

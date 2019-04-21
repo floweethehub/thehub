@@ -68,6 +68,12 @@ test_hashstorage:
   dependencies:
   - build-debian-stable
 
+.test_blockvalidation:
+  stage: test
+  script: build/testing/blockvalidation/test_blockvalidation
+  dependencies:
+  - build-debian-stable
+
 #####  Static build (Linux)
 
 build-static:

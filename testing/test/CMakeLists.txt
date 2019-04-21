@@ -77,7 +77,6 @@ set (TEST_SOURCES
     base64_tests.cpp
     blocksdb_mapfile_tests.cpp
     blocksdb_tests.cpp
-    blockvalidation_tests.cpp
     bloom_tests.cpp
     bswap_tests.cpp
     Checkpoints_tests.cpp
