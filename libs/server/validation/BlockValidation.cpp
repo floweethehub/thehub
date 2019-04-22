@@ -974,11 +974,12 @@ ValidationFlags::ValidationFlags()
     nLocktimeVerifySequence(false),
     hf201708Active(false),
     hf201805Active(false),
-    hf201811Active(false)
+    hf201811Active(false),
+    hf201905Active(false)
 {
 }
 
-uint32_t ValidationFlags::scriptValidationFlags() const
+uint32_t ValidationFlags::scriptValidationFlags(bool requireStandard) const
 {
     uint32_t flags = strictPayToScriptHash ? SCRIPT_VERIFY_P2SH : SCRIPT_VERIFY_NONE;
     if (scriptVerifyDerSig)
@@ -996,6 +997,11 @@ uint32_t ValidationFlags::scriptValidationFlags() const
         flags |= SCRIPT_VERIFY_SIGPUSHONLY;
         flags |= SCRIPT_VERIFY_CLEANSTACK;
         flags |= SCRIPT_VERIFY_P2SH; // implied requirement by CLEANSTACK (normally present, but not in unit tests)
+    }
+    if (hf201905Active) {
+        if (!requireStandard)
+            flags |= SCRIPT_ALLOW_SEGWIT_RECOVERY;
+        flags |= SCRIPT_ENABLE_SCHNORR;
     }
     return flags;
 }
@@ -1073,6 +1079,8 @@ void ValidationFlags::updateForBlock(CBlockIndex *index, const uint256 &blkHash)
         hf201805Active = true;
     if (!hf201811Active && index->nHeight >= chainparams.GetConsensus().hf201811Height)
         hf201811Active = true;
+    if (!hf201905Active && hf201805Active && index->GetMedianTimePast() >= chainparams.GetConsensus().hf201905Time)
+        hf201905Active = true;
 }
 
 /* TODO Expire orphans.
@@ -1642,7 +1650,8 @@ void BlockValidationState::checkSignaturesChunk()
                     throw Exception("bad-txns-nonfinal");
 
                 bool spendsCoinBase;
-                ValidationPrivate::validateTransactionInputs(old, unspents, m_blockIndex->nHeight, flags, fees, sigops, spendsCoinBase);
+                ValidationPrivate::validateTransactionInputs(old, unspents, m_blockIndex->nHeight, flags, fees,
+                                                             sigops, spendsCoinBase, /* requireStandard */ false);
                 chunkSigops += sigops;
                 chunkFees += fees;
             }

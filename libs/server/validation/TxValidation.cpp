@@ -41,7 +41,7 @@
 
 using Validation::Exception;
 
-void ValidationPrivate::validateTransactionInputs(CTransaction &tx, const std::vector<UnspentOutput> &unspents, int blockHeight, ValidationFlags flags, int64_t &fees, uint32_t &txSigops, bool &spendsCoinbase)
+void ValidationPrivate::validateTransactionInputs(CTransaction &tx, const std::vector<UnspentOutput> &unspents, int blockHeight, ValidationFlags flags, int64_t &fees, uint32_t &txSigops, bool &spendsCoinbase, bool requireStandard)
 {
     assert(unspents.size() == tx.vin.size());
 
@@ -71,7 +71,7 @@ void ValidationPrivate::validateTransactionInputs(CTransaction &tx, const std::v
         throw Exception("bad-txns-fee-outofrange");
 
     spendsCoinbase = false;
-    const uint32_t scriptValidationFlags = flags.scriptValidationFlags();
+    const uint32_t scriptValidationFlags = flags.scriptValidationFlags(requireStandard);
     for (unsigned int i = 0; i < tx.vin.size(); i++) {
         const ValidationPrivate::UnspentOutput &prevout = unspents.at(i);
         if (prevout.isCoinbase) { // If prev is coinbase, check that it's matured
@@ -309,7 +309,7 @@ void TxValidationState::checkTransaction()
                 throw Exception("non-BIP68-final", Validation::RejectNonstandard, 0);
 
             entry.sigOpCount = Validation::countSigOps(tx);
-            ValidationPrivate::validateTransactionInputs(tx, unspents, static_cast<int>(entry.entryHeight) + 1, flags, entry.nFee, entry.sigOpCount, entry.spendsCoinbase);
+            ValidationPrivate::validateTransactionInputs(tx, unspents, static_cast<int>(entry.entryHeight) + 1, flags, entry.nFee, entry.sigOpCount, entry.spendsCoinbase, fRequireStandard);
 
             // nModifiedFees includes any fee deltas from PrioritiseTransaction
             CAmount nModifiedFees = entry.nFee;

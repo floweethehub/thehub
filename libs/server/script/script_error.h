@@ -82,6 +82,10 @@ typedef enum ScriptError_t
     SCRIPT_ERR_ILLEGAL_FORKID,
     SCRIPT_ERR_MUST_USE_FORKID,
 
+    /* Schnorr */
+    SCRIPT_ERR_SIG_BADLENGTH,
+
+
     SCRIPT_ERR_ERROR_COUNT
 } ScriptError;
 

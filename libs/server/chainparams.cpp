@@ -164,6 +164,7 @@ public:
         consensus.hf201711Height = 504031;
         consensus.hf201805Height = 530356;
         consensus.hf201811Height = 556767;
+        consensus.hf201905Time = 1557921600;
 
         checkpointData = CCheckpointData {
             boost::assign::map_list_of
@@ -271,6 +272,7 @@ public:
         consensus.hf201711Height = 1188697;
         consensus.hf201805Height = 1267994;
         consensus.hf201811Height = 1267997;
+        consensus.hf201905Time = GetArg("-hf201905-activationtime", 1557921600);
 
         checkpointData = CCheckpointData {
             boost::assign::map_list_of
@@ -346,6 +348,7 @@ public:
         consensus.hf201711Height = 0;
         consensus.hf201805Height = 1;
         consensus.hf201811Height = 9999999; // avoid doing stupid stuff like 100 bytes min tx size
+        consensus.hf201905Time = 1;
 
         checkpointData = CCheckpointData {
             boost::assign::map_list_of

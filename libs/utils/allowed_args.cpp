@@ -198,6 +198,7 @@ static void addChainSelectionOptions(AllowedArgs& allowedArgs)
     allowedArgs
         .addHeader(_("Chain selection options:"))
         .addArg("testnet", optionalBool, _("Use the test chain"))
+        .addArg("hf201905-activationtime", requiredInt, "Activation time for the 2019-05 protocol upgrade")
         .addDebugArg("regtest", optionalBool,
             "Enter regression test mode, which uses a special chain in which blocks can be solved instantly. "
             "This is intended for regression testing tools and app development.")
