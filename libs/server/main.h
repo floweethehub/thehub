@@ -129,16 +129,6 @@ extern CBlockIndex *pindexBestHeader;
 /** Minimum disk space required - used in CheckDiskSpace() */
 static const uint64_t nMinDiskSpace = 52428800;
 
-/** Pruning-related variables and constants */
-/** True if any block files have ever been pruned. */
-extern bool fHavePruned;
-/** True if we're running in -prune mode. */
-extern bool fPruneMode;
-/** Number of MiB of block files that we're trying to stay below. */
-extern uint64_t nPruneTarget;
-/** Block files containing a block-height within MIN_BLOCKS_TO_KEEP of chainActive.Tip() will not be pruned. */
-static const unsigned int MIN_BLOCKS_TO_KEEP = 288;
-
 /** Register with a network node to receive its signals */
 void RegisterNodeSignals(CNodeSignals& nodeSignals);
 /** Unregister a network node */
@@ -189,30 +179,8 @@ std::string GetWarnings(const std::string& strFor);
 bool ActivateBestChain(CValidationState& state, const CChainParams& chainparams, const CBlock* pblock = NULL);
 CAmount GetBlockSubsidy(int nHeight, const Consensus::Params& consensusParams);
 
-/**
- * Prune block and undo files (blk???.dat and undo???.dat) so that the disk space used is less than a user-defined target.
- * The user sets the target (in MB) on the command line or in config file.  This will be run on startup and whenever new
- * space is allocated in a block or undo file, staying below the target. Changing back to unpruned requires a reindex
- * (which in this case means the blockchain must be re-downloaded.)
- *
- * Pruning functions are called from FlushStateToDisk when the global fCheckForPruning flag has been set.
- * Block and undo files are deleted in lock-step (when blk00003.dat is deleted, so is rev00003.dat.)
- * Pruning cannot take place until the longest chain is at least a certain length (100000 on mainnet, 1000 on testnet, 1000 on regtest).
- * Pruning will never delete a block within a defined distance (currently 288) from the active chain's tip.
- * The block index is updated by unsetting HAVE_DATA and HAVE_UNDO for any blocks that were stored in the deleted files.
- * A db flag records the fact that at least some block files have been pruned.
- *
- * @param[out]   setFilesToPrune   The set of file indices that can be unlinked will be returned
- */
-void FindFilesToPrune(std::set<int>& setFilesToPrune, uint64_t nPruneAfterHeight);
-
 bool MarkBlockAsReceived(const uint256& hash);
 bool IsBlockInFlight(const uint256 &hash);
-
-/**
- *  Actually unlink the specified files
- */
-void UnlinkPrunedFiles(std::set<int>& setFilesToPrune);
 
 /** Get statistics from node state */
 bool GetNodeStateStats(NodeId nodeid, CNodeStateStats &stats);
@@ -220,8 +188,6 @@ bool GetNodeStateStats(NodeId nodeid, CNodeStateStats &stats);
 void Misbehaving(NodeId nodeid, int howmuch);
 /** Flush all state, indexes and buffers to disk. */
 void FlushStateToDisk();
-/** Prune block files and flush state to disk. */
-void PruneAndFlush();
 
 void queueRejectMessage(int peerId, const uint256 &blockHash, std::uint8_t rejectCode, const std::string &rejectReason);
 

@@ -517,17 +517,6 @@ bool AppInit2(boost::thread_group& threadGroup, CScheduler& scheduler)
 
     // also see: InitParameterInteraction()
 
-    // if using block pruning, then disable txindex
-    if (GetArg("-prune", 0)) {
-        if (GetBoolArg("-txindex", Settings::DefaultTxIndex))
-            return InitError(_("Prune mode is incompatible with -txindex."));
-#ifdef ENABLE_WALLET
-        if (GetBoolArg("-rescan", false)) {
-            return InitError(_("Rescans are not possible in pruned mode. You will need to use -reindex which will download the whole blockchain again."));
-        }
-#endif
-    }
-
     // Make sure enough file descriptors are available
     int nBind = std::max((int)mapArgs.count("-bind") + (int)mapArgs.count("-whitebind"), 1);
     int nUserMaxConnections = GetArg("-maxconnections", Settings::DefaultMaxPeerConnections);
@@ -554,21 +543,6 @@ bool AppInit2(boost::thread_group& threadGroup, CScheduler& scheduler)
         return InitError(strprintf(_("-maxmempool must be at least %d MB"), std::ceil(nMempoolSizeMin / 1000000.0)));
 
     fServer = GetBoolArg("-server", false);
-
-    // block pruning; get the amount of disk space (in MiB) to allot for block & undo files
-    int64_t nSignedPruneTarget = GetArg("-prune", 0) * 1024 * 1024;
-    if (nSignedPruneTarget < 0) {
-        return InitError(_("Prune cannot be configured with a negative value."));
-    }
-    nPruneTarget = (uint64_t) nSignedPruneTarget;
-    if (nPruneTarget) {
-        if (nPruneTarget < Settings::MinDiskSpaceForBlockFiles) {
-            return InitError(strprintf(_("Prune configured below the minimum of %d MiB.  Please use a higher number."), Settings::MinDiskSpaceForBlockFiles / 1024 / 1024));
-        }
-        logCritical(Log::Prune).nospace() << "Prune configured to target " << nPruneTarget / 1024 / 1024
-                                          << "MiB on disk for block and undo files.";
-        fPruneMode = true;
-    }
 
 #ifdef ENABLE_WALLET
     bool fDisableWallet = GetBoolArg("-disablewallet", false);
@@ -840,19 +814,7 @@ bool AppInit2(boost::thread_group& threadGroup, CScheduler& scheduler)
                     break;
                 }
 
-                // Check for changed -prune state.  What we are concerned about is a user who has pruned blocks
-                // in the past, but is now trying to run unpruned.
-                if (fHavePruned && !fPruneMode) {
-                    strLoadError = _("You need to rebuild the database using -reindex to go back to unpruned mode.  This will redownload the entire blockchain");
-                    break;
-                }
-
                 uiInterface.InitMessage(_("Verifying blocks..."));
-                if (fHavePruned && GetArg("-checkblocks", Settings::DefaultCheckBlocks) > MIN_BLOCKS_TO_KEEP) {
-                    LogPrintf("Prune: pruned datadir may not have more than %d blocks; -checkblocks=%d may fail\n",
-                        MIN_BLOCKS_TO_KEEP, GetArg("-checkblocks", Settings::DefaultCheckBlocks));
-                }
-
                 {
                     LOCK(cs_main);
                     CBlockIndex* tip = chainActive.Tip();
@@ -1121,19 +1083,6 @@ bool AppInit2(boost::thread_group& threadGroup, CScheduler& scheduler)
                 pindexRescan = chainActive.Genesis();
         }
         if (chainActive.Tip() && chainActive.Tip() != pindexRescan) {
-            //We can't rescan beyond non-pruned blocks, stop and throw an error
-            //this might happen if a user uses a old wallet within a pruned node
-            // or if he ran -disablewallet for a longer time, then decided to re-enable
-            if (fPruneMode)
-            {
-                CBlockIndex *block = chainActive.Tip();
-                while (block && block->pprev && (block->pprev->nStatus & BLOCK_HAVE_DATA) && block->pprev->nTx > 0 && pindexRescan != block)
-                    block = block->pprev;
-
-                if (pindexRescan != block)
-                    return InitError(_("Prune: last wallet synchronisation goes beyond pruned data. You need to -reindex (download the whole blockchain again in case of pruned node)"));
-            }
-
             uiInterface.InitMessage(_("Rescanning..."));
             logCritical(Log::Bitcoin) << "Rescanning last" << chainActive.Height() - pindexRescan->nHeight << "blocks. (from block"
                         << pindexRescan->nHeight << ")...";
@@ -1171,20 +1120,7 @@ bool AppInit2(boost::thread_group& threadGroup, CScheduler& scheduler)
     logDebug(Log::Wallet) << "No wallet support compiled in!";
 #endif // !ENABLE_WALLET
 
-    // ********************************************************* Step 9: data directory maintenance
-
-    // if pruning, unset the service bit and perform the initial blockstore prune
-    // after any wallet rescanning has taken place.
-    if (fPruneMode) {
-        logInfo(Log::Net) << "Unsetting NODE_NETWORK on prune mode";
-        nLocalServices &= ~NODE_NETWORK;
-        if (!fReindex) {
-            uiInterface.InitMessage(_("Pruning blockstore..."));
-            PruneAndFlush();
-        }
-    }
-
-    // ********************************************************* Step 10: import blocks
+    // ********************************************************* Step 9: import blocks
 
     if (mapArgs.count("-blocknotify"))
         uiInterface.NotifyBlockTip.connect(BlockNotifyCallback);
@@ -1197,7 +1133,7 @@ bool AppInit2(boost::thread_group& threadGroup, CScheduler& scheduler)
     }
     Application::instance()->validation()->start();
 
-    // ********************************************************* Step 11: start node
+    // ********************************************************* Step 10: start node
 
     if (!CheckDiskSpace())
         return false;
@@ -1235,7 +1171,7 @@ bool AppInit2(boost::thread_group& threadGroup, CScheduler& scheduler)
         logCritical(Log::Bitcoin) << "Mining could not be activated. Reason: %s" << e.what();
     }
 
-    // ********************************************************* Step 12: finished
+    // ********************************************************* Step 11: finished
 
     SetRPCWarmupFinished();
     uiInterface.InitMessage(_("Done loading"));

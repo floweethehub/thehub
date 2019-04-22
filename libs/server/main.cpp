@@ -62,14 +62,11 @@ CBlockIndex *pindexBestHeader = nullptr;
 CWaitableCriticalSection csBestBlock;
 CConditionVariable cvBlockChange;
 bool fTxIndex = false;
-bool fHavePruned = false;
-bool fPruneMode = false;
 bool fIsBareMultisigStd = Settings::DefaultPermitBareMultisig;
 bool fRequireStandard = true;
 unsigned int nBytesPerSigOp = Settings::DefaultBytesPerSigop;
 bool fCheckpointsEnabled = Settings::DefaultCheckpointsEnabled;
 size_t nCoinCacheUsage = 5000 * 300;
-uint64_t nPruneTarget = 0;
 
 /** Fees smaller than this (in satoshi) are considered zero fee (for relaying, mining and transaction creation) */
 CFeeRate minRelayTxFee = CFeeRate(Settings::DefaultMinRelayTxFee);
@@ -118,16 +115,6 @@ namespace {
     std::set<CBlockIndex*, CBlockIndexWorkComparator> setBlockIndexCandidates;
     /** Number of nodes with fSyncStarted. */
     int nSyncStarted = 0;
-    /** All pairs A->B, where A (or one of its ancestors) misses transactions, but B has transactions.
-     * Pruned nodes may have entries where B is missing data.
-     */
-    std::multimap<CBlockIndex*, CBlockIndex*> mapBlocksUnlinked;
-
-    /** Global flag to indicate we should check to see if there are
-     *  block/undo files that should be deleted.  Set on startup
-     *  or if we allocate more file space when we're in prune mode
-     */
-    bool fCheckForPruning = false;
 
     /**
      * Every received block is assigned a unique and increasing identifier, so we
@@ -1076,20 +1063,7 @@ bool FlushStateToDisk(CValidationState &state, FlushStateMode mode) {
     static int64_t nLastWrite = 0;
     static int64_t nLastFlush = 0;
     static int64_t nLastSetChain = 0;
-    std::set<int> setFilesToPrune;
-    bool fFlushForPrune = false;
     try {
-    if (fPruneMode && fCheckForPruning && !Blocks::DB::instance()->isReindexing()) {
-        FindFilesToPrune(setFilesToPrune, chainparams.PruneAfterHeight());
-        fCheckForPruning = false;
-        if (!setFilesToPrune.empty()) {
-            fFlushForPrune = true;
-            if (!fHavePruned) {
-                Blocks::DB::instance()->WriteFlag("prunedblockfiles", true);
-                fHavePruned = true;
-            }
-        }
-    }
     int64_t nNow = GetTimeMicros();
     // Avoid writing/flushing immediately after startup.
     if (nLastWrite == 0) {
@@ -1106,7 +1080,7 @@ bool FlushStateToDisk(CValidationState &state, FlushStateMode mode) {
     // It's been very long since we flushed the cache. Do this infrequently, to optimize cache usage.
     bool fPeriodicFlush = mode == FLUSH_STATE_PERIODIC && nNow > nLastFlush + (int64_t)DATABASE_FLUSH_INTERVAL * 1000000;
     // Combine all conditions that result in a full cache flush.
-    bool fDoFullFlush = (mode == FLUSH_STATE_ALWAYS) || fPeriodicFlush || fFlushForPrune;
+    bool fDoFullFlush = (mode == FLUSH_STATE_ALWAYS) || fPeriodicFlush;
     // Write blocks and block index to disk.
     if (fDoFullFlush || fPeriodicWrite) {
         // Depend on nMinDiskSpace to ensure we can write block index
@@ -1132,9 +1106,6 @@ bool FlushStateToDisk(CValidationState &state, FlushStateMode mode) {
                     return AbortNode(state, "Files to write to block index database");
             }
         }
-        // Finally remove any pruned files
-        if (fFlushForPrune)
-            UnlinkPrunedFiles(setFilesToPrune);
         nLastWrite = nNow;
     }
     // Flush best chain related state. This can only be done if the blocks / block index write was also done.
@@ -1158,13 +1129,6 @@ void FlushStateToDisk() {
     CValidationState state;
     FlushStateToDisk(state, FLUSH_STATE_ALWAYS);
 }
-
-void PruneAndFlush() {
-    CValidationState state;
-    fCheckForPruning = true;
-    FlushStateToDisk(state, FLUSH_STATE_NONE);
-}
-
 
 bool CheckBlockHeader(const CBlockHeader& block, CValidationState& state, bool fCheckPOW)
 {
@@ -1236,67 +1200,6 @@ bool IsSuperMajority(int minVersion, const CBlockIndex* pstart, unsigned nRequir
     return (nFound >= nRequired);
 }
 
-
-void UnlinkPrunedFiles(std::set<int>& setFilesToPrune)
-{
-    for (std::set<int>::iterator it = setFilesToPrune.begin(); it != setFilesToPrune.end(); ++it) {
-        boost::system::error_code ec;
-        boost::filesystem::remove(Blocks::getFilepathForIndex(*it, "blk"), ec);
-        boost::filesystem::remove(Blocks::getFilepathForIndex(*it, "rev"), ec);
-        LogPrintf("Prune: %s deleted blk/rev (%05u)\n", __func__, *it);
-    }
-}
-
-/* Calculate the block/rev files that should be deleted to remain under target*/
-void FindFilesToPrune(std::set<int>& setFilesToPrune, uint64_t nPruneAfterHeight)
-{
-#if 0
-    LOCK2(cs_main, cs_LastBlockFile);
-    if (chainActive.Tip() == nullptr || nPruneTarget == 0) {
-        return;
-    }
-    if ((uint64_t)chainActive.Tip()->nHeight <= nPruneAfterHeight) {
-        return;
-    }
-
-    unsigned int nLastBlockWeCanPrune = chainActive.Tip()->nHeight - MIN_BLOCKS_TO_KEEP;
-    uint64_t nCurrentUsage = CalculateCurrentUsage();
-    // We don't check to prune until after we've allocated new space for files
-    // So we should leave a buffer under our target to account for another allocation
-    // before the next pruning.
-    uint64_t nBuffer = BLOCKFILE_CHUNK_SIZE + UNDOFILE_CHUNK_SIZE;
-    uint64_t nBytesToPrune;
-    int count=0;
-
-    if (nCurrentUsage + nBuffer >= nPruneTarget) {
-        for (int fileNumber = 0; fileNumber < nLastBlockFile; fileNumber++) {
-            nBytesToPrune = vinfoBlockFile[fileNumber].nSize + vinfoBlockFile[fileNumber].nUndoSize;
-
-            if (vinfoBlockFile[fileNumber].nSize == 0)
-                continue;
-
-            if (nCurrentUsage + nBuffer < nPruneTarget)  // are we below our target?
-                break;
-
-            // don't prune files that could have a block within MIN_BLOCKS_TO_KEEP of the main chain's tip but keep scanning
-            if (vinfoBlockFile[fileNumber].nHeightLast > nLastBlockWeCanPrune)
-                continue;
-
-            PruneOneBlockFile(fileNumber);
-            // Queue up the files for removal
-            setFilesToPrune.insert(fileNumber);
-            nCurrentUsage -= nBytesToPrune;
-            count++;
-        }
-    }
-
-    LogPrint("prune", "Prune: target=%dMiB actual=%dMiB diff=%dMiB max_prune_height=%d removed %d blk/rev pairs\n",
-           nPruneTarget/1024/1024, nCurrentUsage/1024/1024,
-           ((int64_t)nPruneTarget - (int64_t)nCurrentUsage)/1024/1024,
-           nLastBlockWeCanPrune, count);
-#endif
-}
-
 bool CheckDiskSpace(uint64_t nAdditionalBytes)
 {
     uint64_t nFreeBytesAvailable = boost::filesystem::space(GetDataDir()).available;
@@ -1325,12 +1228,7 @@ bool LoadBlockIndexDB()
         // Pruned nodes may have deleted the block.
         if (pindex->nTx > 0) {
             if (pindex->pprev) {
-                if (pindex->pprev->nChainTx) {
-                    pindex->nChainTx = pindex->pprev->nChainTx + pindex->nTx;
-                } else {
-                    pindex->nChainTx = 0;
-                    mapBlocksUnlinked.insert(std::make_pair(pindex->pprev, pindex));
-                }
+                pindex->nChainTx = pindex->pprev->nChainTx + pindex->nTx;
             } else {
                 pindex->nChainTx = pindex->nTx;
             }
@@ -1373,11 +1271,6 @@ bool LoadBlockIndexDB()
             return false;
     }
 
-    // Check whether we have ever pruned block & undo files
-    Blocks::DB::instance()->ReadFlag("prunedblockfiles", fHavePruned);
-    if (fHavePruned)
-        logCritical(Log::Bitcoin) << "LoadBlockIndexDB(): Block files have previously been pruned";
-
     // Check whether we have a transaction index
     Blocks::DB::instance()->ReadFlag("txindex", fTxIndex);
     logDebug(Log::Bitcoin) << "transaction index enabled:" << fTxIndex;
@@ -1411,7 +1304,6 @@ void UnloadBlockIndex()
     mempool.clear();
     CTxOrphanCache::clear();
     nSyncStarted = 0;
-    mapBlocksUnlinked.clear();
     vinfoBlockFile.clear();
     nLastBlockFile = 0;
     nBlockSequenceId = 1;
@@ -1425,7 +1317,6 @@ void UnloadBlockIndex()
     versionbitscache.Clear();
 
     Blocks::Index::unload();
-    fHavePruned = false;
 }
 
 bool InitBlockIndex(const CChainParams& chainparams)
@@ -2076,24 +1967,13 @@ bool static ProcessMessage(CNode* pfrom, std::string strCommand, CDataStream& vR
             pindex = chainActive.Next(pindex);
         int nLimit = 500;
         LogPrint("net", "getblocks %d to %s limit %d from peer=%d\n", (pindex ? pindex->nHeight : -1), hashStop.IsNull() ? "end" : hashStop.ToString(), nLimit, pfrom->id);
-        for (; pindex; pindex = chainActive.Next(pindex))
-        {
-            if (pindex->GetBlockHash() == hashStop)
-            {
+        for (; pindex; pindex = chainActive.Next(pindex)) {
+            if (pindex->GetBlockHash() == hashStop) {
                 LogPrint("net", "  getblocks stopping at %d %s\n", pindex->nHeight, pindex->GetBlockHash().ToString());
                 break;
             }
-            // If pruning, don't inv blocks unless we have on disk and are likely to still have
-            // for some reasonable time window (1 hour) that block relay might require.
-            const int nPrunedBlocksLikelyToHave = MIN_BLOCKS_TO_KEEP - 3600 / chainparams.GetConsensus().nPowTargetSpacing;
-            if (fPruneMode && (!(pindex->nStatus & BLOCK_HAVE_DATA) || pindex->nHeight <= chainActive.Tip()->nHeight - nPrunedBlocksLikelyToHave))
-            {
-                LogPrint("net", " getblocks stopping, pruned or too old block at %d %s\n", pindex->nHeight, pindex->GetBlockHash().ToString());
-                break;
-            }
             pfrom->PushInventory(CInv(MSG_BLOCK, pindex->GetBlockHash()));
-            if (--nLimit <= 0)
-            {
+            if (--nLimit <= 0) {
                 // When this block is requested, we'll send an inv that'll
                 // trigger the peer to getblocks the next batch of inventory.
                 LogPrint("net", "  getblocks stopping at limit %d %s\n", pindex->nHeight, pindex->GetBlockHash().ToString());

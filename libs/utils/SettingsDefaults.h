@@ -206,18 +206,5 @@ static const bool DefaultTestSafeMode = false;
 /** Default for -minrelaytxfee, minimum relay fee for transactions */
 static const unsigned int DefaultMinRelayTxFee = 1000;
 
-// /////// Pruning (obsolete)
-
-// Require that user allocate at least 950MB for block & undo files (blk???.dat and rev???.dat)
-// At 2MB per block, 288 blocks = 576MB.
-// Add 15% for Undo data = 662MB
-// Add 20% for Orphan block rate = 794MB
-// We want the low water mark after pruning to be at least 794 MB and since we prune in
-// full block file chunks, we need the high water mark which triggers the prune to be
-// one 128MB block file + added 15% undo data = 147MB greater for a total of 942MB
-// Setting the target to > than 950MB will make it likely we can respect the target.
-static const uint64_t MinDiskSpaceForBlockFiles = 950 * 1024 * 1024;
-
-
 }
 #endif

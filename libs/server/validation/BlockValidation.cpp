@@ -205,19 +205,6 @@ void ValidationEnginePrivate::blockHeaderValidated(std::shared_ptr<BlockValidati
         wasRequested = IsBlockInFlight(hash);
     }
 
-    if (receivedFromPeer && !wasRequested) {
-        // Blocks that are too out-of-order needlessly limit the effectiveness of
-        // pruning, because pruning will not delete block files that contain any
-        // blocks which are too close in height to the tip.  Apply this test
-        // regardless of whether pruning is enabled; it should generally be safe to
-        // not process unrequested blocks.
-        const bool tooFarAhead = (index->nHeight > int(blockchain->Height() + MIN_BLOCKS_TO_KEEP));
-        if (tooFarAhead) {
-            logCritical(Log::BlockValidation) << "BlockHeaderValidated: Dropping received block as it was too far ahead" << index->nHeight  << '/' <<  blockchain->Height();
-            return;
-        }
-    }
-
     if (index->nHeight == -1) { // is an orphan for now.
         if (state->m_checkValidityOnly) {
             state->blockFailed(100, "Block is an orphan, can't check", Validation::RejectInternal);

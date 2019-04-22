@@ -55,7 +55,6 @@ Log::Manager::Manager()
 {
     d->sectionNames.emplace(Log::Bitcoin, "Bitcoin");
     d->sectionNames.emplace(Log::Bench, "Bench");
-    d->sectionNames.emplace(Log::Prune, "Prune");
     d->sectionNames.emplace(Log::Mining, "Mining");
     d->sectionNames.emplace(Log::Net, "Net");
     d->sectionNames.emplace(Log::Addrman, "Addrman");
@@ -90,7 +89,6 @@ Log::Manager::Manager()
     d->categoryMapping.emplace("net", Log::Net);
     d->categoryMapping.emplace("partitioncheck", Global);
     d->categoryMapping.emplace("proxy", Log::Proxy);
-    d->categoryMapping.emplace("prune", Log::Prune);
     d->categoryMapping.emplace("rand", Log::Random);
     d->categoryMapping.emplace("rpc", Log::RPC);
     d->categoryMapping.emplace("selectcoins", Log::SelectCoins);

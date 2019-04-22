@@ -238,9 +238,6 @@ static void addGeneralOptions(AllowedArgs& allowedArgs, HelpMessageMode mode)
 #ifndef WIN32
         .addArg("pid=<file>", requiredStr, strprintf(_("Specify pid file (default: %s)"), hubPidFilename()))
 #endif
-        .addArg("prune=<n>", requiredInt, strprintf(_("Reduce storage requirements by pruning (deleting) old blocks. This mode is incompatible with -txindex and -rescan. "
-                "Warning: Reverting this setting requires re-downloading the entire blockchain. "
-                "(default: 0 = disable pruning blocks, >%u = target size in MiB to use for block files)"), MinDiskSpaceForBlockFiles / 1024 / 1024))
         .addArg("reindex", optionalBool, _("Rebuild block chain index from current blk000??.dat files on startup"))
         .addArg("txindex", optionalBool, strprintf(_("Maintain a full transaction index, used by the getrawtransaction rpc call (default: %u)"), DefaultTxIndex))
         .addArg("blockdatadir=<dir>", requiredStr, "List a fallback directory to find blocks/blk* files")

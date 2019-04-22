@@ -80,7 +80,6 @@ enum Sections {
     BlockValidation,
     TxValidation,
     Bench,
-    Prune,
     Mining,
     UTXO = 1100,
 
