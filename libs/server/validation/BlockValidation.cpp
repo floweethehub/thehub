@@ -553,17 +553,6 @@ void ValidationEnginePrivate::processNewBlock(std::shared_ptr<BlockValidationSta
                 index->RaiseValidity(BLOCK_VALID_SCRIPTS); // done
                 state->signalChildren();
             } else {
-                std::vector<std::pair<uint256, CDiskTxPos> > vPos;
-                if (fTxIndex) {
-                    vPos.reserve(state->m_block.transactions().size());
-                    CDiskTxPos pos(index->GetBlockPos(), GetSizeOfCompactSize(state->m_block.transactions().size()));
-                    const std::vector<Tx> &transactions = state->m_block.transactions();
-                    for (size_t i = 0; i < transactions.size(); ++i) {
-                        const Tx &tx = transactions.at(i);
-                        vPos.push_back(std::make_pair(tx.createHash(), pos));
-                        pos.nTxOffset += tx.size();
-                    }
-                }
                 const uint64_t maxSigOps = Policy::blockSigOpAcceptLimit(state->m_block.size());
                 if (state->m_sigOpsCounted > maxSigOps)
                     throw Exception("bad-blk-sigops");
@@ -573,10 +562,6 @@ void ValidationEnginePrivate::processNewBlock(std::shared_ptr<BlockValidationSta
                     CAmount blockReward = state->m_blockFees.load() + GetBlockSubsidy(index->nHeight, Params().GetConsensus());
                     if (block.vtx[0].GetValueOut() > blockReward)
                         throw Exception("bad-cb-amount");
-                }
-                if (fTxIndex) {
-                    if (!Blocks::DB::instance()->WriteTxIndex(vPos))
-                        fatal("Failed to write transaction index");
                 }
 
                 assert(index->nFile >= 0); // we need the block to have been saved

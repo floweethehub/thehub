@@ -740,23 +740,6 @@ bool AppInit2(boost::thread_group& threadGroup, CScheduler& scheduler)
     // ********************************************************* Step 6: load block chain
 
     bool fReindex = GetBoolArg("-reindex", false);
-
-    // cache size calculations
-    int64_t nTotalCache = (GetArg("-dbcache", Settings::DefaultDbCacheSize) << 20);
-    nTotalCache = std::max(nTotalCache, Settings::MinDbCache << 20); // total cache cannot be less than nMinDbCache
-    nTotalCache = std::min(nTotalCache, Settings::MaxDbCache << 20); // total cache cannot be greater than nMaxDbcache
-    int64_t nBlockTreeDBCache = nTotalCache / 8;
-    if (nBlockTreeDBCache > (1 << 21) && !GetBoolArg("-txindex", Settings::DefaultTxIndex))
-        nBlockTreeDBCache = (1 << 21); // block tree db cache shouldn't be larger than 2 MiB
-    nTotalCache -= nBlockTreeDBCache;
-    int64_t nCoinDBCache = std::min(nTotalCache / 2, (nTotalCache / 4) + (1 << 23)); // use 25%-50% of the remainder for disk cache
-    nTotalCache -= nCoinDBCache;
-    nCoinCacheUsage = nTotalCache; // the rest goes to in-memory cache
-    logInfo(Log::Bitcoin) << "Cache configuration:";
-    logInfo(Log::Bitcoin) << "* Using" << nBlockTreeDBCache * (1.0 / 1000 / 1000) << " MB for block index database";
-    logInfo(Log::Bitcoin) << "* Using" << nCoinDBCache * (1.0 / 1000 / 1000 )<< "MB for chain state database";
-    logInfo(Log::Bitcoin) << "* Using" << nCoinCacheUsage * (1.0 / 1000 / 1000) << "MB for in-memory UTXO set";
-
     bool fLoaded = false;
     int64_t nStart;
     while (!fLoaded) {
@@ -771,7 +754,7 @@ bool AppInit2(boost::thread_group& threadGroup, CScheduler& scheduler)
                 UnloadBlockIndex();
                 delete g_utxo;
                 g_utxo = nullptr;
-                Blocks::DB::createInstance(nBlockTreeDBCache, fReindex, &scheduler);
+                Blocks::DB::createInstance(40 << 20, fReindex, &scheduler);
                 const auto utxoDir = GetDataDir() / "unspent";
                 if (fReindex) {
                     boost::system::error_code error;

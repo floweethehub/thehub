@@ -231,7 +231,6 @@ static void addGeneralOptions(AllowedArgs& allowedArgs, HelpMessageMode mode)
 #endif
 
     allowedArgs
-        .addArg("dbcache=<n>", requiredInt, strprintf(_("Set database cache size in megabytes (%d to %d, default: %d)"), MinDbCache, MaxDbCache, DefaultDbCacheSize))
         .addArg("maxorphantx=<n>", requiredInt, strprintf(_("Keep at most <n> unconnectable transactions in memory (default: %u)"), DefaultMaxOrphanTransactions))
         .addArg("maxmempool=<n>", requiredInt, strprintf(_("Keep the transaction memory pool below <n> megabytes (default: %u)"), DefaultMaxMempoolSize))
         .addArg("mempoolexpiry=<n>", requiredInt, strprintf(_("Do not keep transactions in the mempool longer than <n> hours (default: %u)"), DefaultMempoolExpiry))
@@ -239,7 +238,6 @@ static void addGeneralOptions(AllowedArgs& allowedArgs, HelpMessageMode mode)
         .addArg("pid=<file>", requiredStr, strprintf(_("Specify pid file (default: %s)"), hubPidFilename()))
 #endif
         .addArg("reindex", optionalBool, _("Rebuild block chain index from current blk000??.dat files on startup"))
-        .addArg("txindex", optionalBool, strprintf(_("Maintain a full transaction index, used by the getrawtransaction rpc call (default: %u)"), DefaultTxIndex))
         .addArg("blockdatadir=<dir>", requiredStr, "List a fallback directory to find blocks/blk* files")
         ;
 }

@@ -61,12 +61,10 @@ CChain chainActive;
 CBlockIndex *pindexBestHeader = nullptr;
 CWaitableCriticalSection csBestBlock;
 CConditionVariable cvBlockChange;
-bool fTxIndex = false;
 bool fIsBareMultisigStd = Settings::DefaultPermitBareMultisig;
 bool fRequireStandard = true;
 unsigned int nBytesPerSigOp = Settings::DefaultBytesPerSigop;
 bool fCheckpointsEnabled = Settings::DefaultCheckpointsEnabled;
-size_t nCoinCacheUsage = 5000 * 300;
 
 /** Fees smaller than this (in satoshi) are considered zero fee (for relaying, mining and transaction creation) */
 CFeeRate minRelayTxFee = CFeeRate(Settings::DefaultMinRelayTxFee);
@@ -1271,10 +1269,6 @@ bool LoadBlockIndexDB()
             return false;
     }
 
-    // Check whether we have a transaction index
-    Blocks::DB::instance()->ReadFlag("txindex", fTxIndex);
-    logDebug(Log::Bitcoin) << "transaction index enabled:" << fTxIndex;
-
     // Load pointer to end of best chain
     auto tip = Blocks::Index::get(g_utxo->blockId());
     chainActive.SetTip(tip);
@@ -1328,10 +1322,7 @@ bool InitBlockIndex(const CChainParams& chainparams)
     if (chainActive.Genesis() != nullptr)
         return true;
 
-    // Use the provided setting for -txindex in the new database
-    fTxIndex = GetBoolArg("-txindex", Settings::DefaultTxIndex);
-    Blocks::DB::instance()->WriteFlag("txindex", fTxIndex);
-    LogPrintf("Initializing databases...\n");
+    logCritical(Log::Bitcoin) << "Initializing databases...";
 
     // Only add the genesis block if not reindexing (in which case we reuse the one already on disk)
     if (!Blocks::DB::instance()->isReindexing()) {

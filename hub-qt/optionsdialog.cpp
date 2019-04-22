@@ -52,12 +52,6 @@ OptionsDialog::OptionsDialog(QWidget *parent, bool enableWallet) :
 {
     ui->setupUi(this);
 
-    /* Main elements init */
-    ui->databaseCache->setMinimum(Settings::MinDbCache);
-    ui->databaseCache->setMaximum(Settings::MaxDbCache);
-    ui->threadsScriptVerif->setMinimum(-boost::thread::physical_concurrency());
-    ui->threadsScriptVerif->setMaximum(99);
-
     /* Network elements init */
 #ifndef USE_UPNP
     ui->mapPortUpnp->setEnabled(false);
@@ -93,35 +87,22 @@ OptionsDialog::OptionsDialog(QWidget *parent, bool enableWallet) :
     /* Display elements init */
     QDir translations(":translations");
     ui->lang->addItem(QString("(") + tr("default") + QString(")"), QVariant(""));
-    Q_FOREACH(const QString &langStr, translations.entryList())
-    {
+    foreach (const QString &langStr, translations.entryList()) {
         QLocale locale(langStr);
 
         /** check if the locale name consists of 2 parts (language_country) */
         if(langStr.contains("_"))
         {
-#if QT_VERSION >= 0x040800
             /** display language strings as "native language - native country (locale name)", e.g. "Deutsch - Deutschland (de)" */
             ui->lang->addItem(locale.nativeLanguageName() + QString(" - ") + locale.nativeCountryName() + QString(" (") + langStr + QString(")"), QVariant(langStr));
-#else
-            /** display language strings as "language - country (locale name)", e.g. "German - Germany (de)" */
-            ui->lang->addItem(QLocale::languageToString(locale.language()) + QString(" - ") + QLocale::countryToString(locale.country()) + QString(" (") + langStr + QString(")"), QVariant(langStr));
-#endif
         }
         else
         {
-#if QT_VERSION >= 0x040800
             /** display language strings as "native language (locale name)", e.g. "Deutsch (de)" */
             ui->lang->addItem(locale.nativeLanguageName() + QString(" (") + langStr + QString(")"), QVariant(langStr));
-#else
-            /** display language strings as "language (locale name)", e.g. "German (de)" */
-            ui->lang->addItem(QLocale::languageToString(locale.language()) + QString(" (") + langStr + QString(")"), QVariant(langStr));
-#endif
         }
     }
-#if QT_VERSION >= 0x040700
     ui->thirdPartyTxUrls->setPlaceholderText("https://example.com/tx/%s");
-#endif
 
     ui->unit->setModel(new BitcoinUnits(this));
 
@@ -169,8 +150,6 @@ void OptionsDialog::setModel(OptionsModel *model)
     /* warn when one of the following settings changes by user action (placed here so init via mapper doesn't trigger them) */
 
     /* Main */
-    connect(ui->databaseCache, SIGNAL(valueChanged(int)), this, SLOT(showRestartWarning()));
-    connect(ui->threadsScriptVerif, SIGNAL(valueChanged(int)), this, SLOT(showRestartWarning()));
     connect(ui->blockSizeAcceptLimit, SIGNAL(valueChanged(double)), this, SLOT(showRestartWarning()));
     /* Wallet */
     connect(ui->spendZeroConfChange, SIGNAL(clicked(bool)), this, SLOT(showRestartWarning()));
@@ -187,8 +166,6 @@ void OptionsDialog::setMapper()
 {
     /* Main */
     mapper->addMapping(ui->bitcoinAtStartup, OptionsModel::StartAtStartup);
-    mapper->addMapping(ui->threadsScriptVerif, OptionsModel::ThreadsScriptVerif);
-    mapper->addMapping(ui->databaseCache, OptionsModel::DatabaseCache);
     mapper->addMapping(ui->blockSizeAcceptLimit, OptionsModel::BlockSizeAcceptLimit);
 
     /* Wallet */

@@ -106,7 +106,7 @@ BOOST_AUTO_TEST_CASE(util_DateTimeStrFormat)
 
 BOOST_AUTO_TEST_CASE(util_ParseParameters)
 {
-    const char *argv_test[] = {"-ignored", "-reindex", "-txindex", "-connect=argument", "-connect=multiple", "f", "-d=e"};
+    const char *argv_test[] = {"-ignored", "-reindex", "-api", "-connect=argument", "-connect=multiple", "f", "-d=e"};
 
     ParseParameters(0, (char**)argv_test, Settings::Hub());
     BOOST_CHECK(mapArgs.empty() && mapMultiArgs.empty());
@@ -116,12 +116,12 @@ BOOST_AUTO_TEST_CASE(util_ParseParameters)
 
     ParseParameters(5, (char**)argv_test, Settings::Hub());
     // expectation: -ignored is ignored (program name argument),
-    // -reindex, -txindex and -connect end up in map, -d ignored because it is after
+    // -reindex, -api and -connect end up in map, -d ignored because it is after
     // a non-option argument (non-GNU option parsing)
     BOOST_CHECK(mapArgs.size() == 3 && mapMultiArgs.size() == 3);
-    BOOST_CHECK(mapArgs.count("-reindex") && mapArgs.count("-txindex") && mapArgs.count("-connect")
+    BOOST_CHECK(mapArgs.count("-reindex") && mapArgs.count("-api") && mapArgs.count("-connect")
                 && !mapArgs.count("f") && !mapArgs.count("-d"));
-    BOOST_CHECK(mapMultiArgs.count("-reindex") && mapMultiArgs.count("-txindex") && mapMultiArgs.count("-connect")
+    BOOST_CHECK(mapMultiArgs.count("-reindex") && mapMultiArgs.count("-api") && mapMultiArgs.count("-connect")
                 && !mapMultiArgs.count("f") && !mapMultiArgs.count("-d"));
 
     BOOST_CHECK(mapArgs["-reindex"] == "" && mapArgs["-connect"] == "multiple");

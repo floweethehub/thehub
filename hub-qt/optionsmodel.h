@@ -55,8 +55,6 @@ public:
         ThirdPartyTxUrls,       // QString
         Language,               // QString
         CoinControlFeatures,    // bool
-        ThreadsScriptVerif,     // int
-        DatabaseCache,          // int
         SpendZeroConfChange,    // bool
         Listen,                 // bool
         BlockSizeAcceptLimit,   // double

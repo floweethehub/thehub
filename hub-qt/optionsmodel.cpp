@@ -98,16 +98,6 @@ void OptionsModel::Init(bool resetSettings)
     // by command-line and show this in the UI.
 
     // Main
-    if (!settings.contains("nDatabaseCache"))
-        settings.setValue("nDatabaseCache", (qint64)Settings::DefaultDbCacheSize);
-    if (!SoftSetArg("-dbcache", settings.value("nDatabaseCache").toString().toStdString()))
-        addOverriddenOption("-dbcache");
-
-    if (!settings.contains("nThreadsScriptVerif"))
-        settings.setValue("nThreadsScriptVerif", DEFAULT_SCRIPTCHECK_THREADS);
-    if (!SoftSetArg("-par", settings.value("nThreadsScriptVerif").toString().toStdString()))
-        addOverriddenOption("-par");
-
     if (!settings.contains("blockSizeAcceptLimitBytes"))
         settings.setValue("blockSizeAcceptLimitBytes", Settings::DefaultBlockAcceptSize);
     if (mapArgs.count("-blocksizeacceptlimit"))
@@ -120,8 +110,8 @@ void OptionsModel::Init(bool resetSettings)
         QVariant limit = settings.value("blockSizeAcceptLimitBytes");
         bool ok;
         int value = settings.value("blockSizeAcceptLimitBytes").toInt(&ok);
-        if (ok && value < 8000000)
-            limit = QVariant(8000000);
+        if (ok && value < 32000000)
+            limit = QVariant(32000000);
         SoftSetArg("-blocksizeacceptlimitbytes", limit.toString().toStdString());
     }
 
@@ -251,10 +241,6 @@ QVariant OptionsModel::data(const QModelIndex & index, int role) const
             return settings.value("language");
         case CoinControlFeatures:
             return fCoinControlFeatures;
-        case DatabaseCache:
-            return settings.value("nDatabaseCache");
-        case ThreadsScriptVerif:
-            return settings.value("nThreadsScriptVerif");
         case Listen:
             return settings.value("fListen");
         case BlockSizeAcceptLimit:
@@ -383,18 +369,6 @@ bool OptionsModel::setData(const QModelIndex & index, const QVariant & value, in
             fCoinControlFeatures = value.toBool();
             settings.setValue("fCoinControlFeatures", fCoinControlFeatures);
             Q_EMIT coinControlFeaturesChanged(fCoinControlFeatures);
-            break;
-        case DatabaseCache:
-            if (settings.value("nDatabaseCache") != value) {
-                settings.setValue("nDatabaseCache", value);
-                setRestartRequired(true);
-            }
-            break;
-        case ThreadsScriptVerif:
-            if (settings.value("nThreadsScriptVerif") != value) {
-                settings.setValue("nThreadsScriptVerif", value);
-                setRestartRequired(true);
-            }
             break;
         case Listen:
             if (settings.value("fListen") != value) {

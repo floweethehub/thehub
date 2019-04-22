@@ -100,12 +100,10 @@ extern uint64_t nLastBlockSize;
 extern const std::string strMessageMagic;
 extern CWaitableCriticalSection csBestBlock;
 extern CConditionVariable cvBlockChange;
-extern bool fTxIndex;
 extern bool fIsBareMultisigStd;
 extern bool fRequireStandard;
 extern unsigned int nBytesPerSigOp;
 extern bool fCheckpointsEnabled;
-extern size_t nCoinCacheUsage;
 extern CFeeRate minRelayTxFee;
 extern VersionBitsCache versionbitscache;
 

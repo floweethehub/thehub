@@ -28,13 +28,6 @@ namespace Settings {
 static const signed int DefaultCheckBlocks = 5;
 static const unsigned int DefaultCheckLevel = 3;
 
-//! -dbcache default (MiB)
-static const int64_t DefaultDbCacheSize = 300;
-//! max. -dbcache in (MiB)
-static const int64_t MaxDbCache = sizeof(void*) > 4 ? 16384 : 1024;
-//! min. -dbcache in (MiB)
-static const int64_t MinDbCache = 4;
-
 // /////// NET
 
 /** Default for -blocksizeacceptlimit */
@@ -185,9 +178,6 @@ static const std::string DefaultUIPlatform =
     "other"
 #endif
     ;
-
-// //////// Misc
-static const bool DefaultTxIndex = false;
 
 // DoS prevention: limit cache size to 32MB (over 1000000 entries on 64-bit
 // entries on 64-bit systems).
