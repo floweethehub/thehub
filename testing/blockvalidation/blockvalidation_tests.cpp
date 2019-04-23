@@ -29,7 +29,7 @@
 
 namespace {
 void nothing(){
-    logDebug() << "nothing";
+    logInfo() << "nothing";
 }
 // as we know that headers and final block validation happen in the strand, this
 // helper method may ensure we wait long enough to allow various actions to happen.
@@ -41,6 +41,14 @@ void waitForStrand(MockBlockValidation &bv, int count = 10) {
         helper.run();
     }
     bv.waitValidationFinished();
+}
+void waitForHeight(MockBlockValidation &bv, int height = 10) {
+    bv.waitValidationFinished();
+    // Validation is async, spread over many events so the best bet to get the good result is to wait a bit.
+    for (int i = 0; i < 20; ++i) { // max 1 sec
+        boost::this_thread::sleep_for(boost::chrono::milliseconds(50));
+        if (bv.blockchain()->Height() == height) break;
+    }
 }
 }
 
@@ -136,8 +144,7 @@ void TestBlockValidation::reorderblocks2()
         future.waitUntilFinished();
         QCOMPARE(future.error(), std::string());
     }
-    bv->waitValidationFinished();
-    waitForStrand(*bv);
+    waitForHeight(*bv, 21);
     QCOMPARE(bv->blockchain()->Height(), 21);
     QCOMPARE(oldBlock11, (*bv->blockchain())[11]);
     QVERIFY(*(*bv->blockchain())[21]->phashBlock == blocks.back().createHash());
@@ -174,10 +181,15 @@ void TestBlockValidation::detectOrder2()
         bv->addBlock(block, Validation::SaveGoodToDisk, nullptr);
     }
     bv->waitValidationFinished();
+    // Validation is async, spread over many events so the best bet to get the good result is to wait a bit.
+    for (int i = 0; i < 20; ++i) { // max 1 sec
+        boost::this_thread::sleep_for(boost::chrono::milliseconds(50));
+        if (bv->blockchain()->Height() == 8) break;
+    }
     QCOMPARE(bv->blockchain()->Height(), 8); // it stopped at the header, not processing the last block because of that.
     bv->addBlock(full, Validation::SaveGoodToDisk, nullptr).start().waitUntilFinished();
     // now we have processed 8, it will continue to process 9 in a different thread.
-    waitForStrand(*bv);
+    waitForHeight(*bv, 10);
     QCOMPARE(bv->blockchain()->Height(), 10);
 
     // now again, but with a bigger gap than 1
@@ -192,14 +204,11 @@ void TestBlockValidation::detectOrder2()
     bv->waitValidationFinished();
     QCOMPARE(bv->blockchain()->Height(), 13);
 
-    logDebug() << "again";
     // add them again, in reverse order, in order to test if the code is capable of finding the proper ordering of the blocks
     BOOST_REVERSE_FOREACH (const FastBlock &block, copy) {
         bv->addBlock(block, Validation::SaveGoodToDisk, nullptr);
     }
-    bv->waitValidationFinished();
-    waitForStrand(*bv);
-    bv->waitValidationFinished();
+    waitForHeight(*bv, 20);
     QCOMPARE(bv->blockchain()->Height(), 20);
 }
 
