@@ -91,7 +91,7 @@ public:
     std::recursive_mutex lock;
     std::vector<DataFile*> datafiles;
     std::vector<DataFile*> revertDatafiles;
-    std::list<FileHistoryEntry> fileHistory; // keep the last 10 to avoid opening and closing files all the time.
+    std::list<FileHistoryEntry> fileHistory; // keep the last opened ones to avoid opening and closing files all the time.
 
     std::mutex blockIndexLock;
 

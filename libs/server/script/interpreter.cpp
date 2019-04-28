@@ -1521,7 +1521,7 @@ uint256 GetOutputsHash(const CTransaction &txTo)
 } // anon namespace
 
 /**
- * SignatureHash is a helper method to hash a certin subset of the /a txTo transactions content
+ * SignatureHash is a helper method to hash a certain subset of the /a txTo transactions content
  * which is then used to pass to the signing function of a CKey private key, a process used to
  * prove that he owns the public key and at the same time lock in all the content signed.
  *

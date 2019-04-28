@@ -285,7 +285,8 @@ void ValidationEnginePrivate::blockHeaderValidated(std::shared_ptr<BlockValidati
     }
 
     if (currentHeaderTip && !Blocks::DB::instance()->headerChain().Contains(currentHeaderTip)) { // re-org happened in headers.
-        logInfo(Log::BlockValidation) << "Header-reorg detected. Old-tip" << *currentHeaderTip->phashBlock << "@" << currentHeaderTip->nHeight;
+        logInfo(Log::BlockValidation) << "Header-reorg detected. height=" << prevTip->nHeight <<
+                                         "Old-tip" << *currentHeaderTip->phashBlock << "@" << currentHeaderTip->nHeight;
         if (currentHeaderTip->nHeight - Blocks::DB::instance()->headerChain().Height() > 6) {
             logCritical(Log::BlockValidation) << "Reorg larger than 6 blocks detected, this needs manual intervention.";
         } else {
@@ -530,10 +531,12 @@ void ValidationEnginePrivate::processNewBlock(std::shared_ptr<BlockValidationSta
     assert(blockchain->Height() == -1 || index->nChainWork >= blockchain->Tip()->nChainWork); // the new block has more POW.
 
     const bool blockValid = (state->m_validationStatus.load() & BlockValidationState::BlockInvalid) == 0;
-    if (!blockValid)
+    if (!blockValid) {
         mempool->utxo()->rollback();
+        logInfo(Log::BlockValidation) << " block not valid" << index->nHeight << state->m_block.createHash() << "chain-height:" << blockchain->Height();
+    }
 
-    const bool isNextChainTip = index->nHeight <= blockchain->Height() + 1; // If a parent was rejected for some reason, this is false
+    const bool isNextChainTip = index->nHeight == blockchain->Height() + 1; // If a parent was rejected for some reason, this is false
     bool addToChain = isNextChainTip && blockValid && Blocks::DB::instance()->headerChain().Contains(index);
     try {
         if (!isNextChainTip)
@@ -583,8 +586,8 @@ void ValidationEnginePrivate::processNewBlock(std::shared_ptr<BlockValidationSta
 #endif
 
                 std::list<CTransaction> txConflicted;
-                // TODO don't use orphanBlocSize below, instead check the height of the headers vs the height of the main chain
-                mempool->removeForBlock(block.vtx, index->nHeight, txConflicted, orphanBlocks.size() > 3);
+                mempool->removeForBlock(block.vtx, index->nHeight, txConflicted,
+                                        Blocks::DB::instance()->headerChain().Height() - index->nHeight > 5);
                 index->RaiseValidity(BLOCK_VALID_SCRIPTS); // done
                 state->signalChildren(); // start tx-validation of next one.
 
@@ -623,7 +626,7 @@ void ValidationEnginePrivate::processNewBlock(std::shared_ptr<BlockValidationSta
         addToChain = false;
     }
 
-    if (state->m_validationStatus.load() & BlockValidationState::BlockInvalid) {
+    if (!blockValid) {
         logCritical(Log::BlockValidation) << "block failed validation" << state->error << index->nHeight << hash;
         if (index->pprev == nullptr) // genesis block, all bets are off after this
             return;
@@ -693,6 +696,8 @@ void ValidationEnginePrivate::processNewBlock(std::shared_ptr<BlockValidationSta
 void ValidationEnginePrivate::handleFailedBlock(const std::shared_ptr<BlockValidationState> &state)
 {
     assert(strand.running_in_this_thread());
+    assert(state->m_blockIndex);
+    assert(state->m_blockIndex != blockchain->Tip());
     state->recursivelyMark(BlockValidationState::BlockInvalid);
     if (!state->isCorruptionPossible && state->m_blockIndex && state->m_checkMerkleRoot) {
         auto index = state->m_blockIndex;
@@ -1129,6 +1134,7 @@ void BlockValidationState::signalChildren() const
     for (auto child_weak : m_chainChildren) {
         std::shared_ptr<BlockValidationState> child = child_weak.lock();
         if (child.get()) {
+            assert(child->m_blockIndex->nHeight == m_blockIndex->nHeight + 1);
             int status = child->m_validationStatus.load();
             while (true) {
                 int newStatus = status | BlockValidationState::BlockValidParent;
@@ -1383,6 +1389,8 @@ void BlockValidationState::updateUtxoAndStartValidation()
     auto parent = m_parent.lock();
     if (!parent)
         return;
+
+    assert(parent->blockchain->Tip() == nullptr || parent->blockchain->Tip()->nHeight <= m_blockIndex->nHeight);
 
     if (m_blockIndex->pprev == nullptr) { // genesis
         finishUp();
