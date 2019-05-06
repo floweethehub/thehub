@@ -22,7 +22,7 @@ namespace Api {
 enum ServiceIds {
     APIService,
     BlockChainService,
-    RawTransactionService,
+    LiveTransactionService,
     UtilService,
     RegTestService,
 
@@ -123,15 +123,15 @@ enum Tags {
 };
 }
 
-namespace RawTransactions {
+namespace LiveTransactions {
 
 enum MessageIds {
-    GetRawTransaction,
-    GetRawTransactionReply,
-    SendRawTransaction,
-    SendRawTransactionReply,
-    SignRawTransaction,
-    SignRawTransactionReply
+    GetTransaction,
+    GetTransactionReply,
+    SendTransaction,
+    SendTransactionReply,
+    SignTransaction,
+    SignTransactionReply
 };
 enum Tags {
     Separator = Api::Separator,
@@ -140,7 +140,7 @@ enum Tags {
     PrivateKey = Api::PrivateKey,     // string TODO stop bieng a string // TODO do we really use this??
     TxId = Api::TxId,   // bytearray
 
-    RawTransaction,
+    Transaction,
     Completed,       // boolean
     OutputIndex,
     InputScript,      // bytearray.   This is also called the ScriptSig
@@ -222,9 +222,9 @@ enum Tags {
     Headers,
     BestBlockHash,
     VerificationProgress,
-    Pruned,
-    Bip9ForkId,
-    Bip9ForkStatus,
+    XXXPruned, // unused
+    XXXBip9ForkId, // unused
+    XXXBip9ForkStatus, // unused
 
     // GetBlockVerbose-tags
     Confirmations,
@@ -312,13 +312,15 @@ enum Tags {
     BitcoinAddress = Api::BitcoinAddress, // Unused at this time.
     /// A bytearray for a full sha256 txid
     TxId = Api::TxId,
+    /// if the transaction is added in a block, this is the block-hash.
+    BlockHash = Api::BlockHash,
     /// An unsigned 64 bit number for the amount of satshi you received
     Amount = Api::Amount,
-    /// True if it was mined in a block
-    Mined,
-    /// boolean. Success equals 'true'
+    /// If a transaction is added in a block, this is the offset-in-block
+    OffsetInBlock,
+    /// positive-number. the amount of addresses found in the subscribe/unsubscribe message
     Result,
-    /// A string giving a human (well, developer) readable error message
+    /// A string giving a human (or, at least, developer) readable error message
     ErrorMessage
 };
 }
@@ -326,15 +328,11 @@ enum Tags {
 namespace BlockNotification {
 enum MessageIds {
     Subscribe,
-    SubscribeReply,
-    Unsubscribe,
-    UnsubscribeReply,
-    NewBlockOnChain,
+    Unsubscribe = 2,
+    NewBlockOnChain = 4,
 };
 
 enum Tags {
-    Separator = Api::Separator,
-    GenericByteData = Api::GenericByteData,
     BlockHash = Api::BlockHash,
     BlockHeight = Api::BlockHeight
 };

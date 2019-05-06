@@ -29,6 +29,8 @@
 #include "Application.h"
 #include "txmempool.h"
 
+#include <primitives/FastBlock.h>
+
 AddressMonitorService::AddressMonitorService()
     : NetworkService(Api::AddressMonitorService)
 {
@@ -53,7 +55,7 @@ struct Match
     std::vector<CKeyID> keys;
 };
 
-void AddressMonitorService::findTransactions(Tx::Iterator && iter, FindReason findReason)
+void AddressMonitorService::findTransactions(Tx::Iterator && iter, FindReason findReason, const FastBlock *block)
 {
     if (m_remotes.empty())
         return;
@@ -68,15 +70,17 @@ void AddressMonitorService::findTransactions(Tx::Iterator && iter, FindReason fi
 
             if (!matchingRemotes.empty()) {
                 logDebug(Log::MonitorService) << " + Sending to peers!" << matchingRemotes.size();
+                const Tx tx = iter.prevTx();
                 for (auto i = matchingRemotes.begin(); i != matchingRemotes.end(); ++i) {
                     Match &match = i->second;
                     m_pool.reserve(match.keys.size() * 24 + 50);
                     Streaming::MessageBuilder builder(m_pool);
                     for (auto key : match.keys)
                         builder.add(Api::AddressMonitor::BitcoinAddress, CBitcoinAddress(key).ToString());
-                    builder.add(Api::AddressMonitor::TxId, iter.prevTx().createHash());
+                    builder.add(Api::AddressMonitor::TxId, tx.createHash());
                     builder.add(Api::AddressMonitor::Amount, i->second.amount);
-                    builder.add(Api::AddressMonitor::Mined, findReason == Confirmed ? true : false);
+                    if (block && findReason == Confirmed)
+                        builder.add(Api::AddressMonitor::OffsetInBlock, static_cast<uint64_t>(tx.offsetInBlock(*block)));
                     Message message = builder.message(Api::AddressMonitorService,
                                           findReason == Conflicted
                                           ? Api::AddressMonitor::TransactionRejected : Api::AddressMonitor::TransactionFound);
@@ -118,13 +122,13 @@ void AddressMonitorService::findTransactions(Tx::Iterator && iter, FindReason fi
 
 void AddressMonitorService::SyncAllTransactionsInBlock(const FastBlock &block, CBlockIndex *)
 {
-    findTransactions(Tx::Iterator(block), Confirmed);
+    findTransactions(Tx::Iterator(block), Confirmed, &block);
 }
 
 void AddressMonitorService::DoubleSpendFound(const Tx &first, const Tx &duplicate)
 {
     logCritical(Log::MonitorService) << "Double spend found" << first.createHash() << duplicate.createHash();
-
+    findTransactions(Tx::Iterator(duplicate), Conflicted, nullptr);
 }
 
 void AddressMonitorService::onIncomingMessage(Remote *remote_, const Message &message, const EndPoint &ep)
@@ -137,43 +141,35 @@ void AddressMonitorService::onIncomingMessage(Remote *remote_, const Message &me
     if (message.messageId() == Api::AddressMonitor::Subscribe
             || message.messageId() == Api::AddressMonitor::Unsubscribe) {
         Streaming::MessageParser parser(message.body());
-        std::string addressData;
-        auto type = parser.next();
-        while (type == Streaming::FoundTag) {
-            if (parser.tag() == Api::AddressMonitor::BitcoinAddress && parser.dataLength() < 100) {
-                addressData = parser.stringData();
-                break;
-            }
-            type = parser.next();
-        }
 
         std::string error;
-        if (!addressData.empty()) {
-            CBitcoinAddress address(parser.stringData());
-            if (address.IsValid()) {
-                if (address.IsScript()) {
-                    error= "scripts not (yet) supported";
-                } else {
-                    CKeyID id;
-                    address.GetKeyID(id);
+        int done = 0;
+        while (parser.next() == Streaming::FoundTag) {
+            if (parser.tag() == Api::AddressMonitor::BitcoinAddress) {
+                ++done;
+                if (parser.isByteArray() && parser.dataLength() == 20) {
+                    CKeyID id(parser.bytesDataBuffer().begin());
+
                     if (message.messageId() == Api::AddressMonitor::Subscribe) {
                         remote->keys.insert(id);
                         remote->connection.postOnStrand(std::bind(&AddressMonitorService::findTxInMempool,
                                                                   this, remote->connection.connectionId(), id));
-                    }
-                    else
+                    } else {
                         remote->keys.erase(id);
+                    }
                 }
+                else {
+                    error = "address has to be a bytearray of 20 bytes";
+                }
+                break;
             }
-            else {
-                error = "invalid address";
-            }
-        } else {
-            error = "no address passed";
         }
+        if (!done)
+            error = "Missing required field BitcoinAddress (2)";
+
         remote->pool.reserve(10 + error.size());
         Streaming::MessageBuilder builder(remote->pool);
-        builder.add(Api::AddressMonitor::Result, error.empty());
+        builder.add(Api::AddressMonitor::Result, done);
         if (!error.empty())
             builder.add(Api::AddressMonitor::ErrorMessage, error);
         remote->connection.send(builder.message(Api::AddressMonitorService,
@@ -222,7 +218,6 @@ void AddressMonitorService::findTxInMempool(int connectionId, const CKeyID &keyI
                     builder.add(Api::AddressMonitor::BitcoinAddress, CBitcoinAddress(keyId).ToString());
                     builder.add(Api::AddressMonitor::TxId, txIter.prevTx().createHash());
                     builder.add(Api::AddressMonitor::Amount, matchedAmounts);
-                    builder.add(Api::AddressMonitor::Mined, false);
                     Message message = builder.message(Api::AddressMonitorService, Api::AddressMonitor::TransactionFound);
                     connection.send(message);
                 }

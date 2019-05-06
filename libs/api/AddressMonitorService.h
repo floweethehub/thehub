@@ -66,7 +66,7 @@ private:
         Conflicted
     };
 
-    void findTransactions(Tx::Iterator && iter, FindReason findReason);
+    void findTransactions(Tx::Iterator && iter, FindReason findReason, const FastBlock *block = nullptr);
     void updateBools();
     void findTxInMempool(int connectionId, const CKeyID &keyId);
 

@@ -80,21 +80,6 @@ public:
         const UniValue &chainwork = find_value(result, "chainwork");
         sha256.SetHex(chainwork.get_str());
         builder.add(Api::BlockChain::ChainWork, sha256);
-        const UniValue &pruned = find_value(result, "pruned");
-        if (pruned.get_bool())
-            builder.add(Api::BlockChain::Pruned, true);
-
-        const UniValue &bip9 = find_value(result, "bip9_softforks");
-        bool first = true;
-        for (auto fork : bip9.getValues()) {
-            if (first) first = false;
-            else builder.add(Api::Separator, true);
-            const UniValue &id = find_value(fork, "id");
-            builder.add(Api::BlockChain::Bip9ForkId, id.get_str());
-            const UniValue &status = find_value(fork, "status");
-            // TODO change status to an enum?
-            builder.add(Api::BlockChain::Bip9ForkStatus, status.get_str());
-        }
     }
 };
 
@@ -113,7 +98,7 @@ public:
         Streaming::MessageParser parser(message.body());
         while (parser.next() == Streaming::FoundTag) {
             if (parser.tag() == Api::BlockChain::BlockHash
-                    || parser.tag() == Api::RawTransactions::GenericByteData) {
+                    || parser.tag() == Api::LiveTransactions::GenericByteData) {
                 boost::algorithm::hex(parser.bytesData(), back_inserter(blockId));
             } else if (parser.tag() == Api::BlockChain::Verbose) {
                 m_verbose = parser.boolData();
@@ -334,7 +319,7 @@ public:
         bool fullTxData = false;
         while (parser.next() == Streaming::FoundTag) {
             if (parser.tag() == Api::BlockChain::BlockHash
-                    || parser.tag() == Api::RawTransactions::GenericByteData) {
+                    || parser.tag() == Api::LiveTransactions::GenericByteData) {
                 if (parser.dataLength() != 32)
                     throw Api::ParserException("BlockHash should be a 32 byte-bytearray");
                 index = Blocks::Index::get(uint256(&parser.bytesData()[0]));
@@ -514,19 +499,19 @@ public:
     }
 };
 
-// raw transactions
+// Live transactions
 
-class GetRawTransaction : public Api::RpcParser
+class GetLiveTransaction : public Api::RpcParser
 {
 public:
-    GetRawTransaction() : RpcParser("getrawtransaction", Api::RawTransactions::GetRawTransactionReply) {}
+    GetLiveTransaction() : RpcParser("getrawtransaction", Api::LiveTransactions::GetTransactionReply) {}
 
     virtual void createRequest(const Message &message, UniValue &output) {
         std::string txid;
         Streaming::MessageParser parser(message.body());
         while (parser.next() == Streaming::FoundTag) {
-            if (parser.tag() == Api::RawTransactions::TxId
-                    || parser.tag() == Api::RawTransactions::GenericByteData)
+            if (parser.tag() == Api::LiveTransactions::TxId
+                    || parser.tag() == Api::LiveTransactions::GenericByteData)
                 boost::algorithm::hex(parser.bytesData(), back_inserter(txid));
         }
         output.push_back(std::make_pair("parameter 1", UniValue(UniValue::VSTR, txid)));
@@ -537,17 +522,17 @@ public:
     }
 };
 
-class SendRawTransaction : public Api::RpcParser
+class SendLiveTransaction : public Api::RpcParser
 {
 public:
-    SendRawTransaction() : RpcParser("sendrawtransaction", Api::RawTransactions::SendRawTransactionReply, 34) {}
+    SendLiveTransaction() : RpcParser("sendrawtransaction", Api::LiveTransactions::SendTransactionReply, 34) {}
 
     virtual void createRequest(const Message &message, UniValue &output) {
         std::string tx;
         Streaming::MessageParser parser(message.body());
         while (parser.next() == Streaming::FoundTag) {
-            if (parser.tag() == Api::RawTransactions::RawTransaction
-                    || parser.tag() == Api::RawTransactions::GenericByteData)
+            if (parser.tag() == Api::LiveTransactions::Transaction
+                    || parser.tag() == Api::LiveTransactions::GenericByteData)
                 boost::algorithm::hex(parser.bytesData(), back_inserter(tx));
         }
         output.push_back(std::make_pair("", UniValue(UniValue::VSTR, tx)));
@@ -564,10 +549,10 @@ struct PrevTransaction {
     }
 };
 
-class SignRawTransaction : public Api::RpcParser
+class SignLiveTransaction : public Api::RpcParser
 {
 public:
-    SignRawTransaction() : Api::RpcParser("signrawtransaction", Api::RawTransactions::SignRawTransactionReply) {}
+    SignLiveTransaction() : Api::RpcParser("signrawtransaction", Api::LiveTransactions::SignTransactionReply) {}
 
     virtual void createRequest(const Message &message, UniValue &output) {
         output = UniValue(UniValue::VARR);
@@ -581,33 +566,33 @@ public:
         while (parser.next() == Streaming::FoundTag) {
             std::string string;
             switch (parser.tag()) {
-            case Api::RawTransactions::PrivateKey:
+            case Api::LiveTransactions::PrivateKey:
                 privateKeys.push_back(parser.stringData());
                 break;
-            case Api::RawTransactions::Separator:
+            case Api::LiveTransactions::Separator:
                 if (prevTx.isValid())
                     prevTxs.push_back(prevTx);
                 prevTx = PrevTransaction();
                 break;
-            case Api::RawTransactions::SigHashType:
+            case Api::LiveTransactions::SigHashType:
                 sigHashType = parser.intData();
                 break;
-            case Api::RawTransactions::TxId:
+            case Api::LiveTransactions::TxId:
                 boost::algorithm::hex(parser.bytesData(), back_inserter(string));
                 prevTx.txid = string;
                 break;
-            case Api::RawTransactions::OutputIndex:
+            case Api::LiveTransactions::OutputIndex:
                 prevTx.vout = parser.intData();
                 break;
-            case Api::RawTransactions::OutputScript:
+            case Api::LiveTransactions::OutputScript:
                 boost::algorithm::hex(parser.bytesData(), back_inserter(string));
                 prevTx.scriptPubKey = string;
                 break;
-            case Api::RawTransactions::OutputAmount:
+            case Api::LiveTransactions::OutputAmount:
                 prevTx.amount = parser.longData();
                 break;
-            case Api::RawTransactions::GenericByteData:
-            case Api::RawTransactions::RawTransaction:
+            case Api::LiveTransactions::GenericByteData:
+            case Api::LiveTransactions::Transaction:
                 boost::algorithm::hex(parser.bytesData(), back_inserter(rawTx));
                 break;
             }
@@ -654,10 +639,10 @@ public:
         const UniValue &hex = find_value(result, "hex");
         std::vector<char> bytearray;
         boost::algorithm::unhex(hex.get_str(), back_inserter(bytearray));
-        builder.add(Api::RawTransactions::RawTransaction, bytearray);
+        builder.add(Api::LiveTransactions::Transaction, bytearray);
         bytearray.clear();
         const UniValue &complete = find_value(result, "complete");
-        builder.add(Api::RawTransactions::Completed, complete.getBool());
+        builder.add(Api::LiveTransactions::Completed, complete.getBool());
         const UniValue &errors = find_value(result, "errors");
         if (!errors.isNull()) {
             bool first = true;
@@ -666,18 +651,18 @@ public:
                 else builder.add(Api::Separator, true);
                 const UniValue &txid = find_value(error, "txid");
                 boost::algorithm::unhex(txid.get_str(), back_inserter(bytearray));
-                builder.add(Api::RawTransactions::TxId, bytearray);
+                builder.add(Api::LiveTransactions::TxId, bytearray);
                 bytearray.clear();
                 const UniValue &vout = find_value(error, "vout");
-                builder.add(Api::RawTransactions::OutputIndex, vout.get_int());
+                builder.add(Api::LiveTransactions::OutputIndex, vout.get_int());
                 const UniValue &scriptSig = find_value(error, "scriptSig");
                 boost::algorithm::unhex(scriptSig.get_str(), back_inserter(bytearray));
-                builder.add(Api::RawTransactions::InputScript, bytearray);
+                builder.add(Api::LiveTransactions::InputScript, bytearray);
                 bytearray.clear();
                 const UniValue &sequence = find_value(error, "sequence");
-                builder.add(Api::RawTransactions::Sequence, (uint64_t) sequence.get_int64());
+                builder.add(Api::LiveTransactions::Sequence, (uint64_t) sequence.get_int64());
                 const UniValue &errorText = find_value(error, "error");
-                builder.add(Api::RawTransactions::ErrorMessage, errorText.get_str());
+                builder.add(Api::LiveTransactions::ErrorMessage, errorText.get_str());
             }
         }
     }
@@ -878,14 +863,14 @@ Api::Parser *Api::createParser(const Message &message)
             return new GetTransaction();
         }
         break;
-    case Api::RawTransactionService:
+    case Api::LiveTransactionService:
         switch (message.messageId()) {
-        case Api::RawTransactions::GetRawTransaction:
-            return new GetRawTransaction();
-        case Api::RawTransactions::SendRawTransaction:
-            return new SendRawTransaction();
-        case Api::RawTransactions::SignRawTransaction:
-            return new SignRawTransaction();
+        case Api::LiveTransactions::GetTransaction:
+            return new GetLiveTransaction();
+        case Api::LiveTransactions::SendTransaction:
+            return new SendLiveTransaction();
+        case Api::LiveTransactions::SignTransaction:
+            return new SignLiveTransaction();
         }
         break;
     case Api::UtilService:

@@ -129,7 +129,7 @@ void TxVulcano::incomingMessage(const Message& message)
             // else if (parser.tag() == Api::Failures::FailedReason)
             //     errorMessage = parser.stringData();
         }
-        if (serviceId == Api::RawTransactionService && messageId == Api::RawTransactions::SendRawTransaction) {
+        if (serviceId == Api::LiveTransactionService && messageId == Api::LiveTransactions::SendTransaction) {
             int requestId = message.headerInt(Api::RequestId);
             QMutexLocker lock2(&m_miscMutex);
             auto iter = m_transactionsInProgress.find(requestId);
@@ -238,7 +238,7 @@ void TxVulcano::incomingMessage(const Message& message)
             }
         }
     }
-    else if (message.serviceId() == Api::RawTransactionService && message.messageId() == Api::RawTransactions::SendRawTransactionReply) {
+    else if (message.serviceId() == Api::LiveTransactionService && message.messageId() == Api::LiveTransactions::SendTransactionReply) {
         QMutexLocker lock(&m_walletMutex);
         QMutexLocker lock2(&m_miscMutex);
         auto item = m_transactionsInProgress.find(message.headerInt(Api::RequestId));
@@ -416,8 +416,8 @@ void TxVulcano::createTransactions_priv()
 
     m_Txpool.reserve(signedTx.size() + 30);
     Streaming::MessageBuilder mb(m_Txpool);
-    mb.add(Api::RawTransactions::RawTransaction, signedTx.data());
-    Message m(mb.message(Api::RawTransactionService, Api::RawTransactions::SendRawTransaction));
+    mb.add(Api::LiveTransactions::Transaction, signedTx.data());
+    Message m(mb.message(Api::LiveTransactionService, Api::LiveTransactions::SendTransaction));
 
     unvalidatedTransaction.transaction = signedTx;
     {

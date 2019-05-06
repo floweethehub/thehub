@@ -20,6 +20,7 @@
 
 #include "Logger.h"
 #include <streaming/MessageBuilder.h>
+#include <cashaddr.h>
 
 #include <QCoreApplication>
 #include <QDebug>
@@ -64,11 +65,13 @@ void NetworkPaymentProcessor::onIncomingMessage(const Message &message, const En
             if (parser.tag() == Api::AddressMonitor::TxId) {
                 txid = parser.bytesDataBuffer();
             } else if (parser.tag() == Api::AddressMonitor::BitcoinAddress) {
-                address = QString::fromStdString(parser.stringData());
+                assert(parser.isByteArray());
+                address = QString::fromStdString(CashAddress::encode("bitcoincash:", parser.unsignedBytesData()));
             } else if (parser.tag() == Api::AddressMonitor::Amount) {
                 amount = parser.longData();
-            } else if (parser.tag() == Api::AddressMonitor::Mined) {
-                mined = parser.boolData();
+            } else if (parser.tag() == Api::AddressMonitor::OffsetInBlock) {
+                // TODO maybe actually remember the offset?
+                mined = true;
             }
             type = parser.next();
         }
