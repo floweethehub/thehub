@@ -137,6 +137,7 @@ class uint160 : public base_blob<160> {
 public:
     uint160() {}
     uint160(const base_blob<160>& b) : base_blob<160>(b) {}
+    explicit uint160(const char *d) : base_blob<160>(d) {}
     explicit uint160(const std::vector<unsigned char>& vch) : base_blob<160>(vch) {}
 };
 
