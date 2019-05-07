@@ -21,65 +21,47 @@
 
 #include <WorkerThreads.h>
 #include <Logger.h>
-#include <qcoreapplication.h>
-#include <QCommandLineParser>
+#include <FloweeServiceApplication.h>
+#include <netbase.h>
 
 #include <boost/asio/ip/address_v4.hpp>
 
 
 int main(int x, char **y)
 {
-    QCoreApplication app(x, y);
+    FloweeServiceApplication app(x, y);
     app.setOrganizationName("flowee");
     app.setOrganizationDomain("flowee.org");
     app.setApplicationName("pos");
 
     QCommandLineParser parser;
     parser.addPositionalArgument("[address]", "Addresses to listen to");
-    QCommandLineOption port("port", "Non-default port to connect to", "<number>");
-    QCommandLineOption connect("connect", "IP-address to connect to, uses localhost if not given", "<IP-Address>");
-    parser.addOption(port);
+    QCommandLineOption connect("connect", "server location and port", "<ADDERSS>");
     parser.addOption(connect);
-    parser.addHelpOption();
-    parser.process(app);
-
-    WorkerThreads threads;
-    NetworkManager manager(threads.ioService());
-    EndPoint ep;
-    if (parser.isSet(port)) {
-        ep.announcePort = parser.value(port).toInt();
-        if (ep.announcePort == 0) {
-            logFatal(Log::POS) << "Invalid port";
-            return 1;
-        }
-    } else {
-        ep.announcePort = 1235;
-    }
-    if (parser.isSet(connect)) {
-        try {
-            ep.ipAddress = boost::asio::ip::address_v4::from_string(parser.value(connect).toStdString());
-        } catch (std::exception &) {
-            try {
-                ep.ipAddress = boost::asio::ip::address_v6::from_string(parser.value(connect).toStdString());
-            } catch (std::exception &) {
-                logFatal(Log::POS) << "Failed to parse the IP address. For safety reasons we do not accept hostnames";
-                return 1;
-            }
-        }
-    }
-    else
-        ep.ipAddress = boost::asio::ip::address_v4::loopback();
+    app.addClientOptions(parser);
+    parser.process(app.arguments());
+    app.setup();
 
     auto args = parser.positionalArguments();
     if (args.isEmpty())
         parser.showHelp(1);
+
+    EndPoint ep;
+    int port = 1235;
+    if (parser.isSet(connect))
+        SplitHostPort(parser.value(connect).toStdString(), port, ep.hostname);
+    else
+        ep.ipAddress = boost::asio::ip::address_v4::loopback();
+    ep.announcePort = port;
+
+    WorkerThreads threads;
+    NetworkManager manager(threads.ioService());
     auto connection = manager.connection(ep);
     assert (connection.isValid());
     NetworkPaymentProcessor processor(std::move(connection));
     for (auto add: args) {
         processor.addListenAddress(add);
     }
-    manager.addService(&processor);
 
     return app.exec();
 }

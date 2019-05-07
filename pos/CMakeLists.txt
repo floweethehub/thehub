@@ -26,9 +26,10 @@ add_definitions(-DLOG_DEFAULT_SECTION=7000)
 find_package(Qt5Quick)
 find_package(Qt5Sql)
 
-include_directories(${LIBNETWORKMANAGER_INCLUDES})
+include_directories(${LIBAPPUTILS_INCLUDES})
 
 set (POS_LIBS
+    flowee_apputils
     flowee_networkmanager
     flowee_utils
 

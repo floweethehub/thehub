@@ -22,13 +22,13 @@
 
 #include <QObject>
 
-class NetworkPaymentProcessor : public QObject, public NetworkServiceBase
+class NetworkPaymentProcessor : public QObject
 {
     Q_OBJECT
 public:
     NetworkPaymentProcessor(NetworkConnection &&connection, QObject *parent = nullptr);
 
-    void onIncomingMessage(const Message &message, const EndPoint &endpoint);
+    void onIncomingMessage(const Message &message);
     void addListenAddress(const QString &address);
 
 signals:
@@ -39,5 +39,5 @@ private:
 
     Streaming::BufferPool m_pool;
     NetworkConnection m_connection;
-    QStringList m_listenAddresses;
+    QList<std::vector<uint8_t>> m_listenAddresses;
 };

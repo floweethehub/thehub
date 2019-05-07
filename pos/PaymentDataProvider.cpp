@@ -45,7 +45,6 @@ PaymentDataProvider::PaymentDataProvider(QObject *parent)
 
     if (m_connection.isValid()) {
         m_listener = new NetworkPaymentProcessor(m_manager.connection(ep, NetworkManager::OnlyExisting));
-        m_manager.addService(m_listener);
         m_connection.setOnConnected(std::bind(&PaymentDataProvider::onConnected, this));
         m_connection.setOnDisconnected(std::bind(&PaymentDataProvider::onDisconnected, this));
         m_connection.setOnIncomingMessage(std::bind(&PaymentDataProvider::onIncomingMessage, this, std::placeholders::_1));

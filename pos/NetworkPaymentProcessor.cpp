@@ -21,6 +21,7 @@
 #include "Logger.h"
 #include <streaming/MessageBuilder.h>
 #include <cashaddr.h>
+#include <base58.h>
 
 #include <QCoreApplication>
 #include <QDebug>
@@ -30,15 +31,16 @@
 
 NetworkPaymentProcessor::NetworkPaymentProcessor(NetworkConnection && connection, QObject *parent)
     : QObject(parent),
-    NetworkServiceBase(Api::AddressMonitorService),
     m_connection(std::move(connection))
 {
     m_connection.setOnConnected(std::bind(&NetworkPaymentProcessor::connectionEstablished, this, std::placeholders::_1));
+    m_connection.setOnIncomingMessage(std::bind(&NetworkPaymentProcessor::onIncomingMessage, this, std::placeholders::_1));
     m_connection.connect();
 }
 
-void NetworkPaymentProcessor::onIncomingMessage(const Message &message, const EndPoint&)
+void NetworkPaymentProcessor::onIncomingMessage(const Message &message)
 {
+    Streaming::MessageParser::debugMessage(message);
     Streaming::MessageParser parser(message.body());
     if (message.messageId() == Api::AddressMonitor::SubscribeReply) {
         auto type = parser.next();
@@ -87,11 +89,26 @@ void NetworkPaymentProcessor::onIncomingMessage(const Message &message, const En
 
 void NetworkPaymentProcessor::addListenAddress(const QString &address)
 {
-    m_listenAddresses.append(address);
+    CBase58Data old; // legacy address encoding
+    if (old.SetString(address.toStdString()) && old.isMainnetPkh() || old.isMainnetSh()) {
+        m_listenAddresses.append(old.data());
+    } else {
+        CashAddress::Content c = CashAddress::decodeCashAddrContent(address.toStdString(), "bitcoincash");
+        if (c.type == CashAddress::PUBKEY_TYPE && c.hash.size() == 20) {
+            m_listenAddresses.append(c.hash);
+        }
+        else {
+            logCritical() << "Address could not be parsed";
+            return;
+        }
+    }
+
     if (m_connection.isConnected()) {
         m_pool.reserve(100);
         Streaming::MessageBuilder builder(m_pool);
-        builder.add(Api::AddressMonitor::BitcoinAddress, address.toStdString());
+        assert(!m_listenAddresses.isEmpty());
+        assert(m_listenAddresses.last().size() == 20);
+        builder.addByteArray(Api::AddressMonitor::BitcoinAddress, m_listenAddresses.last().data(), 20);
         m_connection.send(builder.message(Api::AddressMonitorService, Api::AddressMonitor::Subscribe));
     }
 }
@@ -99,11 +116,13 @@ void NetworkPaymentProcessor::addListenAddress(const QString &address)
 void NetworkPaymentProcessor::connectionEstablished(const EndPoint&)
 {
     logInfo(Log::POS) << "Connection established";
+    m_connection.send(Message(Api::APIService, Api::Meta::Version));
     // Subscribe to the service.
     for (auto address : m_listenAddresses) {
         m_pool.reserve(100);
         Streaming::MessageBuilder builder(m_pool);
-        builder.add(Api::AddressMonitor::BitcoinAddress, address.toStdString());
+        assert(address.size() == 20);
+        builder.addByteArray(Api::AddressMonitor::BitcoinAddress, address.data(), 20);
         m_connection.send(builder.message(Api::AddressMonitorService, Api::AddressMonitor::Subscribe));
     }
 }
