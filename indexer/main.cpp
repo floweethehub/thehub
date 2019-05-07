@@ -16,8 +16,9 @@
  * along with this program.  If not, see <http://www.gnu.org/licenses/>.
  */
 
-#include "FloweeServiceApplication.h"
 #include <QStandardPaths>
+
+#include <FloweeServiceApplication.h>
 
 #include "Indexer.h"
 

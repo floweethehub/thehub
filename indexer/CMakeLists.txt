@@ -19,15 +19,16 @@ project (indexing-server)
 set(CMAKE_INCLUDE_CURRENT_DIR ON)
 set(CMAKE_AUTOMOC ON)
 
-# set the default log section (for logDebug() with no args) to the POS value
+# set the default log section (for logDebug() with no args) to the Indexer value
 add_definitions(-DLOG_DEFAULT_SECTION=8000)
 
 find_package(Qt5Sql)
 
-include_directories(${LIBNETWORKMANAGER_INCLUDES} ${LIBUTXO_INCLUDES})
+include_directories(${LIBAPPUTILS_INCLUDES} ${LIBUTXO_INCLUDES})
 
 set (IDX_LIBS
     flowee_utxo
+    flowee_apputils
     flowee_networkmanager
     flowee_utils
 
@@ -41,7 +42,6 @@ if (${Qt5Sql_FOUND})
     add_executable(indexer
         main.cpp
         AddressIndexer.cpp
-        FloweeServiceApplication.cpp
         HashStorage.cpp
         Indexer.cpp
         TxIndexer.cpp
@@ -53,7 +53,6 @@ endif ()
 
 add_executable(indexer-cli cli.cpp
     IndexerClient.cpp
-    FloweeServiceApplication.cpp
 )
 target_link_libraries(indexer-cli ${IDX_LIBS})
 install(PROGRAMS ${CMAKE_CURRENT_BINARY_DIR}/indexer-cli DESTINATION bin)

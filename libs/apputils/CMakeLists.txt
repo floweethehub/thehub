@@ -1,5 +1,5 @@
 # This file is part of the Flowee project
-# Copyright (C) 2018 Tom Zander <tomz@freedommail.ch>
+# Copyright (C) 2019 Tom Zander <tomz@freedommail.ch>
 #
 # This program is free software: you can redistribute it and/or modify
 # it under the terms of the GNU General Public License as published by
@@ -14,16 +14,17 @@
 # You should have received a copy of the GNU General Public License
 # along with this program.  If not, see <http://www.gnu.org/licenses/>.
 
-add_subdirectory(3rdparty)
-add_subdirectory(interfaces)
-add_subdirectory(networkmanager)
-add_subdirectory(utils)
-add_subdirectory(server)
-add_subdirectory(crypto)
-add_subdirectory(console)
-add_subdirectory(api)
-add_subdirectory(utxo)
+project (apputils-library)
 
-if (${Qt5Core_FOUND})
-    add_subdirectory(apputils)
-endif ()
+set(CMAKE_INCLUDE_CURRENT_DIR ON)
+set(CMAKE_AUTOMOC ON)
+
+include_directories(${LIBAPPUTILS_INCLUDES})
+
+add_library(flowee_apputils STATIC
+    FloweeServiceApplication.cpp
+)
+
+add_dependencies(flowee_apputils flowee_networkmanager)
+
+target_link_libraries(flowee_apputils Qt5::Core flowee_networkmanager)
