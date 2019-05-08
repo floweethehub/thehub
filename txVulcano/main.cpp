@@ -16,19 +16,17 @@
  * along with this program.  If not, see <http://www.gnu.org/licenses/>.
  */
 
-#include <QCoreApplication>
 #include <QCommandLineParser>
 #include <WorkerThreads.h>
-#include <Application.h>
-#include <QStandardPaths>
+#include <FloweeServiceApplication.h>
 
-#include <Logger.h>
+// #include <Logger.h>
 #include <server/chainparams.h>
 #include "TxVulcano.h"
 
 int main(int argc, char **argv)
 {
-    QCoreApplication app(argc, argv);
+    FloweeServiceApplication app(argc, argv);
     app.setOrganizationName("flowee");
     app.setOrganizationDomain("flowee.org");
     app.setApplicationName("txVulcano");
@@ -42,24 +40,19 @@ int main(int argc, char **argv)
     QCommandLineOption txLimit(QStringList() << "num-transactions" << "n", "Limits number of transactions created (default=5000000)", "amount");
     parser.addOption(txLimit);
 
-    parser.process(app);
+    app.addClientOptions(parser);
+    parser.process(app.arguments());
+    app.setup("client.log");
     const QStringList args = parser.positionalArguments();
     if (args.isEmpty())
         parser.showHelp(1);
 
-    QString logsconf = QStandardPaths::locate(QStandardPaths::AppConfigLocation, "logs.conf");
-    QString logFile = QStandardPaths::writableLocation(QStandardPaths::AppDataLocation) + "/client.log";
-    Log::Manager::instance()->parseConfig(logsconf.toLocal8Bit().toStdString(), logFile.toLocal8Bit().toStdString());
-    logFatal() << "TxVulcano starting. Connecting to:" << args.first();
-    if (logsconf.isEmpty())
-        logFatal() << "No logs config found (~/.config/flowee/txVulcano/logs.conf), using default settings";
-    else
-        logFatal() << "Logs config:" << logsconf;
-
     // Wallet needs this to work;
     ECC_Start();
     SelectParams("regtest");
-    TxVulcano vulcano(Application::instance()->ioService());
+
+    WorkerThreads workers;
+    TxVulcano vulcano(workers.ioService());
     if (parser.isSet(sizeLimit)) {
         bool ok;
         int sl = parser.value(sizeLimit).toInt(&ok);
@@ -86,11 +79,7 @@ int main(int argc, char **argv)
         }
         vulcano.setMaxNumTransactions(lim);
     }
-    EndPoint ep;
-    ep.announcePort = 11235;
-    ep.hostname = args.first().toLocal8Bit().toStdString();
-    // ep.ipAddress = boost::asio::ip::address_v4::loopback();
-    vulcano.tryConnect(ep);
+    vulcano.tryConnect(app.serverAddressFromArguments(parser.positionalArguments(), 11235));
 
-    return Application::instance()->exec();
+    return app.exec();
 }

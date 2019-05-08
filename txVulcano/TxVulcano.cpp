@@ -17,7 +17,7 @@
  */
 #include "TxVulcano.h"
 
-#include <Application.h>
+#include <QCoreApplication>
 #include <APIProtocol.h>
 #include <primitives/FastBlock.h>
 #include <TransactionBuilder.h>
@@ -175,7 +175,7 @@ void TxVulcano::incomingMessage(const Message& message)
             // this likely means that we had a re-org between what the wallet saw and what the server knows.
             // I think the save solution is to just exit.
             logFatal() << "My wallet and the server don't agree on block history, cowerdly refusing to continue";
-            Application::quit(1);
+            QCoreApplication::exit(1);
             return;
         }
         Streaming::MessageParser parser(message.body());
@@ -199,7 +199,7 @@ void TxVulcano::incomingMessage(const Message& message)
             nowCurrent();
         else if (m_lastSeenBlock > m_lastSeenBlock) {
             logFatal() << "Hub went backwards in time...";
-            Application::quit(1);
+            QCoreApplication::exit(1);
         }
     }
     else if (message.serviceId() == Api::BlockChainService && message.messageId() == Api::BlockChain::GetBlockReply) {
@@ -267,7 +267,7 @@ void TxVulcano::incomingMessage(const Message& message)
                 logCritical() << "We created" << m_transactionsCreated << "transactions, completing the run with one more generate() & shutting down";
                 generate(1);
                 m_connection.disconnect();
-                Application::quit(0);
+                QCoreApplication::exit(0);
             }
 
             m_blockSizeLeft -= txData.transaction.size();

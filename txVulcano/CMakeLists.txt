@@ -23,7 +23,7 @@ set(CMAKE_AUTOUIC ON)
 # set the default log section (for logDebug() with no args) to the POS value
 add_definitions(-DLOG_DEFAULT_SECTION=12000)
 
-include_directories(${LIBSERVER_INCLUDES})
+include_directories(${LIBSERVER_INCLUDES} ${LIBAPPUTILS_INCLUDES})
 
 add_executable(txVulcano
     main.cpp
@@ -33,6 +33,7 @@ add_executable(txVulcano
 
 target_link_libraries(txVulcano
     flowee_utils
+    flowee_apputils
     flowee_networkmanager
     flowee_server
 
