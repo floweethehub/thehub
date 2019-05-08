@@ -1,6 +1,6 @@
 /*
  * This file is part of the Flowee project
- * Copyright (C) 2017-2018 Tom Zander <tomz@freedommail.ch>
+ * Copyright (C) 2017-2019 Tom Zander <tomz@freedommail.ch>
  *
  * This program is free software: you can redistribute it and/or modify
  * it under the terms of the GNU General Public License as published by
@@ -218,5 +218,9 @@ void FileLogChannel::reopenLogFiles()
 
 void FileLogChannel::setPath(const std::string &path)
 {
-    m_logFilename = path;
+    if (!m_logFilename.empty() && boost::filesystem::is_directory(path))
+        // interpret as dir, append previous filename.
+        m_logFilename = boost::filesystem::path(path) / m_logFilename.filename();
+    else
+        m_logFilename = path;
 }
