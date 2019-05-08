@@ -1588,7 +1588,7 @@ bool static ProcessMessage(CNode* pfrom, std::string strCommand, CDataStream& vR
         if (pfrom->nVersion != 0)
         {
             pfrom->PushMessage(NetMsgType::REJECT, strCommand, REJECT_DUPLICATE, std::string("Duplicate version message"));
-            Misbehaving(pfrom->GetId(), 1);
+            Misbehaving(pfrom->GetId(), 10);
             return false;
         }
 
@@ -2000,8 +2000,14 @@ bool static ProcessMessage(CNode* pfrom, std::string strCommand, CDataStream& vR
         {
             // Find the last block the caller has in the main chain
             pindex = FindForkInGlobalIndex(chainActive, locator);
-            if (pindex)
+            if (pindex) {
+                if (pindex->nStatus & BLOCK_FAILED_MASK) {
+                    // his TIP is one we rejected. We don't like them.
+                    Misbehaving(pfrom->GetId(), 100);
+                    return error("peer follows a different chain.");
+                }
                 pindex = chainActive.Next(pindex);
+            }
         }
 
         // we must use CBlocks, as CBlockHeaders won't include the 0x00 nTx count at the end
@@ -2077,14 +2083,14 @@ bool static ProcessMessage(CNode* pfrom, std::string strCommand, CDataStream& vR
         std::list<Validation::Settings> futures;
         for (const CBlockHeader& header : headers) {
             auto block = FastBlock::fromOldBlock(header, &pool);
-            futures.push_back(engine->addBlock(block, Validation::PunishBadNode).start());
+            futures.push_back(engine->addBlock(block, 0).start());
         }
         for (const Validation::Settings &future : futures) {
             future.waitHeaderFinished();
             if (!future.error().empty()) {
                 logWarning(Log::Net) << "Headers have issue" << future.error();
                 LOCK(cs_main);
-                Misbehaving(pfrom->GetId(), 20);
+                Misbehaving(pfrom->GetId(), Settings::DefaultBanscoreThreshold);
                 return false;
             }
         }
