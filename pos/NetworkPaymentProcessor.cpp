@@ -42,9 +42,30 @@ void NetworkPaymentProcessor::onIncomingMessage(const Message &message)
 {
     Streaming::MessageParser::debugMessage(message);
     Streaming::MessageParser parser(message.body());
+    if (message.serviceId() == Api::APIService) {
+        if (message.messageId() == Api::Meta::VersionReply) {
+            while (parser.next() == Streaming::FoundTag) {
+                if (parser.tag() == Api::Meta::GenericByteData) {
+                    if (!parser.isString()) {
+                        logFatal() << "Unexpected reply from server-handshake. Shutting down";
+                        ::exit(1);
+                    }
+                    logCritical() << "Remote server version:" << parser.stringData();
+                    if (parser.stringData().compare("Flowee:1 (2019-5.1)") <= 0) {
+                        logFatal() << "Hub server is too old";
+                        ::exit(1);
+                    }
+                }
+            }
+        }
+        // TODO errors
+    }
+    else if (message.serviceId() != Api::AddressMonitorService) {
+        return;
+    }
     if (message.messageId() == Api::AddressMonitor::SubscribeReply) {
         auto type = parser.next();
-        int result = -1;
+        int result = 1;
         std::string error;
         while (type == Streaming::FoundTag) {
             if (parser.tag() == Api::AddressMonitor::Result)
@@ -54,8 +75,9 @@ void NetworkPaymentProcessor::onIncomingMessage(const Message &message)
 
             type = parser.next();
         }
-        if (result != -1)
-            logInfo(Log::POS) << "Subscribe response;" << (result == 1) << &error[0];
+        logInfo(Log::POS) << "Subscribe added;" << result << "addresses";
+        if (!error.empty())
+            logCritical(Log::POS) << "Subscribe reported error:" << error;
     }
     else if (message.messageId() == Api::AddressMonitor::TransactionFound) {
         Streaming::ConstBuffer txid;

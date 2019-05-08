@@ -32,7 +32,7 @@ public:
     explicit HubConfig(QObject *parent = nullptr);
 
     static const char * GROUP_ID;
-    static const char * KEY_SERVER_IP;
+    static const char * KEY_SERVER_HOSTNAME;
     static const char * KEY_SERVER_PORT;
 
     QString server() const;
@@ -41,7 +41,7 @@ public:
     int port() const;
     void setPort(int port);
 
-    static EndPoint readEndPoint(NetworkManager *manager, bool *ok);
+    static EndPoint readEndPoint(NetworkManager *manager);
 
 signals:
     void serverChanged();

@@ -38,11 +38,8 @@ PaymentDataProvider::PaymentDataProvider(QObject *parent)
     m_listener(nullptr),
     m_exchangeRate(new ExchangeRateResolver(this))
 {
-    bool ok;
-    EndPoint ep = HubConfig::readEndPoint(&m_manager, &ok);
-    if (ok)
-        m_connection = m_manager.connection(ep);
-
+    EndPoint ep = HubConfig::readEndPoint(&m_manager);
+    m_connection = m_manager.connection(ep);
     if (m_connection.isValid()) {
         m_listener = new NetworkPaymentProcessor(m_manager.connection(ep, NetworkManager::OnlyExisting));
         m_connection.setOnConnected(std::bind(&PaymentDataProvider::onConnected, this));

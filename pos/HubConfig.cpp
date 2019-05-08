@@ -24,7 +24,7 @@
 
 
 const char * HubConfig::GROUP_ID = "server";
-const char * HubConfig::KEY_SERVER_IP = "ip";
+const char * HubConfig::KEY_SERVER_HOSTNAME = "hostname";
 const char * HubConfig::KEY_SERVER_PORT = "port";
 
 static void set(const char *key, const QVariant &value)
@@ -49,7 +49,7 @@ void HubConfig::setServer(const QString &server)
     if (m_server == server)
         return;
     m_server = server;
-    set(KEY_SERVER_IP, server);
+    set(KEY_SERVER_HOSTNAME, server);
     emit serverChanged();
 }
 
@@ -67,25 +67,13 @@ void HubConfig::setPort(int port)
     emit portChanged();
 }
 
-EndPoint HubConfig::readEndPoint(NetworkManager *manager, bool *ok)
+EndPoint HubConfig::readEndPoint(NetworkManager *manager)
 {
     Q_ASSERT(manager);
     QSettings settings;
     settings.beginGroup(GROUP_ID);
     EndPoint ep;
     ep.announcePort = settings.value(KEY_SERVER_PORT, 1235).toInt();
-    bool incomplete = ep.announcePort < 1;
-    QString ip = settings.value(KEY_SERVER_IP, "127.0.0.1").toString();
-    try {
-        ep.ipAddress = boost::asio::ip::address_v4::from_string(ip.toStdString());
-    } catch (std::exception &) {
-        try {
-            ep.ipAddress = boost::asio::ip::address_v6::from_string(ip.toStdString());
-        } catch (std::exception &) {
-            incomplete = true;
-        }
-    }
-    if (ok)
-        *ok = !incomplete;
+    ep.hostname = settings.value(KEY_SERVER_HOSTNAME, "127.0.0.1").toString().toStdString();
     return ep;
 }

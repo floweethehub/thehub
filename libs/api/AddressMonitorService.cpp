@@ -161,7 +161,6 @@ void AddressMonitorService::onIncomingMessage(Remote *remote_, const Message &me
                 else {
                     error = "address has to be a bytearray of 20 bytes";
                 }
-                break;
             }
         }
         if (!done)

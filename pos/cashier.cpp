@@ -15,22 +15,28 @@
  * You should have received a copy of the GNU General Public License
  * along with this program.  If not, see <http://www.gnu.org/licenses/>.
  */
-#include <NetworkManager.h>
 
 #include "PaymentDataProvider.h"
 #include "Calculator.h"
 #include "QRCreator.h"
-
 #include <Logger.h>
+#include <clientversion.h>
+#include <NetworkManager.h>
+#include <netbase.h>
+
 #include <qguiapplication.h>
 #include <QCommandLineParser>
-
 #include <QQmlApplicationEngine>
 #include <QSettings>
 #include <QStandardPaths>
+#include <qtextstream.h>
 
+#include <signal.h>
 #include <boost/asio/ip/address_v4.hpp>
 
+void HandleSIGTERM(int) {
+    QCoreApplication::quit();
+}
 
 int main(int x, char **y)
 {
@@ -44,46 +50,50 @@ int main(int x, char **y)
     Log::Manager::instance()->parseConfig(logsconf.toLocal8Bit().toStdString(), logFile.toLocal8Bit().toStdString());
 
     QCommandLineParser parser;
-    QCommandLineOption port("port", "Non-default port to connect to", "<number>");
-    QCommandLineOption connect("connect", "IP-address to connect to, uses localhost if not given", "<IP-Address>");
-    parser.addOption(port);
+    QCommandLineOption connect("connect", "server location and port", "<ADDERSS>");
+    QCommandLineOption debug(QStringList() << "debug", "Use debug level logging");
+    QCommandLineOption version(QStringList() << "version", "Display version");
     parser.addOption(connect);
+    parser.addOption(debug);
+    parser.addOption(version);
     parser.addHelpOption();
     parser.process(app);
 
     if (parser.positionalArguments().size() > 1)
         parser.showHelp(1);
 
-    int portNum = -1;
-    if (parser.isSet(port)) {
-        portNum = parser.value(port).toInt();
-        if (portNum == 0) {
-            logFatal(Log::POS) << "Invalid port";
-            return 1;
-        }
+    if (parser.isSet(debug)) {
+        auto *logger = Log::Manager::instance();
+        logger->clearChannels();
+        logger->clearLogLevels(Log::DebugLevel);
+        logger->addConsoleChannel();
     }
-    QString ip;
+    if (parser.isSet(version)) {
+        QTextStream out(stdout);
+        out << app.applicationName() << " " << FormatFullVersion().c_str() << endl;
+        out << "License GPLv3+: GNU GPL version 3 or later" << endl;
+        out << "This is free software: you are free to change and redistribute it." << endl << endl;
+
+        return 0;
+    }
+
+    struct sigaction sa;
+    sa.sa_handler = HandleSIGTERM;
+    sigemptyset(&sa.sa_mask);
+    sa.sa_flags = 0;
+    sigaction(SIGTERM, &sa, NULL);
+    sigaction(SIGINT, &sa, NULL);
+    // Ignore SIGPIPE, otherwise it will bring the daemon down if the client closes unexpectedly
+    signal(SIGPIPE, SIG_IGN);
+
     if (parser.isSet(connect)) {
-        ip = parser.value(connect);
-        EndPoint ep;
-        try {
-            ep.ipAddress = boost::asio::ip::address_v4::from_string(ip.toStdString());
-        } catch (std::exception &) {
-            try {
-                ep.ipAddress = boost::asio::ip::address_v6::from_string(ip.toStdString());
-            } catch (std::exception &) {
-                logFatal(Log::POS) << "Failed to parse the IP address. For safety reasons we do not accept hostnames";
-                return 1;
-            }
-        }
-    }
-    {
+        std::string hostname;
+        int port = -1;
+        SplitHostPort(parser.value(connect).toStdString(), port, hostname);
         QSettings settings;
         settings.beginGroup(HubConfig::GROUP_ID);
-        if (portNum != -1)
-            settings.setValue(HubConfig::KEY_SERVER_PORT, portNum);
-        if (!ip.isEmpty())
-            settings.setValue(HubConfig::KEY_SERVER_IP, ip);
+        settings.setValue(HubConfig::KEY_SERVER_PORT, port);
+        settings.setValue(HubConfig::KEY_SERVER_HOSTNAME, QString::fromStdString(hostname));
     }
 
     qmlRegisterType<Calculator>("org.flowee", 1, 0, "Calculator");
