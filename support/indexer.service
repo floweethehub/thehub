@@ -1,5 +1,5 @@
 [Unit]
-Description=Flowee the Hub
+Description=Flowee Indexer
 After=network.target
 
 [Service]
@@ -7,9 +7,8 @@ User=flowee
 Group=flowee
 UMask=022
 
-Type=forking
-PIDFile=/var/lib/flowee/hub.pid
-ExecStart=/usr/bin/hub -daemon -pid=/var/lib/flowee/hub.pid -conf=/etc/flowee/flowee.conf -datadir=/var/lib/flowee
+Type=simple
+ExecStart=/usr/bin/indexer --conf=/etc/flowee/indexer.conf --datadir=/var/lib/flowee --bind=localhost:1234
 
 Restart=always
 PrivateTmp=true
