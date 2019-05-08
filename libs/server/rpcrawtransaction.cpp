@@ -2,7 +2,7 @@
  * This file is part of the Flowee project
  * Copyright (C) 2010 Satoshi Nakamoto
  * Copyright (C) 2009-2015 The Bitcoin Core developers
- * Copyright (C) 2016 Tom Zander <tomz@freedommail.ch>
+ * Copyright (C) 2016,2019 Tom Zander <tomz@freedommail.ch>
  *
  * This program is free software: you can redistribute it and/or modify
  * it under the terms of the GNU General Public License as published by
@@ -48,6 +48,7 @@
 
 #include <boost/assign/list_of.hpp>
 #include <boost/foreach.hpp>
+#include <primitives/FastBlock.h>
 
 #include <univalue.h>
 
@@ -132,8 +133,7 @@ UniValue getrawtransaction(const UniValue& params, bool fHelp)
         throw std::runtime_error(
             "getrawtransaction \"txid\" ( verbose )\n"
             "\nNOTE: By default this function only works sometimes. This is when the tx is in the mempool\n"
-            "or there is an unspent output in the utxo for this transaction. To make it always work,\n"
-            "you need to maintain a transaction index, using the -txindex command line option.\n"
+            "or there is an unspent output in the utxo for this transaction.\n"
             "\nReturn the raw transaction data.\n"
             "\nIf verbose=0, returns a string that is serialized, hex-encoded data for 'txid'.\n"
             "If verbose is non-zero, returns an Object with information about 'txid'.\n"
@@ -202,8 +202,35 @@ UniValue getrawtransaction(const UniValue& params, bool fHelp)
         fVerbose = (params[1].get_int() != 0);
 
     CTransaction tx;
-    if (!flApp->mempool()->lookup(hash, tx))
-        throw JSONRPCError(RPC_INVALID_ADDRESS_OR_KEY, "No information available about transaction");
+    bool success = flApp->mempool()->lookup(hash, tx);
+    if (!success) {
+        auto block = chainActive.Tip();
+        for (int i = 0; !success && block && i < 6; ++i) {
+            FastBlock fb = Blocks::DB::instance()->loadBlock(block->GetBlockPos());
+            Tx::Iterator iter(fb);
+            bool endFound = false;
+            while (iter.next()){
+                if (iter.tag() == Tx::End) {
+                    if (endFound)
+                        break;
+                    int comp = iter.prevTx().createHash().Compare(hash);
+                    if (comp == 0) {
+                        tx = iter.prevTx().createOldTransaction();
+                        success = true;
+                        break;
+                    } else if (comp > 0) {
+                        break; // use CTOR, stop searching in sorted list
+                    }
+                    endFound = true;
+                    continue;
+                }
+                endFound = false;
+            }
+            block = block->pprev;
+        }
+        if (!success)
+            throw JSONRPCError(RPC_INVALID_ADDRESS_OR_KEY, "No information available about transaction");
+    }
 
     std::string strHex = EncodeHexTx(tx);
 

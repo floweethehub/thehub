@@ -68,8 +68,8 @@ public:
         const UniValue &headers = find_value(result, "headers");
         builder.add(Api::BlockChain::Headers, headers.get_int());
         const UniValue &best = find_value(result, "bestblockhash");
-        uint256 sha256;
-        sha256.SetHex(best.get_str());
+        std::vector<char> sha256;
+        boost::algorithm::unhex(best.get_str(), back_inserter(sha256));
         builder.add(Api::BlockChain::BestBlockHash, sha256);
         const UniValue &difficulty = find_value(result, "difficulty");
         builder.add(Api::BlockChain::Difficulty, difficulty.get_real());
@@ -78,7 +78,8 @@ public:
         const UniValue &progress = find_value(result, "verificationprogress");
         builder.add(Api::BlockChain::VerificationProgress, progress.get_real());
         const UniValue &chainwork = find_value(result, "chainwork");
-        sha256.SetHex(chainwork.get_str());
+        sha256.clear();
+        boost::algorithm::unhex(chainwork.get_str(), back_inserter(sha256));
         builder.add(Api::BlockChain::ChainWork, sha256);
     }
 };
@@ -99,15 +100,13 @@ public:
         while (parser.next() == Streaming::FoundTag) {
             if (parser.tag() == Api::BlockChain::BlockHash
                     || parser.tag() == Api::LiveTransactions::GenericByteData) {
-                boost::algorithm::hex(parser.bytesData(), back_inserter(blockId));
+                blockId = parser.uint256Data().ToString();
             } else if (parser.tag() == Api::BlockChain::Verbose) {
                 m_verbose = parser.boolData();
             } else if (parser.tag() == Api::BlockChain::BlockHeight) {
                 auto index = Blocks::DB::instance()->headerChain()[parser.intData()];
-                if (index) {
-                    const uint256 blockHash = index->GetBlockHash();
-                    boost::algorithm::hex(blockHash.begin(), blockHash.end(), back_inserter(blockId));
-                }
+                if (index)
+                    blockId = index->GetBlockHash().ToString();
             }
         }
         output.push_back(std::make_pair("block", UniValue(UniValue::VSTR, blockId)));
@@ -177,6 +176,7 @@ public:
         builder.add(Api::BlockChain::PrevBlockHash, bytearray);
         const UniValue &nextblock = find_value(result, "nextblockhash");
         if (nextblock.isStr()) {
+            bytearray.clear();
             boost::algorithm::unhex(nextblock.get_str(), back_inserter(bytearray));
             builder.add(Api::BlockChain::NextBlockHash, bytearray);
         }
@@ -512,7 +512,7 @@ public:
         while (parser.next() == Streaming::FoundTag) {
             if (parser.tag() == Api::LiveTransactions::TxId
                     || parser.tag() == Api::LiveTransactions::GenericByteData)
-                boost::algorithm::hex(parser.bytesData(), back_inserter(txid));
+                txid = parser.uint256Data().ToString();
         }
         output.push_back(std::make_pair("parameter 1", UniValue(UniValue::VSTR, txid)));
     }
