@@ -36,33 +36,27 @@ if (${SSE41})
     list(APPEND FLOWEE_LIBRARY_SOURCES sha256_sse41.cpp)
 endif()
 
+set (CMAKE_REQUIRED_FLAGS "-msse4 -msha")
+check_c_source_runs("#include <stdint.h>
+#include <immintrin.h>
+int main() {
+  __m128i i = _mm_set1_epi32(0);
+  __m128i j = _mm_set1_epi32(1);
+  __m128i k = _mm_set1_epi32(2);
+  return _mm_extract_epi32(_mm_sha256rnds2_epu32(i, i, k), 0);
+}" SHANI)
+if (${SHANI})
+    set(CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS} -msse4 -msha -DENABLE_SHANI")
+    list(APPEND FLOWEE_LIBRARY_SOURCES sha256_shani.cpp)
+endif()
 
-option(reproducable_build "Turn off special CPU features even if available" OFF)
-if (reproducable_build)
-    message ("* Reproductable builds turned on, not compiling in fast hashing")
-else ()
-    set (CMAKE_REQUIRED_FLAGS "-msse4 -msha")
-    check_c_source_runs("#include <stdint.h>
-    #include <immintrin.h>
-    int main() {
-      __m128i i = _mm_set1_epi32(0);
-      __m128i j = _mm_set1_epi32(1);
-      __m128i k = _mm_set1_epi32(2);
-      return _mm_extract_epi32(_mm_sha256rnds2_epu32(i, i, k), 0);
-    }" SHANI)
-    if (${SHANI})
-        set(CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS} -msse4 -msha -DENABLE_SHANI")
-        list(APPEND FLOWEE_LIBRARY_SOURCES sha256_shani.cpp)
-    endif()
-
-    set (CMAKE_REQUIRED_FLAGS "-mavx -mavx2")
-    check_c_source_runs("#include <stdint.h>
-    #include <immintrin.h>
-        int main() {__m256i l = _mm256_set1_epi32(0); return _mm256_extract_epi32(l, 7);}" AVX2)
-    if (${AVX2})
-        set(CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS} -mavx -mavx2 -DENABLE_AVX2")
-        list(APPEND FLOWEE_LIBRARY_SOURCES sha256_avx2.cpp)
-    endif()
+set (CMAKE_REQUIRED_FLAGS "-mavx -mavx2")
+check_c_source_runs("#include <stdint.h>
+#include <immintrin.h>
+    int main() {__m256i l = _mm256_set1_epi32(0); return _mm256_extract_epi32(l, 7);}" AVX2)
+if (${AVX2})
+    set(CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS} -mavx -mavx2 -DENABLE_AVX2")
+    list(APPEND FLOWEE_LIBRARY_SOURCES sha256_avx2.cpp)
 endif()
 
 add_library(flowee_crypto STATIC ${FLOWEE_LIBRARY_SOURCES})
