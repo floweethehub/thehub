@@ -38,9 +38,9 @@ public:
 
     void addServerOptions(QCommandLineParser &parser);
     void addClientOptions(QCommandLineParser &parser);
-    void setup(const char *logFilename = nullptr);
+    void setup(const char *logFilename = nullptr, const QString &configFilePath = QString());
 
-    EndPoint serverAddressFromArguments(QStringList args, short defaultPort) const;
+    EndPoint serverAddressFromArguments(short defaultPort) const;
     QList<boost::asio::ip::tcp::endpoint> bindingEndPoints(QCommandLineParser &parser, int defaultPort) const;
 
     void handleSigHub() const;
@@ -49,6 +49,7 @@ private:
     QCommandLineOption m_debug;
     QCommandLineOption m_version;
     QCommandLineOption m_bindAddress;
+    QCommandLineOption m_connect;
     QString m_logsconf;
     QString m_logFile;
     int m_appLogSection = -1;

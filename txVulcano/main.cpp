@@ -34,7 +34,6 @@ int main(int argc, char **argv)
     QCommandLineParser parser;
     parser.setApplicationDescription("Transaction generator of epic proportions");
     parser.addHelpOption();
-    parser.addPositionalArgument("server", "server address with optional port");
     QCommandLineOption sizeLimit(QStringList() << "block-size" << "b", "sets a goal to the blocks-size created", "size");
     parser.addOption(sizeLimit);
     QCommandLineOption txLimit(QStringList() << "num-transactions" << "n", "Limits number of transactions created (default=5000000)", "amount");
@@ -79,7 +78,7 @@ int main(int argc, char **argv)
         }
         vulcano.setMaxNumTransactions(lim);
     }
-    vulcano.tryConnect(app.serverAddressFromArguments(parser.positionalArguments(), 11235));
+    vulcano.tryConnect(app.serverAddressFromArguments(11235));
 
     return app.exec();
 }

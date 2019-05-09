@@ -32,14 +32,14 @@ int main(int argc, char **argv)
     QCommandLineParser parser;
     parser.setApplicationDescription("Indexing server");
     parser.addHelpOption();
-    parser.addPositionalArgument("server", "server address with optional port");
     QCommandLineOption datadir(QStringList() << "datadir" << "d", "The directory to put the data in", "DIR");
     parser.addOption(datadir);
     QCommandLineOption conf(QStringList() << "conf", "config file", "FILENAME");
     parser.addOption(conf);
     app.addServerOptions(parser);
     parser.process(app.arguments());
-    app.setup("indexer.log");
+
+    app.setup("indexer.log", parser.value(conf));
 
     QString basedir;
     if (parser.isSet(datadir))
@@ -69,6 +69,6 @@ int main(int argc, char **argv)
     if (!server)
         logCritical() << "Please note you need pass 'bind' to the commandline to be a server";
 
-    indexer.tryConnectHub(app.serverAddressFromArguments(parser.positionalArguments(), 1235));
+    indexer.tryConnectHub(app.serverAddressFromArguments(1235));
     return app.exec();
 }

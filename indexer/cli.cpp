@@ -31,7 +31,6 @@ int main(int argc, char **argv)
     QCommandLineParser parser;
     parser.setApplicationDescription("Indexing client");
     parser.addHelpOption();
-    parser.addPositionalArgument("server", "server address");
     parser.addPositionalArgument("[TXID|ADDERSS]", "The things you want to lookup");
 
     QCommandLineOption hub(QStringList() << "hub", "Hub server address", "HOSTNAME");
@@ -47,7 +46,7 @@ int main(int argc, char **argv)
         return 0;
 
     IndexerClient client;
-    client.tryConnectIndexer(app.serverAddressFromArguments(args, 1234));
+    client.tryConnectIndexer(app.serverAddressFromArguments(1234));
     for (auto a : args.mid(1)) {
         client.resolve(a);
     }

@@ -36,8 +36,6 @@ int main(int x, char **y)
 
     QCommandLineParser parser;
     parser.addPositionalArgument("[address]", "Addresses to listen to");
-    QCommandLineOption connect("connect", "server location and port", "<ADDERSS>");
-    parser.addOption(connect);
     app.addClientOptions(parser);
     parser.process(app.arguments());
     app.setup();
@@ -46,14 +44,7 @@ int main(int x, char **y)
     if (args.isEmpty())
         parser.showHelp(1);
 
-    EndPoint ep;
-    int port = 1235;
-    if (parser.isSet(connect))
-        SplitHostPort(parser.value(connect).toStdString(), port, ep.hostname);
-    else
-        ep.ipAddress = boost::asio::ip::address_v4::loopback();
-    ep.announcePort = port;
-
+    EndPoint ep = app.serverAddressFromArguments(1235);
     WorkerThreads threads;
     NetworkManager manager(threads.ioService());
     auto connection = manager.connection(ep);

@@ -35,7 +35,8 @@ FloweeServiceApplication::FloweeServiceApplication(int &argc, char **argv, int a
       m_debug(QStringList() << "debug", "Use debug level logging"),
       m_version(QStringList() << "version", "Display version"),
       m_bindAddress(QStringList() << "bind", "Bind to this IP:port", "IP-ADDRESS"),
-      m_appLogSection(appLogSection)
+      m_appLogSection(appLogSection),
+      m_connect("connect", "server location and port", "<ADDERSS>")
 {
 }
 
@@ -51,6 +52,7 @@ void FloweeServiceApplication::addServerOptions(QCommandLineParser &parser)
     parser.addOption(m_bindAddress);
     parser.addOption(m_debug);
     parser.addOption(m_version);
+    parser.addOption(m_connect);
 }
 
 void FloweeServiceApplication::addClientOptions(QCommandLineParser &parser)
@@ -58,9 +60,10 @@ void FloweeServiceApplication::addClientOptions(QCommandLineParser &parser)
     m_parser = &parser;
     parser.addOption(m_debug);
     parser.addOption(m_version);
+    parser.addOption(m_connect);
 }
 
-void FloweeServiceApplication::setup(const char *logFilename) {
+void FloweeServiceApplication::setup(const char *logFilename, const QString &configFilePath) {
     if (m_parser && m_parser->isSet(m_version)) {
         QTextStream out(stdout);
         out << applicationName() << " " << FormatFullVersion().c_str() << endl;
@@ -78,19 +81,26 @@ void FloweeServiceApplication::setup(const char *logFilename) {
     }
     else if (logFilename) {
         m_logsconf = QStandardPaths::locate(QStandardPaths::AppConfigLocation, "logs.conf");
+        if (m_logsconf.isEmpty() && !configFilePath.isEmpty()) {
+            int i = configFilePath.lastIndexOf('/');
+            if (i == -1)
+                m_logsconf = configFilePath + "/logs.conf";
+            else
+                m_logsconf = configFilePath.left(i + 1) + "logs.conf";
+        }
         m_logFile = QStandardPaths::writableLocation(QStandardPaths::AppDataLocation)
             + QString("/%1").arg(logFilename);
-        Log::Manager::instance()->parseConfig(m_logsconf.toLocal8Bit().toStdString(), m_logFile.toLocal8Bit().toStdString());
-        logFatal() << applicationName() << "starting.";
         if (m_logsconf.isEmpty()) {
-            QString path("~/.config/%1/%2/%3");
-            path = path.arg(organizationName())
-                    .arg(applicationName())
-                    .arg(logFilename);
-            logFatal(m_appLogSection) << "No logs config found" << path << "Using default settings";
+            logCritical().nospace() << applicationName() << "] No logs config found";
+            for (auto p : QStandardPaths::standardLocations(QStandardPaths::AppConfigLocation)) {
+                logWarning(m_appLogSection).nospace() << "  tried " << p << "/logs.conf";
+            }
         } else {
-            logFatal(m_appLogSection) << "Logs config:" << m_logsconf;
+            logCritical().nospace() << applicationName() << "] Trying logs config at " << m_logsconf;
         }
+
+        Log::Manager::instance()->parseConfig(m_logsconf.toLocal8Bit().toStdString(), m_logFile.toLocal8Bit().toStdString());
+        logCritical().nospace() << applicationName() << " starting. (main log-ID: " << m_appLogSection << ")";
 
         // Reopen log on SIGHUP (to allow for log-rotate)
         struct sigaction sa_hup;
@@ -112,15 +122,15 @@ void FloweeServiceApplication::setup(const char *logFilename) {
     signal(SIGPIPE, SIG_IGN);
 }
 
-EndPoint FloweeServiceApplication::serverAddressFromArguments(QStringList args, short defaultPort) const
+EndPoint FloweeServiceApplication::serverAddressFromArguments(short defaultPort) const
 {
-    if (args.isEmpty()) {
-        logFatal() << "No arguments given, attempting localhost:1235";
-        args << QString("localhost:%1").arg(defaultPort);
-    }
+    Q_ASSERT(m_parser);
     EndPoint ep;
-    int port = defaultPort; // ep.announcePort is a short, SplitHostPort requires an int :(
-    SplitHostPort(args.first().toStdString(), port, ep.hostname);
+    int port = defaultPort;
+    if (m_parser->isSet(m_connect))
+        SplitHostPort(m_parser->value(m_connect).toStdString(), port, ep.hostname);
+    else
+        ep.ipAddress = boost::asio::ip::address_v4::loopback();
     ep.announcePort = port;
     return ep;
 }
