@@ -57,6 +57,18 @@ void WaitForShutdown(boost::thread_group* threadGroup)
     }
 }
 
+static bool SelectChain()
+{
+    try {
+        SelectParams(ChainNameFromCommandLine());
+        return true;
+    } catch (const std::exception& e) {
+        fprintf(stderr, "Error: %s\n", e.what());
+        return false;
+    }
+}
+
+
 //////////////////////////////////////////////////////////////////////////////
 //
 // Start
@@ -101,6 +113,13 @@ bool AppInit(int argc, char* argv[])
     std::unique_ptr<BlockNotificationService> blockNotificationService;
     try
     {
+        for (int i = 1; i < argc; i++) {
+            if (!IsSwitchChar(argv[i][0])) {
+                fprintf(stderr, "Error: unexpected argument found. Options go in the form of -name=value\n");
+                exit(1);
+                break;
+            }
+        }
         std::string dd = GetArg("-datadir", "");
         if (!dd.empty()) {
             auto path = boost::filesystem::system_complete(dd);
@@ -109,32 +128,19 @@ bool AppInit(int argc, char* argv[])
                 return false;
             }
         }
-        try {
-            SelectParams(ChainNameFromCommandLine());
-        } catch (const std::exception& e) {
-            fprintf(stderr, "Error: %s\n", e.what());
-            return false;
-        }
+        const bool confPathSet = !GetArg("-conf", "").empty();
+        if (!confPathSet) // first select chain, so we read the right conf file.
+            if (!SelectChain()) return false;
+
         try {
             ReadConfigFile(mapArgs, mapMultiArgs);
         } catch (const std::exception& e) {
             fprintf(stderr,"Error reading configuration file: %s\n", e.what());
             return false;
         }
+        if (confPathSet) // after raeding the user-indicated conf file, select chain (including conf file opts)
+            if (!SelectChain()) return false;
 
-        // Command-line RPC
-        bool fCommandLine = false;
-        for (int i = 1; i < argc; i++) {
-            if (!IsSwitchChar(argv[i][0])) {
-                fCommandLine = true;
-                break;
-            }
-        }
-
-        if (fCommandLine) {
-            fprintf(stderr, "Error: unexpected argument found. Options go in the form of -name=value\n");
-            exit(1);
-        }
 #ifndef WIN32
         fDaemon = GetBoolArg("-daemon", false);
         if (fDaemon)

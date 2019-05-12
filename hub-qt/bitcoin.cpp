@@ -544,6 +544,18 @@ WId BitcoinApplication::getMainWinId() const
     return window->winId();
 }
 
+static bool SelectChain()
+{
+    // Check for -testnet or -regtest parameter (Params() calls are only valid after this)
+    try {
+        SelectParams(ChainNameFromCommandLine());
+        return true;
+    } catch(std::exception &e) {
+        QMessageBox::critical(0, QObject::tr("Flowee"), QObject::tr("Error: %1").arg(e.what()));
+        return false;
+    }
+}
+
 #ifndef BITCOIN_QT_TEST
 int main(int argc, char *argv[])
 {
@@ -616,14 +628,6 @@ int main(int argc, char *argv[])
     // - Needs to be done before createOptionsModel
     // - Do not call GetDataDir(true) before this step finishes
 
-    // Check for -testnet or -regtest parameter (Params() calls are only valid after this clause)
-    try {
-        SelectParams(ChainNameFromCommandLine());
-    } catch(std::exception &e) {
-        QMessageBox::critical(0, QObject::tr("Flowee"), QObject::tr("Error: %1").arg(e.what()));
-        return 1;
-    }
-
     // 7. Determine availability of data directory and parse flowee.conf
     std::string dd = GetArg("-datadir", "");
     if (!dd.empty()) {
@@ -635,6 +639,9 @@ int main(int argc, char *argv[])
             return 1;
         }
     }
+    const bool confPathSet = !GetArg("-conf", "").empty();
+    if (!confPathSet) // first select chain, so we read the right conf file.
+        SelectChain();
     try {
         ReadConfigFile(mapArgs, mapMultiArgs);
     } catch (const std::exception& e) {
@@ -642,6 +649,8 @@ int main(int argc, char *argv[])
                               QObject::tr("Error: Cannot parse configuration file: %1. Only use key=value syntax.").arg(e.what()));
         return false;
     }
+    if (confPathSet) // after raeding the user-indicated conf file, select chain (including conf file opts)
+        SelectChain();
 
     // UI per-platform customization
     app.createPlatformStyle();
