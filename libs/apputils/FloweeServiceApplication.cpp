@@ -33,6 +33,8 @@ void HandleSIGTERM(int) {
 FloweeServiceApplication::FloweeServiceApplication(int &argc, char **argv, int appLogSection)
     : QCoreApplication(argc, argv),
       m_debug(QStringList() << "debug", "Use debug level logging"),
+      m_verbose(QStringList() << "verbose" << "v", "Be more verbose"),
+      m_quiet(QStringList() << "quiet" << "q", "Be quiet, only errors are shown"),
       m_version(QStringList() << "version", "Display version"),
       m_bindAddress(QStringList() << "bind", "Bind to this IP:port", "IP-ADDRESS"),
       m_appLogSection(appLogSection),
@@ -48,19 +50,24 @@ FloweeServiceApplication::~FloweeServiceApplication()
 
 void FloweeServiceApplication::addServerOptions(QCommandLineParser &parser)
 {
-    m_parser = &parser;
-    parser.addOption(m_bindAddress);
-    parser.addOption(m_debug);
-    parser.addOption(m_version);
-    parser.addOption(m_connect);
+    m_isServer = true;
+    addClientOptions(parser);
 }
 
 void FloweeServiceApplication::addClientOptions(QCommandLineParser &parser)
 {
     m_parser = &parser;
+#ifndef BCH_NO_DEBUG_OUTPUT
     parser.addOption(m_debug);
+#endif
     parser.addOption(m_version);
     parser.addOption(m_connect);
+    if (m_isServer) {
+        parser.addOption(m_bindAddress);
+    } else {
+        parser.addOption(m_verbose);
+        parser.addOption(m_quiet);
+    }
 }
 
 void FloweeServiceApplication::setup(const char *logFilename, const QString &configFilePath) {
@@ -73,10 +80,24 @@ void FloweeServiceApplication::setup(const char *logFilename, const QString &con
         ::exit(0);
         return;
     }
-    if (m_parser && m_parser->isSet(m_debug)) {
+    if (m_parser && (m_parser->isSet(m_verbose) || m_parser->isSet(m_quiet)
+#ifndef BCH_NO_DEBUG_OUTPUT
+                     || m_parser->isSet(m_debug)
+#endif
+                     )) {
         auto *logger = Log::Manager::instance();
         logger->clearChannels();
-        logger->clearLogLevels(Log::DebugLevel);
+        Log::Verbosity v = Log::WarningLevel;
+#ifndef BCH_NO_DEBUG_OUTPUT
+        if (m_parser->isSet(m_debug))
+            v = Log::DebugLevel;
+        else
+#endif
+        if (m_parser->isSet(m_verbose))
+            v = Log::InfoLevel;
+        else if (m_parser->isSet(m_quiet))
+            v = Log::FatalLevel;
+        logger->clearLogLevels(v);
         logger->addConsoleChannel();
     }
     else if (logFilename) {

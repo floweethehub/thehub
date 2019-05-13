@@ -47,12 +47,15 @@ public:
 
 private:
     QCommandLineOption m_debug;
+    QCommandLineOption m_verbose;
+    QCommandLineOption m_quiet;
     QCommandLineOption m_version;
     QCommandLineOption m_bindAddress;
     QCommandLineOption m_connect;
     QString m_logsconf;
     QString m_logFile;
     int m_appLogSection = -1;
+    bool m_isServer = false;
 
     QCommandLineParser *m_parser = nullptr;
 };

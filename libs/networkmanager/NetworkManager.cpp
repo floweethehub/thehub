@@ -339,7 +339,7 @@ void NetworkManagerConnection::onConnectComplete(const boost::system::error_code
     if (m_isClosingDown)
         return;
     if (error) {
-        logWarning(Log::NWM) << "connect;" << error.message();
+        logInfo(Log::NWM) << "connect;" << error.message();
         if (m_remote.peerPort != m_remote.announcePort) // incoming connection
             return;
         m_reconnectDelay.expires_from_now(boost::posix_time::seconds(reconnectTimeoutForStep(++m_reconnectStep)));
@@ -562,7 +562,7 @@ void NetworkManagerConnection::receivedSomeBytes(const boost::system::error_code
             try {
                 callback(m_remote);
             } catch (const std::exception &ex) {
-                logWarning(Log::NWM) << "onDisconnected caused exception, ignoring:" << ex;
+                logInfo(Log::NWM) << "onDisconnected caused exception, ignoring:" << ex;
             }
         }
         close();
