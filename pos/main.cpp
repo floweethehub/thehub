@@ -36,6 +36,7 @@ int main(int x, char **y)
 
     QCommandLineParser parser;
     parser.addPositionalArgument("[address]", "Addresses to listen to");
+    parser.addHelpOption();
     app.addClientOptions(parser);
     parser.process(app.arguments());
     app.setup();
