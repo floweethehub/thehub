@@ -3,38 +3,17 @@
 # Source debconf library.
 . /usr/share/debconf/confmodule
 
-# add users
-adduser --system --group --quiet bitcoin
+echo -n "Creating flowee user... "
+grep -E "^flowee:" /etc/group >/dev/null || groupadd flowee
+useradd -m -d /etc/flowee -g flowee -s /usr/bin/nologin flowee 2>/dev/null
+echo "done"
 
-_chaindir="/var/lib/bitcoind"
+_datadir="/var/lib/flowee"
 
-if test ! -d "$_chaindir"; then
-    mkdir -m 750 "$_chaindir"
-    if [[ $(findmnt --target $_chaindir --output FSTYPE --noheadings) == 'btrfs' ]]; then
-        # if is btrfs, disable copy on write for our new blockchain dir.
-        chattr +C "$_chaindir"
-    fi
+if test ! -d "$_datadir"; then
+  mkdir -m 750 "$_chaindir"
 fi
-chown -R bitcoin:bitcoin "$_chaindir"
-if test ! -f /etc/bitcoin/bitcoin.conf; then
-    cp /etc/bitcoin/bitcoin.conf.dist /etc/bitcoin/bitcoin.conf
-fi
-chown bitcoin:bitcoin /etc/bitcoin /etc/bitcoin/bitcoin.conf /etc/bitcoin/rpcuser.py
-chmod g+w /etc/bitcoin /etc/bitcoin/bitcoin.conf
-
-cat <<'EOF'
-############################################################
-#  Flowee the Hub                                          #
-#                                                          #
-#  To start the hub:                                       #
-#      # systemctl start bitcoind                          #
-#  To communicate with the hub as a normal user:           #
-#      $ bitcoin-cli help                                  #
-#                                                          #
-#  Config:        /etc/bitcoin/bitcoin.conf                #
-#  Blockchain:    /var/lib/bitcoind                        #
-#                                                          #
-############################################################
-EOF
+mkdir -p -m 770 "/var/log/flowee"
+chown -R flowee:flowee "/var/log/flowee" "/var/lib/flowee" "/etc/flowee"
 
 #DEBHELPER#

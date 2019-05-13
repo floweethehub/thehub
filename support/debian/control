@@ -1,58 +1,9 @@
-Source: floweethehub
-Section: utils
-Priority: optional
-Maintainer: Tom Z <tomz@freedommail.ch>
-Uploaders: Tom Z <tomz@freedommail.ch>
-Build-Depends: debhelper,
- devscripts,
- automake,
- libtool,
- bash-completion,
- libboost-system-dev (>> 1.55) | libboost-system1.55-dev,
- libdb4.8++-dev,
- libssl-dev,
- pkg-config,
- libminiupnpc8-dev | libminiupnpc-dev (>> 1.6),
- libboost-filesystem-dev (>> 1.55) | libboost-filesystem1.55-dev,
- libboost-program-options-dev (>> 1.55) | libboost-program-options1.55-dev,
- libboost-thread-dev (>> 1.55) | libboost-thread1.55-dev,
- libboost-test-dev (>> 1.55) | libboost-test1.55-dev,
- libboost-chrono-dev  (>> 1.55) | libboost-chrono1.55-dev,
- libboost-iostreams-dev  (>> 1.55) | libboost-iostreams1.55-dev,
- libqt5gui5, libqt5core5a, libqt5dbus5, qttools5-dev, qttools5-dev-tools,
- libqrencode-dev,
- libprotobuf-dev, protobuf-compiler,
- libevent-dev,
- python
-Standards-Version: 3.9.6
-Homepage: http://flowee.org/
-Vcs-Git: git://github.com/floweethehub/thehub.git
-Vcs-Browser: https://github.com/floweethehub/thehub
+Package: flowee
+Conflicts:
+Replaces:
+Architecture: amd64
+Description: Flowee Bitcoin Cash tools and servers.
+Maintainer: TomZ <tomz@freedommail.ch>
+Version: 2019.05
+Depends: debconf, adduser, ntp
 
-Package: bitcoind
-Architecture: any
-Depends: ${shlibs:Depends}, ${misc:Depends}
-Conflicts: bitcoin-tx
-Replaces: bitcoin-tx
-Description: peer-to-peer network based digital currency - daemon
- Bitcoin is a digital currency that enables instant
- payments to anyone, anywhere in the world. Bitcoin uses peer-to-peer
- technology to operate with no central authority: managing transactions
- and issuing money are carried out collectively by the network.
- .
- This package provides the daemon, bitcoind, and the CLI tool
- bitcoin-cli to interact with the daemon as well as the bitcoin-tx tool that
- can be used to create transactions.
-
-Package: bitcoin-qt
-Architecture: any
-Conflicts: bitcoind
-Replaces: bitcoind
-Depends: ${shlibs:Depends}, ${misc:Depends}
-Description: peer-to-peer network based digital currency - Qt GUI
- Bitcoin is a new digital currency that enables instant
- payments to anyone, anywhere in the world. Bitcoin uses peer-to-peer
- technology to operate with no central authority: managing transactions
- and issuing money are carried out collectively by the network.
- .
- This package provides Bitcoin-Qt, a GUI for Bitcoin based on Qt.

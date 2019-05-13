@@ -1,8 +1,7 @@
 #!/bin/sh -e
 
 if [ "$1" = "purge" ]; then
-    echo "Purging blockchain for bitcoin"
-    rm -rf /var/lib/bitcoind
+    rm -rf /var/lib/flowee /var/log/flowee
 fi
 
 #DEBHELPER#

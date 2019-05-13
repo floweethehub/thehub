@@ -7,7 +7,7 @@ stages:
 
 variables:
   HUB_IMG: flowee/hub
-  ZIP_SUFFIX: flowee-${CI_COMMIT_REF_NAME}-${CI_COMMIT_SHORT_SHA}
+  PACKAGE_NAME: flowee-${CI_COMMIT_REF_NAME}-${CI_COMMIT_SHORT_SHA}
 
 #####  Debian stable
 
@@ -88,21 +88,39 @@ build-static:
     - systemd
     expire_in: 1 hrs
 
-# how to create a .deb file TODO
-# https://about.gitlab.com/2016/10/12/automated-debian-package-build-with-gitlab-ci/
+flowee-deb:
+  stage: deploy
+  image: debian:stable
+  script:
+    - umask 022
+    - mkdir -p $PACKAGE_NAME/usr/lib
+    - mv bin $PACKAGE_NAME/usr
+    - mv etc $PACKAGE_NAME/
+    - mv systemd $PACKAGE_NAME/usr/lib/
+    - mv support/debian $PACKAGE_NAME/DEBIAN
+    - chmod 755 $PACKAGE_NAME/DEBIAN/post* $PACKAGE_NAME/DEBIAN/
+    - dpkg-deb --build $PACKAGE_NAME
+  dependencies:
+    - build-static
+  only:
+    - master
+    - "2019.05"
+  artifacts:
+    paths:
+    - ${PACKAGE_NAME}.deb
 
 flowee-linux.zip:
   stage: deploy
   script:
     - for i in bin/*; do strip $i; done
-    - mkdir ${ZIP_SUFFIX}
-    - mv bin etc systemd ${ZIP_SUFFIX}
+    - mkdir ${PACKAGE_NAME}
+    - mv bin etc systemd ${PACKAGE_NAME}
   artifacts:
-    name: ${ZIP_SUFFIX}
+    name: ${PACKAGE_NAME}
     paths:
-    - ${ZIP_SUFFIX}
+    - ${PACKAGE_NAME}
   dependencies:
-  - build-static
+    - build-static
   only:
     - master
     - "2019.05"
