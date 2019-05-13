@@ -49,6 +49,12 @@ if (${Qt5Sql_FOUND})
 
     target_link_libraries(indexer ${IDX_LIBS} Qt5::Sql)
     install(PROGRAMS ${CMAKE_CURRENT_BINARY_DIR}/indexer DESTINATION bin)
+    install(FILES ${CMAKE_SOURCE_DIR}/support/indexer.conf
+        CONFIGURATIONS Release RelWithDebInfo
+        DESTINATION etc/flowee)
+    install(FILES ${CMAKE_SOURCE_DIR}/support/indexer.service
+        CONFIGURATIONS Release RelWithDebInfo
+        DESTINATION systemd/system/)
 endif ()
 
 add_executable(indexer-cli cli.cpp
