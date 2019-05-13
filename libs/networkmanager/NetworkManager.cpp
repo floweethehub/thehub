@@ -318,14 +318,14 @@ void NetworkManagerConnection::onAddressResolveComplete(const boost::system::err
     if (m_isClosingDown)
         return;
     if (error) {
-        logDebug(Log::NWM) << "connect;" << error.message();
+        logWarning(Log::NWM) << "connect;" << error.message();
         m_reconnectDelay.expires_from_now(boost::posix_time::seconds(45));
         m_reconnectDelay.async_wait(m_strand.wrap(std::bind(&NetworkManagerConnection::reconnectWithCheck, this, std::placeholders::_1)));
         return;
     }
     assert(m_strand.running_in_this_thread());
     m_remote.ipAddress = iterator->endpoint().address();
-    logDebug(Log::NWM) << "Outgoing connection to" << m_remote.hostname << "resolved to:" << m_remote.ipAddress.to_string();
+    logInfo(Log::NWM) << "Outgoing connection to" << m_remote.hostname << "resolved to:" << m_remote.ipAddress.to_string();
 
     // Notice that we always only use the first reported DNS entry. Which is likely Ok.
     m_socket.async_connect(*iterator, m_strand.wrap(
@@ -339,7 +339,7 @@ void NetworkManagerConnection::onConnectComplete(const boost::system::error_code
     if (m_isClosingDown)
         return;
     if (error) {
-        logDebug(Log::NWM) << "connect;" << error.message();
+        logWarning(Log::NWM) << "connect;" << error.message();
         if (m_remote.peerPort != m_remote.announcePort) // incoming connection
             return;
         m_reconnectDelay.expires_from_now(boost::posix_time::seconds(reconnectTimeoutForStep(++m_reconnectStep)));
@@ -347,7 +347,7 @@ void NetworkManagerConnection::onConnectComplete(const boost::system::error_code
         return;
     }
     assert(m_strand.running_in_this_thread());
-    logInfo(Log::NWM) << "Successfully connected to" << m_remote.hostname << m_remote.announcePort;
+    logInfo(Log::NWM) << "Successfully made TCP connection to" << m_remote.hostname << m_remote.announcePort;
 
     for (auto it = m_onConnectedCallbacks.begin(); it != m_onConnectedCallbacks.end(); ++it) {
         try {
@@ -711,7 +711,7 @@ bool NetworkManagerConnection::processPacket(const std::shared_ptr<char> &buffer
         type = parser.next();
     }
     if (inHeader) {
-        logDebug(Log::NWM) << "  header malformed, re-connecting";
+        logInfo(Log::NWM) << "  header malformed, re-connecting";
         close();
         return false;
     }
@@ -1047,7 +1047,7 @@ void NetworkManagerServer::acceptConnection(boost::system::error_code error)
     for (const BannedNode &bn : priv->banned) {
         if (bn.endPoint.ipAddress == peerAddress) {
             if (bn.banTimeout > boost::posix_time::second_clock::universal_time()) { // incoming connection is banned.
-                logDebug(Log::NWM) << "acceptTcpConnection; closing incoming connection (banned)"
+                logInfo(Log::NWM) << "acceptTcpConnection; closing incoming connection (banned)"
                           << bn.endPoint.hostname;
                 m_socket.close();
             }
