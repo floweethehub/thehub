@@ -7,6 +7,7 @@ stages:
 
 variables:
   HUB_IMG: flowee/hub
+  ZIP_SUFFIX: flowee-${CI_COMMIT_REF_NAME}-${CI_COMMIT_SHORT_SHA}
 
 #####  Debian stable
 
@@ -84,6 +85,7 @@ build-static:
     paths:
     - bin
     - etc/flowee
+    - systemd
     expire_in: 1 hrs
 
 # how to create a .deb file TODO
@@ -91,17 +93,19 @@ build-static:
 
 flowee-linux.zip:
   stage: deploy
-  script: for i in bin/*; do strip $i; done
+  script:
+    - for i in bin/*; do strip $i; done
+    - mkdir ${ZIP_SUFFIX}
+    - mv bin etc systemd ${ZIP_SUFFIX}
   artifacts:
-    name: flowee-${CI_COMMIT_SHA}
+    name: ${ZIP_SUFFIX}
     paths:
-    - bin
-    - etc
+    - ${ZIP_SUFFIX}
   dependencies:
   - build-static
   only:
     - master
-    - "2019.04"
+    - "2019.05"
 
 createHubDocker:
   stage: deploy
