@@ -1426,8 +1426,7 @@ void BlockValidationState::updateUtxoAndStartValidation()
                     break;
             }
             else if (iter.tag() == Tx::OutputValue) { // next output!
-                if (iter.longData() == 0)
-                    logDebug(Log::BlockValidation) << "Output with zero value";
+                // if (iter.longData() == 0) logDebug(Log::BlockValidation) << "Output with zero value";
                 outputCount++;
             }
         }
@@ -1644,8 +1643,7 @@ void BlockValidationState::checkSignaturesChunk()
                 auto content = txIter.tag();
                 while (content != Tx::End) {
                     if (content == Tx::OutputValue) {
-                        if (txIter.longData() == 0)
-                            logDebug(Log::BlockValidation) << "Output with zero value";
+                        // if (txIter.longData() == 0) logDebug(Log::BlockValidation) << "Output with zero value";
                         undoItems->push_back(FastUndoBlock::Item(hash, outputCount));
                         outputCount++;
                     }
