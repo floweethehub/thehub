@@ -164,7 +164,7 @@ public:
         consensus.hf201711Height = 504031;
         consensus.hf201805Height = 530356;
         consensus.hf201811Height = 556767;
-        consensus.hf201905Time = 1557921600;
+        consensus.hf201905Height = 582680;
 
         checkpointData = CCheckpointData {
             boost::assign::map_list_of
@@ -182,12 +182,13 @@ public:
             (279000, uint256S("0x0000000000000001ae8c72a0b0c301f67e3afca10e819efa9041e458e9bd7e40"))
             (295000, uint256S("0x00000000000000004d9b4ef50f0f9d686fd69db2e03af35a100370c64632a983"))
             (478558, uint256S("0x0000000000000000011865af4122fe3b144e2cbeea86142e8ff2fb4107352d43"))
-            (556767, uint256S("0000000000000000004626ff6e3b936941d341c5932ece4357eeccac44e6d56c"))
+            (556767, uint256S("0x0000000000000000004626ff6e3b936941d341c5932ece4357eeccac44e6d56c"))
+            (582680, uint256S("0x000000000000000001b4b8e36aec7d4f9671a47872cb9a74dc16ca398c7dcc18"))
             ,
-            1501593400, // * UNIX timestamp of last checkpoint block
-            243276768,   // * total number of transactions between genesis and last checkpoint
+            1557921600, // * UNIX timestamp of last checkpoint block
+            271632360,   // * total number of transactions between genesis and last checkpoint
                         //   (the tx=... number in the processNewBlock hub.log lines)
-            250000.0     // * estimated number of transactions per day after checkpoint
+            100000.0     // * estimated number of transactions per day after checkpoint
         };
     }
 };
@@ -272,7 +273,7 @@ public:
         consensus.hf201711Height = 1188697;
         consensus.hf201805Height = 1267994;
         consensus.hf201811Height = 1267997;
-        consensus.hf201905Time = GetArg("-hf201905-activationtime", 1557921600);
+        consensus.hf201905Height = 1267997; // TODO find real one.
 
         checkpointData = CCheckpointData {
             boost::assign::map_list_of
@@ -348,7 +349,7 @@ public:
         consensus.hf201711Height = 0;
         consensus.hf201805Height = 1;
         consensus.hf201811Height = 9999999; // avoid doing stupid stuff like 100 bytes min tx size
-        consensus.hf201905Time = 1;
+        consensus.hf201905Height = 1;
 
         checkpointData = CCheckpointData {
             boost::assign::map_list_of
