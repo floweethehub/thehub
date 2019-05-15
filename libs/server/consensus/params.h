@@ -79,7 +79,7 @@ struct Params {
     int hf201711Height; // daa3 got enabled here
     int hf201805Height;
     int hf201811Height;
-    int hf201905Time;
+    int hf201905Height;
 };
 } // namespace Consensus
 

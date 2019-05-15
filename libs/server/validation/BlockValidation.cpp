@@ -1079,7 +1079,7 @@ void ValidationFlags::updateForBlock(CBlockIndex *index, const uint256 &blkHash)
         hf201805Active = true;
     if (!hf201811Active && index->nHeight >= chainparams.GetConsensus().hf201811Height)
         hf201811Active = true;
-    if (!hf201905Active && hf201805Active && index->GetMedianTimePast() >= chainparams.GetConsensus().hf201905Time)
+    if (!hf201905Active && hf201805Active && index->nHeight >= chainparams.GetConsensus().hf201905Height)
         hf201905Active = true;
 }
 
