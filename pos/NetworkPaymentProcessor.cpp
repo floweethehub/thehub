@@ -51,7 +51,7 @@ void NetworkPaymentProcessor::onIncomingMessage(const Message &message)
                         ::exit(1);
                     }
                     logCritical() << "Remote server version:" << parser.stringData();
-                    if (parser.stringData().compare("Flowee:1 (2019-5.1)") <= 0) {
+                    if (parser.stringData().compare("Flowee:1 (2019-5.1)") < 0) {
                         logFatal() << "Hub server is too old";
                         ::exit(1);
                     }
