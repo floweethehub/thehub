@@ -35,7 +35,6 @@ set (IDX_LIBS
     ${OPENSSL_LIBRARIES}
     ${Boost_LIBRARIES}
     ${BOOST_THREAD_LIBRARY}
-    Qt5::Core
 )
 
 if (${Qt5Sql_FOUND})

@@ -27,4 +27,4 @@ add_library(flowee_apputils STATIC
 
 add_dependencies(flowee_apputils flowee_networkmanager)
 
-target_link_libraries(flowee_apputils Qt5::Core flowee_networkmanager)
+target_link_libraries(flowee_apputils Qt5::Core Qt5::Network flowee_networkmanager)

@@ -57,14 +57,14 @@ int main(int argc, char **argv)
 
     // become a server
     bool server = false;
-    try {
-        for (auto ep : app.bindingEndPoints(parser, 1234)) {
-            logCritical().nospace() << "Binding to " << ep.address().to_string().c_str() << ":" << ep.port();
-            server = true;
+    for (auto ep : app.bindingEndPoints(parser, 1234)) {
+        logCritical().nospace() << "Binding to " << ep.address().to_string().c_str() << ":" << ep.port();
+        server = true;
+        try {
             indexer.bind(ep);
+        } catch (std::exception &e) {
+            logCritical() << "  " << e << "skipping";
         }
-    } catch (std::exception &e) {
-        logCritical() << "  " << e;
     }
     if (!server)
         logCritical() << "Please note you need pass 'bind' to the commandline to be a server";

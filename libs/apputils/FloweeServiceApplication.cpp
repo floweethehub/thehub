@@ -16,6 +16,7 @@
  * along with this program.  If not, see <http://www.gnu.org/licenses/>.
  */
 #include "FloweeServiceApplication.h"
+#include <config/flowee-config.h>
 
 #include <QCommandLineParser>
 #include <QStandardPaths>
@@ -25,6 +26,10 @@
 #include <netbase.h> // for SplitHostPort
 #include <clientversion.h>
 #include <qtextstream.h>
+#include <boost/asio.hpp>
+#ifdef Qt5Network_FOUND
+#include <QtNetwork/QNetworkInterface>
+#endif
 
 void HandleSIGTERM(int) {
     QCoreApplication::quit();
@@ -164,9 +169,23 @@ QList<boost::asio::ip::tcp::endpoint> FloweeServiceApplication::bindingEndPoints
         int port = defaultPort;
         SplitHostPort(address.toStdString(), port, hostname);
         std::transform(hostname.begin(), hostname.end(), hostname.begin(), ::tolower);
-        if (hostname.empty() || hostname == "localhost") {
-            answer.push_back(boost::asio::ip::tcp::endpoint(boost::asio::ip::address::from_string("127.0.0.1"), port));
-            answer.push_back(boost::asio::ip::tcp::endpoint(boost::asio::ip::address::from_string("::1"), port));
+        if (hostname.empty() || hostname == "localhost" || hostname == "0.0.0.0") {
+            using boost::asio::ip::tcp;
+            answer.push_back(tcp::endpoint(boost::asio::ip::address_v4::loopback(), port));
+            answer.push_back(tcp::endpoint(boost::asio::ip::address_v6::loopback(), port));
+            if (hostname == "0.0.0.0") {
+#ifdef Qt5Network_FOUND
+                for (auto net : QNetworkInterface::allAddresses()) {
+                    if (!net.isLoopback()) {
+                        try {
+                            answer.push_back(tcp::endpoint(boost::asio::ip::address::from_string(net.toString().toStdString()), port));
+                        } catch (const std::runtime_error &e) {
+                            logCritical() << "Internal error: " << e;
+                        }
+                    }
+                }
+#endif
+            }
         }
         else {
             try {

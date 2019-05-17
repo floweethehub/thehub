@@ -71,6 +71,6 @@ add_executable(pos
     main.cpp
     NetworkPaymentProcessor.cpp
 )
-target_link_libraries(pos ${POS_LIBS} Qt5::Core)
+target_link_libraries(pos ${POS_LIBS})
 
 install(PROGRAMS ${CMAKE_CURRENT_BINARY_DIR}/pos DESTINATION bin)

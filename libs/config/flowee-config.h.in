@@ -100,12 +100,6 @@
 /* Define to 1 if you have the <sys/select.h> header file. */
 #cmakedefine HAVE_SYS_SELECT_H 1
 
-/* Define to the full name of this package. */
-#define PACKAGE_NAME "Flowee"
-
-/* Define to the full name and version of this package. */
-#define PACKAGE_STRING "Flowee 0.1.0"
-
 /* Define to 1 if strerror_r returns char *. */
 #cmakedefine STRERROR_R_CHAR_P 1
 
@@ -117,6 +111,9 @@
 
 /* UPnP support not compiled if undefined, otherwise value (0 or 1) determines default state */
 #cmakedefine USE_UPNP 1
+
+/* QtNetwork library is available */
+#cmakedefine Qt5Network_FOUND 1
 
 /* Define WORDS_BIGENDIAN to 1 if your processor stores words with the most
    significant byte first (like Motorola and SPARC, unlike Intel). */
