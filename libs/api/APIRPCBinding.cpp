@@ -36,22 +36,21 @@
 
 namespace {
 
-void convertHashStringToNetworkBytes(char *outBuffer, const UniValue &univalue) {
+void addHash256ToBuilder(Streaming::MessageBuilder &builder, uint32_t tag, const UniValue &univalue) {
     assert(univalue.isStr());
-    assert(univalue.getValStr().size() % 2 == 0);
+    assert(univalue.getValStr().size() == 64);
+    uint8_t buf[32];
     const char *input = univalue.getValStr().c_str();
-    int numBytes = univalue.getValStr().size() / 2;
-    char *outReverseBuf = outBuffer + numBytes- 1;
-
-    while (numBytes-- > 0) {
+    for (int i = 0; i < 32; ++i) {
         signed char c = HexDigit(*input++);
         assert(c != -1);
-        unsigned char n = (c << 4);
+        unsigned char n = c << 4;
         c = HexDigit(*input++);
         assert(c != -1);
         n |= c;
-        *outReverseBuf-- = n;
+        buf[31 - i] = n;
     }
+    builder.addByteArray(tag, buf, 32);
 }
 
 // blockchain
@@ -67,20 +66,14 @@ public:
         builder.add(Api::BlockChain::Blocks, blocks.get_int());
         const UniValue &headers = find_value(result, "headers");
         builder.add(Api::BlockChain::Headers, headers.get_int());
-        const UniValue &best = find_value(result, "bestblockhash");
-        std::vector<char> sha256;
-        boost::algorithm::unhex(best.get_str(), back_inserter(sha256));
-        builder.add(Api::BlockChain::BestBlockHash, sha256);
+        addHash256ToBuilder(builder, Api::BlockChain::BestBlockHash, find_value(result, "bestblockhash"));
         const UniValue &difficulty = find_value(result, "difficulty");
         builder.add(Api::BlockChain::Difficulty, difficulty.get_real());
         const UniValue &time = find_value(result, "mediantime");
         builder.add(Api::BlockChain::MedianTime, (uint64_t) time.get_int64());
         const UniValue &progress = find_value(result, "verificationprogress");
         builder.add(Api::BlockChain::VerificationProgress, progress.get_real());
-        const UniValue &chainwork = find_value(result, "chainwork");
-        sha256.clear();
-        boost::algorithm::unhex(chainwork.get_str(), back_inserter(sha256));
-        builder.add(Api::BlockChain::ChainWork, sha256);
+        addHash256ToBuilder(builder, Api::BlockChain::ChainWork, find_value(result, "chainwork"));
     }
 };
 
@@ -129,11 +122,7 @@ public:
             return;
         }
 
-        const UniValue &hash = find_value(result, "hash");
-        std::vector<char> bytearray;
-        boost::algorithm::unhex(hash.get_str(), back_inserter(bytearray));
-        builder.add(Api::BlockChain::BlockHash, bytearray);
-        bytearray.clear();
+        addHash256ToBuilder(builder, Api::BlockChain::BlockHash, find_value(result, "hash"));
         const UniValue &confirmations = find_value(result, "confirmations");
         builder.add(Api::BlockChain::Confirmations, confirmations.get_int());
         const UniValue &size = find_value(result, "size");
@@ -142,18 +131,13 @@ public:
         builder.add(Api::BlockChain::BlockHeight, height.get_int());
         const UniValue &version = find_value(result, "version");
         builder.add(Api::BlockChain::Version, version.get_int());
-        const UniValue &merkleroot = find_value(result, "merkleroot");
-        boost::algorithm::unhex(merkleroot.get_str(), back_inserter(bytearray));
-        builder.add(Api::BlockChain::MerkleRoot, bytearray);
-        bytearray.clear();
+        addHash256ToBuilder(builder, Api::BlockChain::MerkleRoot, find_value(result, "merkleroot"));
         const UniValue &tx = find_value(result, "tx");
         bool first = true;
         for (const UniValue &transaction: tx.getValues()) {
             if (first) first = false;
             else builder.add(Api::Separator, true);
-            boost::algorithm::unhex(transaction.get_str(), back_inserter(bytearray));
-            builder.add(Api::BlockChain::TxId, bytearray);
-            bytearray.clear();
+            addHash256ToBuilder(builder, Api::BlockChain::TxId,  transaction);
         }
         const UniValue &time = find_value(result, "time");
         builder.add(Api::BlockChain::Time, (uint64_t) time.get_int64());
@@ -161,25 +145,23 @@ public:
         builder.add(Api::BlockChain::MedianTime, (uint64_t) mediantime.get_int64());
         const UniValue &nonce = find_value(result, "nonce");
         builder.add(Api::BlockChain::Nonce, (uint64_t) nonce.get_int64());
-        const UniValue &bits = find_value(result, "bits");
-        boost::algorithm::unhex(bits.get_str(), back_inserter(bytearray));
-        builder.add(Api::BlockChain::Bits, bytearray);
-        bytearray.clear();
+        // 'bits' is an 4 bytes hex-encoded string.
+        const std::string &input = find_value(result, "bits").getValStr();
+        assert(input.size() == 8);
+        uint32_t bits = 0;
+        for (int i = 0; i < 8; ++i) {
+            signed char c = HexDigit(input.at(i));
+            assert(c != -1);
+            bits = (bits << 4) + c;
+        }
+        builder.add(Api::BlockChain::Bits, (uint64_t) bits);
         const UniValue &difficulty = find_value(result, "difficulty");
         builder.add(Api::BlockChain::Difficulty, difficulty.get_real());
-        const UniValue &chainwork = find_value(result, "chainwork");
-        boost::algorithm::unhex(chainwork.get_str(), back_inserter(bytearray));
-        builder.add(Api::BlockChain::ChainWork, bytearray);
-        bytearray.clear();
-        const UniValue &prevhash = find_value(result, "previousblockhash");
-        boost::algorithm::unhex(prevhash.get_str(), back_inserter(bytearray));
-        builder.add(Api::BlockChain::PrevBlockHash, bytearray);
+        addHash256ToBuilder(builder, Api::BlockChain::ChainWork, find_value(result, "chainwork"));
+        addHash256ToBuilder(builder, Api::BlockChain::PrevBlockHash, find_value(result, "previousblockhash"));
         const UniValue &nextblock = find_value(result, "nextblockhash");
-        if (nextblock.isStr()) {
-            bytearray.clear();
-            boost::algorithm::unhex(nextblock.get_str(), back_inserter(bytearray));
-            builder.add(Api::BlockChain::NextBlockHash, bytearray);
-        }
+        if (nextblock.isStr())
+            addHash256ToBuilder(builder, Api::BlockChain::NextBlockHash, nextblock);
     }
 
 private:
@@ -194,7 +176,7 @@ public:
     void buildReply(Streaming::MessageBuilder &builder, CBlockIndex *index) {
         assert(index);
         builder.add(Api::BlockChain::BlockHash, index->GetBlockHash());
-        builder.add(Api::BlockChain::Confirmations, chainActive.Contains(index) ? chainActive.Height() - index->nHeight : -1);
+        builder.add(Api::BlockChain::Confirmations, chainActive.Contains(index) ? chainActive.Height() - index->nHeight + 1: -1);
         builder.add(Api::BlockChain::BlockHeight, index->nHeight);
         builder.add(Api::BlockChain::Version, index->nVersion);
         builder.add(Api::BlockChain::MerkleRoot, index->hashMerkleRoot);
@@ -203,7 +185,9 @@ public:
         builder.add(Api::BlockChain::Nonce, (uint64_t) index->nNonce);
         builder.add(Api::BlockChain::Bits, (uint64_t) index->nBits);
         builder.add(Api::BlockChain::Difficulty, GetDifficulty(index));
-        builder.add(Api::BlockChain::PrevBlockHash, index->phashBlock);
+
+        if (index->pprev)
+            builder.add(Api::BlockChain::PrevBlockHash, index->pprev->GetBlockHash());
         auto next = chainActive.Next(index);
         if (next)
             builder.add(Api::BlockChain::NextBlockHash, next->GetBlockHash());
@@ -212,22 +196,24 @@ public:
     void buildReply(const Message &request, Streaming::MessageBuilder &builder) {
         Streaming::MessageParser parser(request.body());
 
-        Streaming::ParsedType type = parser.next();
-        while (type == Streaming::FoundTag) {
+        bool first = true;
+        while (parser.next() == Streaming::FoundTag) {
             if (parser.tag() == Api::BlockChain::BlockHash) {
+                if (!first) builder.add(Api::Separator, true);
                 uint256 hash = parser.uint256Data();
                 CBlockIndex *bi = Blocks::Index::get(hash);
                 if (bi)
                     return buildReply(builder, bi);
+                first = false;
             }
-            if (parser.tag() == Api::BlockChain::BlockHeight) {
+            else if (parser.tag() == Api::BlockChain::BlockHeight) {
+                if (!first) builder.add(Api::Separator, true);
                 int height = parser.intData();
                 auto index = chainActive[height];
                 if (index)
                     return buildReply(builder, index);
+                first = false;
             }
-
-            type = parser.next();
         }
     }
 };
@@ -359,7 +345,7 @@ public:
         }
         if (fullTxData) // if explicitly asked.
             m_fullTxData = true;
-        else if (m_returnTxId || opt.shouldRun()); // we imply false if they want a subset.
+        else if (m_returnTxId || opt.shouldRun()) // we imply false if they want a subset.
             m_fullTxData = false;
 
         if (index == nullptr)
@@ -741,9 +727,7 @@ public:
         assert(result.getType() == UniValue::VARR);
         for (int i = 0; i < result.size(); ++i) {
             assert(result[i].get_str().size() == 64);
-            char hex[32];
-            convertHashStringToNetworkBytes(hex, result[i]);
-            builder.addByteArray(Api::RegTest::BlockHash, &hex[0], 32);
+            addHash256ToBuilder(builder, Api::RegTest::BlockHash, result[i]);
         }
     }
 };
@@ -912,9 +896,7 @@ Api::RpcParser::RpcParser(const std::string &method, int replyMessageId, int mes
 
 void Api::RpcParser::buildReply(Streaming::MessageBuilder &builder, const UniValue &result)
 {
-    std::vector<char> answer;
-    boost::algorithm::unhex(result.get_str(), back_inserter(answer));
-    builder.add(1, answer);
+    addHash256ToBuilder(builder, 1, result);
 }
 
 void Api::RpcParser::createRequest(const Message &, UniValue &)
