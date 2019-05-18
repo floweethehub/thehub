@@ -57,7 +57,8 @@ struct Match
 
 void AddressMonitorService::findTransactions(Tx::Iterator && iter, FindReason findReason, const FastBlock *block)
 {
-    if (m_remotes.empty())
+    const auto remotes_ = remotes();
+    if (remotes_.empty())
         return;
     auto type = iter.next();
     uint64_t amount = 0;
@@ -84,7 +85,7 @@ void AddressMonitorService::findTransactions(Tx::Iterator && iter, FindReason fi
                     Message message = builder.message(Api::AddressMonitorService,
                                           findReason == Conflicted
                                           ? Api::AddressMonitor::TransactionRejected : Api::AddressMonitor::TransactionFound);
-                    m_remotes[i->first]->connection.send(message);
+                    remotes_[i->first]->connection.send(message);
                 }
                 matchingRemotes.clear();
             }
@@ -105,8 +106,8 @@ void AddressMonitorService::findTransactions(Tx::Iterator && iter, FindReason fi
                         keyID = CPubKey(vSolutions[0]).GetID();
                     else if (whichType == TX_PUBKEYHASH)
                         keyID = CKeyID(uint160(vSolutions[0]));
-                    for (size_t i = 0; i < m_remotes.size(); ++i) {
-                        RemoteWithKeys *rwk = static_cast<RemoteWithKeys*>(m_remotes.at(i));
+                    for (size_t i = 0; i < remotes_.size(); ++i) {
+                        RemoteWithKeys *rwk = static_cast<RemoteWithKeys*>(remotes_.at(i));
                         if (rwk->keys.find(keyID) != rwk->keys.end()) {
                             Match &m = matchingRemotes[i];
                             m.amount += amount;
@@ -185,7 +186,7 @@ void AddressMonitorService::updateBools()
     // ok, the first usage is a point-of-sale, I see no need to use P2SH or multisig, so we only actually
     // monitor P2PKH types for now... Boring, I know.
     m_findP2PKH = false;
-    for (auto remote : m_remotes) {
+    for (auto remote : remotes()) {
         RemoteWithKeys *rwk = static_cast<RemoteWithKeys*>(remote);
         m_findP2PKH = m_findP2PKH || !rwk->keys.empty();
     }

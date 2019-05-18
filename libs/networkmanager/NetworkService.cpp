@@ -18,28 +18,54 @@
 #include "NetworkService.h"
 #include "NetworkManager.h"
 
+#include <deque>
+#include <atomic>
+#include <utility>
+
+class RemoteContainer {
+public:
+    std::deque<NetworkService::Remote*> data;
+
+    ~RemoteContainer() {
+        for (auto r : data) {
+            delete r;
+        }
+    }
+};
+
 NetworkService::NetworkService(int serviceId)
-    : NetworkServiceBase(serviceId)
+    : NetworkServiceBase(serviceId),
+      m_remotes(new RemoteContainer())
 {
 }
 
 NetworkService::~NetworkService()
 {
-    for (auto r : m_remotes) {
-        delete r;
+    RemoteContainer *c;
+    while (true) {
+        c = m_remotes.exchange(nullptr, std::memory_order_acq_rel);
+        if (c)
+            break;
+        // if 'locked' avoid burning CPU
+        struct timespec tim, tim2;
+        tim.tv_sec = 0;
+        tim.tv_nsec = 200;
+        nanosleep(&tim , &tim2);
     }
+    delete c;
 }
 
 void NetworkService::onIncomingMessage(const Message &message, const EndPoint &ep)
 {
-    for (auto remote : m_remotes) {
+    for (auto remote : remotes()) {
         if (remote->connection.endPoint().connectionId == ep.connectionId) {
             onIncomingMessage(remote, message, ep);
             return;
         }
     }
-    for (auto remote : m_remotes) {
-        if (remote->connection.endPoint().announcePort == ep.announcePort && remote->connection.endPoint().hostname == ep.hostname) {
+    for (auto remote : remotes()) {
+        if (remote->connection.endPoint().announcePort == ep.announcePort
+                && remote->connection.endPoint().hostname == ep.hostname) {
             onIncomingMessage(remote, message, ep);
             return;
         }
@@ -50,16 +76,16 @@ void NetworkService::onIncomingMessage(const Message &message, const EndPoint &e
     con.setOnDisconnected(std::bind(&NetworkService::onDisconnected, this, std::placeholders::_1));
     Remote *r = createRemote();
     r->connection = std::move(con);
-    m_remotes.push_back(r);
+    addRemote(r);
     onIncomingMessage(r, message, ep);
 }
 
 void NetworkService::onDisconnected(const EndPoint &endPoint)
 {
-    for (auto iter = m_remotes.begin(); iter != m_remotes.end(); ++iter) {
-        if ((*iter)->connection.endPoint().connectionId == endPoint.connectionId) {
-            delete (*iter);
-            m_remotes.erase(iter);
+    for (auto remote : remotes()) {
+        if (remote->connection.endPoint().connectionId == endPoint.connectionId) {
+            removeRemote(remote);
+            delete remote;
             return;
         }
     }
@@ -68,6 +94,65 @@ void NetworkService::onDisconnected(const EndPoint &endPoint)
 NetworkService::Remote *NetworkService::createRemote()
 {
     return new Remote();
+}
+
+std::deque<NetworkService::Remote *> NetworkService::remotes() const
+{
+    RemoteContainer *c;
+    while (true) {
+        c = m_remotes.exchange(nullptr, std::memory_order_acq_rel);
+        if (c)
+            break;
+        // if 'locked' avoid burning CPU
+        struct timespec tim, tim2;
+        tim.tv_sec = 0;
+        tim.tv_nsec = 200;
+        nanosleep(&tim , &tim2);
+    }
+    std::deque<NetworkService::Remote *> copy = c->data;
+    m_remotes.store(c, std::memory_order_release);
+    return copy;
+}
+
+void NetworkService::addRemote(NetworkService::Remote *remote)
+{
+    RemoteContainer *c;
+    while (true) {
+        c = m_remotes.exchange(nullptr, std::memory_order_acq_rel);
+        if (c)
+            break;
+        // if 'locked' avoid burning CPU
+        struct timespec tim, tim2;
+        tim.tv_sec = 0;
+        tim.tv_nsec = 200;
+        nanosleep(&tim , &tim2);
+    }
+    c->data.push_back(remote);
+    m_remotes.store(c, std::memory_order_release);
+
+}
+
+void NetworkService::removeRemote(NetworkService::Remote *remote)
+{
+    RemoteContainer *c;
+    while (true) {
+        c = m_remotes.exchange(nullptr, std::memory_order_acq_rel);
+        if (c)
+            break;
+        // if 'locked' avoid burning CPU
+        struct timespec tim, tim2;
+        tim.tv_sec = 0;
+        tim.tv_nsec = 200;
+        nanosleep(&tim , &tim2);
+    }
+    for (auto iter = c->data.begin(); iter != c->data.end(); ++iter) {
+        if (*iter == remote) {
+            c->data.erase(iter);
+            break;
+        }
+    }
+    m_remotes.store(c, std::memory_order_release);
+
 }
 
 NetworkService::Remote::~Remote()

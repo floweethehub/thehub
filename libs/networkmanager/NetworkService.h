@@ -20,10 +20,12 @@
 
 #include "NetworkConnection.h"
 #include "NetworkServiceBase.h"
-
-#include <vector>
-
 #include <streaming/BufferPool.h>
+
+#include <deque>
+#include <mutex>
+
+class RemoteContainer;
 
 /**
  * Implement a handler of service messages.
@@ -61,9 +63,13 @@ protected:
     /// factory method, please return a subclass of Remote with your own data in it
     virtual Remote *createRemote();
 
-    std::vector<Remote*> m_remotes;
+    std::deque<Remote*> remotes() const;
 
 private:
+    void addRemote(Remote *remote);
+    void removeRemote(Remote *remote);
+    mutable std::atomic<RemoteContainer*> m_remotes;
+
     void onDisconnected(const EndPoint &endPoint);
 };
 
