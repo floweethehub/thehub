@@ -42,9 +42,6 @@ int main(int argc, char **argv)
     app.addClientOptions(parser);
     parser.process(app.arguments());
     app.setup("client.log");
-    const QStringList args = parser.positionalArguments();
-    if (args.isEmpty())
-        parser.showHelp(1);
 
     // Wallet needs this to work;
     ECC_Start();
