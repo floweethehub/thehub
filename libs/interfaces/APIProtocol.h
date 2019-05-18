@@ -54,6 +54,7 @@ enum ApiTags {
     BlockHash,
     Amount,
     BlockHeight,
+    OffsetInBlock,
     RequestId = 11 ///< Use only in headers.
 };
 
@@ -186,7 +187,7 @@ enum Tags {
     BlockHeight = Api::BlockHeight,
 
     // GetBlockReply  / GetTransactionReply tags
-    Tx_OffsetInBlock,
+    Tx_OffsetInBlock = Api::OffsetInBlock,
     Tx_IN_TxId,
     Tx_IN_OutIndex,
     Tx_InputScript,
@@ -316,10 +317,10 @@ enum Tags {
     BlockHash = Api::BlockHash,
     /// An unsigned 64 bit number for the amount of satshi you received
     Amount = Api::Amount,
-    /// If a transaction is added in a block, this is the offset-in-block
-    OffsetInBlock,
     /// positive-number. the amount of addresses found in the subscribe/unsubscribe message
     Result,
+    /// If a transaction is added in a block, this is the offset-in-block
+    OffsetInBlock = Api::OffsetInBlock,
     /// A string giving a human (or, at least, developer) readable error message
     ErrorMessage
 };
@@ -353,7 +354,7 @@ enum Tags {
     BitcoinAddress = Api::BitcoinAddress,
     TxId = Api::TxId,
     BlockHeight = Api::BlockHeight,
-    OffsetInBlock,
+    OffsetInBlock = Api::OffsetInBlock,
     OutIndex,
 
     AddressIndexer,
