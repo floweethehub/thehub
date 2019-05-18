@@ -40,7 +40,8 @@ BlockNotificationService::~BlockNotificationService()
 
 void BlockNotificationService::SyncAllTransactionsInBlock(const FastBlock &, CBlockIndex *index)
 {
-    if (m_remotes.empty())
+    const auto remotes_ = remotes();
+    if (remotes_.empty())
         return;
     m_pool.reserve(45);
     Streaming::MessageBuilder builder(m_pool);
@@ -48,7 +49,7 @@ void BlockNotificationService::SyncAllTransactionsInBlock(const FastBlock &, CBl
     builder.add(Api::BlockNotification::BlockHeight, index->nHeight);
     Message message(builder.message(Api::BlockNotificationService, Api::BlockNotification::NewBlockOnChain));
 
-    for (auto remote : m_remotes) {
+    for (auto remote : remotes_) {
         RemoteSubscriptionInfo *subinfo = static_cast<RemoteSubscriptionInfo*>(remote);
         if (subinfo->m_wantsNewBlockHashes)
             subinfo->connection.send(message);
