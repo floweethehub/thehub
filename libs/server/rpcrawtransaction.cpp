@@ -228,9 +228,9 @@ UniValue getrawtransaction(const UniValue& params, bool fHelp)
             }
             block = block->pprev;
         }
-        if (!success)
-            throw JSONRPCError(RPC_INVALID_ADDRESS_OR_KEY, "No information available about transaction");
     }
+    if (!success)
+        throw JSONRPCError(RPC_INVALID_ADDRESS_OR_KEY, "No information available about transaction");
 
     std::string strHex = EncodeHexTx(tx);
 
