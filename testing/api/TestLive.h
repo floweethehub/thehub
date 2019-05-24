@@ -1,6 +1,6 @@
 /*
  * This file is part of the Flowee project
- * Copyright (C) 2016 Tom Zander <tomz@freedommail.ch>
+ * Copyright (C) 2019 Tom Zander <tomz@freedommail.ch>
  *
  * This program is free software: you can redistribute it and/or modify
  * it under the terms of the GNU General Public License as published by
@@ -15,34 +15,16 @@
  * You should have received a copy of the GNU General Public License
  * along with this program.  If not, see <http://www.gnu.org/licenses/>.
  */
-#ifndef NETWORKENDPOINT_H
-#define NETWORKENDPOINT_H
+#ifndef TESTAPI_H
+#define TESTAPI_H
 
-#include <string>
-#include <cstdint>
+#include <common/BlackBoxTest.h>
 
-#include <boost/asio/ip/address.hpp>
-
-/// Describes a remote server.
-struct EndPoint
+class TestApiLive : public BlackBoxTest
 {
-    EndPoint()
-        : peerPort(0),
-        announcePort(0),
-        connectionId(-1)
-    {
-    }
-    EndPoint(const std::string &hostname, std::uint16_t port)
-        : hostname(hostname),
-          peerPort(port),
-          announcePort(port)
-    {
-    }
-    boost::asio::ip::address ipAddress;
-    std::string hostname;
-    std::uint16_t peerPort;
-    std::uint16_t announcePort;
-    int connectionId;
+    Q_OBJECT
+private slots:
+    void testBasic();
 };
 
 #endif

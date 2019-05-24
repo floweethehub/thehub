@@ -1,6 +1,6 @@
 /*
  * This file is part of the Flowee project
- * Copyright (C) 2016 Tom Zander <tomz@freedommail.ch>
+ * Copyright (C) 2019 Tom Zander <tomz@freedommail.ch>
  *
  * This program is free software: you can redistribute it and/or modify
  * it under the terms of the GNU General Public License as published by
@@ -15,34 +15,23 @@
  * You should have received a copy of the GNU General Public License
  * along with this program.  If not, see <http://www.gnu.org/licenses/>.
  */
-#ifndef NETWORKENDPOINT_H
-#define NETWORKENDPOINT_H
+#include "TestLive.h"
 
-#include <string>
-#include <cstdint>
+#include <QTest>
 
-#include <boost/asio/ip/address.hpp>
-
-/// Describes a remote server.
-struct EndPoint
+int main(int x, char **y)
 {
-    EndPoint()
-        : peerPort(0),
-        announcePort(0),
-        connectionId(-1)
-    {
+    if (x > 1) {
+        QFileInfo file(QString::fromLatin1(y[1]));
+        if (file.exists())
+            BlackBoxTest::setHubExecutable(file.absoluteFilePath());
     }
-    EndPoint(const std::string &hostname, std::uint16_t port)
-        : hostname(hostname),
-          peerPort(port),
-          announcePort(port)
+    int rc = 0;
     {
+        TestApiLive test;
+        rc = QTest::qExec(&test);
     }
-    boost::asio::ip::address ipAddress;
-    std::string hostname;
-    std::uint16_t peerPort;
-    std::uint16_t announcePort;
-    int connectionId;
-};
-
-#endif
+    if (!rc) {
+    }
+    return rc;
+}
