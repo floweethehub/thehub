@@ -41,28 +41,38 @@ Api::Server::Server(boost::asio::io_service &service)
       m_newConnectionTimeout(service)
 {
     int defaultPort = BaseParams().ApiServerPort();
-    std::list<boost::asio::ip::tcp::endpoint> endpoints;
+    using boost::asio::ip::tcp;
+    std::list<tcp::endpoint> endpoints;
 
     if (mapArgs.count("-apilisten")) {
         for (auto strAddress : mapMultiArgs["-apilisten"]) {
             int port = defaultPort;
             std::string host;
             SplitHostPort(strAddress, port, host);
-            if (host.empty())
+            if (host.empty()) {
                 host = "127.0.0.1";
-            endpoints.push_back(boost::asio::ip::tcp::endpoint(boost::asio::ip::address::from_string(host), port));
+            } else if (host == "localhost") {
+                endpoints.push_back(tcp::endpoint(boost::asio::ip::address_v4::loopback(), port));
+                endpoints.push_back(tcp::endpoint(boost::asio::ip::address_v6::loopback(), port));
+                continue;
+            }
+            try {
+                endpoints.push_back(tcp::endpoint(boost::asio::ip::address::from_string(host), port));
+            } catch (std::runtime_error &e) {
+                logCritical(Log::ApiServer) << "Bind port needs to be an API address. Parsing failed with" << e;
+            }
         }
     } else {
-        endpoints.push_back(boost::asio::ip::tcp::endpoint(boost::asio::ip::address::from_string("127.0.0.1"), defaultPort));
-        endpoints.push_back(boost::asio::ip::tcp::endpoint(boost::asio::ip::address::from_string("::1"), defaultPort));
+        endpoints.push_back(tcp::endpoint(boost::asio::ip::address_v4::loopback(), defaultPort));
+        endpoints.push_back(tcp::endpoint(boost::asio::ip::address_v6::loopback(), defaultPort));
     }
 
     for (auto endpoint : endpoints) {
         try {
             m_networkManager.bind(endpoint, std::bind(&Api::Server::newConnection, this, std::placeholders::_1));
-            LogPrintf("Api Server listening on %s\n", endpoint);
+            logInfo(Log::ApiServer) << "Api Server listening on" << endpoint;
         } catch (const std::exception &e) {
-            LogPrintf("Api Server failed to listen on %s. %s", endpoint, e.what());
+            logCritical(Log::ApiServer) << "Api Server failed to listen on" << endpoint << "due to:" << e;
         }
     }
 }
