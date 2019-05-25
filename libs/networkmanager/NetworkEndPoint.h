@@ -38,6 +38,12 @@ struct EndPoint
           announcePort(port)
     {
     }
+    EndPoint(const boost::asio::ip::address &ip, std::uint16_t port)
+        : ipAddress(ip),
+          peerPort(port),
+          announcePort(port)
+    {
+    }
     boost::asio::ip::address ipAddress;
     std::string hostname;
     std::uint16_t peerPort;

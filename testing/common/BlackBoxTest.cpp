@@ -1,29 +1,26 @@
 #include "BlackBoxTest.h"
-#include <NetworkManager.h>
 
 #include <QTime>
 
 #include <signal.h>
+#include <streaming/MessageParser.h>
 #include <sys/types.h>
 
 QString BlackBoxTest::s_hubPath = QString();
 
 BlackBoxTest::BlackBoxTest(QObject *parent)
-    : QObject(parent)
+    : QObject(parent),
+      m_network(m_workers.ioService())
 {
     srand(QTime::currentTime().msecsSinceStartOfDay());
     if (s_hubPath.isEmpty()) // assume running from builddir directly
         s_hubPath = QString(QT_TESTCASE_BUILDDIR "/hub/hub");
+    Log::Manager::instance()->clearLogLevels(Log::DebugLevel);
 }
 
 void BlackBoxTest::setHubExecutable(const QString &path)
 {
     s_hubPath = path;
-}
-
-void BlackBoxTest::init()
-{
-    m_network = new NetworkManager(m_workers.ioService());
 }
 
 void BlackBoxTest::startHubs(int amount, Connect connect)
@@ -32,6 +29,7 @@ void BlackBoxTest::startHubs(int amount, Connect connect)
     Q_ASSERT(amount > 0);
     m_currentTest = QString(QTest::currentTestFunction());
     m_baseDir = QDir::tempPath() + QString("/flowee-bbtest-%1").arg(rand());
+    logDebug() << "Starting hub at" << m_baseDir << "with" << s_hubPath;
     int port = rand() % 31000 + 1000;
     for (int i = 0; i < amount; ++i) {
         Hub hub;
@@ -49,14 +47,13 @@ void BlackBoxTest::startHubs(int amount, Connect connect)
         conf << "port=" << hub.p2pPort << "\n"
             "listenonion=0\n"
             "api=true\n"
-            "keypool=1\n"
             "server=false\n"
             "regtest=true\n"
-            "apilisten=localhost:" << hub.apiPort << "\n"
+            "apilisten=127.0.0.1:" << hub.apiPort << "\n"
             "discover=false\n";
 
         if (connect == ConnectHubs && i > 0)
-            conf << "connect=localhost:" << hub.p2pPort - 2 << "\n\n";
+            conf << "connect=127.0.0.1:" << hub.p2pPort - 2 << "\n\n";
         confFile.close();
 
         QFile logConfFile(nodePath + "logs.conf");
@@ -71,14 +68,13 @@ void BlackBoxTest::startHubs(int amount, Connect connect)
         hub.proc->setArguments(QStringList() << "-conf=" + nodePath + "flowee.conf" <<"-datadir=" + m_baseDir +
                                QString("/node%1").arg(i));
         hub.proc->start(QProcess::ReadOnly);
-
-        con.push_back(std::move(m_network->connection(EndPoint("localhost", hub.apiPort))));
+        con.push_back(std::move(m_network.connection(
+                EndPoint(boost::asio::ip::address_v4::loopback(), hub.apiPort))));
         con.back().setOnIncomingMessage(std::bind(&BlackBoxTest::Hub::addMessage, &m_hubs.back(), std::placeholders::_1));
-        con.back().connect();
     }
 }
 
-Message BlackBoxTest::waitForMessage(int hubId, Api::ServiceIds serviceId, int messageId, int timeout)
+Message BlackBoxTest::waitForMessage(int hubId, Api::ServiceIds serviceId, int messageId, int messageFailedId, int timeout)
 {
     Q_ASSERT(hubId >= 0);
     Q_ASSERT(hubId < m_hubs.size());
@@ -87,10 +83,11 @@ Message BlackBoxTest::waitForMessage(int hubId, Api::ServiceIds serviceId, int m
     Hub &hub = m_hubs[hubId];
     hub.m_waitForMessageId = messageId;
     hub.m_waitForServiceId = serviceId;
+    hub.m_waitForMessageId2 = messageFailedId;
+    hub.m_foundMessage.store(nullptr);
     while (true) {
         Message *m = hub.m_foundMessage.load();
-        if (m && m->serviceId() == serviceId && m->messageId() == messageId)
-            return *m;
+        if (m) return *m;
 
         if (timeout < timer.elapsed())
             return Message();
@@ -105,8 +102,10 @@ Message BlackBoxTest::waitForMessage(int hubId, Api::ServiceIds serviceId, int m
 
 void BlackBoxTest::cleanup()
 {
-    delete m_network;
-    m_network = nullptr;
+    for (int i = 0; i < con.size(); ++i) {
+        con[i].disconnect();
+    }
+    con.clear();
     if (m_hubs.empty()) // no hubs started
         return;
     // shut down hubs
@@ -146,12 +145,31 @@ void BlackBoxTest::cleanup()
 
 void BlackBoxTest::Hub::addMessage(const Message &message)
 {
-    // logFatal() << "addMessage" << message.serviceId() << message.messageId();
+    logDebug() << "addMessage" << message.serviceId() << message.messageId() << " queue:" << messages.size();
     // logFatal() << " wait: " << m_waitForServiceId  << m_waitForMessageId;
     messages.push_back(message);
     if (m_waitForServiceId != -1 && m_waitForMessageId != -1) {
         if (message.serviceId() == m_waitForServiceId && message.messageId() == m_waitForMessageId) {
             m_foundMessage.store(&messages.back());
+        }
+        // also check the failed message as API Service generates.
+        else if (message.serviceId() == Api::APIService && message.messageId() == Api::Meta::CommandFailed) {
+            Streaming::MessageParser parser = Streaming::MessageParser(message.body());
+            int ok = 0;
+            while (ok < 2 && parser.next() == Streaming::FoundTag) {
+                if (parser.tag() == Api::Meta::FailedCommandId) {
+                    if (parser.intData() != m_waitForMessageId2)
+                        return;
+                    ok++;
+                }
+                else if (parser.tag() == Api::Meta::FailedCommandServiceId) {
+                    if (parser.intData() != m_waitForServiceId)
+                        return;
+                    ok++;
+                }
+            }
+            if (ok == 2)
+                m_foundMessage.store(&messages.back());
         }
     }
 }

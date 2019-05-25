@@ -25,6 +25,7 @@ class TestApiLive : public BlackBoxTest
     Q_OBJECT
 private slots:
     void testBasic();
+    void testSendTx();
 };
 
 #endif

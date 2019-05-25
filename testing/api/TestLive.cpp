@@ -29,7 +29,7 @@ void TestApiLive::testBasic()
     QCOMPARE((int) con.size(), 1);
 
     con[0].send(Message(Api::APIService, Api::Meta::Version));
-    Message m = waitForMessage(0, Api::APIService, Api::Meta::VersionReply);
+    Message m = waitForMessage(0, Api::APIService, Api::Meta::VersionReply, Api::Meta::Version);
     QCOMPARE((int) m.serviceId(), (int) Api::APIService);
     QCOMPARE((int) m.messageId(), (int) Api::Meta::VersionReply);
     Streaming::MessageParser parser(m.body());
@@ -41,4 +41,55 @@ void TestApiLive::testBasic()
         }
     }
     QVERIFY(false); // version not included in reply
+}
+
+void TestApiLive::testSendTx()
+{
+    startHubs();
+    con[0].send(Message(Api::UtilService, Api::Util::CreateAddress));
+    Message m = waitForMessage(0, Api::UtilService, Api::Util::CreateAddressReply, Api::Util::CreateAddress);
+    Streaming::MessageParser parser(m.body());
+    Streaming::ConstBuffer address;
+    while (parser.next() == Streaming::FoundTag) {
+        if (parser.tag() == Api::Util::BitcoinAddress) {
+            address = parser.bytesDataBuffer();
+            break;
+        }
+    }
+
+    Streaming::MessageBuilder builder(Streaming::NoHeader, 100000);
+    builder.add(Api::RegTest::BitcoinAddress, address);
+    builder.add(Api::RegTest::Amount, 101);
+    con[0].send(builder.message(Api::RegTestService, Api::RegTest::GenerateBlock));
+    m = waitForMessage(0, Api::RegTestService, Api::RegTest::GenerateBlockReply, Api::RegTest::GenerateBlock);
+    QCOMPARE(m.serviceId(), (int) Api::RegTestService);
+
+    builder.add(Api::BlockChain::BlockHeight, 2);
+    con[0].send(builder.message(Api::BlockChainService, Api::BlockChain::GetBlock));
+    m = waitForMessage(0, Api::BlockChainService, Api::BlockChain::GetBlockReply, Api::BlockChain::GetBlock);
+    QCOMPARE(m.serviceId(), (int) Api::BlockChainService);
+    QCOMPARE(m.messageId(), (int) Api::BlockChain::GetBlockReply);
+    Streaming::ConstBuffer coinbase;
+    parser = Streaming::MessageParser(m.body());
+    while (parser.next() == Streaming::FoundTag) {
+        if (parser.tag() == Api::BlockChain::GenericByteData) {
+            coinbase = parser.bytesDataBuffer();
+            break;
+        }
+    }
+    QVERIFY(coinbase.size() > 0);
+    m_hubs[0].messages.clear();
+    for (int i = 0; i < 100; ++i) {
+        builder.add(Api::LiveTransactions::Transaction, coinbase);
+        con[0].send(builder.message(Api::LiveTransactionService, Api::LiveTransactions::SendTransaction));
+    }
+    con[0].send(Message(Api::APIService, Api::Meta::Version));
+    waitForMessage(0, Api::APIService, Api::Meta::VersionReply, Api::Meta::Version);
+    auto messages = m_hubs[0].messages;
+    QCOMPARE((int) messages.size(), 101);
+    for (int i = 0; i < 100; ++i) {
+        // Streaming::MessageParser::debugMessage(messages[i]);
+        QCOMPARE(messages[i].messageId(), (int) Api::Meta::CommandFailed);
+        QCOMPARE(messages[i].serviceId(), (int) Api::APIService);
+    }
 }

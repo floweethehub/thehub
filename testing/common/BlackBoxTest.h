@@ -5,6 +5,7 @@
 #include <QObject>
 
 #include <NetworkConnection.h>
+#include <NetworkManager.h>
 #include <APIProtocol.h>
 #include <WorkerThreads.h>
 #include <Message.h>
@@ -20,13 +21,12 @@ public:
     static void setHubExecutable(const QString &path);
 
 protected slots:
-    void init();
     void cleanup(); // called after each test to clean up the started hubs
 
 protected:
     enum Connect { ConnectHubs, Standalone };
     void startHubs(int amount = 1, Connect connect = ConnectHubs);
-    Message waitForMessage(int hub, Api::ServiceIds serviceId, int messageId, int timeout = 30000);
+    Message waitForMessage(int hub, Api::ServiceIds serviceId, int messageId, int messageFailedId, int timeout = 30000);
 
     struct Hub {
         QProcess *proc;
@@ -37,12 +37,13 @@ protected:
 
         int m_waitForServiceId = -1;
         int m_waitForMessageId = -1;
+        int m_waitForMessageId2 = -1;
         QAtomicPointer<Message> m_foundMessage;
     };
     std::vector<Hub> m_hubs;
     std::vector<NetworkConnection> con;
     WorkerThreads m_workers;
-    NetworkManager *m_network = nullptr;
+    NetworkManager m_network;
     QString m_currentTest;
     QString m_baseDir;
     static QString s_hubPath;
