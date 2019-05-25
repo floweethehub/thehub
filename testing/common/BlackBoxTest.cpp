@@ -136,8 +136,19 @@ void BlackBoxTest::cleanup()
         }
         hub.proc->deleteLater();
     }
-    if (allOk)
+    if (allOk) {
         QDir(m_baseDir).removeRecursively();
+    } else {
+        for (int i = 0; i < m_hubs.size(); ++i) {
+            QFile log(m_baseDir + QString("/node%1/regtest/hub.log").arg(i));
+            if (log.open(QIODevice::ReadOnly)) {
+                QTextStream in(&log);
+                while (!in.atEnd()) {
+                    logFatal().nospace() << "{HUB" << i << "} " << in.readLine().toLatin1().data();
+                }
+            }
+        }
+    }
     m_hubs.clear();
     m_currentTest.clear();
     m_baseDir.clear();
