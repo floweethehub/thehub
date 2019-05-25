@@ -284,6 +284,7 @@ NetworkManagerConnection::NetworkManagerConnection(const std::shared_ptr<Network
 
 void NetworkManagerConnection::connect()
 {
+    m_isClosingDown.store(false);
     if (m_strand.running_in_this_thread())
         connect_priv();
     else
@@ -884,14 +885,17 @@ void NetworkManagerConnection::close(bool reconnect)
         d->connections.erase(m_remote.connectionId);
         return;
     }
+    if (!reconnect)
+        m_isClosingDown = true;
+
     m_receiveStream.clear();
     m_sendHelperBuffer.clear();
     m_chunkedMessageBuffer.clear();
     m_messageBytesSend = 0;
     m_messageBytesSent = 0;
-
+    m_reconnectDelay.cancel();
+    m_resolver.cancel();
     m_sendQHeaders.clear();
-
     m_socket.close();
     m_pingTimer.cancel();
     if (reconnect && !m_isClosingDown) { // auto reconnect.
