@@ -896,7 +896,13 @@ Api::RpcParser::RpcParser(const std::string &method, int replyMessageId, int mes
 
 void Api::RpcParser::buildReply(Streaming::MessageBuilder &builder, const UniValue &result)
 {
-    addHash256ToBuilder(builder, 1, result);
+    assert(result.isStr());
+    if (result.get_str().size() == 64) // assume sha256 which for some reason gets reversed in text
+        addHash256ToBuilder(builder, 1, result);
+
+    std::vector<char> answer;
+    boost::algorithm::unhex(result.get_str(), back_inserter(answer));
+    builder.add(1, answer);
 }
 
 void Api::RpcParser::createRequest(const Message &, UniValue &)

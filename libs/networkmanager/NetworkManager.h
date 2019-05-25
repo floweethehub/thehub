@@ -83,4 +83,18 @@ private:
     std::shared_ptr<NetworkManagerPrivate> d;
 };
 
+#include <Logger.h>
+
+inline Log::Item operator<<(Log::Item item, const boost::asio::ip::tcp::endpoint &ep) {
+    if (item.isEnabled()) {
+        const bool old = item.useSpace();
+        item.nospace() << '[' << ep.address().to_string() << ":" << ep.port() << "]";
+        if (old)
+            return item.space();
+    }
+    return item;
+}
+template<class V>
+inline Log::SilentItem operator<<(Log::SilentItem item, const boost::asio::ip::tcp::endpoint&) { return item; }
+
 #endif

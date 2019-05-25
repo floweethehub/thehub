@@ -639,7 +639,9 @@ int main(int argc, char *argv[])
             return 1;
         }
     }
-    const bool confPathSet = !GetArg("-conf", "").empty();
+    boost::filesystem::path pathConfigFile = GetArg("-conf", "");
+    const bool confPathSet = pathConfigFile.is_complete();
+
     if (!confPathSet) // first select chain, so we read the right conf file.
         SelectChain();
     try {
