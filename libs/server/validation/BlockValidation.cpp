@@ -287,8 +287,19 @@ void ValidationEnginePrivate::blockHeaderValidated(std::shared_ptr<BlockValidati
     if (currentHeaderTip && !Blocks::DB::instance()->headerChain().Contains(currentHeaderTip)) { // re-org happened in headers.
         logInfo(Log::BlockValidation) << "Header-reorg detected. height=" << prevTip->nHeight <<
                                          "Old-tip" << *currentHeaderTip->phashBlock << "@" << currentHeaderTip->nHeight;
-        if (currentHeaderTip->nHeight - Blocks::DB::instance()->headerChain().Height() > 6) {
+        bool bigReorg = true;
+        if (currentHeaderTip->GetAncestor(blockchain->Height()) != blockchain->Tip()) {
+            // the reorg removes blocks from our validated chain!
+            // Now see how big a reorg we are talking...
+            auto commonAncestor = Blocks::Index::lastCommonAncestor(currentHeaderTip, blockchain->Tip());
+            bigReorg = blockchain->Height() - commonAncestor->nHeight > 6; // removing more than 6 blocks needed
+        }
+        if (bigReorg)
+            bigReorg = Params().NetworkIDString() != CBaseChainParams::REGTEST; // reorgs are fine on REGTEST
+
+        if (bigReorg) {
             logCritical(Log::BlockValidation) << "Reorg larger than 6 blocks detected, this needs manual intervention.";
+            logCritical(Log::BlockValidation) << "  Use invalidateblock and reconsiderblock methods to change chain.";
         } else {
             prepareChain();
             lastFullBlockScheduled = -1;
