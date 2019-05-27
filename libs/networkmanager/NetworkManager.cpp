@@ -304,7 +304,6 @@ void NetworkManagerConnection::connect_priv()
         tcp::resolver::query query(m_remote.hostname, boost::lexical_cast<std::string>(m_remote.announcePort));
         m_resolver.async_resolve(query, m_strand.wrap(std::bind(&NetworkManagerConnection::onAddressResolveComplete, this, std::placeholders::_1, std::placeholders::_2)));
     } else {
-        m_isConnecting = false;
         if (m_remote.hostname.empty())
             m_remote.hostname = m_remote.ipAddress.to_string();
         boost::asio::ip::tcp::endpoint endpoint(m_remote.ipAddress, m_remote.announcePort);
@@ -315,11 +314,11 @@ void NetworkManagerConnection::connect_priv()
 
 void NetworkManagerConnection::onAddressResolveComplete(const boost::system::error_code &error, tcp::resolver::iterator iterator)
 {
-    m_isConnecting = false;
     if (m_isClosingDown)
         return;
     if (error) {
         logWarning(Log::NWM) << "connect;" << error.message();
+        m_isConnecting = false;
         m_reconnectDelay.expires_from_now(boost::posix_time::seconds(45));
         m_reconnectDelay.async_wait(m_strand.wrap(std::bind(&NetworkManagerConnection::reconnectWithCheck, this, std::placeholders::_1)));
         return;
@@ -339,6 +338,7 @@ void NetworkManagerConnection::onConnectComplete(const boost::system::error_code
         return;
     if (m_isClosingDown)
         return;
+    m_isConnecting = false;
     if (error) {
         logInfo(Log::NWM) << "connect;" << error.message();
         if (m_remote.peerPort != m_remote.announcePort) // incoming connection

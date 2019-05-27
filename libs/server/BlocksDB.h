@@ -156,6 +156,10 @@ namespace Index {
     int size();
     bool reconsiderBlock(CBlockIndex *pindex);
 
+    /** Find the last common ancestor two blocks have.
+     *  Both pa and pb must be non-NULL. */
+    CBlockIndex* lastCommonAncestor(CBlockIndex* pa, CBlockIndex* pb);
+
     /**
      * @brief fileIndexes loops over all blocks to find indexes.
      * @return a set of file-indexes (blk[num].dat) that contain blocks.
