@@ -20,6 +20,7 @@ include (testlib)
 add_executable(test_api
     ../common/BlackBoxTest.cpp
     TestLive.cpp
+    TestBlockchain.cpp
     main.cpp
 )
 target_link_libraries(test_api

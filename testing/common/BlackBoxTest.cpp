@@ -4,6 +4,7 @@
 
 #include <signal.h>
 #include <streaming/MessageParser.h>
+#include <util.h>
 #include <sys/types.h>
 
 QString BlackBoxTest::s_hubPath = QString();
@@ -72,6 +73,8 @@ void BlackBoxTest::startHubs(int amount, Connect connect)
                 EndPoint(boost::asio::ip::address_v4::loopback(), hub.apiPort))));
         con.back().setOnIncomingMessage(std::bind(&BlackBoxTest::Hub::addMessage, &m_hubs.back(), std::placeholders::_1));
     }
+    MilliSleep(500); // Assuming that the hub takes half a second is better than assuming it doesn't and hitting the reconnect-time.
+    con.back().connect();
 }
 
 Message BlackBoxTest::waitForMessage(int hubId, Api::ServiceIds serviceId, int messageId, int messageFailedId, int timeout)
