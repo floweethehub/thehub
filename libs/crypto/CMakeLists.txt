@@ -60,3 +60,4 @@ if (${AVX2})
 endif()
 
 add_library(flowee_crypto STATIC ${FLOWEE_LIBRARY_SOURCES})
+install(FILES ${CMAKE_CURRENT_BINARY_DIR}/libflowee_crypto.a DESTINATION lib)

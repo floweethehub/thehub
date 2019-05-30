@@ -26,3 +26,5 @@ add_library(flowee_networkmanager STATIC
 )
 
 target_link_libraries(flowee_networkmanager flowee_utils)
+install(FILES ${CMAKE_CURRENT_BINARY_DIR}/libflowee_networkmanager.a DESTINATION lib)
+

@@ -23,3 +23,9 @@ set (FLOWEE_INTERFACE_FILES
 add_library(flowee_interfaces STATIC
     ${FLOWEE_INTERFACE_FILES}
 )
+install(FILES
+    APIProtocol.h
+    NetworkEnums.h
+    validationinterface.h
+DESTINATION include)
+
