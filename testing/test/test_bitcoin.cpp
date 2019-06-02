@@ -68,9 +68,6 @@ BasicTestingSetup::~BasicTestingSetup()
 
 TestingSetup::TestingSetup(const std::string& chainName) : BasicTestingSetup(chainName)
 {
-    if (chainName == CBaseChainParams::REGTEST)
-        Application::setUahfChainState(Application::UAHFActive);
-
 #ifdef ENABLE_WALLET
     bitdb.MakeMock();
 #endif

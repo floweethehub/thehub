@@ -75,7 +75,6 @@ struct Params {
     int64_t nPowTargetTimespan;
     int64_t DifficultyAdjustmentInterval() const { return nPowTargetTimespan / nPowTargetSpacing; }
     int hf201708Height;
-    uint256 hf201708BlockId;
     int hf201711Height; // daa3 got enabled here
     int hf201805Height;
     int hf201811Height;

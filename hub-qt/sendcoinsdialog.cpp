@@ -215,16 +215,8 @@ void SendCoinsDialog::on_sendButton_clicked()
     if(!model || !model->getOptionsModel())
         return;
 
-    if (Application::uahfChainState() == Application::UAHFWaiting) {
-        QMessageBox::information(this, tr("Unsafe to create transaction"),
-            "You selected this wallet to operate on the BCH network, which is not active yet. Please wait until activation.",
-            QMessageBox::Ok);
-        return;
-    }
-
     QList<SendCoinsRecipient> recipients;
     bool valid = true;
-
     for(int i = 0; i < ui->entries->count(); ++i)
     {
         SendCoinsEntry *entry = qobject_cast<SendCoinsEntry*>(ui->entries->itemAt(i)->widget());

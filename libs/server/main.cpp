@@ -2,7 +2,7 @@
  * This file is part of the Flowee project
  * Copyright (c) 2009-2010 Satoshi Nakamoto
  * Copyright (c) 2009-2015 The Bitcoin Core developers
- * Copyright (C) 2017-2018 Tom Zander <tomz@freedommail.ch>
+ * Copyright (C) 2017-2019 Tom Zander <tomz@freedommail.ch>
  *
  * This program is free software: you can redistribute it and/or modify
  * it under the terms of the GNU General Public License as published by
@@ -1253,19 +1253,13 @@ bool LoadBlockIndexDB()
     // Load pointer to end of best chain
     auto tip = Blocks::Index::get(g_utxo->blockId());
     chainActive.SetTip(tip);
-    if (tip == nullptr)
-        return true;
-    auto uahfBlock = tip->GetAncestor(chainparams.GetConsensus().hf201708Height);
-    if (uahfBlock && uahfBlock->GetBlockHash() == chainparams.GetConsensus().hf201708BlockId)
-        Application::instance()->setUahfChainState(Application::UAHFActive);
-
-    logCritical(Log::Bitcoin) << "LoadBlockIndexDB: hashBestChain:" << tip->GetBlockHash()
+    pindexBestHeader = tip;
+    if (tip)
+        logCritical(Log::Bitcoin) << "LoadBlockIndexDB: hashBestChain:" << tip->GetBlockHash()
                                  << "height:" << chainActive.Height()
                                  << "date:" << DateTimeStrFormat("%Y-%m-%d %H:%M:%S", tip->GetBlockTime())
                                  << "progress:" <<  Checkpoints::GuessVerificationProgress(chainparams.Checkpoints(), tip)
                                  << "header height:" << Blocks::DB::instance()->headerChain().Height();
-
-    pindexBestHeader = chainActive.Tip();
     return true;
 }
 
@@ -1784,12 +1778,10 @@ bool static ProcessMessage(CNode* pfrom, std::string strCommand, CDataStream& vR
 
     else if (strCommand == NetMsgType::INV)
     {
-        if (Application::uahfChainState() == Application::UAHFWaiting) {
+        if (chainparams.GetConsensus().hf201905Height > chainActive.Height()) {
             // this means we are not just in initial block download, we are in a state
             // where filling the mempool or getting the latest block just doesn't make any sense.
-            // This avoids us banning CASH nodes before we follow the UAHF rules.
-            if (chainparams.GetConsensus().hf201708Height > chainActive.Height())
-                return true;
+            return true;
         }
         std::vector<CInv> vInv;
         vRecv >> vInv;

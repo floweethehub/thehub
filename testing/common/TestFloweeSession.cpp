@@ -70,8 +70,6 @@ void TestFloweeSession::init()
 TestFloweeSession::TestFloweeSession(const std::string& chainName) : TestFloweeEnvPlusNet(chainName)
 {
     InitSignatureCache();
-    if (chainName == CBaseChainParams::REGTEST)
-        Application::setUahfChainState(Application::UAHFActive);
 }
 
 void TestFloweeSession::cleanup()

@@ -160,7 +160,6 @@ public:
         fTestnetToBeDeprecatedFieldRPC = false;
 
         consensus.hf201708Height = 478559;
-        consensus.hf201708BlockId = uint256S("0x000000000000000000651ef99cb9fcbe0dadde1d424bd9f15ff20136191a5eec");
         consensus.hf201711Height = 504031;
         consensus.hf201805Height = 530356;
         consensus.hf201811Height = 556767;
@@ -181,7 +180,7 @@ public:
             (250000, uint256S("0x000000000000003887df1f29024b06fc2200b55f8af8f35453d7be294df2d214"))
             (279000, uint256S("0x0000000000000001ae8c72a0b0c301f67e3afca10e819efa9041e458e9bd7e40"))
             (295000, uint256S("0x00000000000000004d9b4ef50f0f9d686fd69db2e03af35a100370c64632a983"))
-            (478558, uint256S("0x0000000000000000011865af4122fe3b144e2cbeea86142e8ff2fb4107352d43"))
+            (478559, uint256S("0x000000000000000000651ef99cb9fcbe0dadde1d424bd9f15ff20136191a5eec"))
             (556767, uint256S("0x0000000000000000004626ff6e3b936941d341c5932ece4357eeccac44e6d56c"))
             (582680, uint256S("0x000000000000000001b4b8e36aec7d4f9671a47872cb9a74dc16ca398c7dcc18"))
             ,
@@ -269,19 +268,23 @@ public:
         fTestnetToBeDeprecatedFieldRPC = true;
 
         consensus.hf201708Height = 1155876;
-        consensus.hf201708BlockId = uint256S("0x00000000000e38fef93ed9582a7df43815d5c2ba9fd37ef70c9a0ea4a285b8f5");
         consensus.hf201711Height = 1188697;
         consensus.hf201805Height = 1267994;
         consensus.hf201811Height = 1267997;
-        consensus.hf201905Height = 1267997; // TODO find real one.
+        consensus.hf201905Height = 1303885;
 
         checkpointData = CCheckpointData {
             boost::assign::map_list_of
-            ( 546, uint256S("000000002a936ca763904c3c35fce2f3556c559c0214345d31b1bcebf76acb70"))
+            (546, uint256S("000000002a936ca763904c3c35fce2f3556c559c0214345d31b1bcebf76acb70"))
             (227352, uint256S("0x000000008afc18b89bf27a2412cc158a3364d07252dc8f93581404d3d217026e"))
-            (1012786, uint256S("0x000000000000038b4ff601f65433b54c72a7c0df7746102452623d3808ebba98")),
-            1477526400, // * UNIX timestamp of last checkpoint block
-            11844710,    // * total number of transactions between genesis and last checkpoint
+            (581885, uint256S("0000000023b3a96d3484e5abb3755c413e7d41500f8e2a5c3f0dd01299cd8ef8"))
+            (1012786, uint256S("0x000000000000038b4ff601f65433b54c72a7c0df7746102452623d3808ebba98"))
+            (1012786, uint256S("0x000000000000038b4ff601f65433b54c72a7c0df7746102452623d3808ebba98"))
+            (1155876, uint256S("0x00000000000e38fef93ed9582a7df43815d5c2ba9fd37ef70c9a0ea4a285b8f5"))
+            (1303885, uint256S("00000000000000479138892ef0e4fa478ccc938fb94df862ef5bde7e8dee23d3"))
+            ,
+            1522608381, // * UNIX timestamp of last checkpoint block
+            15052068,    // * total number of transactions between genesis and last checkpoint
                         //   (the tx=... number in the SetBestChain hub.log lines)
             300         // * estimated number of transactions per day after checkpoint
         };
@@ -345,7 +348,6 @@ public:
         fTestnetToBeDeprecatedFieldRPC = false;
 
         consensus.hf201708Height = 0;
-        consensus.hf201708BlockId = consensus.hashGenesisBlock;
         consensus.hf201711Height = 0;
         consensus.hf201805Height = 1;
         consensus.hf201811Height = 9999999; // avoid doing stupid stuff like 100 bytes min tx size

@@ -159,9 +159,6 @@ public:
     inline static void doStartThreads() {
         static_cast<MockApplication*>(Application::instance())->pub_startThreads();
     }
-    inline static void setUAHFStartTime(int64_t time) {
-        static_cast<MockApplication*>(Application::instance())->pub_setUAHFStartTime(time);
-    }
     inline static void setValidationEngine(Validation::Engine *bv) {
         static_cast<MockApplication*>(Application::instance())->replaceValidationEngine(bv);
     }
@@ -172,9 +169,6 @@ protected:
     }
     inline void pub_startThreads() {
         startThreads();
-    }
-    inline void pub_setUAHFStartTime(int64_t time) {
-        m_uahfStartTme = time;
     }
     inline void replaceValidationEngine(Validation::Engine *bv) {
         m_validationEngine.release();

@@ -652,14 +652,6 @@ void ValidationEnginePrivate::processNewBlock(std::shared_ptr<BlockValidationSta
     if (!addToChain)
         return;
 
-    if (state->flags.hf201708Active && Application::uahfChainState() == Application::UAHFWaiting) {
-        Application::setUahfChainState(Application::UAHFRulesActive);
-        // next block is the big, fork-block.
-    } else if (state->flags.hf201708Active && Application::uahfChainState() == Application::UAHFRulesActive) {
-        logInfo(8002) << "UAHF block found that activates the chain" << state->m_block.createHash();
-        // enable UAHF (aka BCC) on first block after the calculated timestamp
-        Application::setUahfChainState(Application::UAHFActive);
-    }
     tipFlags = state->flags;
 
     CValidationState val;
@@ -1056,18 +1048,13 @@ void ValidationFlags::updateForBlock(CBlockIndex *index, const uint256 &blkHash)
         }
     }
 
-    if (hf201708Active
-            || ((Application::uahfChainState() == Application::UAHFWaiting
-                 && index->GetMedianTimePast() >= Application::uahfStartTime())
-                || Application::uahfChainState() >= Application::UAHFRulesActive)) {
+    if (!hf201708Active && index->nHeight >= chainparams.GetConsensus().hf201708Height)
         hf201708Active = true;
-    }
-
     if (!hf201805Active && index->nHeight >= chainparams.GetConsensus().hf201805Height)
         hf201805Active = true;
     if (!hf201811Active && index->nHeight >= chainparams.GetConsensus().hf201811Height)
         hf201811Active = true;
-    if (!hf201905Active && hf201805Active && index->nHeight >= chainparams.GetConsensus().hf201905Height)
+    if (!hf201905Active && index->nHeight >= chainparams.GetConsensus().hf201905Height)
         hf201905Active = true;
 }
 

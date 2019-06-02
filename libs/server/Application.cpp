@@ -17,19 +17,12 @@
  */
 #include "Application.h"
 
-#include "policy/policy.h"
-#include "util.h"
-#include "chainparams.h"
 #include "utilstrencodings.h"
 #include "clientversion.h"
 #include "net.h"
 #include "util.h"
 
 #include <validation/Engine.h>
-
-#include <boost/foreach.hpp>
-#include <boost/lexical_cast.hpp>
-#include <boost/algorithm/string/case_conv.hpp> // for to_lower()
 
 
 // static
@@ -59,8 +52,7 @@ void Application::quit(int rc)
 
 Application::Application()
     : m_returnCode(0),
-    m_closingDown(false),
-    m_uahfState(UAHFWaiting)
+    m_closingDown(false)
 {
     init();
 }
@@ -68,16 +60,6 @@ Application::Application()
 void Application::init()
 {
     m_closingDown = false;
-    m_uahfState = UAHFWaiting;
-    if (ParamsConfigured()) {
-        const std::string chain = Params().NetworkIDString();
-        if (chain == CBaseChainParams::REGTEST) {
-            m_uahfStartTme = 1296688602;
-            m_uahfState = UAHFActive;
-        } else {
-            m_uahfStartTme = 1501590000;
-        }
-    }
 }
 
 Application::~Application()
@@ -103,7 +85,7 @@ std::string Application::userAgent()
         if (comment == SanitizeString(comment, SAFE_CHARS_UA_COMMENT))
             comments.push_back(comment);
         else
-            LogPrintf("User Agent comment (%s) contains unsafe characters.", comment);
+            logCritical(Log::Bitcoin).nospace() << "User Agent comment (" << comment << ") contains unsafe characters.";
     }
 
     std::ostringstream ss;
@@ -121,8 +103,9 @@ std::string Application::userAgent()
     ss << "/";
     std::string answer = ss.str();
     if (answer.size() > MAX_SUBVERSION_LENGTH) {
-        LogPrintf("Total length of network version string (%i) exceeds maximum length (%i). Reduce the number or size of uacomments.",
-            answer.size(), MAX_SUBVERSION_LENGTH);
+        logCritical(Log::Bitcoin).nospace() << "Total length of network version string (" << answer.size()
+                                            << ") exceeds maximum length (" << MAX_SUBVERSION_LENGTH
+                                            << "). Reduce the number or size of uacomments.";
         answer = answer.substr(0, MAX_SUBVERSION_LENGTH);
     }
     return answer;
@@ -136,19 +119,4 @@ const char *Application::clientName()
 bool Application::closingDown()
 {
     return instance()->m_closingDown;
-}
-
-Application::UAHFState Application::uahfChainState()
-{
-    return Application::instance()->m_uahfState;
-}
-
-void Application::setUahfChainState(Application::UAHFState state)
-{
-    Application::instance()->m_uahfState = state;
-}
-
-int64_t Application::uahfStartTime()
-{
-    return Application::instance()->m_uahfStartTme;
 }

@@ -45,13 +45,6 @@ public:
     Application();
     ~Application();
 
-    enum UAHFState {
-        UAHFDisabled,
-        UAHFWaiting,
-        UAHFRulesActive, //< We have not seen the big block yet, but we can't accept old style transactions anymore.
-        UAHFActive
-    };
-
     /// returns (and optionally creates) an instance
     static Application *instance();
 
@@ -85,19 +78,13 @@ public:
 
     static bool closingDown();
 
-    static UAHFState uahfChainState();
-    static void setUahfChainState(UAHFState state);
-    static int64_t uahfStartTime();
-
 protected:
     void init();
-    int64_t m_uahfStartTme;
     std::unique_ptr<Validation::Engine> m_validationEngine;
 
 private:
     int m_returnCode;
     bool m_closingDown;
-    UAHFState m_uahfState;
 };
 
 #endif

@@ -1550,11 +1550,6 @@ void ThreadOpenConnections()
     int nDisconnects = 0;
     while (true) {
         int minXThinNodes = minXThinNodesConf;
-        if (Application::uahfChainState() == Application::UAHFWaiting) {
-            // as we don't enforce the cash-magic on outgoing connections while waiting, it doesn't make sense to find xthin nodes as
-            // we don't even know if we are going to get cash-based connections.
-            minXThinNodes = 0;
-        }
         ProcessOneShot();
 
         MilliSleep(500);

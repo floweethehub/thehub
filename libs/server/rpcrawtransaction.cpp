@@ -722,11 +722,8 @@ UniValue signrawtransaction(const UniValue& params, bool fHelp)
     }
 
     bool fHashSingle = ((nHashType & ~SIGHASH_ANYONECANPAY) == SIGHASH_SINGLE);
-    uint32_t validationFlags = STANDARD_SCRIPT_VERIFY_FLAGS;
-    if (Application::uahfChainState() >= Application::UAHFRulesActive) {
-        nHashType |= SIGHASH_FORKID;
-        validationFlags |= SCRIPT_ENABLE_SIGHASH_FORKID;
-    }
+    uint32_t validationFlags = STANDARD_SCRIPT_VERIFY_FLAGS | SCRIPT_ENABLE_SIGHASH_FORKID;
+    nHashType |= SIGHASH_FORKID;
 
     // Script verification errors
     UniValue vErrors(UniValue::VARR);

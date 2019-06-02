@@ -2375,9 +2375,7 @@ bool CWallet::CreateTransaction(const std::vector<CRecipient>& vecSend, CWalletT
                 BOOST_FOREACH(const PAIRTYPE(const CWalletTx*,unsigned int)& coin, setCoins)
                     txNew.vin.push_back(CTxIn(coin.first->GetHash(),coin.second,CScript()));
 
-                uint32_t nHashType = SIGHASH_ALL;
-                if (Application::uahfChainState() >= Application::UAHFRulesActive)
-                    nHashType |= SIGHASH_FORKID;
+                uint32_t nHashType = SIGHASH_ALL | SIGHASH_FORKID;
 
                 // Sign
                 int nIn = 0;
