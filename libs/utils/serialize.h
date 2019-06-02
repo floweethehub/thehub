@@ -21,7 +21,7 @@
 #ifndef FLOWEE_SERIALIZE_H
 #define FLOWEE_SERIALIZE_H
 
-#include "compat/endian.h"
+#include "crypto/compat/endian.h"
 #include "prevector.h"
 #include "uint256.h"
 

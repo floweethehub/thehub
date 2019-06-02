@@ -25,7 +25,7 @@
 
 #include <cstdint>
 
-#include "compat/byteswap.h"
+#include <crypto/compat/byteswap.h>
 
 #if defined(HAVE_ENDIAN_H)
 #include <endian.h>

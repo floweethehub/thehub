@@ -16,7 +16,7 @@
 
 project (hub)
 
-include_directories(${LIBAPI_INCLUDES} ${LIBCONSOLE_INCLUDES})
+include_directories(${LIBAPI_INCLUDES} ${LIBCONSOLE_INCLUDES} ${CMAKE_BINARY_DIR}/include)
 
 set (HUB_LIBS
     flowee_api

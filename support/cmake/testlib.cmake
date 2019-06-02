@@ -20,6 +20,7 @@ set(CMAKE_AUTOMOC ON)
 include_directories(${LIBAPI_INCLUDES} ${LIBCONSOLE_INCLUDES}
     ${CMAKE_CURRENT_BINARY_DIR}
     ${CMAKE_SOURCE_DIR}/testing/
+    ${CMAKE_BINARY_DIR}/include/
     ${Qt5Core_INCLUDE_DIRS}
     ${Qt5Test_INCLUDE_DIRS}
 )

@@ -29,3 +29,4 @@ install(FILES
     validationinterface.h
 DESTINATION include)
 
+install(FILES ${CMAKE_CURRENT_BINARY_DIR}/libflowee_interfaces.a DESTINATION lib)

@@ -14,7 +14,7 @@
 # You should have received a copy of the GNU General Public License
 # along with this program.  If not, see <http://www.gnu.org/licenses/>.
 
-include_directories(${LIBNETWORKMANAGER_INCLUDES})
+include_directories(${LIBNETWORKMANAGER_INCLUDES} ${CMAKE_BINARY_DIR}/include)
 
 add_library(flowee_networkmanager STATIC
     NetworkConnection.cpp
@@ -28,3 +28,8 @@ add_library(flowee_networkmanager STATIC
 target_link_libraries(flowee_networkmanager flowee_utils)
 install(FILES ${CMAKE_CURRENT_BINARY_DIR}/libflowee_networkmanager.a DESTINATION lib)
 
+install(FILES
+    NetworkConnection.h
+    NetworkEndPoint.h
+    NetworkManager.h
+DESTINATION include)

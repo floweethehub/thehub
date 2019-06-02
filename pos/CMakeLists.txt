@@ -26,7 +26,7 @@ add_definitions(-DLOG_DEFAULT_SECTION=7000)
 find_package(Qt5Quick)
 find_package(Qt5Sql)
 
-include_directories(${LIBAPPUTILS_INCLUDES})
+include_directories(${LIBAPPUTILS_INCLUDES} ${CMAKE_BINARY_DIR}/include)
 
 set (POS_LIBS
     flowee_apputils

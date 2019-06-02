@@ -24,7 +24,7 @@ add_definitions(-DLOG_DEFAULT_SECTION=8000)
 
 find_package(Qt5Sql)
 
-include_directories(${LIBAPPUTILS_INCLUDES} ${LIBUTXO_INCLUDES})
+include_directories(${LIBAPPUTILS_INCLUDES} ${LIBUTXO_INCLUDES} ${CMAKE_BINARY_DIR}/include)
 
 set (IDX_LIBS
     flowee_utxo

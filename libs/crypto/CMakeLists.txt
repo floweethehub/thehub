@@ -14,7 +14,7 @@
 # You should have received a copy of the GNU General Public License
 # along with this program.  If not, see <http://www.gnu.org/licenses/>.
 
-include_directories(${LIBCRYPTO_INCLUDES})
+include_directories(${LIBCRYPTO_INCLUDES} ${CMAKE_BINARY_DIR}/include)
 
 set (FLOWEE_LIBRARY_SOURCES
     aes.cpp
@@ -61,3 +61,10 @@ endif()
 
 add_library(flowee_crypto STATIC ${FLOWEE_LIBRARY_SOURCES})
 install(FILES ${CMAKE_CURRENT_BINARY_DIR}/libflowee_crypto.a DESTINATION lib)
+install(FILES
+    common.h
+DESTINATION include/crypto)
+install(FILES
+    compat/endian.h
+    compat/byteswap.h
+DESTINATION include/crypto/compat/)

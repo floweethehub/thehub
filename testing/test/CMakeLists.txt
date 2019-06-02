@@ -44,7 +44,7 @@ foreach (JSON_FILE
 endforeach ()
 
 
-include_directories(.. ${LIBAPI_INCLUDES} ${LIBCONSOLE_INCLUDES} ${CMAKE_CURRENT_BINARY_DIR})
+include_directories(.. ${LIBAPI_INCLUDES} ${LIBCONSOLE_INCLUDES} ${CMAKE_CURRENT_BINARY_DIR} ${CMAKE_BINARY_DIR}/include)
 
 set (TEST_LIBS
     flowee_api

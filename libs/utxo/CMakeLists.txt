@@ -14,7 +14,7 @@
 # You should have received a copy of the GNU General Public License
 # along with this program.  If not, see <http://www.gnu.org/licenses/>.
 
-include_directories(${LIBUTILS_INCLUDES})
+include_directories(${LIBUTILS_INCLUDES} ${CMAKE_BINARY_DIR}/include)
 
 add_library(flowee_utxo STATIC
     BucketMap.cpp

@@ -17,8 +17,7 @@
 project (hub-cli)
 
 include_directories(. ${LIBS_INCLUDES})
-include_directories(${LIBSERVER_INCLUDES} ${LIBCONSOLE_INCLUDES})
-
+include_directories(${LIBSERVER_INCLUDES} ${LIBCONSOLE_INCLUDES} ${CMAKE_BINARY_DIR}/include)
 
 set (CLI_LIBS
     flowee_server

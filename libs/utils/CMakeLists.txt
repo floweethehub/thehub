@@ -14,7 +14,7 @@
 # You should have received a copy of the GNU General Public License
 # along with this program.  If not, see <http://www.gnu.org/licenses/>.
 
-include_directories(${LIBUTILS_INCLUDES})
+include_directories(${LIBUTILS_INCLUDES} ${CMAKE_BINARY_DIR}/include)
 
 add_library(flowee_utils STATIC
     amount.cpp
@@ -61,3 +61,21 @@ add_dependencies(flowee_utils secp256k1)
 
 target_link_libraries(flowee_utils flowee_interfaces flowee_crypto)
 install(FILES ${CMAKE_CURRENT_BINARY_DIR}/libflowee_utils.a DESTINATION lib)
+
+install(FILES
+    Logger.h
+    tinyformat.h
+    WorkerThreads.h
+    Message.h
+    compat.h
+    serialize.h
+    prevector.h
+    netbase.h
+    uint256.h
+DESTINATION include)
+install(FILES
+    streaming/BufferPool.h
+    streaming/ConstBuffer.h
+    streaming/MessageBuilder.h
+    streaming/MessageParser.h
+DESTINATION include/streaming)
