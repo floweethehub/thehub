@@ -89,7 +89,9 @@ NetworkConnection NetworkManager::connection(const EndPoint &remote, ConnectionE
         boost::recursive_mutex::scoped_lock lock(d->mutex);
         for (auto iter1 = d->connections.begin(); iter1 != d->connections.end(); ++iter1) {
             EndPoint endPoint = iter1->second->endPoint();
-            if (endPoint.ipAddress != remote.ipAddress)
+            if (!remote.hostname.empty() && endPoint.hostname != remote.hostname)
+                continue;
+            if (!remote.ipAddress.is_unspecified() && endPoint.ipAddress != remote.ipAddress)
                 continue;
             if (!(endPoint.announcePort == 0 || endPoint.announcePort == remote.announcePort || remote.announcePort == 0))
                 continue;
