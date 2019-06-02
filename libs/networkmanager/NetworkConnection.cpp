@@ -79,11 +79,10 @@ void NetworkConnection::clear(ClearOption clear)
             if (d->m_strand.running_in_this_thread()) {
                 d->removeAllCallbacksFor(m_callbacksId);
             } else {
+                d->m_strand.post(std::bind(&NetworkManagerConnection::removeAllCallbacksFor, d, m_callbacksId));
                 if (clear == ClearAndWait) {
                     WaitUntilFinishedHelper helper(std::bind(&NetworkConnection::dummy, this), &d->m_strand);
                     helper.run();
-                } else {
-                    d->m_strand.post(std::bind(&NetworkManagerConnection::removeAllCallbacksFor, d, m_callbacksId));
                 }
             }
         }
