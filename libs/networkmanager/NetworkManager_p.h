@@ -175,7 +175,11 @@ public:
     void queueMessage(const Message &message, NetworkConnection::MessagePriority priority);
 
     inline bool isConnected() const {
-        return m_socket.is_open();
+        if (!isOutgoing())
+            return true;
+        if (m_isConnecting || m_isClosingDown.load())
+            return false;
+        return true;
     }
 
     inline const EndPoint &endPoint() const {
