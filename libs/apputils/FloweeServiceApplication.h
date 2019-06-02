@@ -51,6 +51,9 @@ public:
 
     void handleSigHub() const;
 
+signals:
+    void reparseConfig() const;
+
 private:
     QCommandLineOption m_debug;
     QCommandLineOption m_verbose;

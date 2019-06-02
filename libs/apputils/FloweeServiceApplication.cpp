@@ -31,8 +31,16 @@
 #include <QtNetwork/QNetworkInterface>
 #endif
 
-void HandleSIGTERM(int) {
+namespace {
+void HandleSigTerm(int) {
     QCoreApplication::quit();
+}
+
+void HandleSigHup(int) {
+    FloweeServiceApplication *app = qobject_cast<FloweeServiceApplication*>(QCoreApplication::instance());
+    Q_ASSERT(app);
+    app->handleSigHub();
+}
 }
 
 FloweeServiceApplication::FloweeServiceApplication(int &argc, char **argv, int appLogSection)
@@ -127,17 +135,17 @@ void FloweeServiceApplication::setup(const char *logFilename, const QString &con
 
         Log::Manager::instance()->parseConfig(m_logsconf.toLocal8Bit().toStdString(), m_logFile.toLocal8Bit().toStdString());
         logCritical().nospace() << applicationName() << " starting. (main log-ID: " << m_appLogSection << ")";
-
-        // Reopen log on SIGHUP (to allow for log-rotate)
-        struct sigaction sa_hup;
-        sa_hup.sa_handler = HandleSIGHUP;
-        sigemptyset(&sa_hup.sa_mask);
-        sa_hup.sa_flags = 0;
-        sigaction(SIGHUP, &sa_hup, NULL);
     }
 
+    // Reopen log on SIGHUP (to allow for log-rotate)
+    struct sigaction sa_hup;
+    sa_hup.sa_handler = HandleSigHup;
+    sigemptyset(&sa_hup.sa_mask);
+    sa_hup.sa_flags = 0;
+    sigaction(SIGHUP, &sa_hup, NULL);
+
     struct sigaction sa;
-    sa.sa_handler = HandleSIGTERM;
+    sa.sa_handler = HandleSigTerm;
     sigemptyset(&sa.sa_mask);
     sa.sa_flags = 0;
     sigaction(SIGTERM, &sa, NULL);
@@ -201,11 +209,6 @@ void FloweeServiceApplication::handleSigHub() const
 {
     Log::Manager::instance()->reopenLogFiles();
     Log::Manager::instance()->parseConfig(m_logsconf.toLocal8Bit().toStdString(), m_logFile.toLocal8Bit().toStdString());
-}
 
-void HandleSIGHUP(int)
-{
-    FloweeServiceApplication *app = qobject_cast<FloweeServiceApplication*>(QCoreApplication::instance());
-    Q_ASSERT(app);
-    app->handleSigHub();
+    emit reparseConfig();
 }
