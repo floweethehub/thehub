@@ -46,7 +46,7 @@ Api::Server::Server(boost::asio::io_service &service)
 
     if (mapArgs.count("-apilisten")) {
         for (auto strAddress : mapMultiArgs["-apilisten"]) {
-            int port = defaultPort;
+            uint16_t port = defaultPort;
             std::string host;
             SplitHostPort(strAddress, port, host);
             if (host.empty()) {

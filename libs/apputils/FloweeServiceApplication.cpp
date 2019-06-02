@@ -152,12 +152,11 @@ EndPoint FloweeServiceApplication::serverAddressFromArguments(short defaultPort)
 {
     Q_ASSERT(m_parser);
     EndPoint ep;
-    int port = defaultPort;
+    ep.announcePort = defaultPort;
     if (m_parser->isSet(m_connect))
-        SplitHostPort(m_parser->value(m_connect).toStdString(), port, ep.hostname);
+        SplitHostPort(m_parser->value(m_connect).toStdString(), ep.announcePort, ep.hostname);
     else
         ep.ipAddress = boost::asio::ip::address_v4::loopback();
-    ep.announcePort = port;
     return ep;
 }
 
@@ -166,7 +165,7 @@ QList<boost::asio::ip::tcp::endpoint> FloweeServiceApplication::bindingEndPoints
     QList<boost::asio::ip::tcp::endpoint> answer;
     for (const QString &address : parser.values(m_bindAddress)) {
         std::string hostname;
-        int port = defaultPort;
+        uint16_t port = defaultPort;
         SplitHostPort(address.toStdString(), port, hostname);
         std::transform(hostname.begin(), hostname.end(), hostname.begin(), ::tolower);
         if (hostname.empty() || hostname == "localhost" || hostname == "0.0.0.0") {

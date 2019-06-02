@@ -53,7 +53,7 @@ int main(int argc, char **argv)
 
     if (parser.isSet(hub)) {
         EndPoint ep;
-        int port = 1235;
+        uint16_t port = 1235;
         SplitHostPort(parser.value(hub).toStdString(), port, ep.hostname);
         ep.announcePort = port;
         client.tryConnectHub(ep);

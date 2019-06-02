@@ -60,7 +60,7 @@ BOOST_AUTO_TEST_CASE(netbase_properties)
 bool static TestSplitHost(std::string test, std::string host, int port)
 {
     std::string hostOut;
-    int portOut = -1;
+    uint16_t portOut = -1;
     SplitHostPort(test, portOut, hostOut);
     return hostOut == host && port == portOut;
 }

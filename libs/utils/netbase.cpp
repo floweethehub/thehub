@@ -80,7 +80,7 @@ std::string GetNetworkName(CNetAddr::Network net) {
     }
 }
 
-void SplitHostPort(std::string in, int &portOut, std::string &hostOut) {
+void SplitHostPort(std::string in, uint16_t &portOut, std::string &hostOut) {
     size_t colon = in.find_last_of(':');
     // if a : is found, and it either follows a [...], or no other : is in the string, treat it as port separator
     bool fHaveColon = colon != in.npos;
@@ -213,7 +213,7 @@ bool Lookup(const char *pszName, std::vector<CService>& vAddr, int portDefault, 
 {
     if (pszName[0] == 0)
         return false;
-    int port = portDefault;
+    uint16_t port = portDefault;
     std::string hostname = "";
     SplitHostPort(std::string(pszName), port, hostname);
 
@@ -618,7 +618,7 @@ bool ConnectSocket(const CService &addrDest, SOCKET& hSocketRet, int nTimeout, b
 bool ConnectSocketByName(CService &addr, SOCKET& hSocketRet, const char *pszDest, int portDefault, int nTimeout, bool *outProxyConnectionFailed)
 {
     std::string strDest;
-    int port = portDefault;
+    uint16_t port = portDefault;
 
     if (outProxyConnectionFailed)
         *outProxyConnectionFailed = false;

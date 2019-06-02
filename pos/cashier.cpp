@@ -88,7 +88,7 @@ int main(int x, char **y)
 
     if (parser.isSet(connect)) {
         std::string hostname;
-        int port = -1;
+        uint16_t port = -1;
         SplitHostPort(parser.value(connect).toStdString(), port, hostname);
         QSettings settings;
         settings.beginGroup(HubConfig::GROUP_ID);
