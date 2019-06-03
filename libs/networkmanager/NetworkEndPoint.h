@@ -1,6 +1,6 @@
 /*
  * This file is part of the Flowee project
- * Copyright (C) 2016 Tom Zander <tomz@freedommail.ch>
+ * Copyright (C) 2016, 2019 Tom Zander <tomz@freedommail.ch>
  *
  * This program is free software: you can redistribute it and/or modify
  * it under the terms of the GNU General Public License as published by
@@ -20,6 +20,7 @@
 
 #include <string>
 #include <cstdint>
+#include <Logger.h>
 
 #include <boost/asio/ip/address.hpp>
 
@@ -50,5 +51,24 @@ struct EndPoint
     std::uint16_t announcePort;
     int connectionId;
 };
+
+inline Log::Item operator<<(Log::Item item, const EndPoint &ep) {
+    if (item.isEnabled()) {
+        const bool old = item.useSpace();
+        item.nospace() << "EndPoint[";
+        if (ep.ipAddress.is_unspecified())
+            item << ep.hostname;
+        else
+            item << ep.ipAddress.to_string();
+        item << ':' << ep.announcePort;
+        if (ep.announcePort != ep.peerPort && ep.peerPort != 0)
+            item << '|' << ep.peerPort;
+        item << ']';
+        if (old)
+            return item.space();
+    }
+    return item;
+}
+inline Log::SilentItem operator<<(Log::SilentItem item, const EndPoint&) { return item; }
 
 #endif
