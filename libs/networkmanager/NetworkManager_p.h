@@ -159,7 +159,7 @@ private:
     int m_next = 0; // last plus one
 };
 
-class NetworkManagerConnection
+class NetworkManagerConnection : public std::enable_shared_from_this<NetworkManagerConnection>
 {
 public:
     NetworkManagerConnection(const std::shared_ptr<NetworkManagerPrivate> &parent, tcp::socket socket, int connectionId);
@@ -175,11 +175,7 @@ public:
     void queueMessage(const Message &message, NetworkConnection::MessagePriority priority);
 
     inline bool isConnected() const {
-        if (!isOutgoing())
-            return true;
-        if (m_isConnecting || m_isClosingDown.load())
-            return false;
-        return true;
+        return m_isConnected;
     }
 
     inline const EndPoint &endPoint() const {
@@ -266,6 +262,7 @@ private:
     std::atomic<bool> m_isClosingDown;
     bool m_firstPacket;
     bool m_isConnecting;
+    bool m_isConnected;
     bool m_sendingInProgress;
     bool m_acceptedConnection;
 
@@ -281,6 +278,7 @@ private:
     Streaming::BufferPool m_chunkedMessageBuffer;
     int m_chunkedServiceId;
     int m_chunkedMessageId;
+    std::map<int, int> m_chunkedHeaderData;
 };
 
 class NetworkManagerServer

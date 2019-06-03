@@ -239,6 +239,7 @@ NetworkManagerConnection::NetworkManagerConnection(const std::shared_ptr<Network
     m_isClosingDown(false),
     m_firstPacket(true),
     m_isConnecting(false),
+    m_isConnected(true),
     m_sendingInProgress(false),
     m_acceptedConnection(false),
     m_reconnectStep(0),
@@ -270,6 +271,7 @@ NetworkManagerConnection::NetworkManagerConnection(const std::shared_ptr<Network
     m_isClosingDown(false),
     m_firstPacket(true),
     m_isConnecting(false),
+    m_isConnected(false),
     m_sendingInProgress(false),
     m_acceptedConnection(false),
     m_reconnectStep(0),
@@ -290,7 +292,7 @@ void NetworkManagerConnection::connect()
     if (m_strand.running_in_this_thread())
         connect_priv();
     else
-        runOnStrand(std::bind(&NetworkManagerConnection::connect_priv, this));
+        runOnStrand(std::bind(&NetworkManagerConnection::connect_priv, shared_from_this()));
 }
 
 void NetworkManagerConnection::connect_priv()
@@ -304,13 +306,14 @@ void NetworkManagerConnection::connect_priv()
 
     if (m_remote.ipAddress.is_unspecified()) {
         tcp::resolver::query query(m_remote.hostname, boost::lexical_cast<std::string>(m_remote.announcePort));
-        m_resolver.async_resolve(query, m_strand.wrap(std::bind(&NetworkManagerConnection::onAddressResolveComplete, this, std::placeholders::_1, std::placeholders::_2)));
+        m_resolver.async_resolve(query, m_strand.wrap(std::bind(&NetworkManagerConnection::onAddressResolveComplete,
+                            shared_from_this(), std::placeholders::_1, std::placeholders::_2)));
     } else {
         if (m_remote.hostname.empty())
             m_remote.hostname = m_remote.ipAddress.to_string();
         boost::asio::ip::tcp::endpoint endpoint(m_remote.ipAddress, m_remote.announcePort);
         m_socket.async_connect(endpoint, m_strand.wrap(
-           std::bind(&NetworkManagerConnection::onConnectComplete, this, std::placeholders::_1)));
+           std::bind(&NetworkManagerConnection::onConnectComplete, shared_from_this(), std::placeholders::_1)));
     }
 }
 
@@ -322,7 +325,8 @@ void NetworkManagerConnection::onAddressResolveComplete(const boost::system::err
         logWarning(Log::NWM) << "connect;" << error.message();
         m_isConnecting = false;
         m_reconnectDelay.expires_from_now(boost::posix_time::seconds(45));
-        m_reconnectDelay.async_wait(m_strand.wrap(std::bind(&NetworkManagerConnection::reconnectWithCheck, this, std::placeholders::_1)));
+        m_reconnectDelay.async_wait(m_strand.wrap(std::bind(&NetworkManagerConnection::reconnectWithCheck,
+                            shared_from_this(), std::placeholders::_1)));
         return;
     }
     assert(m_strand.running_in_this_thread());
@@ -331,13 +335,11 @@ void NetworkManagerConnection::onAddressResolveComplete(const boost::system::err
 
     // Notice that we always only use the first reported DNS entry. Which is likely Ok.
     m_socket.async_connect(*iterator, m_strand.wrap(
-       std::bind(&NetworkManagerConnection::onConnectComplete, this, std::placeholders::_1)));
+       std::bind(&NetworkManagerConnection::onConnectComplete, shared_from_this(), std::placeholders::_1)));
 }
 
 void NetworkManagerConnection::onConnectComplete(const boost::system::error_code& error)
 {
-    if (error.value() == boost::asio::error::operation_aborted)
-        return;
     if (m_isClosingDown)
         return;
     m_isConnecting = false;
@@ -346,9 +348,11 @@ void NetworkManagerConnection::onConnectComplete(const boost::system::error_code
         if (m_remote.peerPort != m_remote.announcePort) // incoming connection
             return;
         m_reconnectDelay.expires_from_now(boost::posix_time::seconds(reconnectTimeoutForStep(++m_reconnectStep)));
-        m_reconnectDelay.async_wait(m_strand.wrap(std::bind(&NetworkManagerConnection::reconnectWithCheck, this, std::placeholders::_1)));
+        m_reconnectDelay.async_wait(m_strand.wrap(std::bind(&NetworkManagerConnection::reconnectWithCheck,
+                                                            shared_from_this(), std::placeholders::_1)));
         return;
     }
+    m_isConnected = true;
     assert(m_strand.running_in_this_thread());
     logInfo(Log::NWM) << "Successfully made TCP connection to" << m_remote.hostname << m_remote.announcePort;
 
@@ -365,7 +369,8 @@ void NetworkManagerConnection::onConnectComplete(const boost::system::error_code
 
     // for outgoing connections, ping. Notice that I don't care if they pong, as long as the TCP connection stays open
     m_pingTimer.expires_from_now(boost::posix_time::seconds(90));
-    m_pingTimer.async_wait(m_strand.wrap(std::bind(&NetworkManagerConnection::sendPing, this, std::placeholders::_1)));
+    m_pingTimer.async_wait(m_strand.wrap(std::bind(&NetworkManagerConnection::sendPing, shared_from_this(),
+                                                   std::placeholders::_1)));
 }
 
 Streaming::ConstBuffer NetworkManagerConnection::createHeader(const Message &message)
@@ -390,8 +395,7 @@ Streaming::ConstBuffer NetworkManagerConnection::createHeader(const Message &mes
 void NetworkManagerConnection::runMessageQueue()
 {
     assert(m_strand.running_in_this_thread());
-    if (m_sendingInProgress || m_isConnecting || m_isClosingDown
-            || (m_messageQueue.isRead() && m_priorityMessageQueue.isRead()) || !isConnected())
+    if (m_sendingInProgress || (m_messageQueue.isRead() && m_priorityMessageQueue.isRead()) || !isConnected())
         return;
 
     m_sendingInProgress = true;
@@ -462,12 +466,19 @@ void NetworkManagerConnection::runMessageQueue()
 
                 Streaming::ConstBuffer header;
                 if (first || begin == end || !chunkHeader.isValid()) {
-                    m_sendHelperBuffer.reserve(20);
+                    const auto headerData = message.headerData();
+                    m_sendHelperBuffer.reserve(20 + 8 * headerData.size());
                     headerBuilder.add(Network::ServiceId, message.serviceId());
-                    if (message.messageId() >= 0)
-                        headerBuilder.add(Network::MessageId, message.messageId());
-                    if (first)
+                    if (first) {
+                        for (auto iter = headerData.begin(); iter != headerData.end(); ++iter) {
+                            if (iter->first == Network::ServiceId) // forced to be first.
+                                continue;
+                            headerBuilder.add(iter->first, iter->second);
+                        }
                         headerBuilder.add(Network::SequenceStart, body.size());
+                    } else if (message.messageId() >= 0) {
+                        headerBuilder.add(Network::MessageId, message.messageId());
+                    }
                     headerBuilder.add(Network::LastInSequence, (begin == end));
                     headerBuilder.add(Network::HeaderEnd, true);
                     assert(m_sendHelperBuffer.size() + bodyChunk.size() < MAX_MESSAGE_SIZE);
@@ -510,13 +521,12 @@ void NetworkManagerConnection::runMessageQueue()
     assert(m_messageBytesSend >= 0);
 
     boost::asio::async_write(m_socket, socketQueue,
-        m_strand.wrap(std::bind(&NetworkManagerConnection::sentSomeBytes, this, std::placeholders::_1, std::placeholders::_2)));
+        m_strand.wrap(std::bind(&NetworkManagerConnection::sentSomeBytes, shared_from_this(),
+                                std::placeholders::_1, std::placeholders::_2)));
 }
 
 void NetworkManagerConnection::sentSomeBytes(const boost::system::error_code& error, std::size_t bytes_transferred)
 {
-    if (error.value() == boost::asio::error::connection_aborted) // assume instance already deleted
-        return;
     if (m_isClosingDown)
         return;
 
@@ -528,7 +538,7 @@ void NetworkManagerConnection::sentSomeBytes(const boost::system::error_code& er
         m_sendQHeaders.clear();
         m_messageQueue.markAllUnread();
         m_priorityMessageQueue.markAllUnread();
-        runOnStrand(std::bind(&NetworkManagerConnection::connect, this));
+        runOnStrand(std::bind(&NetworkManagerConnection::connect, shared_from_this()));
         return;
     }
     assert(m_strand.running_in_this_thread());
@@ -546,12 +556,8 @@ void NetworkManagerConnection::sentSomeBytes(const boost::system::error_code& er
 
 void NetworkManagerConnection::receivedSomeBytes(const boost::system::error_code& error, std::size_t bytes_transferred)
 {
-    if (error.value() == boost::asio::error::connection_aborted) // assume instance already deleted
-        return;
-
     if (m_isClosingDown)
         return;
-    logDebug(Log::NWM) << (static_cast<void*>(this)) << "receivedSomeBytes" << bytes_transferred;
     if (error) {
         logDebug(Log::NWM) << "receivedSomeBytes errored:" << error.message();
         // first copy to avoid problems if a callback removes its callback or closes the connection.
@@ -629,7 +635,8 @@ void NetworkManagerConnection::requestMoreBytes_callback(const boost::system::er
         else if (backlog > 1500)
             wait = 10;
         m_sendTimer.expires_from_now(boost::posix_time::milliseconds(wait));
-        m_sendTimer.async_wait(m_strand.wrap(std::bind(&NetworkManagerConnection::requestMoreBytes_callback, this, std::placeholders::_1)));
+        m_sendTimer.async_wait(m_strand.wrap(std::bind(&NetworkManagerConnection::requestMoreBytes_callback,
+                                                       shared_from_this(), std::placeholders::_1)));
         runMessageQueue();
     }
 }
@@ -639,7 +646,8 @@ void NetworkManagerConnection::requestMoreBytes()
     m_receiveStream.reserve(MAX_MESSAGE_SIZE);
     assert(m_receiveStream.capacity() > 0);
     m_socket.async_receive(boost::asio::buffer(m_receiveStream.data(), static_cast<size_t>(m_receiveStream.capacity())),
-            m_strand.wrap(std::bind(&NetworkManagerConnection::receivedSomeBytes, this, std::placeholders::_1, std::placeholders::_2)));
+            m_strand.wrap(std::bind(&NetworkManagerConnection::receivedSomeBytes, shared_from_this(),
+                                    std::placeholders::_1, std::placeholders::_2)));
 }
 
 bool NetworkManagerConnection::processPacket(const std::shared_ptr<char> &buffer, const char *data)
@@ -755,6 +763,7 @@ bool NetworkManagerConnection::processPacket(const std::shared_ptr<char> &buffer
             m_chunkedMessageId = messageId;
             m_chunkedServiceId = serviceId;
             m_chunkedMessageBuffer = Streaming::BufferPool(sequenceSize);
+            m_chunkedHeaderData = messageHeaderData;
         }
         else if (m_chunkedMessageId != messageId || m_chunkedServiceId != serviceId) { // Changed. Thats illegal.
             close();
@@ -775,6 +784,7 @@ bool NetworkManagerConnection::processPacket(const std::shared_ptr<char> &buffer
             return true;
 
         message = Message(m_chunkedMessageBuffer.commit(), m_chunkedServiceId);
+        messageHeaderData = m_chunkedHeaderData;
         m_chunkedMessageId = -1;
         m_chunkedServiceId = -1;
         m_chunkedMessageBuffer.clear();
@@ -900,6 +910,8 @@ void NetworkManagerConnection::close(bool reconnect)
     m_sendQHeaders.clear();
     m_socket.close();
     m_pingTimer.cancel();
+    m_firstPacket = true;
+    m_isConnected = false;
     if (reconnect && !m_isClosingDown) { // auto reconnect.
         if (m_firstPacket) { // this means the network is there, someone is listening. They just don't speak our language.
             // slow down reconnect due to bad peer.
@@ -909,13 +921,10 @@ void NetworkManagerConnection::close(bool reconnect)
             connect_priv();
         }
     }
-    m_firstPacket = true;
 }
 
 void NetworkManagerConnection::sendPing(const boost::system::error_code& error)
 {
-    if (error)
-        return;
     logDebug(Log::NWM) << "ping";
 
     if (m_isClosingDown)
@@ -938,6 +947,7 @@ void NetworkManagerConnection::sendPing(const boost::system::error_code& error)
 
 void NetworkManagerConnection::pingTimeout(const boost::system::error_code &error)
 {
+    // note that this is only for incoming connections.
     if (!error) {
         logWarning(Log::NWM) << "Didn't receive a ping from peer for too long, disconnecting dead connection";
         disconnect();
@@ -990,7 +1000,8 @@ void NetworkManagerConnection::accept()
 
     // setup a callback for receiving.
     m_socket.async_receive(boost::asio::buffer(m_receiveStream.data(), static_cast<size_t>(m_receiveStream.capacity())),
-        m_strand.wrap(std::bind(&NetworkManagerConnection::receivedSomeBytes, this, std::placeholders::_1, std::placeholders::_2)));
+        m_strand.wrap(std::bind(&NetworkManagerConnection::receivedSomeBytes, shared_from_this(),
+                                std::placeholders::_1, std::placeholders::_2)));
 
     // for incoming connections, take action when no ping comes in.
     m_pingTimer.expires_from_now(boost::posix_time::seconds(120));

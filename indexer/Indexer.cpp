@@ -45,7 +45,6 @@ Indexer::Indexer(const boost::filesystem::path &basedir)
 
 Indexer::~Indexer()
 {
-    m_serverConnection.clear(NetworkConnection::ClearAndWait);
 }
 
 void Indexer::tryConnectHub(const EndPoint &ep)

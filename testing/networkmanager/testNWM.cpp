@@ -25,7 +25,7 @@
 void TestNWM::testBigMessage()
 {
     auto localhost = boost::asio::ip::address_v4::loopback();
-    const int port = std::max(1100, rand() % 65000);
+    const int port = std::max(1100, rand() % 32000);
 
     std::list<NetworkConnection> stash;
     int messageSize = -1;
@@ -58,8 +58,7 @@ void TestNWM::testBigMessage()
      * This big message should be split into lots of messages but only
      * one should arrive at the other end.
      */
-    boost::this_thread::sleep_for(boost::chrono::seconds(1));
-    QCOMPARE(messageSize, BigSize);
+    QTRY_COMPARE(messageSize, BigSize);
 }
 
 void TestNWM::testRingBuffer()
@@ -172,6 +171,43 @@ void TestNWM::testRingBuffer()
     QCOMPARE(buf.isEmpty(), true);
     QCOMPARE(buf.count(), 0);
     QCOMPARE(buf.hasUnread(), false);
+}
+
+void TestNWM::testHeaderInt()
+{
+    auto localhost = boost::asio::ip::address_v4::loopback();
+    const int port = std::max(1100, rand() % 32000);
+
+    QMutex writeLock;
+    std::map<int, int> headerMap;
+
+    WorkerThreads threads;
+    NetworkManager server(threads.ioService());
+    std::list<NetworkConnection> stash;
+    server.bind(boost::asio::ip::tcp::endpoint(localhost, port), [&stash, &headerMap, &writeLock](NetworkConnection &connection) {
+        connection.setOnIncomingMessage([&headerMap, &writeLock](const Message &message) {
+            QMutexLocker l(&writeLock);
+            headerMap = message.headerData();
+        });
+        connection.accept();
+        stash.push_back(std::move(connection));
+    });
+
+    NetworkManager client(threads.ioService());
+    auto con = client.connection(EndPoint(localhost, port));
+    const int MessageSize = 20000;
+    Streaming::BufferPool pool(MessageSize);
+    for (int i =0; i < MessageSize; ++i) {
+        pool.data()[i] = 0xFF & i;
+    }
+    Message message(pool.commit(MessageSize), 1);
+    message.setHeaderInt(11, 312);
+    message.setHeaderInt(233, 12521);
+    message.setHeaderInt(1111, 1112);
+    con.send(message);
+    QCOMPARE((int) message.headerData().size(), 5); // 3 from above and the service/message ids
+
+    QTRY_COMPARE(message.headerData(), headerMap);
 }
 
 QTEST_MAIN(TestNWM)

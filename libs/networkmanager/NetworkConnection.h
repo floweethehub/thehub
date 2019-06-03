@@ -110,17 +110,11 @@ public:
     /// return true if this object can be operated on and represents a real connection
     bool isValid() const;
 
-    /// option for clear();
-    enum ClearOption {
-        ClearAndWait,  ///< Clear callbacks and wait for callbacks to be completed.
-        ClearCallbacks ///< Just clear callbacks
-    };
-
     /**
      * Clears the networkconnection and all related callbacks.
      * isValid() will return false after this is called.
      */
-    void clear(ClearOption clear = ClearCallbacks);
+    void clear();
 
     NetworkConnection& operator=(NetworkConnection && other);
 

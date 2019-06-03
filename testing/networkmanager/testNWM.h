@@ -31,6 +31,8 @@ private slots:
     void testBigMessage();
 
     void testRingBuffer();
+
+    void testHeaderInt();
 };
 
 #endif

@@ -71,7 +71,7 @@ void NetworkConnection::dummy() const
     // intentionally empty
 }
 
-void NetworkConnection::clear(ClearOption clear)
+void NetworkConnection::clear()
 {
     auto d = m_parent.lock();
     if (d) {
@@ -80,10 +80,8 @@ void NetworkConnection::clear(ClearOption clear)
                 d->removeAllCallbacksFor(m_callbacksId);
             } else {
                 d->m_strand.post(std::bind(&NetworkManagerConnection::removeAllCallbacksFor, d, m_callbacksId));
-                if (clear == ClearAndWait) {
-                    WaitUntilFinishedHelper helper(std::bind(&NetworkConnection::dummy, this), &d->m_strand);
-                    helper.run();
-                }
+                WaitUntilFinishedHelper helper(std::bind(&NetworkConnection::dummy, this), &d->m_strand);
+                helper.run();
             }
         }
         m_callbacksId = -1;
