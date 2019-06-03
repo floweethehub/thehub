@@ -93,7 +93,7 @@ void FloweeServiceApplication::setup(const char *logFilename, const QString &con
         ::exit(0);
         return;
     }
-    if (m_parser && (m_parser->isSet(m_verbose) || m_parser->isSet(m_quiet)
+    if (m_parser && (!m_isServer && (m_parser->isSet(m_verbose) || m_parser->isSet(m_quiet))
 #ifndef BCH_NO_DEBUG_OUTPUT
                      || m_parser->isSet(m_debug)
 #endif
