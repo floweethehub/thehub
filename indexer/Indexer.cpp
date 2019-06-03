@@ -114,11 +114,11 @@ void Indexer::onIncomingMessage(NetworkService::Remote *con, const Message &mess
                 Streaming::MessageBuilder builder(con->pool);
                 builder.add(Api::Indexer::BlockHeight, data.blockHeight);
                 builder.add(Api::Indexer::OffsetInBlock, data.offsetInBlock);
-                Message m = builder.message(Api::IndexerService, Api::Indexer::FindTransactionReply);
-                int requestId = message.headerInt(Api::RequestId);
+                Message reply = builder.message(Api::IndexerService, Api::Indexer::FindTransactionReply);
+                const int requestId = message.headerInt(Api::RequestId);
                 if (requestId != -1)
-                    m.setHeaderInt(Api::RequestId, requestId);
-                con->connection.send(m);
+                    reply.setHeaderInt(Api::RequestId, requestId);
+                con->connection.send(reply);
                 return; // just one item per message
             }
         }
@@ -153,11 +153,11 @@ void Indexer::onIncomingMessage(NetworkService::Remote *con, const Message &mess
                     builder.add(Api::Indexer::Separator, true);
                 }
 
-                Message m = builder.message(Api::IndexerService, Api::Indexer::FindAddressReply);
-                int requestId = message.headerInt(Api::RequestId);
+                Message reply = builder.message(Api::IndexerService, Api::Indexer::FindAddressReply);
+                const int requestId = message.headerInt(Api::RequestId);
                 if (requestId != -1)
-                    m.setHeaderInt(Api::RequestId, requestId);
-                con->connection.send(m);
+                    reply.setHeaderInt(Api::RequestId, requestId);
+                con->connection.send(reply);
                 return; // just one request per message
             }
         }
@@ -256,11 +256,11 @@ void Indexer::hubSentMessage(const Message &message)
                     logDebug() << "failed reason:" << parser.stringData();
             }
             if (serviceId == Api::BlockChainService && messageId == Api::BlockChain::GetBlock) {
-                logDebug() << "Failed to get block, assuming we are at 'top' of chain";
+                logCritical() << "Failed to get block, assuming we are at 'top' of chain";
                 if (m_enableAddressDb)
-                    logDebug() << "AddressDB now at:" << m_addressdb.blockheight();
+                    logCritical() << "AddressDB now at:" << m_addressdb.blockheight();
                 if (m_enableTxDB)
-                    logDebug() << "txDb now at:" << m_txdb.blockheight();
+                    logCritical() << "txDb now at:" << m_txdb.blockheight();
                 m_indexingFinished = true;
                 m_lastRequestedBlock = 0;
                 m_addressdb.flush();
