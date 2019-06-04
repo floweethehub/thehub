@@ -26,4 +26,7 @@ add_subdirectory(utxo)
 
 if (${Qt5Core_FOUND})
     add_subdirectory(apputils)
+    if (${Qt5Network_FOUND})
+        add_subdirectory(httpengine)
+    endif ()
 endif ()

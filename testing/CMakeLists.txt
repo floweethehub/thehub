@@ -32,6 +32,12 @@ if (${Qt5Core_FOUND})
         add_subdirectory(blockvalidation)
         add_subdirectory(api)
 
+        find_package(Qt5Network)
+        if (${Qt5Network_FOUND})
+            add_subdirectory(httpengine)
+            set (testHttp test_httpengine)
+        endif ()
+
         add_custom_target(check COMMAND ${CMAKE_CTEST_COMMAND} DEPENDS
             test_utxo
             test_doublespend
@@ -43,6 +49,7 @@ if (${Qt5Core_FOUND})
             test_hashstorage
             test_blockvalidation
             test_api
+            ${testHttp}
         )
     else ()
         message("Missing qt5 (test) library, not building some tests")

@@ -1,0 +1,40 @@
+/* This file is part of Flowee
+ *
+ * Copyright (C) 2017 Nathan Osman
+ *
+ * This library is free software; you can redistribute it and/or
+ * modify it under the terms of the GNU Library General Public
+ * License as published by the Free Software Foundation; either
+ * version 2.1 of the License, or (at your option) any later version.
+ *
+ * This library is distributed in the hope that it will be useful,
+ * but WITHOUT ANY WARRANTY; without even the implied warranty of
+ * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the GNU
+ * Library General Public License for more details.
+ *
+ * For the full copy of the License see <http://www.gnu.org/licenses/>
+ */
+
+#ifndef HTTPENGINE_HTTPENGINE_H
+#define HTTPENGINE_HTTPENGINE_H
+
+#include <QtCore/qglobal.h>
+
+#define HTTPENGINE_VERSION_MAJOR @PROJECT_VERSION_MAJOR@
+#define HTTPENGINE_VERSION_MINOR @PROJECT_VERSION_MINOR@
+#define HTTPENGINE_VERSION_PATCH @PROJECT_VERSION_PATCH@
+#define HTTPENGINE_VERSION       "@PROJECT_VERSION@"
+
+#cmakedefine BUILD_SHARED_LIBS
+
+#if defined(BUILD_SHARED_LIBS)
+#  if defined(HTTPENGINE_LIBRARY)
+#    define HTTPENGINE_EXPORT Q_DECL_EXPORT
+#  else
+#    define HTTPENGINE_EXPORT Q_DECL_IMPORT
+#  endif
+#else
+#  define HTTPENGINE_EXPORT
+#endif
+
+#endif
