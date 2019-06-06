@@ -127,9 +127,6 @@ flowee-linux.zip:
     - ${PACKAGE_NAME}
   dependencies:
     - build-static
-  only:
-    - master
-    - "2019.05"
 
 createHubDocker:
   stage: deploy
@@ -144,6 +141,11 @@ createHubDocker:
   dependencies:
     - build-static
   allow_failure: true
+  only:
+    refs:
+        - branches
+    variables:
+        - $DOCKER_TOKEN
 
 ##### Build as standard as it gets.
 
