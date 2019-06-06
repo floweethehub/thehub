@@ -108,9 +108,6 @@ flowee-deb:
     - dpkg-deb --build $PACKAGE_NAME
   dependencies:
     - build-static
-  only:
-    - master
-    - "2019.05"
   artifacts:
     paths:
     - ${PACKAGE_NAME}.deb
@@ -143,9 +140,11 @@ createHubDocker:
   allow_failure: true
   only:
     refs:
-        - branches
+      - branches
     variables:
-        - $DOCKER_TOKEN
+      - $DOCKER_TOKEN
+  except:
+    - master
 
 ##### Build as standard as it gets.
 
