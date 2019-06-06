@@ -31,7 +31,7 @@ int main(int argc, char **argv)
     QCommandLineParser parser;
     parser.setApplicationDescription("Indexing client");
     parser.addHelpOption();
-    parser.addPositionalArgument("[TXID|ADDERSS]", "The things you want to lookup");
+    parser.addPositionalArgument("[TXID|ADDRESS]", "The things you want to lookup");
 
     QCommandLineOption hub(QStringList() << "hub", "Hub server address", "HOSTNAME");
     parser.addOption(hub);

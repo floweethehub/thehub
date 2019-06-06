@@ -1,0 +1,109 @@
+Indexer
+
+There are 2 executables in this directory;
+* indexer
+* indexer-cli
+
+The first is meant to be run as a server, connecting to a running instance
+of the Hub, and making available services of its own. By default listening
+on port 1234.
+
+The indexer-cli app is essentially a testing application for this service,
+but likely people can find nice usages for it as-is.
+
+# Setup Indexer
+###############
+
+The indexer has the following --help message;
+
+    Usage: ./bin/indexer [options]
+    Indexing server
+
+    Options:
+      -h, --help             Displays this help.
+      --datadir, -d <DIR>    The directory to put the data in
+      --conf <FILENAME>      config file
+      --debug                Use debug level logging
+      --version              Display version
+      --connect <ADDRESS>  server location and port
+      --bind <IP-ADDRESS>    Bind to this IP:port
+
+The indexer has two (optional) indexes it can make and those take a good
+amount of space and a relatively large amount of time to build.
+They both store data (various gigabytes of it) in a datadirectory.
+The default is `~/.local/share/flowee/indexer`, you can pass a different
+directory to the command line to change this.
+
+To connect to a running Hub you can pass an hostname:port string to the
+--connect commandline argument, or you can specify it in the config file.
+See below for an example config file.
+
+TO allow others to connect you can bind to one or more addresses by
+providing one or more --bind options on the commandline or providing
+the connection data in the config file.
+
+#Indexer example config file
+###########################
+
+[txdb]
+enabled=true
+
+# The AddressDB is pretty big, we can turn it on later..
+[addressdb]
+enabled=false
+# Indexer 'addressdb' requires a SQL server.
+db_driver=QSQLITE
+db_hostname=myServer
+db_database=flowee
+db_username=flowee_indexer
+
+# The Hub server address, with optional port.
+[services]
+#hub=router:1235
+hub=localhost
+
+# Listen on localhost
+[localhost]
+ip=localhost
+port=1234
+
+# Listen on another network as well
+[intranet]
+ip=192.168.4.120
+port=1234
+
+
+#######################
+
+# Indexer-cli example usage
+###########################
+
+Usage: ./indexer/indexer-cli [options] [TXID|ADDRESS]
+Indexing client
+
+Options:
+  -h, --help             Displays this help.
+  --hub <HOSTNAME>       Hub server address
+  --version              Display version
+  --connect <ADDRESS>  server location and port
+  --verbose, -v          Be more verbose
+  --quiet, -q            Be quiet, only errors are shown
+
+Arguments:
+  [TXID|ADDRESS]         The things you want to lookup
+
+
+Here a simple output of the lookup of a transaction, by txid.
+The first line prints the transaction location. Which is a block-height and
+an offset-in-block (in bytes).
+In this case we also connect the 'cli' app to a running Hub and thus we
+manage to get the actual transaction as well.
+
+Note; the '8000' on both lines is the logging category of the indexer
+component.
+
+$./indexer-cli --hub=localhost 1a7482a97b77f11d9d6b903512143a20a61a8bc84e2d5b9ff9552ee5eb76c1ca
+18:07:21 [8000] Transaction location is: [block=119999+2897]
+    .966 [8000] 01000000019150d4f86cfb3805f0cf03ef3f227a3815e47fb46c4358db2b4689baa4d6c1ba000000008b4830450220373f49be9518df175e226053a402ebd850f622927fbd575907fbf99305abaa0d022100f2e84d2e1ca31924234f6f0a851dd3057df808ef4a758eed63d6eefc7b54e76301410437eb0c82969d76cddbf237dc9ff22c19389901c2b552e4ad824230b791cdfe067e1f62b9415225d7c6dddb906eab7dd6604f29f30f25bc07eb07999f691f2ac9ffffffff0280c3db7b000000001976a914bd9df061f893b011d1640104c2fd817039d0596388ac008c7d0a000000001976a9147b67c513d9091489299ec4f3eb0028da61502ee588ac00000000 
+
+

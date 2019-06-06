@@ -51,7 +51,7 @@ FloweeServiceApplication::FloweeServiceApplication(int &argc, char **argv, int a
       m_version(QStringList() << "version", "Display version"),
       m_bindAddress(QStringList() << "bind", "Bind to this IP:port", "IP-ADDRESS"),
       m_appLogSection(appLogSection),
-      m_connect("connect", "server location and port", "<ADDERSS>")
+      m_connect("connect", "server location and port", "ADDRESS")
 {
 }
 
