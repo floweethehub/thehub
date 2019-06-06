@@ -25,6 +25,7 @@
 #include <qsettings.h>
 #include <qdatetime.h>
 #include <primitives/pubkey.h>
+#include <netbase.h>
 
 #include <qfile.h>
 #include <qcoreapplication.h>
@@ -61,24 +62,73 @@ void Indexer::tryConnectHub(const EndPoint &ep)
 void Indexer::bind(boost::asio::ip::tcp::endpoint endpoint)
 {
     m_network.bind(endpoint, std::bind(&Indexer::clientConnected, this, std::placeholders::_1));
+    m_isServer = true;
 }
 
 void Indexer::loadConfig(const QString &filename)
 {
+    using boost::asio::ip::tcp;
+
     if (!QFile::exists(filename))
         return;
     QSettings settings(filename, QSettings::IniFormat);
 
     const QStringList groups = settings.childGroups();
-    if (groups.contains("addressdb")) {
-        m_enableAddressDb = settings.value("addressdb/enabled", "true").toBool();
-        if (m_enableAddressDb)
-            m_addressdb.loadSetting(settings);
+    for (auto group : groups) {
+        if (group == "addressdb") {
+            m_enableAddressDb = settings.value("addressdb/enabled", "true").toBool();
+            if (m_enableAddressDb)
+                m_addressdb.loadSetting(settings);
+        }
+        else if (group == "txdb") {
+            m_enableTxDB = settings.value("txdb/enabled", "true").toBool();
+            // no config there yet
+        }
+        else if (group == "services") {
+            if (!m_serverConnection.isValid()) { // only if user didn't override using commandline
+                QString connectionString = settings.value("services/hub").toString();
+                EndPoint ep("", 1234);
+                SplitHostPort(connectionString.toStdString(), ep.announcePort, ep.hostname);
+                try {
+                    tryConnectHub(ep);
+                } catch (const std::exception &e) {
+                    logFatal() << "Config: Hub connection string invalid.";
+                }
+            }
+        }
+        else {
+            EndPoint ep("", 1234);
+            auto portVar = settings.value(group + "/port");
+            if (portVar.isValid()) {
+                bool ok;
+                ep.announcePort = portVar.toInt(&ok);
+                if (!ok) {
+                    logCritical() << "Config file has 'port' value that is not a number.";
+                    continue;
+                }
+            }
+            try {
+                QString bindAddress = settings.value(group + "/ip").toString();
+                ep.ipAddress = bindAddress == "localhost"
+                        ? boost::asio::ip::address_v4::loopback()
+                        : boost::asio::ip::address::from_string(bindAddress.toStdString());
+            } catch (const std::runtime_error &e) {
+                logCritical() << "Config file has invalid IP address value to bind to.";
+                continue;
+            }
+            logCritical().nospace() << "Binding to " << ep.ipAddress.to_string().c_str() << ":" << ep.announcePort;
+            try {
+                bind(tcp::endpoint(ep.ipAddress, ep.announcePort));
+            } catch (std::exception &e) {
+                logCritical() << "  " << e << "skipping";
+            }
+        }
     }
-    if (groups.contains("txdb")) {
-        m_enableTxDB = settings.value("txdb/enabled", "true").toBool();
-        // no config there yet
-    }
+
+    if (!m_isServer) // then add localhost
+        bind(tcp::endpoint(boost::asio::ip::address_v4::loopback(), 1234));
+    if (!m_isServer) // then add localhost ipv6
+        bind(tcp::endpoint(boost::asio::ip::address_v6::loopback(), 1234));
 }
 
 void Indexer::onIncomingMessage(NetworkService::Remote *con, const Message &message, const EndPoint &)

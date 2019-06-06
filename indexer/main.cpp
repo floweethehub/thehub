@@ -48,27 +48,23 @@ int main(int argc, char **argv)
         basedir = QStandardPaths::writableLocation(QStandardPaths::AppDataLocation);
     Indexer indexer(basedir.toStdString());
 
-    QString confFile;
-    if (parser.isSet(conf))
-        confFile = parser.value(conf);
-    else
-        confFile = QStandardPaths::locate(QStandardPaths::AppConfigLocation, "indexer.conf");
-    indexer.loadConfig(confFile);
-
     // become a server
-    bool server = false;
     for (auto ep : app.bindingEndPoints(parser, 1234)) {
         logCritical().nospace() << "Binding to " << ep.address().to_string().c_str() << ":" << ep.port();
-        server = true;
         try {
             indexer.bind(ep);
         } catch (std::exception &e) {
             logCritical() << "  " << e << "skipping";
         }
     }
-    if (!server)
-        logCritical() << "Please note you need pass 'bind' to the commandline to be a server";
 
     indexer.tryConnectHub(app.serverAddressFromArguments(1235));
+
+    QString confFile;
+    if (parser.isSet(conf))
+        confFile = parser.value(conf);
+    else
+        confFile = QStandardPaths::locate(QStandardPaths::AppConfigLocation, "indexer.conf");
+    indexer.loadConfig(confFile);
     return app.exec();
 }
