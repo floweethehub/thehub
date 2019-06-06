@@ -70,8 +70,8 @@ void IndexerClient::tryConnectIndexer(const EndPoint &ep)
         throw std::runtime_error("Invalid Endpoint, can't create connection");
 #ifndef NDEBUG
     m_indexConnection.setOnConnected(std::bind(&IndexerClient::indexerConnected, this, std::placeholders::_1));
-    m_indexConnection.setOnDisconnected(std::bind(&IndexerClient::indexerDisconnected, this));
 #endif
+    m_indexConnection.setOnDisconnected(std::bind(&IndexerClient::indexerDisconnected, this));
     m_indexConnection.setOnIncomingMessage(std::bind(&IndexerClient::onIncomingIndexerMessage, this, std::placeholders::_1));
     m_indexConnection.connect();
 }
@@ -185,7 +185,15 @@ void IndexerClient::onIncomingIndexerMessage(const Message &message)
                 QCoreApplication::quit();
             m_txIdsRequested = usageId;
         }
-        else
+        else if (message.messageId() == Api::Indexer::GetAvailableIndexersReply) {
+            Streaming::MessageParser parser(message);
+            while (parser.next() == Streaming::FoundTag) {
+                if (parser.tag() == Api::Indexer::AddressIndexer)
+                    logCritical() << "Info: remote indexer has Address Index";
+                else if (parser.tag() == Api::Indexer::TxIdIndexer)
+                    logCritical() << "Info: remote indexer has TXID Index";
+            }
+        } else
             Streaming::MessageParser::debugMessage(message);
     }
     else if (message.serviceId() == Api::BlockChainService && message.messageId() == Api::BlockChain::GetTransactionReply) {
