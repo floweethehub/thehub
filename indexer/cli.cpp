@@ -42,15 +42,8 @@ int main(int argc, char **argv)
     auto args = parser.positionalArguments();
     if (args.isEmpty())
         parser.showHelp(1);
-    if (args.size() == 1) // nothing to lookup
-        return 0;
 
     IndexerClient client;
-    client.tryConnectIndexer(app.serverAddressFromArguments(1234));
-    for (auto a : args.mid(1)) {
-        client.resolve(a);
-    }
-
     if (parser.isSet(hub)) {
         EndPoint ep;
         uint16_t port = 1235;
@@ -58,5 +51,10 @@ int main(int argc, char **argv)
         ep.announcePort = port;
         client.tryConnectHub(ep);
     }
+    client.tryConnectIndexer(app.serverAddressFromArguments(1234));
+    for (auto a : args) {
+        client.resolve(a);
+    }
+
     return app.exec();
 }
