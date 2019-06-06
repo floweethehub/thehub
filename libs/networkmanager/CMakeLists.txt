@@ -32,4 +32,4 @@ install(FILES
     NetworkConnection.h
     NetworkEndPoint.h
     NetworkManager.h
-DESTINATION include)
+DESTINATION include/flowee/networkmanager)

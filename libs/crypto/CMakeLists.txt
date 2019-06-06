@@ -63,8 +63,10 @@ add_library(flowee_crypto STATIC ${FLOWEE_LIBRARY_SOURCES})
 install(FILES ${CMAKE_CURRENT_BINARY_DIR}/libflowee_crypto.a DESTINATION lib)
 install(FILES
     common.h
-DESTINATION include/crypto)
+    ripemd160.h
+    sha256.h
+DESTINATION include/flowee/crypto)
 install(FILES
     compat/endian.h
     compat/byteswap.h
-DESTINATION include/crypto/compat/)
+DESTINATION include/flowee/crypto/compat/)
