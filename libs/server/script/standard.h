@@ -50,17 +50,6 @@ extern unsigned nMaxDatacarrierBytes;
  */
 static const unsigned int MANDATORY_SCRIPT_VERIFY_FLAGS = SCRIPT_VERIFY_P2SH;
 
-enum txnouttype
-{
-    TX_NONSTANDARD,
-    // 'standard' transaction types:
-    TX_PUBKEY,
-    TX_PUBKEYHASH,
-    TX_SCRIPTHASH,
-    TX_MULTISIG,
-    TX_NULL_DATA,
-};
-
 class CNoDestination {
 public:
     friend bool operator==(const CNoDestination &a, const CNoDestination &b) { return true; }
@@ -76,11 +65,8 @@ public:
  */
 typedef boost::variant<CNoDestination, CKeyID, CScriptID> CTxDestination;
 
-const char* GetTxnOutputType(txnouttype t);
-
-bool Solver(const CScript& scriptPubKey, txnouttype& typeRet, std::vector<std::vector<unsigned char> >& vSolutionsRet);
 bool ExtractDestination(const CScript& scriptPubKey, CTxDestination& addressRet);
-bool ExtractDestinations(const CScript& scriptPubKey, txnouttype& typeRet, std::vector<CTxDestination>& addressRet, int& nRequiredRet);
+bool ExtractDestinations(const CScript& scriptPubKey, Script::TxnOutType& typeRet, std::vector<CTxDestination>& addressRet, int& nRequiredRet);
 
 CScript GetScriptForDestination(const CTxDestination& dest);
 CScript GetScriptForRawPubKey(const CPubKey& pubkey);

@@ -84,8 +84,8 @@ install(FILES
     primitives/FastBlock.h
     primitives/FastTransaction.h
     #primitives/block.h
-    #primitives/key.h
-    #primitives/pubkey.h
+    primitives/key.h
+    primitives/pubkey.h
     primitives/script.h
     #primitives/transaction.h
 DESTINATION include/primitives)

@@ -155,7 +155,7 @@ BOOST_AUTO_TEST_CASE(multisig_IsStandard)
     for (int i = 0; i < 4; i++)
         key[i].MakeNewKey(true);
 
-    txnouttype whichType;
+    Script::TxnOutType whichType;
 
     CScript a_and_b;
     a_and_b << OP_2 << ToByteVector(key[0].GetPubKey()) << ToByteVector(key[1].GetPubKey()) << OP_2 << OP_CHECKMULTISIG;
@@ -210,10 +210,10 @@ BOOST_AUTO_TEST_CASE(multisig_Solver1)
 
     {
         std::vector<valtype> solutions;
-        txnouttype whichType;
+        Script::TxnOutType whichType;
         CScript s;
         s << ToByteVector(key[0].GetPubKey()) << OP_CHECKSIG;
-        BOOST_CHECK(Solver(s, whichType, solutions));
+        BOOST_CHECK(Script::solver(s, whichType, solutions));
         BOOST_CHECK(solutions.size() == 1);
         CTxDestination addr;
         BOOST_CHECK(ExtractDestination(s, addr));
@@ -225,10 +225,10 @@ BOOST_AUTO_TEST_CASE(multisig_Solver1)
     }
     {
         std::vector<valtype> solutions;
-        txnouttype whichType;
+        Script::TxnOutType whichType;
         CScript s;
         s << OP_DUP << OP_HASH160 << ToByteVector(key[0].GetPubKey().GetID()) << OP_EQUALVERIFY << OP_CHECKSIG;
-        BOOST_CHECK(Solver(s, whichType, solutions));
+        BOOST_CHECK(Script::solver(s, whichType, solutions));
         BOOST_CHECK(solutions.size() == 1);
         CTxDestination addr;
         BOOST_CHECK(ExtractDestination(s, addr));
@@ -240,10 +240,10 @@ BOOST_AUTO_TEST_CASE(multisig_Solver1)
     }
     {
         std::vector<valtype> solutions;
-        txnouttype whichType;
+        Script::TxnOutType whichType;
         CScript s;
         s << OP_2 << ToByteVector(key[0].GetPubKey()) << ToByteVector(key[1].GetPubKey()) << OP_2 << OP_CHECKMULTISIG;
-        BOOST_CHECK(Solver(s, whichType, solutions));
+        BOOST_CHECK(Script::solver(s, whichType, solutions));
         BOOST_CHECK_EQUAL(solutions.size(), 4U);
         CTxDestination addr;
         BOOST_CHECK(!ExtractDestination(s, addr));
@@ -255,10 +255,10 @@ BOOST_AUTO_TEST_CASE(multisig_Solver1)
     }
     {
         std::vector<valtype> solutions;
-        txnouttype whichType;
+        Script::TxnOutType whichType;
         CScript s;
         s << OP_1 << ToByteVector(key[0].GetPubKey()) << ToByteVector(key[1].GetPubKey()) << OP_2 << OP_CHECKMULTISIG;
-        BOOST_CHECK(Solver(s, whichType, solutions));
+        BOOST_CHECK(Script::solver(s, whichType, solutions));
         BOOST_CHECK_EQUAL(solutions.size(), 4U);
         std::vector<CTxDestination> addrs;
         int nRequired;
@@ -274,10 +274,10 @@ BOOST_AUTO_TEST_CASE(multisig_Solver1)
     }
     {
         std::vector<valtype> solutions;
-        txnouttype whichType;
+        Script::TxnOutType whichType;
         CScript s;
         s << OP_2 << ToByteVector(key[0].GetPubKey()) << ToByteVector(key[1].GetPubKey()) << ToByteVector(key[2].GetPubKey()) << OP_3 << OP_CHECKMULTISIG;
-        BOOST_CHECK(Solver(s, whichType, solutions));
+        BOOST_CHECK(Script::solver(s, whichType, solutions));
         BOOST_CHECK(solutions.size() == 5);
     }
 }

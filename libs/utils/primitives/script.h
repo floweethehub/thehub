@@ -668,4 +668,22 @@ public:
 
 std::vector<uint8_t> MinimalizeBigEndianArray(const std::vector<uint8_t> &data);
 
+namespace Script
+{
+    enum TxnOutType
+    {
+        TX_NONSTANDARD,
+        // 'standard' transaction types:
+        TX_PUBKEY,
+        TX_PUBKEYHASH,
+        TX_SCRIPTHASH,
+        TX_MULTISIG,
+        TX_NULL_DATA,
+    };
+
+    const char* getTxnOutputType(TxnOutType type);
+
+    bool solver(const CScript& scriptPubKey, TxnOutType& typeRet, std::vector<std::vector<unsigned char> >& vSolutionsRet);
+}
+
 #endif

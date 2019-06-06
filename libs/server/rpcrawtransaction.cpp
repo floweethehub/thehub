@@ -54,7 +54,7 @@
 
 void ScriptPubKeyToJSON(const CScript& scriptPubKey, UniValue& out, bool fIncludeHex)
 {
-    txnouttype type;
+    Script::TxnOutType type;
     std::vector<CTxDestination> addresses;
     int nRequired;
 
@@ -63,12 +63,12 @@ void ScriptPubKeyToJSON(const CScript& scriptPubKey, UniValue& out, bool fInclud
         out.push_back(Pair("hex", HexStr(scriptPubKey.begin(), scriptPubKey.end())));
 
     if (!ExtractDestinations(scriptPubKey, type, addresses, nRequired)) {
-        out.push_back(Pair("type", GetTxnOutputType(type)));
+        out.push_back(Pair("type", Script::getTxnOutputType(type)));
         return;
     }
 
     out.push_back(Pair("reqSigs", nRequired));
-    out.push_back(Pair("type", GetTxnOutputType(type)));
+    out.push_back(Pair("type", Script::getTxnOutputType(type)));
 
     UniValue a(UniValue::VARR);
     BOOST_FOREACH(const CTxDestination& addr, addresses)

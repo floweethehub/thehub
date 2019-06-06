@@ -97,14 +97,14 @@ void AddressMonitorService::findTransactions(Tx::Iterator && iter, FindReason fi
             CScript scriptPubKey(iter.byteData());
 
             std::vector<std::vector<unsigned char> > vSolutions;
-            txnouttype whichType;
-            bool recognizedTx = Solver(scriptPubKey, whichType, vSolutions);
-            if (recognizedTx && whichType != TX_NULL_DATA) {
-                if (m_findP2PKH && (whichType == TX_PUBKEY || whichType == TX_PUBKEYHASH)) {
+            Script::TxnOutType whichType;
+            bool recognizedTx = Script::solver(scriptPubKey, whichType, vSolutions);
+            if (recognizedTx && whichType != Script::TX_NULL_DATA) {
+                if (m_findP2PKH && (whichType == Script::TX_PUBKEY || whichType == Script::TX_PUBKEYHASH)) {
                     CKeyID keyID;
-                    if (whichType == TX_PUBKEY)
+                    if (whichType == Script::TX_PUBKEY)
                         keyID = CPubKey(vSolutions[0]).GetID();
-                    else if (whichType == TX_PUBKEYHASH)
+                    else if (whichType == Script::TX_PUBKEYHASH)
                         keyID = CKeyID(uint160(vSolutions[0]));
                     for (size_t i = 0; i < remotes_.size(); ++i) {
                         RemoteWithKeys *rwk = static_cast<RemoteWithKeys*>(remotes_.at(i));
@@ -228,12 +228,12 @@ void AddressMonitorService::findTxInMempool(int connectionId, const CKeyID &keyI
             else if (type == Tx::OutputScript) {
                 CScript scriptPubKey(txIter.byteData());
                 std::vector<std::vector<unsigned char> > vSolutions;
-                txnouttype whichType;
-                bool recognizedTx = Solver(scriptPubKey, whichType, vSolutions);
-                if (recognizedTx && whichType != TX_NULL_DATA) {
-                    if (whichType == TX_PUBKEY || whichType == TX_PUBKEYHASH) {
-                        if ((whichType == TX_PUBKEY && keyId == CPubKey(vSolutions[0]).GetID())
-                                || (whichType == TX_PUBKEYHASH && keyId == CKeyID(uint160(vSolutions[0])))) {
+                Script::TxnOutType whichType;
+                bool recognizedTx = Script::solver(scriptPubKey, whichType, vSolutions);
+                if (recognizedTx && whichType != Script::TX_NULL_DATA) {
+                    if (whichType == Script::TX_PUBKEY || whichType == Script::TX_PUBKEYHASH) {
+                        if ((whichType == Script::TX_PUBKEY && keyId == CPubKey(vSolutions[0]).GetID())
+                                || (whichType == Script::TX_PUBKEYHASH && keyId == CKeyID(uint160(vSolutions[0])))) {
 
                             match = true;
                             matchedAmounts += curAmount;
