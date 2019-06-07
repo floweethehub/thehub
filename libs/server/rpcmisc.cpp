@@ -142,16 +142,16 @@ public:
         obj.push_back(Pair("isscript", true));
         if (pwalletMain && pwalletMain->GetCScript(scriptID, subscript)) {
             std::vector<CTxDestination> addresses;
-            txnouttype whichType;
+            Script::TxnOutType whichType;
             int nRequired;
             ExtractDestinations(subscript, whichType, addresses, nRequired);
-            obj.push_back(Pair("script", GetTxnOutputType(whichType)));
+            obj.push_back(Pair("script", Script::getTxnOutputType(whichType)));
             obj.push_back(Pair("hex", HexStr(subscript.begin(), subscript.end())));
             UniValue a(UniValue::VARR);
-            BOOST_FOREACH(const CTxDestination& addr, addresses)
+            for (const CTxDestination &addr : addresses)
                 a.push_back(CBitcoinAddress(addr).ToString());
             obj.push_back(Pair("addresses", a));
-            if (whichType == TX_MULTISIG)
+            if (whichType == Script::TX_MULTISIG)
                 obj.push_back(Pair("sigsrequired", nRequired));
         }
         return obj;

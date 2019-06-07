@@ -31,4 +31,4 @@ target_link_libraries(flowee_apputils Qt5::Core Qt5::Network flowee_networkmanag
 install(FILES ${CMAKE_CURRENT_BINARY_DIR}/libflowee_apputils.a DESTINATION lib)
 install(FILES
     FloweeServiceApplication.h
-DESTINATION include)
+DESTINATION include/flowee)

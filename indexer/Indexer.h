@@ -69,6 +69,7 @@ private:
 
     bool m_enableTxDB = true, m_enableAddressDb = false;
     bool m_indexingFinished = false;
+    bool m_isServer = false; /// remembers if we (successfully) called m_network::bind() once.
 
     int m_lastRequestedBlock = 0;
     quint64 m_timeLastRequest = 0;

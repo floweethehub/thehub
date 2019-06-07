@@ -27,6 +27,6 @@ install(FILES
     APIProtocol.h
     NetworkEnums.h
     validationinterface.h
-DESTINATION include)
+DESTINATION include/flowee/interfaces)
 
 install(FILES ${CMAKE_CURRENT_BINARY_DIR}/libflowee_interfaces.a DESTINATION lib)

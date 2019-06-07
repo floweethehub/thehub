@@ -63,6 +63,8 @@ target_link_libraries(flowee_utils flowee_interfaces flowee_crypto)
 install(FILES ${CMAKE_CURRENT_BINARY_DIR}/libflowee_utils.a DESTINATION lib)
 
 install(FILES
+    hash.h
+    version.h
     Logger.h
     tinyformat.h
     WorkerThreads.h
@@ -72,20 +74,25 @@ install(FILES
     prevector.h
     netbase.h
     uint256.h
-DESTINATION include)
+    base58.h
+    cashaddr.h
+DESTINATION include/flowee/utils/)
 install(FILES
     streaming/BufferPool.h
     streaming/ConstBuffer.h
     streaming/MessageBuilder.h
     streaming/MessageParser.h
-DESTINATION include/streaming)
+DESTINATION include/flowee/utils/streaming)
 
 install(FILES
     primitives/FastBlock.h
     primitives/FastTransaction.h
     #primitives/block.h
-    #primitives/key.h
-    #primitives/pubkey.h
+    primitives/key.h
+    primitives/pubkey.h
     primitives/script.h
     #primitives/transaction.h
-DESTINATION include/primitives)
+DESTINATION include/flowee/utils/primitives)
+
+install(FILES support/allocators/secure.h DESTINATION include/flowee/utils/support/allocators)
+install(FILES support/pagelocker.h support/cleanse.h DESTINATION include/flowee/utils/support)

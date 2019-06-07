@@ -176,10 +176,10 @@ bool CBloomFilter::IsRelevantAndUpdate(const CTransaction& tx)
                     insert(COutPoint(hash, i));
                 else if ((nFlags & BLOOM_UPDATE_MASK) == BLOOM_UPDATE_P2PUBKEY_ONLY)
                 {
-                    txnouttype type;
+                    Script::TxnOutType type;
                     std::vector<std::vector<unsigned char> > vSolutions;
-                    if (Solver(txout.scriptPubKey, type, vSolutions) &&
-                            (type == TX_PUBKEY || type == TX_MULTISIG))
+                    if (Script::solver(txout.scriptPubKey, type, vSolutions) &&
+                            (type == Script::TX_PUBKEY || type == Script::TX_MULTISIG))
                         insert(COutPoint(hash, i));
                 }
                 break;

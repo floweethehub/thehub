@@ -247,13 +247,13 @@ struct TransactionSerializationOptions
                     CScript scriptPubKey(iter.byteData());
 
                     std::vector<std::vector<unsigned char> > vSolutions;
-                    txnouttype whichType;
-                    bool recognizedTx = Solver(scriptPubKey, whichType, vSolutions);
-                    if (recognizedTx && (whichType == TX_PUBKEY || whichType == TX_PUBKEYHASH)) {
-                        if (whichType == TX_PUBKEYHASH) {
+                    Script::TxnOutType whichType;
+                    bool recognizedTx = Script::solver(scriptPubKey, whichType, vSolutions);
+                    if (recognizedTx && (whichType == Script::TX_PUBKEY || whichType == Script::TX_PUBKEYHASH)) {
+                        if (whichType == Script::TX_PUBKEYHASH) {
                             assert(vSolutions[0].size() == 20);
                             builder.addByteArray(Api::BlockChain::Tx_Out_Address, vSolutions[0].data(), 20);
-                        } else if (whichType == TX_PUBKEY) {
+                        } else if (whichType == Script::TX_PUBKEY) {
                             CPubKey pubKey(vSolutions[0]);
                             assert (pubKey.IsValid());
                             CKeyID address = pubKey.GetID();
@@ -402,13 +402,13 @@ public:
                     CScript scriptPubKey(iter.byteData());
 
                     std::vector<std::vector<unsigned char> > vSolutions;
-                    txnouttype whichType;
-                    bool recognizedTx = Solver(scriptPubKey, whichType, vSolutions);
-                    if (recognizedTx && (whichType == TX_PUBKEY || whichType == TX_PUBKEYHASH)) {
+                    Script::TxnOutType whichType;
+                    bool recognizedTx = Script::solver(scriptPubKey, whichType, vSolutions);
+                    if (recognizedTx && (whichType == Script::TX_PUBKEY || whichType == Script::TX_PUBKEYHASH)) {
                         CKeyID keyID;
-                        if (whichType == TX_PUBKEYHASH)
+                        if (whichType == Script::TX_PUBKEYHASH)
                             keyID = CKeyID(uint160(vSolutions[0]));
-                        else if (whichType == TX_PUBKEY)
+                        else if (whichType == Script::TX_PUBKEY)
                             keyID = CPubKey(vSolutions[0]).GetID();
                         if (session->keys.find(keyID) != session->keys.end())
                             txMatched = true;

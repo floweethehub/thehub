@@ -53,14 +53,13 @@
      *   DUP CHECKSIG DROP ... repeated 100 times... OP_1
      */
 
-bool IsStandard(const CScript& scriptPubKey, txnouttype& whichType)
+bool IsStandard(const CScript& scriptPubKey, Script::TxnOutType& whichType)
 {
     std::vector<std::vector<unsigned char> > vSolutions;
-    if (!Solver(scriptPubKey, whichType, vSolutions))
+    if (!Script::solver(scriptPubKey, whichType, vSolutions))
         return false;
 
-    if (whichType == TX_MULTISIG)
-    {
+    if (whichType == Script::TX_MULTISIG) {
         unsigned char m = vSolutions.front()[0];
         unsigned char n = vSolutions.back()[0];
         // Support up to x-of-3 multisig txns as standard
@@ -68,11 +67,11 @@ bool IsStandard(const CScript& scriptPubKey, txnouttype& whichType)
             return false;
         if (m < 1 || m > n)
             return false;
-    } else if (whichType == TX_NULL_DATA &&
+    } else if (whichType == Script::TX_NULL_DATA &&
                (!fAcceptDatacarrier || scriptPubKey.size() > nMaxDatacarrierBytes))
           return false;
 
-    return whichType != TX_NONSTANDARD;
+    return whichType != Script::TX_NONSTANDARD;
 }
 
 bool IsStandardTx(const CTransaction& tx, std::string& reason)
@@ -111,16 +110,16 @@ bool IsStandardTx(const CTransaction& tx, std::string& reason)
     }
 
     unsigned int nDataOut = 0;
-    txnouttype whichType;
+    Script::TxnOutType whichType;
     for (const CTxOut& txout : tx.vout) {
         if (!::IsStandard(txout.scriptPubKey, whichType)) {
             reason = "scriptpubkey";
             return false;
         }
 
-        if (whichType == TX_NULL_DATA)
+        if (whichType == Script::TX_NULL_DATA)
             nDataOut++;
-        else if ((whichType == TX_MULTISIG) && (!fIsBareMultisigStd)) {
+        else if ((whichType == Script::TX_MULTISIG) && (!fIsBareMultisigStd)) {
             reason = "bare-multisig";
             return false;
         } else if (txout.IsDust(::minRelayTxFee)) {
@@ -141,10 +140,10 @@ bool IsStandardTx(const CTransaction& tx, std::string& reason)
 bool Policy::isInputStandard(const CScript &outputScript, const CScript &inputScript)
 {
     std::vector<std::vector<unsigned char> > vSolutions;
-    txnouttype whichType;
-    if (!Solver(outputScript, whichType, vSolutions))
+    Script::TxnOutType whichType;
+    if (!Script::solver(outputScript, whichType, vSolutions))
         return false;
-    if (whichType == TX_SCRIPTHASH) {
+    if (whichType == Script::TX_SCRIPTHASH) {
         std::vector<std::vector<unsigned char> > stack;
         // convert the scriptSig into a stack, so we can inspect the redeemScript
         if (!EvalScript(stack, inputScript, SCRIPT_VERIFY_NONE, BaseSignatureChecker(), nullptr))

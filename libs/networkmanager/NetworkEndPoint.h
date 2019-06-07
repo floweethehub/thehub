@@ -29,8 +29,7 @@ struct EndPoint
 {
     EndPoint()
         : peerPort(0),
-        announcePort(0),
-        connectionId(-1)
+        announcePort(0)
     {
     }
     EndPoint(const std::string &hostname, std::uint16_t port)
@@ -47,9 +46,9 @@ struct EndPoint
     }
     boost::asio::ip::address ipAddress;
     std::string hostname;
-    std::uint16_t peerPort;
-    std::uint16_t announcePort;
-    int connectionId;
+    std::uint16_t peerPort = 0;
+    std::uint16_t announcePort = 0;
+    int connectionId = -1;
 };
 
 inline Log::Item operator<<(Log::Item item, const EndPoint &ep) {
