@@ -26,6 +26,8 @@
 
 #include <uint256.h>
 
+#include <map>
+
 const char* GetOpName(opcodetype opcode)
 {
     switch (opcode)
