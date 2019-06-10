@@ -925,8 +925,8 @@ void NetworkManagerConnection::close(bool reconnect)
 
 void NetworkManagerConnection::sendPing(const boost::system::error_code &error)
 {
-    logDebug(Log::NWM) << "ping";
     if (error) return;
+    logDebug(Log::NWM) << "ping";
 
     if (m_isClosingDown)
         return;

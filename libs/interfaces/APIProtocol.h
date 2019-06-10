@@ -131,8 +131,11 @@ enum MessageIds {
     GetTransactionReply,
     SendTransaction,
     SendTransactionReply,
-    SignTransaction,
-    SignTransactionReply
+    IsUnspent,
+    IsUnspentReply,
+    GetUnspentOutput,
+    GetUnspentOutputReply
+
 };
 enum Tags {
     Separator = Api::Separator,
@@ -142,14 +145,13 @@ enum Tags {
     TxId = Api::TxId,   // bytearray
 
     Transaction,
-    Completed,       // boolean
-    OutputIndex,
-    InputScript,      // bytearray.   This is also called the ScriptSig
-    OutputScript,   // bytearray.   This is also called the ScriptPubKey
-    Sequence,       // Number
-    ErrorMessage,   // string
-    SigHashType,    // Number
-    OutputAmount    // value in satoshis
+    Amount = Api::Amount,  // value in satoshis
+    BlockHeight = Api::BlockHeight,
+    OffsetInBlock = Api::OffsetInBlock,
+
+    OutIndex = 10,
+    UnspentState, // bool
+    OutputScript
 };
 }
 

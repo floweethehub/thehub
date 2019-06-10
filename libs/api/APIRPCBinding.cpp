@@ -29,10 +29,12 @@
 
 #include <streaming/MessageParser.h>
 
+#include <UnspentOutputData.h>
 #include <list>
 
 #include <primitives/FastBlock.h>
 #include <primitives/FastTransaction.h>
+#include <utxo/UnspentOutputDatabase.h>
 
 namespace {
 
@@ -535,125 +537,6 @@ struct PrevTransaction {
     }
 };
 
-class SignLiveTransaction : public Api::RpcParser
-{
-public:
-    SignLiveTransaction() : Api::RpcParser("signrawtransaction", Api::LiveTransactions::SignTransactionReply) {}
-
-    virtual void createRequest(const Message &message, UniValue &output) {
-        output = UniValue(UniValue::VARR);
-        std::list<std::string> privateKeys;
-        std::list<PrevTransaction> prevTxs;
-        PrevTransaction prevTx;
-        int sigHashType = -1;
-        std::string rawTx;
-
-        Streaming::MessageParser parser(message.body());
-        while (parser.next() == Streaming::FoundTag) {
-            std::string string;
-            switch (parser.tag()) {
-            case Api::LiveTransactions::PrivateKey:
-                privateKeys.push_back(parser.stringData());
-                break;
-            case Api::LiveTransactions::Separator:
-                if (prevTx.isValid())
-                    prevTxs.push_back(prevTx);
-                prevTx = PrevTransaction();
-                break;
-            case Api::LiveTransactions::SigHashType:
-                sigHashType = parser.intData();
-                break;
-            case Api::LiveTransactions::TxId:
-                boost::algorithm::hex(parser.bytesData(), back_inserter(string));
-                prevTx.txid = string;
-                break;
-            case Api::LiveTransactions::OutputIndex:
-                prevTx.vout = parser.intData();
-                break;
-            case Api::LiveTransactions::OutputScript:
-                boost::algorithm::hex(parser.bytesData(), back_inserter(string));
-                prevTx.scriptPubKey = string;
-                break;
-            case Api::LiveTransactions::OutputAmount:
-                prevTx.amount = parser.longData();
-                break;
-            case Api::LiveTransactions::GenericByteData:
-            case Api::LiveTransactions::Transaction:
-                boost::algorithm::hex(parser.bytesData(), back_inserter(rawTx));
-                break;
-            }
-        }
-        if (prevTx.isValid())
-            prevTxs.push_back(prevTx);
-
-        output.push_back(UniValue(UniValue::VSTR, rawTx));
-
-        // send previous tx
-        UniValue list1(UniValue::VARR);
-        for (const auto &tx : prevTxs) {
-            UniValue item(UniValue::VOBJ);
-            item.push_back(std::make_pair("txid", UniValue(UniValue::VSTR, tx.txid)));
-            item.push_back(std::make_pair("scriptPubKey", UniValue(UniValue::VSTR, tx.scriptPubKey)));
-            item.push_back(std::make_pair("vout", UniValue(tx.vout)));
-            if (tx.amount != -1)
-                item.push_back(std::make_pair("amount", UniValue(ValueFromAmount(tx.amount))));
-            list1.push_back(item);
-        }
-        output.push_back(list1);
-
-        // send private keys.
-        UniValue list2(UniValue::VNULL);
-        if (!privateKeys.empty()) {
-            list2 = UniValue(UniValue::VARR);
-            for (const std::string &str : privateKeys) {
-                list2.push_back(UniValue(UniValue::VSTR, str));
-            }
-        }
-        output.push_back(list2);
-
-        if (sigHashType >= 0)
-            output.push_back(UniValue(sigHashType));
-    }
-
-    virtual int calculateMessageSize(const UniValue &result) const {
-        const UniValue &hex = find_value(result, "hex");
-        const UniValue &errors = find_value(result, "errors");
-        return errors.size() * 300 + hex.get_str().size() / 2 + 10;
-    }
-
-    virtual void buildReply(Streaming::MessageBuilder &builder, const UniValue &result) {
-        const UniValue &hex = find_value(result, "hex");
-        std::vector<char> bytearray;
-        boost::algorithm::unhex(hex.get_str(), back_inserter(bytearray));
-        builder.add(Api::LiveTransactions::Transaction, bytearray);
-        bytearray.clear();
-        const UniValue &complete = find_value(result, "complete");
-        builder.add(Api::LiveTransactions::Completed, complete.getBool());
-        const UniValue &errors = find_value(result, "errors");
-        if (!errors.isNull()) {
-            bool first = true;
-            for (const UniValue &error : errors.getValues()) {
-                if (first) first = false;
-                else builder.add(Api::Separator, true);
-                const UniValue &txid = find_value(error, "txid");
-                boost::algorithm::unhex(txid.get_str(), back_inserter(bytearray));
-                builder.add(Api::LiveTransactions::TxId, bytearray);
-                bytearray.clear();
-                const UniValue &vout = find_value(error, "vout");
-                builder.add(Api::LiveTransactions::OutputIndex, vout.get_int());
-                const UniValue &scriptSig = find_value(error, "scriptSig");
-                boost::algorithm::unhex(scriptSig.get_str(), back_inserter(bytearray));
-                builder.add(Api::LiveTransactions::InputScript, bytearray);
-                bytearray.clear();
-                const UniValue &sequence = find_value(error, "sequence");
-                builder.add(Api::LiveTransactions::Sequence, (uint64_t) sequence.get_int64());
-                const UniValue &errorText = find_value(error, "error");
-                builder.add(Api::LiveTransactions::ErrorMessage, errorText.get_str());
-            }
-        }
-    }
-};
-
 // Util
 
 class CreateAddress : public Api::DirectParser
@@ -823,6 +706,83 @@ private:
     TransactionSerializationOptions opt;
 };
 
+class UtxoFetcher: public Api::DirectParser
+{
+public:
+    UtxoFetcher(int replyId)
+      : DirectParser(replyId)
+    {
+    }
+
+    int calculateMessageSize(const Message &request) override {
+        int validCount = 0;
+        Streaming::MessageParser parser(request.body());
+        uint256 txid;
+        int output = 0;
+        while (parser.next() == Streaming::FoundTag) {
+            if (parser.tag() == Api::LiveTransactions::TxId)
+                txid = parser.uint256Data();
+            else if (parser.tag() == Api::LiveTransactions::OutIndex) {
+                if (!parser.isInt())
+                    throw Api::ParserException("index wasn't number");
+                output = parser.intData();
+            }
+            else if (parser.tag() == Api::Separator) {
+                if (txid.IsNull())
+                    throw Api::ParserException("Invalid or missing txid");
+                auto out = g_utxo->find(txid, output);
+                m_utxos.push_back(out);
+                if (out.isValid())
+                    validCount++;
+                output = 0;
+            }
+        }
+
+        if (txid.IsNull())
+            throw Api::ParserException("Invalid or missing txid");
+        auto out = g_utxo->find(txid, output);
+        m_utxos.push_back(out);
+        if (out.isValid())
+            validCount++;
+
+        const bool isVerbose = replyMessageId() == Api::LiveTransactions::GetUnspentOutputReply;
+        int size = (m_utxos.size() - validCount) * 21;
+        if (isVerbose) {
+            // since I can't assume the max-size of the output-script, I need to actually fetch them here.
+            for (auto unspent : m_utxos) {
+                if (unspent.isValid()) {
+                    size += 10; // for amount
+                    UnspentOutputData uod(unspent);
+                    size += uod.outputScript().size() + 3;
+                }
+            }
+        }
+        return size;
+    }
+    void buildReply(const Message&, Streaming::MessageBuilder &builder) override {
+        const bool verbose = replyMessageId() == Api::LiveTransactions::GetUnspentOutputReply;
+        bool first = true;
+        for (auto unspent : m_utxos) {
+            if (first)
+                first = false;
+            else
+                builder.add(Api::LiveTransactions::Separator, true);
+            const bool isValid = unspent.isValid();
+            builder.add(Api::LiveTransactions::UnspentState, isValid);
+            if (isValid) {
+                builder.add(Api::LiveTransactions::BlockHeight, unspent.blockHeight());
+                builder.add(Api::LiveTransactions::OffsetInBlock, unspent.offsetInBlock());
+                if (verbose) {
+                    UnspentOutputData uod(unspent);
+                    builder.add(Api::LiveTransactions::Amount, (uint64_t) uod.outputValue());
+                    builder.add(Api::LiveTransactions::OutputScript, uod.outputScript());
+                }
+            }
+        }
+    }
+private:
+    std::vector<UnspentOutput> m_utxos;
+};
 }
 
 
@@ -853,8 +813,10 @@ Api::Parser *Api::createParser(const Message &message)
             return new GetLiveTransaction();
         case Api::LiveTransactions::SendTransaction:
             return new SendLiveTransaction();
-        case Api::LiveTransactions::SignTransaction:
-            return new SignLiveTransaction();
+        case Api::LiveTransactions::IsUnspent:
+            return new UtxoFetcher(Api::LiveTransactions::IsUnspentReply);
+        case Api::LiveTransactions::GetUnspentOutput:
+            return new UtxoFetcher(Api::LiveTransactions::GetUnspentOutputReply);
         }
         break;
     case Api::UtilService:

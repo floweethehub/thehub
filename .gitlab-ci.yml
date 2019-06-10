@@ -33,7 +33,7 @@ test_utxo:
   dependencies:
   - build-debian-stable
 
-.test_api:
+test_api:
   stage: test
   script: build/testing/api/test_api bin/hub
   dependencies:
