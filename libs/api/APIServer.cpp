@@ -84,14 +84,15 @@ void Api::Server::addService(NetworkService *service)
 
 void Api::Server::newConnection(NetworkConnection &connection)
 {
+    boost::mutex::scoped_lock lock(m_mutex);
+    logDebug() << "server newConnection";
+    NewConnection con;
     connection.setOnIncomingMessage(std::bind(&Api::Server::incomingMessage, this, std::placeholders::_1));
     connection.setOnDisconnected(std::bind(&Api::Server::connectionRemoved, this, std::placeholders::_1));
     connection.accept();
-    NewConnection con;
     con.connection = std::move(connection);
     con.initialConnectionTime = boost::posix_time::second_clock::universal_time();
 
-    boost::mutex::scoped_lock lock(m_mutex);
     m_newConnections.push_back(std::move(con));
 
     if (!m_timerRunning) {
@@ -126,23 +127,29 @@ void Api::Server::connectionRemoved(const EndPoint &endPoint)
 
 void Api::Server::incomingMessage(const Message &message)
 {
-    NetworkConnection con(&m_networkManager, message.remote);
-    assert(con.isValid());
-    con.setOnDisconnected(std::bind(&Api::Server::connectionRemoved, this, std::placeholders::_1));
-
-    Connection *handler = new Connection(std::move(con));
+    logDebug() << "incomingMessage";
+    Connection *handler;
     {
         boost::mutex::scoped_lock lock(m_mutex);
-        m_connections.push_back(handler);
-
+        bool found = false;
         auto iter = m_newConnections.begin();
         while (iter != m_newConnections.end()) {
             if (iter->connection.connectionId() == message.remote) {
                 m_newConnections.erase(iter);
+                found = true;
                 break;
             }
             ++iter;
         }
+
+        if (!found)
+            return;
+        NetworkConnection con(&m_networkManager, message.remote);
+        assert(con.isValid());
+        con.setOnDisconnected(std::bind(&Api::Server::connectionRemoved, this, std::placeholders::_1));
+
+        handler = new Connection(std::move(con));
+        m_connections.push_back(handler);
     }
     handler->incomingMessage(message);
 }
