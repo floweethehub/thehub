@@ -59,7 +59,7 @@ public:
     void add(uint32_t tag, double value);
     template<unsigned int BITS>
     void add(uint32_t tag, const base_blob<BITS> &value) {
-        add(tag, value.begin(), value.size());
+        addByteArray(tag, static_cast<const void*>(value.begin()), static_cast<int>(value.size()));
     }
     inline void add(uint32_t tag, float value) {
         add(tag, (double) value);

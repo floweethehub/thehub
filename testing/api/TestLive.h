@@ -26,6 +26,11 @@ class TestApiLive : public BlackBoxTest
 private slots:
     void testBasic();
     void testSendTx();
+    void testUtxo();
+
+private:
+    // Mine 100 blocks onto a new address and return address
+    Streaming::ConstBuffer generate100(int nodeId = 0);
 };
 
 #endif
