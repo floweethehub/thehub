@@ -63,7 +63,7 @@ void Wallet::addOutput(int blockHeight, const uint256 &txid, int offsetInBlock, 
     if (keyId == -1)
         return;
 
-    const int coinbaseHeight = offsetInBlock == 81 ? blockHeight : -1;
+    const int coinbaseHeight = offsetInBlock <= 91 ? blockHeight : -1;
     m_unspentOutputs.push_back({txid, (short) outIndex, keyId, 1, coinbaseHeight, amount, script});
 
     /*

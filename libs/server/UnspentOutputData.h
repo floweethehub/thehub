@@ -37,7 +37,7 @@ public:
     inline int outIndex() const {
         return m_uo.outIndex();
     }
-    /// return the offset in the block. In bytes. Notice that offsetInBlock == 81 implies this is a coinbase.
+    /// return the offset in the block. In bytes. Notice that offsetInBlock < 91 implies this is a coinbase.
     inline int offsetInBlock() const {
         return m_uo.offsetInBlock();
     }
