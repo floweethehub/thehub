@@ -43,6 +43,7 @@ if (${Qt5Sql_FOUND})
         AddressIndexer.cpp
         HashStorage.cpp
         Indexer.cpp
+        SpentOuputIndexer.cpp
         TxIndexer.cpp
     )
 

@@ -20,6 +20,7 @@
 
 #include "AddressIndexer.h"
 #include "TxIndexer.h"
+#include "SpentOuputIndexer.h"
 
 #include <NetworkManager.h>
 #include <NetworkService.h>
@@ -63,11 +64,12 @@ private:
     Streaming::BufferPool m_pool;
     WorkerThreads m_workers;
     TxIndexer m_txdb;
+    SpentOuputIndexer m_spentOutputDb;
     AddressIndexer m_addressdb;
     NetworkManager m_network;
     NetworkConnection m_serverConnection;
 
-    bool m_enableTxDB = true, m_enableAddressDb = false;
+    bool m_enableTxDB = true, m_enableAddressDb = false, m_enableSpentDb;
     bool m_indexingFinished = false;
     bool m_isServer = false; /// remembers if we (successfully) called m_network::bind() once.
 

@@ -33,6 +33,7 @@
 Indexer::Indexer(const boost::filesystem::path &basedir)
     : NetworkService(Api::IndexerService),
     m_txdb(m_workers.ioService(), basedir / "txindex"),
+    m_spentOutputDb(m_workers.ioService(), basedir / "spent"),
     m_addressdb(basedir / "addresses"),
     m_network(m_workers.ioService())
 {
@@ -76,13 +77,15 @@ void Indexer::loadConfig(const QString &filename)
     const QStringList groups = settings.childGroups();
     for (auto group : groups) {
         if (group == "addressdb") {
-            m_enableAddressDb = settings.value("addressdb/enabled", "true").toBool();
+            m_enableAddressDb = settings.value("addressdb/enabled", "false").toBool();
             if (m_enableAddressDb)
                 m_addressdb.loadSetting(settings);
         }
         else if (group == "txdb") {
-            m_enableTxDB = settings.value("txdb/enabled", "true").toBool();
-            // no config there yet
+            m_enableTxDB = settings.value("txdb/enabled", "false").toBool();
+        }
+        else if (group == "spentdb") {
+            m_enableSpentDb = settings.value("spentdb/enabled", "false").toBool();
         }
         else if (group == "services") {
             if (!m_serverConnection.isValid()) { // only if user didn't override using commandline
@@ -141,6 +144,8 @@ void Indexer::onIncomingMessage(NetworkService::Remote *con, const Message &mess
             builder.add(Api::Indexer::TxIdIndexer, true);
         if (m_enableAddressDb)
             builder.add(Api::Indexer::AddressIndexer, true);
+        if (m_enableSpentDb)
+            builder.add(Api::Indexer::SpentOutputIndexer, true);
         con->connection.send(builder.message(Api::IndexerService,
                                              Api::Indexer::GetAvailableIndexersReply));
     }
@@ -211,6 +216,43 @@ void Indexer::onIncomingMessage(NetworkService::Remote *con, const Message &mess
             }
         }
     }
+    else if (message.messageId() == Api::Indexer::FindSpentOutput) {
+        if (!m_enableSpentDb) {
+            con->connection.disconnect();
+            return;
+        }
+
+        Streaming::MessageParser parser(message.body());
+        const uint256 *txid = nullptr;
+        int outIndex = 0;
+        while (parser.next() == Streaming::FoundTag) {
+            if (parser.tag() == Api::Indexer::TxId) {
+                if (parser.dataLength() != 32) {
+                    con->connection.disconnect();
+                    return;
+                }
+                txid = reinterpret_cast<const uint256*>(parser.bytesDataBuffer().begin());
+            }
+            else if (parser.tag() == Api::Indexer::OutIndex) {
+                outIndex = parser.intData();
+            }
+        }
+
+        if (txid == nullptr || outIndex < 0) {
+            con->connection.disconnect();
+            return;
+        }
+        auto data = m_spentOutputDb.findSpendingTx(*txid, outIndex);
+        con->pool.reserve(20);
+        Streaming::MessageBuilder builder(con->pool);
+        builder.add(Api::Indexer::BlockHeight, data.blockHeight);
+        builder.add(Api::Indexer::OffsetInBlock, data.offsetInBlock);
+        Message reply = builder.message(Api::IndexerService, Api::Indexer::FindSpentOutputReply);
+        const int requestId = message.headerInt(Api::RequestId);
+        if (requestId != -1)
+            reply.setHeaderInt(Api::RequestId, requestId);
+        con->connection.send(reply);
+    }
 }
 
 void Indexer::addressDbFinishedProcessingBlock()
@@ -234,8 +276,10 @@ void Indexer::hubConnected(const EndPoint &ep)
 {
     int txHeight = m_enableTxDB ? m_txdb.blockheight() : -1;
     int adHeight = m_enableAddressDb ? m_addressdb.blockheight() : -1;
-    logCritical() << "Connection to hub established. TxDB:" << txHeight
-                  << "addressDB:" << adHeight;
+    int spentHeight = m_enableSpentDb ? m_spentOutputDb.blockheight() : -1;
+    logCritical() << "Connection to hub established." << ep << "TxDB:" << txHeight
+                  << "addressDB:" << adHeight
+                  << "spentOutputDB" << spentHeight;
     m_serverConnection.send(Message(Api::APIService, Api::Meta::Version));
     m_serverConnection.send(Message(Api::BlockNotificationService, Api::BlockNotification::Subscribe));
     if (!m_addressdb.isCommitting())
@@ -244,13 +288,15 @@ void Indexer::hubConnected(const EndPoint &ep)
 
 void Indexer::requestBlock()
 {
-    if (!m_enableAddressDb && !m_enableTxDB)
+    if (!m_enableAddressDb && !m_enableTxDB && !m_enableSpentDb)
         return;
     int blockHeight = 9999999;
     if (m_enableAddressDb)
         blockHeight = m_addressdb.blockheight();
     if (m_enableTxDB)
         blockHeight = std::min(blockHeight, m_txdb.blockheight());
+    if (m_enableSpentDb)
+        blockHeight = std::min(blockHeight, m_spentOutputDb.blockheight());
     blockHeight++; // request the next one
     if (m_lastRequestedBlock == blockHeight)
         return;
@@ -263,6 +309,8 @@ void Indexer::requestBlock()
         builder.add(Api::BlockChain::Include_TxId, true);
     if (m_enableAddressDb && m_addressdb.blockheight() < blockHeight)
         builder.add(Api::BlockChain::Include_OutputAddresses, true);
+    if (m_enableSpentDb && m_spentOutputDb.blockheight() < blockHeight)
+        builder.add(Api::BlockChain::Include_Inputs, true);
     builder.add(Api::BlockChain::Include_OffsetInBlock, true);
     m_serverConnection.send(builder.message(Api::BlockChainService, Api::BlockChain::GetBlock));
 }
@@ -288,8 +336,9 @@ void Indexer::hubSentMessage(const Message &message)
         if (message.messageId() == Api::Meta::VersionReply) {
             Streaming::MessageParser parser(message.body());
             while (parser.next() == Streaming::FoundTag) {
-                if (parser.tag() == Api::Meta::GenericByteData)
+                if (parser.tag() == Api::Meta::GenericByteData) {
                     logInfo() << "Server is at version" << parser.stringData();
+                }
             }
         }
         else if (message.messageId() == Api::Meta::CommandFailed) {
@@ -310,6 +359,8 @@ void Indexer::hubSentMessage(const Message &message)
                     logCritical() << "AddressDB now at:" << m_addressdb.blockheight();
                 if (m_enableTxDB)
                     logCritical() << "txDb now at:" << m_txdb.blockheight();
+                if (m_enableSpentDb)
+                    logCritical() << "spentDB now at:" << m_spentOutputDb.blockheight();
                 m_indexingFinished = true;
                 m_lastRequestedBlock = 0;
                 m_addressdb.flush();
@@ -328,6 +379,8 @@ void Indexer::hubSentMessage(const Message &message)
                     blockHeight = m_addressdb.blockheight();
                 if (m_enableTxDB)
                     blockHeight = std::min(blockHeight, m_txdb.blockheight());
+                if (m_enableSpentDb)
+                    blockHeight = std::min(blockHeight, m_spentOutputDb.blockheight());
                 if (m_indexingFinished || parser.intData() == blockHeight + 1) {
                     m_indexingFinished = false;
                     m_lastRequestedBlock = 0;
@@ -359,6 +412,8 @@ void Indexer::processNewBlock(const Message &message)
 
     bool updateTxDb = false;
     bool updateAddressDb = false;
+    bool updateSpentDb = false;
+    uint256 prevTxId; bool gotPrevTxId = false;
     while (parser.next() == Streaming::FoundTag) {
         if (parser.tag() == Api::BlockChain::BlockHeight) {
             if (blockHeight != -1) Streaming::MessageParser::debugMessage(message);
@@ -366,6 +421,7 @@ void Indexer::processNewBlock(const Message &message)
             blockHeight = parser.intData();
             updateTxDb = m_enableTxDB && blockHeight == m_txdb.blockheight() + 1;
             updateAddressDb = m_enableAddressDb && blockHeight == m_addressdb.blockheight() + 1;
+            updateSpentDb = m_enableSpentDb && blockHeight == m_spentOutputDb.blockheight() + 1;
             if (blockHeight % 500 == 0)
                 logCritical() << "Processing block" << blockHeight;
             if (m_lastRequestedBlock <= blockHeight)
@@ -392,15 +448,28 @@ void Indexer::processNewBlock(const Message &message)
             assert(blockHeight > 0);
             assert(txOffsetInBlock > 0);
             m_addressdb.insert(parser.bytesDataBuffer(), outputIndex, blockHeight, txOffsetInBlock);
+        } else if (updateSpentDb && txOffsetInBlock > 91 && parser.tag() == Api::BlockChain::Tx_IN_TxId) {
+            prevTxId = parser.uint256Data();
+            gotPrevTxId = true;
+        } else if (updateSpentDb && txOffsetInBlock > 91 && parser.tag() == Api::BlockChain::Tx_IN_OutIndex) {
+            Q_ASSERT(gotPrevTxId);
+            gotPrevTxId = false;
+            Q_ASSERT(!prevTxId.IsNull());
+            Q_ASSERT(parser.isInt());
+            Q_ASSERT(blockHeight > 0);
+            Q_ASSERT(txOffsetInBlock > 80);
+            m_spentOutputDb.insertSpentTransaction(prevTxId, parser.intData(), blockHeight, txOffsetInBlock);
         }
     }
     assert(blockHeight > 0);
     assert(!blockId.IsNull());
-    if (m_enableTxDB)
+    if (updateTxDb)
         m_txdb.blockFinished(blockHeight, blockId);
-    if (m_enableAddressDb)
+    if (updateAddressDb)
         m_addressdb.blockFinished(blockHeight, blockId);
+    if (updateSpentDb)
+        m_spentOutputDb.blockFinished(blockHeight, blockId);
     // if not updating addressDB, go to next block directly instead of waiting on its signal
-    if (!updateAddressDb && updateTxDb)
+    if (!updateAddressDb && (updateTxDb || updateSpentDb))
         requestBlock();
 }

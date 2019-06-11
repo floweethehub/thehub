@@ -348,7 +348,9 @@ enum MessageIds {
     FindTransaction,
     FindTransactionReply,
     FindAddress,
-    FindAddressReply
+    FindAddressReply,
+    FindSpentOutput,
+    FindSpentOutputReply
 };
 
 enum Tags {
@@ -360,7 +362,8 @@ enum Tags {
     OutIndex,
 
     AddressIndexer,
-    TxIdIndexer
+    TxIdIndexer,
+    SpentOutputIndexer
 };
 }
 }
