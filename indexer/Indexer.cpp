@@ -373,7 +373,7 @@ void Indexer::hubSentMessage(const Message &message)
         Streaming::MessageParser parser(message.body());
         while (parser.next() == Streaming::FoundTag) {
             if (parser.tag() == Api::BlockNotification::BlockHeight) {
-                if (!m_enableAddressDb && !m_enableTxDB) return; // user likes to torture us. :(
+                if (!m_enableSpentDb && !m_enableAddressDb && !m_enableTxDB) return; // user likes to torture us. :(
                 int blockHeight = 9999999;
                 if (m_enableAddressDb)
                     blockHeight = m_addressdb.blockheight();
@@ -381,7 +381,8 @@ void Indexer::hubSentMessage(const Message &message)
                     blockHeight = std::min(blockHeight, m_txdb.blockheight());
                 if (m_enableSpentDb)
                     blockHeight = std::min(blockHeight, m_spentOutputDb.blockheight());
-                if (m_indexingFinished || parser.intData() == blockHeight + 1) {
+                if (parser.intData() == blockHeight + 1
+                        || (m_indexingFinished && parser.intData() >= blockHeight)) {
                     m_indexingFinished = false;
                     m_lastRequestedBlock = 0;
                     requestBlock();
