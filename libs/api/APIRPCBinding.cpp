@@ -99,7 +99,7 @@ public:
             } else if (parser.tag() == Api::BlockChain::Verbose) {
                 m_verbose = parser.boolData();
             } else if (parser.tag() == Api::BlockChain::BlockHeight) {
-                auto index = Blocks::DB::instance()->headerChain()[parser.intData()];
+                auto index = chainActive[parser.intData()];
                 if (index)
                     blockId = index->GetBlockHash().ToString();
             }
@@ -313,7 +313,7 @@ public:
                 index = Blocks::Index::get(uint256(&parser.bytesData()[0]));
                 requestOk = true;
             } else if (parser.tag() == Api::BlockChain::BlockHeight) {
-                index = Blocks::DB::instance()->headerChain()[parser.intData()];
+                index = chainActive[parser.intData()];
                 requestOk = true;
             } else if (parser.tag() == Api::BlockChain::ReuseAddressFilter) {
                 filterOnKeys = parser.boolData();
@@ -626,7 +626,7 @@ public:
         bool fullTxData = false;
         while (parser.next() == Streaming::FoundTag) {
             if (parser.tag() == Api::BlockChain::BlockHeight) {
-                index = Blocks::DB::instance()->headerChain()[parser.intData()];
+                index = chainActive[parser.intData()];
                 if (!index)
                     throw Api::ParserException("Unknown blockheight");
             } else if (parser.tag() == Api::BlockChain::BlockHash) {
