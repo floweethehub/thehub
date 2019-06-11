@@ -31,7 +31,7 @@
 #include <boost/filesystem.hpp>
 #include <boost/filesystem/fstream.hpp>
 
-#define SAVE_CHUNK_SIZE 150000
+#define SAVE_CHUNK_SIZE 50000
 
 // #define DEBUG_UTXO
 #ifdef DEBUG_UTXO
@@ -512,10 +512,10 @@ void DataFile::insert(const UODBPrivate *priv, const uint256 &txid, int firstOut
     const uint32_t shortHash = createShortHash(txid);
     uint32_t bucketId;
     {
-        if (!priv->memOnly && m_changeCount > SAVE_CHUNK_SIZE * 2) {
+        if (!priv->memOnly && m_changeCount > SAVE_CHUNK_SIZE * 3) {
             // Saving is too slow! We are more than an entire chunk-size behind.
             // forcefully slow down adding data into memory.
-            MilliSleep(m_changeCount / 10000);
+            boost::this_thread::sleep_for(boost::chrono::microseconds(m_changeCount.load() / 10));
         }
 
         BucketHolder bucket;
@@ -698,10 +698,10 @@ SpentOutput DataFile::remove(const UODBPrivate *priv, const uint256 &txid, int i
     const auto cheapHash = txid.GetCheapHash();
     const uint32_t shortHash = createShortHash(cheapHash);
 
-    if (!priv->memOnly && m_changeCount > SAVE_CHUNK_SIZE * 2) {
+    if (!priv->memOnly && m_changeCount > SAVE_CHUNK_SIZE * 3) {
         // Saving is too slow! We are more than an entire chunk-size behind.
         // forcefully slow down adding data into memory.
-        MilliSleep(m_changeCount / 10000);
+        boost::this_thread::sleep_for(boost::chrono::microseconds(m_changeCount.load() / 10));
     }
     uint32_t bucketId;
     BucketHolder bucket;
@@ -911,8 +911,9 @@ void DataFile::flushSomeNodesToDisk(ForceBool force)
         lastCommittedBucketIndex = m_lastCommittedBucketIndex;
         bucketsToNotSave = m_bucketsToNotSave;
     }
-    uint32_t flushedToDiskCount = 0;
-    uint32_t leafsFlushedToDisk = 0;
+    const int changeCountStartAtStart = m_changeCount.load();
+    int32_t flushedToDiskCount = 0;
+    int32_t leafsFlushedToDisk = 0;
     std::list<SavedBucket> savedBuckets;
    /*
     * Iterate over m_buckets
@@ -1029,7 +1030,7 @@ void DataFile::flushSomeNodesToDisk(ForceBool force)
     }
     logInfo(Log::UTXO) << "Flushed" << flushedToDiskCount << "to disk." << m_path.filename().string() << "Filesize now:" << m_writeBuffer.offset();
 
-    m_changeCount = 0;
+    m_changeCount.fetch_sub(std::min(changeCountStartAtStart, flushedToDiskCount));
     m_jumptableNeedsSave = true;
     if (m_writeBuffer.offset() > UODBPrivate::limits.FileFull) {
         int notFull = 0; // only change if its still the default value.
@@ -1088,8 +1089,6 @@ void DataFile::commit()
     // mutex already locked by caller.
     const int nextBucketIndex = m_nextBucketIndex.load();
     assert(nextBucketIndex > 0);
-    int zero = 0;
-    m_changeCount.compare_exchange_strong(zero, nextBucketIndex - m_lastCommittedBucketIndex);
     m_lastCommittedBucketIndex = static_cast<uint32_t>(nextBucketIndex) - 1;
     m_lastCommittedLeafIndex = static_cast<uint32_t>(m_nextLeafIndex.load()) - 1;
     for (UnspentOutput *output : m_leafsBackup) {
