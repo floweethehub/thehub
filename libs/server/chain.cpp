@@ -2,6 +2,7 @@
  * This file is part of the Flowee project
  * Copyright (c) 2009-2010 Satoshi Nakamoto
  * Copyright (c) 2009-2014 The Bitcoin Core developers
+ * Copyright (C) 2019 Tom Zander <tomz@freedommail.ch>
  *
  * This program is free software: you can redistribute it and/or modify
  * it under the terms of the GNU General Public License as published by
@@ -28,26 +29,28 @@ CChain::CChain()
 }
 
 CChain::CChain(const CChain &o)
-    : vChain(o.vChain),
+    : m_chain(o.m_chain),
       m_tip(o.m_tip.load())
 {
 }
 
 void CChain::SetTip(CBlockIndex *pindex) {
+    std::lock_guard<std::mutex> lock(m_lock);
     if (pindex == nullptr) {
-        vChain.clear();
+        m_chain.clear();
         m_tip = nullptr;
         return;
     }
-    vChain.resize(pindex->nHeight + 1);
+    m_chain.resize(pindex->nHeight + 1);
     m_tip = pindex;
-    while (pindex && vChain[pindex->nHeight] != pindex) {
-        vChain[pindex->nHeight] = pindex;
+    while (pindex && m_chain[pindex->nHeight] != pindex) {
+        m_chain[pindex->nHeight] = pindex;
         pindex = pindex->pprev;
     }
 }
 
 CBlockLocator CChain::GetLocator(const CBlockIndex *pindex) const {
+    std::lock_guard<std::mutex> lock(m_lock);
     int nStep = 1;
     std::vector<uint256> vHave;
     vHave.reserve(32);
@@ -61,7 +64,7 @@ CBlockLocator CChain::GetLocator(const CBlockIndex *pindex) const {
             break;
         // Exponentially larger steps back, plus the genesis block.
         int nHeight = std::max(pindex->nHeight - nStep, 0);
-        if (Contains(pindex)) {
+        if (m_chain[nHeight] == pindex) {
             // Use O(1) CChain index if possible.
             pindex = (*this)[nHeight];
         } else {
@@ -76,8 +79,9 @@ CBlockLocator CChain::GetLocator(const CBlockIndex *pindex) const {
 }
 
 const CBlockIndex *CChain::FindFork(const CBlockIndex *pindex) const {
-    if (pindex == NULL) {
-        return NULL;
+    std::lock_guard<std::mutex> lock(m_lock);
+    if (pindex == nullptr) {
+        return nullptr;
     }
     if (pindex->nHeight > Height())
         pindex = pindex->GetAncestor(Height());
@@ -103,14 +107,14 @@ int static inline GetSkipHeight(int height) {
 CBlockIndex* CBlockIndex::GetAncestor(int height)
 {
     if (height > nHeight || height < 0)
-        return NULL;
+        return nullptr;
 
     CBlockIndex* pindexWalk = this;
     int heightWalk = nHeight;
     while (heightWalk > height) {
         int heightSkip = GetSkipHeight(heightWalk);
         int heightSkipPrev = GetSkipHeight(heightWalk - 1);
-        if (pindexWalk->pskip != NULL &&
+        if (pindexWalk->pskip != nullptr &&
             (heightSkip == height ||
              (heightSkip > height && !(heightSkipPrev < heightSkip - 2 &&
                                        heightSkipPrev >= height)))) {

@@ -287,24 +287,22 @@ void ValidationEnginePrivate::blockHeaderValidated(std::shared_ptr<BlockValidati
     if (currentHeaderTip && !Blocks::DB::instance()->headerChain().Contains(currentHeaderTip)) { // re-org happened in headers.
         logInfo(Log::BlockValidation) << "Header-reorg detected. height=" << prevTip->nHeight <<
                                          "Old-tip" << *currentHeaderTip->phashBlock << "@" << currentHeaderTip->nHeight;
-        bool bigReorg = true;
-        if (currentHeaderTip->GetAncestor(blockchain->Height()) != blockchain->Tip()) {
+        int reorgSize = 0;
+        if (!Blocks::DB::instance()->headerChain().Contains(blockchain->Tip())) {
             // the reorg removes blocks from our validated chain!
             // Now see how big a reorg we are talking...
             auto commonAncestor = Blocks::Index::lastCommonAncestor(currentHeaderTip, blockchain->Tip());
-            bigReorg = blockchain->Height() - commonAncestor->nHeight > 6; // removing more than 6 blocks needed
+            reorgSize = 1 + blockchain->Height() - commonAncestor->nHeight;
         }
-        if (bigReorg)
-            bigReorg = Params().NetworkIDString() != CBaseChainParams::REGTEST; // reorgs are fine on REGTEST
+        DEBUGBV << "  + reorgSize" << reorgSize;
+        DEBUGBV << "  + validation-tip" << blockchain->Height() << blockchain->Tip()->GetBlockHash();
 
-        if (bigReorg) {
+        if (reorgSize > 6 && Params().NetworkIDString() != CBaseChainParams::REGTEST) { // reorgs are fine on REGTEST
             logCritical(Log::BlockValidation) << "Reorg larger than 6 blocks detected, this needs manual intervention.";
             logCritical(Log::BlockValidation) << "  Use invalidateblock and reconsiderblock methods to change chain.";
-        } else {
+        } else if (reorgSize > 0) {
             prepareChain();
             lastFullBlockScheduled = -1;
-            findMoreJobs();
-            return;
         }
     }
 
@@ -755,6 +753,7 @@ void ValidationEnginePrivate::prepareChain()
         return;
     if (Blocks::DB::instance()->headerChain().Contains(blockchain->Tip()))
         return;
+    DEBUGBV << "PrepareChain actually has work to do!";
 
     std::vector<FastBlock> revertedBlocks;
 
@@ -1373,7 +1372,8 @@ void BlockValidationState::checks2HaveParentHeaders()
                 Application::instance()->ioService().post(std::bind(&BlockValidationState::updateUtxoAndStartValidation, shared_from_this()));
             } else {
                 assert(!m_checkValidityOnly); // why did we get here if the
-                DEBUGBV << "  saving block for later, no parent yet" << m_block.createHash();
+                DEBUGBV << "  saving block for later, no parent yet" << m_block.createHash()
+                        << '@' << m_blockIndex->nHeight << "parent:" << m_blockIndex->pprev->GetBlockHash();
             }
             return;
         }

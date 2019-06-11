@@ -42,7 +42,7 @@ void waitForStrand(MockBlockValidation &bv, int count = 10) {
     }
     bv.waitValidationFinished();
 }
-void waitForHeight(MockBlockValidation &bv, int height = 10) {
+void waitForHeight(MockBlockValidation &bv, int height) {
     bv.waitValidationFinished();
     // Validation is async, spread over many events so the best bet to get the good result is to wait a bit.
     for (int i = 0; i < 20; ++i) { // max 1 sec
@@ -144,8 +144,7 @@ void TestBlockValidation::reorderblocks2()
         future.waitUntilFinished();
         QCOMPARE(future.error(), std::string());
     }
-    waitForHeight(*bv, 21);
-    QCOMPARE(bv->blockchain()->Height(), 21);
+    QTRY_COMPARE(bv->blockchain()->Height(), 21);
     QCOMPARE(oldBlock11, (*bv->blockchain())[11]);
     QVERIFY(*(*bv->blockchain())[21]->phashBlock == blocks.back().createHash());
 }
@@ -158,8 +157,7 @@ void TestBlockValidation::detectOrder()
     BOOST_REVERSE_FOREACH (const FastBlock &block, blocks) {
         bv->addBlock(block, Validation::SaveGoodToDisk, nullptr);
     }
-    waitForHeight(*bv, 20);
-    QCOMPARE(bv->blockchain()->Height(), 20);
+    QTRY_COMPARE(bv->blockchain()->Height(), 20);
 }
 
 FastBlock TestBlockValidation::createHeader(const FastBlock &full) const

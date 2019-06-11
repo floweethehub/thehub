@@ -2,6 +2,7 @@
  * This file is part of the Flowee project
  * Copyright (C) 2009-2010 Satoshi Nakamoto
  * Copyright (C) 2009-2015 The Bitcoin Core developers
+ * Copyright (C) 2019 Tom Zander <tomz@freedommail.ch>
  *
  * This program is free software: you can redistribute it and/or modify
  * it under the terms of the GNU General Public License as published by
@@ -29,6 +30,7 @@
 
 #include <vector>
 #include <atomic>
+#include <mutex>
 
 struct CDiskBlockPos
 {
@@ -164,9 +166,9 @@ public:
 
     void SetNull()
     {
-        phashBlock = NULL;
-        pprev = NULL;
-        pskip = NULL;
+        phashBlock = nullptr;
+        pprev = nullptr;
+        pskip = nullptr;
         nHeight = 0;
         nFile = 0;
         nDataPos = 0;
@@ -363,33 +365,35 @@ public:
 /** An in-memory indexed chain of blocks. */
 class CChain {
 private:
-    std::vector<CBlockIndex*> vChain;
+    std::vector<CBlockIndex*> m_chain;
     std::atomic<CBlockIndex *> m_tip;
+    mutable std::mutex m_lock;
 
 public:
     CChain();
     CChain(const CChain &o);
-    /** Returns the index entry for the genesis block of this chain, or NULL if none. */
+    /** Returns the index entry for the genesis block of this chain, or nullptr if none. */
     CBlockIndex *Genesis() const {
-        return vChain.size() > 0 ? vChain[0] : NULL;
+        return m_chain.size() > 0 ? m_chain[0] : nullptr;
     }
 
-    /** Returns the index entry for the tip of this chain, or NULL if none. */
+    /** Returns the index entry for the tip of this chain, or nullptr if none. */
     CBlockIndex *Tip() const {
-        return m_tip;
+        return m_tip.load();
     }
 
-    /** Returns the index entry at a particular height in this chain, or NULL if no such height exists. */
+    /** Returns the index entry at a particular height in this chain, or nullptr if no such height exists. */
     CBlockIndex *operator[](int nHeight) const {
-        if (nHeight < 0 || nHeight >= (int)vChain.size())
-            return NULL;
-        return vChain[nHeight];
+        std::lock_guard<std::mutex> lock(m_lock);
+        if (nHeight < 0 || nHeight >= (int)m_chain.size())
+            return nullptr;
+        return m_chain[nHeight];
     }
 
     /** Compare two chains efficiently. */
     friend bool operator==(const CChain &a, const CChain &b) {
-        return a.vChain.size() == b.vChain.size() &&
-               a.vChain[a.vChain.size() - 1] == b.vChain[b.vChain.size() - 1];
+        return a.m_chain.size() == b.m_chain.size() &&
+               a.m_chain[a.m_chain.size() - 1] == b.m_chain[b.m_chain.size() - 1];
     }
 
     /** Efficiently check whether a block is present in this chain. */
@@ -397,12 +401,14 @@ public:
         return (*this)[pindex->nHeight] == pindex;
     }
 
-    /** Find the successor of a block in this chain, or NULL if the given index is not found or is the tip. */
+    /** Find the successor of a block in this chain, or nullptr if the given index is not found or is the tip. */
     CBlockIndex *Next(const CBlockIndex *pindex) const {
-        if (Contains(pindex))
+        std::lock_guard<std::mutex> lock(m_lock);
+        if (!pindex || pindex->nHeight < 0 || pindex->nHeight >= (int)m_chain.size())
+            return nullptr;
+        if (m_chain[pindex->nHeight] == pindex)
             return (*this)[pindex->nHeight + 1];
-        else
-            return NULL;
+        return nullptr;
     }
 
     /** Return the maximal height in the chain. Is equal to chain.Tip() ? chain.Tip()->nHeight : -1. */
@@ -417,7 +423,7 @@ public:
     void SetTip(CBlockIndex *pindex);
 
     /** Return a CBlockLocator that refers to a block in this chain (by default the tip). */
-    CBlockLocator GetLocator(const CBlockIndex *pindex = NULL) const;
+    CBlockLocator GetLocator(const CBlockIndex *pindex = nullptr) const;
 
     /** Find the last common block between this chain and a block index entry. */
     const CBlockIndex *FindFork(const CBlockIndex *pindex) const;
