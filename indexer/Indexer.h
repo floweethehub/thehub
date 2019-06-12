@@ -69,7 +69,7 @@ private:
     NetworkManager m_network;
     NetworkConnection m_serverConnection;
 
-    bool m_enableTxDB = true, m_enableAddressDb = false, m_enableSpentDb;
+    bool m_enableTxDB = true, m_enableAddressDb = false, m_enableSpentDb = false;
     bool m_indexingFinished = false;
     bool m_isServer = false; /// remembers if we (successfully) called m_network::bind() once.
 

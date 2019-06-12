@@ -99,7 +99,7 @@ void Indexer::loadConfig(const QString &filename)
                 }
             }
         }
-        else {
+        else if (settings.value(group + "/ip").isValid()) {
             EndPoint ep("", 1234);
             auto portVar = settings.value(group + "/port");
             if (portVar.isValid()) {
@@ -125,6 +125,10 @@ void Indexer::loadConfig(const QString &filename)
             } catch (std::exception &e) {
                 logCritical() << "  " << e << "skipping";
             }
+        }
+        else {
+            logCritical().nospace() << "Config file has unrecognized or empty group. Skipping: "
+                 << "[" << group << "]";
         }
     }
 
