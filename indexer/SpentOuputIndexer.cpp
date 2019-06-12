@@ -20,6 +20,7 @@
 SpentOuputIndexer::SpentOuputIndexer(boost::asio::io_service &service, const boost::filesystem::path &basedir)
     : m_txdb(service, basedir)
 {
+    UnspentOutputDatabase::setChangeCountCausesStore(50000);
 }
 
 int SpentOuputIndexer::blockheight() const

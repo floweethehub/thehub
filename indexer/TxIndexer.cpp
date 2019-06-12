@@ -20,6 +20,7 @@
 TxIndexer::TxIndexer(boost::asio::io_service &service, const boost::filesystem::path &basedir)
     : m_txdb(service, basedir)
 {
+    UnspentOutputDatabase::setChangeCountCausesStore(50000);
 }
 
 int TxIndexer::blockheight() const

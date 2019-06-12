@@ -109,6 +109,23 @@ public:
     /// Change limits to be smaller, for instance for regtest setups
     static void setSmallLimits();
 
+    /**
+     * Set the amount of changes (inserts/deletes) that should trigger an save.
+     * The UTXO gathers all changes in memory and has processes to push those slowly
+     * to disk for permanent storage.
+     * If we store too often the system slows down and we end up saving data that might
+     * have been deleted in the next block.
+     * If we store too little we may run out of memory.
+     *
+     * This method allows you to set when a save is to be started, based on the amount
+     * of changes made. Note that the standard UTXO usage shows that we save around half
+     * the amount of record vs changes.
+     * But when this database is used as a TXID-DB we store about 120% of the records vs changes.
+     *
+     * This is much more about usecase than it is about how much memory you have.
+     */
+    static void setChangeCountCausesStore(int count);
+
     struct BlockData {
         struct TxOutputs { // can hold all the data for a single transaction
             TxOutputs(const uint256 &id, int offsetInBlock, int firstOutput, int lastOutput = -1)

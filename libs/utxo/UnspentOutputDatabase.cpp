@@ -31,8 +31,6 @@
 #include <boost/filesystem.hpp>
 #include <boost/filesystem/fstream.hpp>
 
-#define SAVE_CHUNK_SIZE 50000
-
 // #define DEBUG_UTXO
 #ifdef DEBUG_UTXO
 # define DEBUGUTXO logCritical(Log::UTXO)
@@ -213,6 +211,13 @@ void UnspentOutputDatabase::setSmallLimits()
 {
     UODBPrivate::limits.DBFileSize = 50000000;
     UODBPrivate::limits.FileFull = 30000000;
+    UODBPrivate::limits.ChangesToSave = 50000;
+}
+
+void UnspentOutputDatabase::setChangeCountCausesStore(int count)
+{
+    assert(count > 1000);
+    UODBPrivate::limits.ChangesToSave = count;
 }
 
 void UnspentOutputDatabase::insertAll(const UnspentOutputDatabase::BlockData &data)
@@ -512,7 +517,7 @@ void DataFile::insert(const UODBPrivate *priv, const uint256 &txid, int firstOut
     const uint32_t shortHash = createShortHash(txid);
     uint32_t bucketId;
     {
-        if (!priv->memOnly && m_changeCount > SAVE_CHUNK_SIZE * 3) {
+        if (!priv->memOnly && m_changeCount > UODBPrivate::limits.ChangesToSave * 2) {
             // Saving is too slow! We are more than an entire chunk-size behind.
             // forcefully slow down adding data into memory.
             boost::this_thread::sleep_for(boost::chrono::microseconds(m_changeCount.load() / 10));
@@ -698,7 +703,7 @@ SpentOutput DataFile::remove(const UODBPrivate *priv, const uint256 &txid, int i
     const auto cheapHash = txid.GetCheapHash();
     const uint32_t shortHash = createShortHash(cheapHash);
 
-    if (!priv->memOnly && m_changeCount > SAVE_CHUNK_SIZE * 3) {
+    if (!priv->memOnly && m_changeCount > UODBPrivate::limits.ChangesToSave * 2) {
         // Saving is too slow! We are more than an entire chunk-size behind.
         // forcefully slow down adding data into memory.
         boost::this_thread::sleep_for(boost::chrono::microseconds(m_changeCount.load() / 10));
@@ -1030,7 +1035,7 @@ void DataFile::flushSomeNodesToDisk(ForceBool force)
     }
     logInfo(Log::UTXO) << "Flushed" << flushedToDiskCount << "to disk." << m_path.filename().string() << "Filesize now:" << m_writeBuffer.offset();
 
-    m_changeCount.fetch_sub(std::min(changeCountStartAtStart, flushedToDiskCount));
+    m_changeCount.fetch_sub(std::min(changeCountStartAtStart, flushedToDiskCount * 4));
     m_jumptableNeedsSave = true;
     if (m_writeBuffer.offset() > UODBPrivate::limits.FileFull) {
         int notFull = 0; // only change if its still the default value.
@@ -1309,7 +1314,7 @@ void DataFile::rollback()
 void DataFile::addChange(const UODBPrivate *priv, int count)
 {
     m_changeCount += count;
-    if (!m_flushScheduled && !priv->memOnly && m_changeCount > SAVE_CHUNK_SIZE) {
+    if (!m_flushScheduled && !priv->memOnly && m_changeCount > UODBPrivate::limits.ChangesToSave) {
         bool old = false;
         if (m_flushScheduled.compare_exchange_strong(old, true))
             priv->ioService.post(std::bind(&DataFile::flushSomeNodesToDisk_callback, this));
