@@ -63,10 +63,10 @@ CBlockLocator CChain::GetLocator(const CBlockIndex *pindex) const {
         if (pindex->nHeight == 0)
             break;
         // Exponentially larger steps back, plus the genesis block.
-        int nHeight = std::max(pindex->nHeight - nStep, 0);
-        if (m_chain[nHeight] == pindex) {
+        const int nHeight = std::max(pindex->nHeight - nStep, 0);
+        if (nHeight >= (int) m_chain.size() && m_chain[nHeight] == pindex) {
             // Use O(1) CChain index if possible.
-            pindex = (*this)[nHeight];
+            pindex = m_chain[nHeight];
         } else {
             // Otherwise, use O(log n) skiplist.
             pindex = pindex->GetAncestor(nHeight);

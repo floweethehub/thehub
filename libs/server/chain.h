@@ -404,10 +404,10 @@ public:
     /** Find the successor of a block in this chain, or nullptr if the given index is not found or is the tip. */
     CBlockIndex *Next(const CBlockIndex *pindex) const {
         std::lock_guard<std::mutex> lock(m_lock);
-        if (!pindex || pindex->nHeight < 0 || pindex->nHeight >= (int)m_chain.size())
+        if (!pindex || pindex->nHeight < 0 || pindex->nHeight + 1>= (int)m_chain.size())
             return nullptr;
         if (m_chain[pindex->nHeight] == pindex)
-            return (*this)[pindex->nHeight + 1];
+            return m_chain[pindex->nHeight + 1];
         return nullptr;
     }
 
