@@ -66,13 +66,15 @@ void Indexer::bind(boost::asio::ip::tcp::endpoint endpoint)
     m_isServer = true;
 }
 
-void Indexer::loadConfig(const QString &filename)
+void Indexer::loadConfig(const QString &filename, const EndPoint &prioHubLocation)
+
 {
     using boost::asio::ip::tcp;
 
     if (!QFile::exists(filename))
         return;
     QSettings settings(filename, QSettings::IniFormat);
+    EndPoint hub(prioHubLocation);
 
     const QStringList groups = settings.childGroups();
     for (auto group : groups) {
@@ -88,15 +90,10 @@ void Indexer::loadConfig(const QString &filename)
             m_enableSpentDb = settings.value("spentdb/enabled", "false").toBool();
         }
         else if (group == "services") {
-            if (!m_serverConnection.isValid()) { // only if user didn't override using commandline
+            if (!hub.isValid()) { // only if user didn't override using commandline
                 QString connectionString = settings.value("services/hub").toString();
-                EndPoint ep("", 1234);
-                SplitHostPort(connectionString.toStdString(), ep.announcePort, ep.hostname);
-                try {
-                    tryConnectHub(ep);
-                } catch (const std::exception &e) {
-                    logFatal() << "Config: Hub connection string invalid.";
-                }
+                hub = EndPoint("", 1234);
+                SplitHostPort(connectionString.toStdString(), hub.announcePort, hub.hostname);
             }
         }
         else if (settings.value(group + "/ip").isValid()) {
@@ -136,6 +133,14 @@ void Indexer::loadConfig(const QString &filename)
         bind(tcp::endpoint(boost::asio::ip::address_v4::loopback(), 1234));
     if (!m_isServer) // then add localhost ipv6
         bind(tcp::endpoint(boost::asio::ip::address_v6::loopback(), 1234));
+
+    // connecting to upstream Hub is the last thing we do
+    try {
+        if (hub.isValid())
+            tryConnectHub(hub);
+    } catch (const std::exception &e) {
+        logFatal() << "Config: Hub connection string invalid." << e;
+    }
 }
 
 void Indexer::onIncomingMessage(NetworkService::Remote *con, const Message &message, const EndPoint &)

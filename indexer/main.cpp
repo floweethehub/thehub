@@ -58,13 +58,11 @@ int main(int argc, char **argv)
         }
     }
 
-    indexer.tryConnectHub(app.serverAddressFromArguments(1235));
-
     QString confFile;
     if (parser.isSet(conf))
         confFile = parser.value(conf);
     else
         confFile = QStandardPaths::locate(QStandardPaths::AppConfigLocation, "indexer.conf");
-    indexer.loadConfig(confFile);
+    indexer.loadConfig(confFile, app.serverAddressFromArguments(1235));
     return app.exec();
 }

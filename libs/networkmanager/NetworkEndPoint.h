@@ -44,6 +44,9 @@ struct EndPoint
           announcePort(port)
     {
     }
+
+    bool isValid() const { return announcePort > 0 && (!hostname.empty() || !ipAddress.is_unspecified()); }
+
     boost::asio::ip::address ipAddress;
     std::string hostname;
     std::uint16_t peerPort = 0;

@@ -40,7 +40,8 @@ public:
     /// listen to incoming requests
     void bind(boost::asio::ip::tcp::endpoint endpoint);
 
-    void loadConfig(const QString &filename);
+    /// load config, if prioHubLocation is valid prefer that one.
+    void loadConfig(const QString &filename, const EndPoint &prioHubLocation);
 
     // network service API
     void onIncomingMessage(Remote *con, const Message &message, const EndPoint &ep) override;
