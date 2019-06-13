@@ -142,8 +142,7 @@ public:
         assert(genesis.hashMerkleRoot == uint256S("0x4a5e1e4baab89f3a32518a88c31bc87f618f76673e2cc77ab2127b7afdeda33b"));
 
         vSeeds.push_back(CDNSSeedData("bchd", "seed.bchd.cash"));
-        vSeeds.push_back(CDNSSeedData("bitprim.org", "seed.bitprim.org"));
-        vSeeds.push_back(CDNSSeedData("criptolayer.net", "seeder.criptolayer.net"));
+        vSeeds.push_back(CDNSSeedData("abc", "seed.bitcoinabc.org"));
 
         base58Prefixes[PUBKEY_ADDRESS] = std::vector<unsigned char>(1,0);
         base58Prefixes[SCRIPT_ADDRESS] = std::vector<unsigned char>(1,5);
@@ -251,7 +250,6 @@ public:
         vFixedSeeds.clear();
         vSeeds.clear();
         vSeeds.push_back(CDNSSeedData("bitcoinforks.org", "testnet-seed-abc.bitcoinforks.org"));
-        vSeeds.push_back(CDNSSeedData("bitprim.org", "testnet-seed.bitprim.org"));
 
         base58Prefixes[PUBKEY_ADDRESS] = std::vector<unsigned char>(1,111);
         base58Prefixes[SCRIPT_ADDRESS] = std::vector<unsigned char>(1,196);
