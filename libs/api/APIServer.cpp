@@ -269,8 +269,10 @@ void Api::Server::Connection::incomingMessage(const Message &message)
     auto *directParser = dynamic_cast<Api::DirectParser*>(parser.get());
     assert(directParser);
     if (directParser) {
+        int messageSize = 0;
         try {
-            m_bufferPool.reserve(directParser->calculateMessageSize(message));
+            messageSize = directParser->calculateMessageSize(message);
+            m_bufferPool.reserve(messageSize);
         } catch (const ParserException &e) {
             logWarning(Log::ApiServer) << "calculateMessageSize() threw:" << e;
             sendFailedMessage(message, e.what());
@@ -281,6 +283,11 @@ void Api::Server::Connection::incomingMessage(const Message &message)
         try {
             directParser->buildReply(message, builder);
             Message reply = builder.message(message.serviceId(), directParser->replyMessageId());
+            if (messageSize > reply.body().size())
+                logDebug(Log::ApiServer) << "Generated message larger than space reserved."
+                                         << message.serviceId() << message.messageId()
+                                         << "reserved" << messageSize << "built" << reply.body().size();
+            assert(reply.body().size() <= messageSize); // fail fast.
             const int requestId = message.headerInt(Api::RequestId);
             if (requestId != -1)
                 reply.setHeaderInt(Api::RequestId, requestId);

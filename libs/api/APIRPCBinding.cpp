@@ -389,7 +389,7 @@ public:
                 oneEnd = false;
             }
 
-            if (type == Tx::PrevTxHash) {
+            if (opt.returnInputs && type == Tx::PrevTxHash) {
                 txInputSize += 42; // prevhash: 32 + 3 +  prevIndex; 6 + 1
             }
             else if (opt.returnInputs && type == Tx::TxInScript) {
