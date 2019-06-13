@@ -184,7 +184,8 @@ void Api::Server::checkConnections(boost::system::error_code error)
 
 
 Api::Server::Connection::Connection(NetworkConnection && connection)
-    : m_connection(std::move(connection))
+    : m_connection(std::move(connection)),
+      m_bufferPool(4000000) // default size is 4MB
 {
     m_connection.setOnIncomingMessage(std::bind(&Api::Server::Connection::incomingMessage, this, std::placeholders::_1));
 }

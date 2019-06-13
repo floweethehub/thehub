@@ -135,11 +135,13 @@ void Streaming::BufferPool::change_capacity(int bytes)
     if (unprocessed + bytes <= m_defaultSize) { // unprocessed > buffer_size
         m_size = m_defaultSize;
     }
-    else {
-        // Over reserve by phi ~= 1.62 = (1 + sqrt(5))/2
-        // There are some discussions about whether 1.5, 2 or phi is correct. Try this.
-        m_size = static_cast<int>(std::max<int64_t>(bytes + unprocessed,
-              std::lrint(std::ceil(m_size * boost::math::double_constants::phi))));
+    else if (unprocessed + bytes > m_size) { // would not fit in 'size'
+        assert(unprocessed < 0x8FFFFFFF); // fits in signed int, aka 2GiB.
+        std::int64_t newSize = std::max(bytes + unprocessed, static_cast<std::int64_t>(m_size) * 2);
+        newSize = std::min<std::int64_t>(0x8FFFFFFF, newSize); // fits in signed int.
+        m_size = static_cast<int>(newSize);
+        assert(m_size >= 0);
+        assert(m_size >= m_defaultSize);
     }
     std::shared_ptr<char> newBuffer = std::shared_ptr<char>(new char[m_size], std::default_delete<char[]>());
 
