@@ -26,7 +26,12 @@ protected slots:
 protected:
     enum Connect { ConnectHubs, Standalone };
     void startHubs(int amount = 1, Connect connect = ConnectHubs);
-    Message waitForMessage(int hub, Api::ServiceIds serviceId, int messageId, int messageFailedId, int timeout = 30000);
+    /**
+     * Feed a blockchain we prepared to the target hub.
+     * For block 112 the tx-heights are; 81 181 1019 1855 2692 3529 4366 5203 6040 6877 7714
+     */
+    void feedDefaultBlocksToHub(int hubIndex);
+    Message waitForReply(int hub, const Message &message, int messageId, int timeout = 30000);
 
     struct Hub {
         QProcess *proc;
@@ -35,9 +40,9 @@ protected:
         std::deque<Message> messages;
         void addMessage(const Message &message);
 
-        int m_waitForServiceId = -1;
-        int m_waitForMessageId = -1;
-        int m_waitForMessageId2 = -1;
+        QAtomicInt m_waitForServiceId;
+        QAtomicInt m_waitForMessageId;
+        QAtomicInt m_waitForMessageId2;
         QAtomicPointer<Message> m_foundMessage;
     };
     std::vector<Hub> m_hubs;

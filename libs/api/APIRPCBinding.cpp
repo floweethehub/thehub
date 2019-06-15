@@ -236,15 +236,15 @@ struct TransactionSerializationOptions
             else if (returnInputs && type == Tx::PrevTxIndex) {
                 builder.add(Api::BlockChain::Tx_IN_OutIndex, iter.intData());
             }
-            else if (type == Tx::OutputValue) {
-                if ((returnOutputs || returnOutputAmounts) &&
+            else if (type == Tx::OutputValue
+                     && (returnOutputs || returnOutputAmounts) &&
                             (filterOutputs.empty() || filterOutputs.find(outIndex) != filterOutputs.end())) {
-                    builder.add(Api::BlockChain::Tx_Out_Index, outIndex);
-                    builder.add(Api::BlockChain::Tx_Out_Amount, iter.longData());
-                }
+                builder.add(Api::BlockChain::Tx_Out_Index, outIndex);
+                builder.add(Api::BlockChain::Tx_Out_Amount, iter.longData());
             }
-            else if ((returnOutputs || returnOutputScripts || returnOutputAddresses) && type == Tx::OutputScript) {
-                if (filterOutputs.empty() || filterOutputs.find(outIndex) != filterOutputs.end()) {
+            else if (type == Tx::OutputScript) {
+                if (returnOutputs || returnOutputScripts || returnOutputAddresses
+                        && filterOutputs.empty() || filterOutputs.find(outIndex) != filterOutputs.end()) {
                     if (!returnOutputs && !returnOutputAmounts) // if not added before in OutputValue
                         builder.add(Api::BlockChain::Tx_Out_Index, outIndex);
                     if (returnOutputs || returnOutputScripts)

@@ -18,13 +18,14 @@
 #ifndef TESTAPIBC_H
 #define TESTAPIBC_H
 
-#include <common/BlackBoxTest.h>
+#include "BlackBoxTest.h"
 
 class TestApiBlockchain : public BlackBoxTest
 {
     Q_OBJECT
 private slots:
     void testChainInfo();
+    void testGetTransaction();
 };
 
 #endif

@@ -28,8 +28,7 @@ void TestApiLive::testBasic()
     startHubs();
     QCOMPARE((int) con.size(), 1);
 
-    con[0].send(Message(Api::APIService, Api::Meta::Version));
-    Message m = waitForMessage(0, Api::APIService, Api::Meta::VersionReply, Api::Meta::Version);
+    Message m = waitForReply(0, Message(Api::APIService, Api::Meta::Version), Api::Meta::VersionReply);
     QCOMPARE((int) m.serviceId(), (int) Api::APIService);
     QCOMPARE((int) m.messageId(), (int) Api::Meta::VersionReply);
     Streaming::MessageParser parser(m.body());
@@ -49,8 +48,7 @@ void TestApiLive::testSendTx()
     generate100();
     Streaming::MessageBuilder builder(Streaming::NoHeader, 100000);
     builder.add(Api::BlockChain::BlockHeight, 2);
-    con[0].send(builder.message(Api::BlockChainService, Api::BlockChain::GetBlock));
-    Message m = waitForMessage(0, Api::BlockChainService, Api::BlockChain::GetBlockReply, Api::BlockChain::GetBlock);
+    Message m = waitForReply(0, builder.message(Api::BlockChainService, Api::BlockChain::GetBlock), Api::BlockChain::GetBlockReply);
     QCOMPARE(m.serviceId(), (int) Api::BlockChainService);
     QCOMPARE(m.messageId(), (int) Api::BlockChain::GetBlockReply);
     Streaming::ConstBuffer coinbase;
@@ -67,8 +65,7 @@ void TestApiLive::testSendTx()
         builder.add(Api::LiveTransactions::Transaction, coinbase);
         con[0].send(builder.message(Api::LiveTransactionService, Api::LiveTransactions::SendTransaction));
     }
-    con[0].send(Message(Api::APIService, Api::Meta::Version));
-    waitForMessage(0, Api::APIService, Api::Meta::VersionReply, Api::Meta::Version);
+    waitForReply(0, Message(Api::APIService, Api::Meta::Version), Api::Meta::VersionReply);
     auto messages = m_hubs[0].messages;
     QCOMPARE((int) messages.size(), 101);
     for (int i = 0; i < 100; ++i) {
@@ -86,8 +83,7 @@ void TestApiLive::testUtxo()
     Streaming::MessageBuilder builder(Streaming::NoHeader);
     builder.add(Api::BlockChain::BlockHeight, 2);
     builder.add(Api::BlockChain::Include_TxId, true);
-    con[0].send(builder.message(Api::BlockChainService, Api::BlockChain::GetBlock));
-    Message m = waitForMessage(0, Api::BlockChainService, Api::BlockChain::GetBlockReply, Api::BlockChain::GetBlock);
+    Message m = waitForReply(0, builder.message(Api::BlockChainService, Api::BlockChain::GetBlock), Api::BlockChain::GetBlockReply);
     uint256 txid;
     Streaming::MessageParser parser(m.body());
     while (parser.next() == Streaming::FoundTag) {
@@ -109,8 +105,7 @@ void TestApiLive::testUtxo()
     builder.add(Api::LiveTransactions::TxId, txid);
     builder.add(Api::LiveTransactions::OutIndex, 0);
     Message request = builder.message(Api::LiveTransactionService, Api::LiveTransactions::IsUnspent);
-    con[0].send(request);
-    m = waitForMessage(0, Api::LiveTransactionService, Api::LiveTransactions::IsUnspentReply, Api::LiveTransactions::IsUnspent);
+    m = waitForReply(0, request, Api::LiveTransactions::IsUnspentReply);
     QCOMPARE(m.messageId(), (int) Api::LiveTransactions::IsUnspentReply);
     QCOMPARE(m.serviceId(), (int) Api::LiveTransactionService);
 
@@ -157,7 +152,7 @@ void TestApiLive::testUtxo()
 
     request.setMessageId(Api::LiveTransactions::GetUnspentOutput);
     con[0].send(request);
-    m = waitForMessage(0, Api::LiveTransactionService, Api::LiveTransactions::GetUnspentOutputReply, Api::LiveTransactions::GetUnspentOutput);
+    m = waitForReply(0, request, Api::LiveTransactions::GetUnspentOutputReply);
     index = 0, index2 = 0;
     parser = Streaming::MessageParser(m.body());
     seenBlockHeight = false;
@@ -215,8 +210,7 @@ void TestApiLive::testUtxo()
 
 Streaming::ConstBuffer TestApiLive::generate100(int nodeId)
 {
-    con[nodeId].send(Message(Api::UtilService, Api::Util::CreateAddress));
-    Message m = waitForMessage(nodeId, Api::UtilService, Api::Util::CreateAddressReply, Api::Util::CreateAddress);
+    Message m = waitForReply(nodeId, Message(Api::UtilService, Api::Util::CreateAddress), Api::Util::CreateAddressReply);
     Streaming::MessageParser parser(m.body());
     Streaming::ConstBuffer address;
     while (parser.next() == Streaming::FoundTag) {
@@ -229,8 +223,7 @@ Streaming::ConstBuffer TestApiLive::generate100(int nodeId)
     Streaming::MessageBuilder builder(Streaming::NoHeader);
     builder.add(Api::RegTest::BitcoinAddress, address);
     builder.add(Api::RegTest::Amount, 101);
-    con[nodeId].send(builder.message(Api::RegTestService, Api::RegTest::GenerateBlock));
-    m = waitForMessage(nodeId, Api::RegTestService, Api::RegTest::GenerateBlockReply, Api::RegTest::GenerateBlock);
+    m = waitForReply(nodeId, builder.message(Api::RegTestService, Api::RegTest::GenerateBlock), Api::RegTest::GenerateBlockReply);
     Q_ASSERT(m.serviceId() == Api::RegTestService);
     return address;
 }

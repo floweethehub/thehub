@@ -18,7 +18,7 @@
 #ifndef TESTAPI_H
 #define TESTAPI_H
 
-#include <common/BlackBoxTest.h>
+#include "BlackBoxTest.h"
 
 class TestApiLive : public BlackBoxTest
 {

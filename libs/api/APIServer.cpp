@@ -247,10 +247,16 @@ void Api::Server::Connection::incomingMessage(const Message &message)
                 sendFailedMessage(message, std::string(e.what()));
                 return;
             }
-            m_bufferPool.reserve(rpcParser->messageSize(result));
+            int reserveSize = rpcParser->messageSize(result);
+            m_bufferPool.reserve(reserveSize);
             Streaming::MessageBuilder builder(m_bufferPool);
             rpcParser->buildReply(builder, result);
             Message reply = builder.message(message.serviceId(), rpcParser->replyMessageId());
+            if (reserveSize < reply.body().size())
+                logDebug(Log::ApiServer) << "Generated message larger than space reserved."
+                                         << message.serviceId() << message.messageId()
+                                         << "reserved:" << reserveSize << "built:" << reply.body().size();
+            assert(reply.body().size() <= reserveSize); // fail fast.
             const int requestId = message.headerInt(Api::RequestId);
             if (requestId != -1)
                 reply.setHeaderInt(Api::RequestId, requestId);
@@ -270,10 +276,10 @@ void Api::Server::Connection::incomingMessage(const Message &message)
     auto *directParser = dynamic_cast<Api::DirectParser*>(parser.get());
     assert(directParser);
     if (directParser) {
-        int messageSize = 0;
+        int reserveSize = 0;
         try {
-            messageSize = directParser->calculateMessageSize(message);
-            m_bufferPool.reserve(messageSize);
+            reserveSize = directParser->calculateMessageSize(message);
+            m_bufferPool.reserve(reserveSize);
         } catch (const ParserException &e) {
             logWarning(Log::ApiServer) << "calculateMessageSize() threw:" << e;
             sendFailedMessage(message, e.what());
@@ -284,11 +290,11 @@ void Api::Server::Connection::incomingMessage(const Message &message)
         try {
             directParser->buildReply(message, builder);
             Message reply = builder.message(message.serviceId(), directParser->replyMessageId());
-            if (messageSize > reply.body().size())
+            if (reserveSize < reply.body().size())
                 logDebug(Log::ApiServer) << "Generated message larger than space reserved."
                                          << message.serviceId() << message.messageId()
-                                         << "reserved" << messageSize << "built" << reply.body().size();
-            assert(reply.body().size() <= messageSize); // fail fast.
+                                         << "reserved:" << reserveSize << "built:" << reply.body().size();
+            assert(reply.body().size() <= reserveSize); // fail fast.
             const int requestId = message.headerInt(Api::RequestId);
             if (requestId != -1)
                 reply.setHeaderInt(Api::RequestId, requestId);

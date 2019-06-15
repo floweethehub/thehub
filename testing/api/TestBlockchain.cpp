@@ -28,9 +28,8 @@
 void TestApiBlockchain::testChainInfo()
 {
     startHubs();
-    con[0].send(Message(Api::BlockChainService, Api::BlockChain::GetBlockChainInfo));
-    Message m = waitForMessage(0, Api::BlockChainService, Api::BlockChain::GetBlockChainInfoReply, Api::BlockChain::GetBlockChainInfo);
-
+    Message m = waitForReply(0, Message(Api::BlockChainService, Api::BlockChain::GetBlockChainInfo),
+                             Api::BlockChain::GetBlockChainInfoReply);
     QCOMPARE(m.serviceId(), (int) Api::BlockChainService);
     QCOMPARE(m.messageId(), (int) Api::BlockChain::GetBlockChainInfoReply);
     Streaming::MessageParser parser(m.body());
@@ -72,4 +71,75 @@ void TestApiBlockchain::testChainInfo()
             QVERIFY(parser.uint256Data() == uint256S("0000000000000000000000000000000000000000000000000000000000000000"));
         }
     }
+}
+
+void TestApiBlockchain::testGetTransaction()
+{
+    startHubs();
+    feedDefaultBlocksToHub(0);
+
+    Streaming::BufferPool pool;
+    Streaming::MessageBuilder builder(pool);
+    builder.add(Api::BlockChain::BlockHeight, 112);
+    builder.add(Api::BlockChain::Tx_OffsetInBlock, 1019);
+
+    Message m = waitForReply(0, builder.message(Api::BlockChainService, Api::BlockChain::GetTransaction), Api::BlockChain::GetTransactionReply);
+    QCOMPARE(m.serviceId(), (int) Api::BlockChainService);
+    QCOMPARE(m.body().size(), 839); // the whole, raw, transaction plus 3 bytes overhead
+
+    builder.add(Api::BlockChain::BlockHeight, 112);
+    builder.add(Api::BlockChain::Tx_OffsetInBlock, 1019);
+    builder.add(Api::BlockChain::Include_TxId, true);
+    m = waitForReply(0, builder.message(Api::BlockChainService, Api::BlockChain::GetTransaction), Api::BlockChain::GetTransactionReply);
+    QCOMPARE(m.serviceId(), (int) Api::BlockChainService);
+    Streaming::MessageParser p(m.body());
+    p.next();
+    QCOMPARE(p.uint256Data(), uint256S("0xb5124990d78d1e7a3dc699b247cb90014e4e3651e9a7c188dfa49f5c3cb0e549"));
+    QCOMPARE(p.next(), Streaming::EndOfDocument);
+
+
+    builder.add(Api::BlockChain::BlockHeight, 112);
+    builder.add(Api::BlockChain::Tx_OffsetInBlock, 1019);
+    builder.add(Api::BlockChain::Include_Inputs, true);
+    m = waitForReply(0, builder.message(Api::BlockChainService, Api::BlockChain::GetTransaction), Api::BlockChain::GetTransactionReply);
+    p = Streaming::MessageParser(m.body());
+    p.next();
+    QCOMPARE(p.tag(), (uint32_t) 9);
+    QCOMPARE(p.uint256Data(), uint256S("0xa0db9b220e1fb9472bab0b2d9043893b778b6b6ee095cb6e66a58c013e8d3315"));
+    p.next();
+    QCOMPARE(p.tag(), (uint32_t) 10);
+    QCOMPARE(p.intData(), 2);
+    p.next();
+    QCOMPARE(p.tag(), (uint32_t) 11);
+    QCOMPARE(p.dataLength(), 105);
+    QCOMPARE(p.next(), Streaming::EndOfDocument);
+
+    builder.add(Api::BlockChain::BlockHeight, 112);
+    builder.add(Api::BlockChain::Tx_OffsetInBlock, 1019);
+    builder.add(Api::BlockChain::Include_OutputAmounts, true);
+    m = waitForReply(0, builder.message(Api::BlockChainService, Api::BlockChain::GetTransaction), Api::BlockChain::GetTransactionReply);
+    p = Streaming::MessageParser(m.body());
+    for (int i = 0; i < 20; ++i) {
+        QCOMPARE(p.next(), Streaming::FoundTag);
+        QCOMPARE(p.tag(), (uint32_t) Api::BlockChain::Tx_Out_Index);
+        QCOMPARE(p.intData(), i);
+        QCOMPARE(p.next(), Streaming::FoundTag);
+        QCOMPARE(p.tag(), (uint32_t) Api::Amount);
+        QCOMPARE(p.longData(), (uint64_t) 12499842);
+    }
+    QCOMPARE(p.next(), Streaming::EndOfDocument);
+
+    builder.add(Api::BlockChain::BlockHeight, 112);
+    builder.add(Api::BlockChain::Tx_OffsetInBlock, 1019);
+    builder.add(Api::BlockChain::Include_OutputAmounts, true);
+    builder.add(Api::BlockChain::FilterOutputIndex, 1);
+    m = waitForReply(0, builder.message(Api::BlockChainService, Api::BlockChain::GetTransaction), Api::BlockChain::GetTransactionReply);
+    p = Streaming::MessageParser(m.body());
+    QCOMPARE(p.next(), Streaming::FoundTag);
+    QCOMPARE(p.tag(), (uint32_t) Api::BlockChain::Tx_Out_Index);
+    QCOMPARE(p.intData(), 1);
+    QCOMPARE(p.next(), Streaming::FoundTag);
+    QCOMPARE(p.tag(), (uint32_t) Api::Amount);
+    QCOMPARE(p.longData(), (uint64_t) 12499842);
+    QCOMPARE(p.next(), Streaming::EndOfDocument);
 }

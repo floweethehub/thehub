@@ -28,6 +28,7 @@ void BlackBoxTest::startHubs(int amount, Connect connect)
 {
     Q_ASSERT(m_hubs.empty());
     Q_ASSERT(amount > 0);
+    m_hubs.reserve(amount + 1);
     m_currentTest = QString(QTest::currentTestFunction());
     m_baseDir = QDir::tempPath() + QString("/flowee-bbtest-%1").arg(rand());
     logDebug() << "Starting hub at" << m_baseDir << "with" << s_hubPath;
@@ -75,9 +76,82 @@ void BlackBoxTest::startHubs(int amount, Connect connect)
     }
     MilliSleep(500); // Assuming that the hub takes half a second is better than assuming it doesn't and hitting the reconnect-time.
     con.back().connect();
+    logDebug() << "Hubs started";
 }
 
-Message BlackBoxTest::waitForMessage(int hubId, Api::ServiceIds serviceId, int messageId, int messageFailedId, int timeout)
+void BlackBoxTest::feedDefaultBlocksToHub(int hubIndex)
+{
+    Q_ASSERT(m_hubs.size() > hubIndex);
+    Hub &target = m_hubs[hubIndex];
+    Q_ASSERT(target.proc);
+
+    logDebug().nospace() << "Starting new hub with pre-prepared chain: node" << m_hubs.size();
+    QString nodePath = m_baseDir + QString("/node%1/").arg(m_hubs.size());
+    QDir(nodePath).mkpath("regtest/blocks");
+    QFile blk(":/blk00000.dat");
+    bool ok = blk.open(QIODevice::ReadOnly);
+    Q_ASSERT(ok);
+    ok = blk.copy(nodePath + "regtest/blocks/blk00000.dat");
+    Q_ASSERT(ok);
+    blk.close();
+    {
+        QProcess proc1;
+        proc1.setProgram(s_hubPath);
+        proc1.setArguments(QStringList() << "-api=false" << "-server=false" << "-regtest" << "-listen=false"
+                           << "-datadir=." << "-reindex" << "-stopafterblockimport");
+        proc1.setWorkingDirectory(nodePath);
+        proc1.start(QProcess::ReadOnly);
+        proc1.waitForFinished();
+    }
+    logDebug() << "Reindex finished, restarting feed hub to provide the chain to node" << hubIndex;
+    Hub hub;
+    hub.proc = new QProcess(this);
+    hub.proc->setProgram(s_hubPath);
+    hub.proc->setArguments(QStringList() << "-api=false" << "-server=false" << "-regtest" << "-listen=false"
+                    << "-datadir=." << QString("-connect=127.0.0.1:%1").arg(target.p2pPort));
+    hub.proc->setWorkingDirectory(nodePath);
+    hub.proc->start(QProcess::ReadOnly);
+    m_hubs.push_back(hub);
+
+    // Ask the target hub its block-height and don't continue until it reaches that.
+    NetworkConnection con = std::move(m_network.connection(
+                EndPoint(boost::asio::ip::address_v4::loopback(), target.apiPort)));
+    con.setOnIncomingMessage(std::bind(&BlackBoxTest::Hub::addMessage, &hub, std::placeholders::_1));
+    hub.m_waitForMessageId = Api::BlockChain::GetBlockCountReply;
+    hub.m_waitForServiceId = Api::BlockChainService;
+    hub.m_waitForMessageId2 = -1;
+    for (int wait = 0; wait < 30; ++wait) {
+        struct timespec tim, tim2;
+        tim.tv_sec = 0;
+        hub.messages.clear();
+        hub.m_foundMessage.store(nullptr);
+        con.send(Message(Api::BlockChainService, Api::BlockChain::GetBlockCount));
+        while (true) {
+            Message *m = hub.m_foundMessage.load();
+            if (m) {
+                Streaming::MessageParser p(m->body());
+                p.next();
+                if (p.tag() == Api::BlockHeight) {
+                    if (p.intData() == 114) {
+                        logDebug() << "  feed done, shutting down helper hub";
+                        auto pid = hub.proc->processId();
+                        if (pid > 0) kill(pid, SIGTERM); // politely tell the Hub to terminate
+                        return;
+                    }
+                    logDebug() << "  hub" << hubIndex << "is at height:" << p.intData();
+                    break;
+                }
+            }
+            tim.tv_nsec = 50000;
+            nanosleep(&tim , &tim2);
+        }
+        tim.tv_sec = 1; // give it another second.
+        nanosleep(&tim , &tim2);
+    }
+    logFatal() << "Failed to feed chain"; // proceed, which will likely fail and we get a nice hub log
+}
+
+Message BlackBoxTest::waitForReply(int hubId, const Message &message, int messageId, int timeout)
 {
     Q_ASSERT(hubId >= 0);
     Q_ASSERT(hubId < m_hubs.size());
@@ -85,9 +159,11 @@ Message BlackBoxTest::waitForMessage(int hubId, Api::ServiceIds serviceId, int m
     timer.start();
     Hub &hub = m_hubs[hubId];
     hub.m_waitForMessageId = messageId;
-    hub.m_waitForServiceId = serviceId;
-    hub.m_waitForMessageId2 = messageFailedId;
+    hub.m_waitForServiceId = message.serviceId();
+    hub.m_waitForMessageId2 = message.messageId();
     hub.m_foundMessage.store(nullptr);
+    con[hubId].send(message);
+
     while (true) {
         Message *m = hub.m_foundMessage.load();
         if (m) return *m;
@@ -117,7 +193,7 @@ void BlackBoxTest::cleanup()
         auto pid = hub.proc->processId();
         Q_ASSERT(pid > 0);
         if (pid > 0)
-            kill(pid, SIGTERM); // politely tell the process to die
+            kill(pid, SIGTERM); // politely tell the process to terminate
         else
             hub.proc->kill();
     }
@@ -160,7 +236,7 @@ void BlackBoxTest::cleanup()
 void BlackBoxTest::Hub::addMessage(const Message &message)
 {
     logDebug() << "addMessage" << message.serviceId() << message.messageId() << " queue:" << messages.size();
-    // logFatal() << " wait: " << m_waitForServiceId  << m_waitForMessageId;
+    // logFatal() << " wait: " << ((void*)this) << m_waitForServiceId.load() << m_waitForMessageId.load();
     messages.push_back(message);
     if (m_waitForServiceId != -1 && m_waitForMessageId != -1) {
         if (message.serviceId() == m_waitForServiceId && message.messageId() == m_waitForMessageId) {

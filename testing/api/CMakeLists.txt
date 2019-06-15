@@ -17,13 +17,22 @@
 project (api)
 include (testlib)
 
+set(CMAKE_AUTORCC ON)
+
 add_executable(test_api
-    ../common/BlackBoxTest.cpp
+    BlackBoxTest.cpp
     TestLive.cpp
     TestBlockchain.cpp
     main.cpp
+    data.qrc
 )
 target_link_libraries(test_api
     flowee_networkmanager
     ${TEST_LIBS} ${OPENSSL_LIBRARIES})
+
+configure_file(
+    blk00000.dat
+    ${CMAKE_CURRENT_BINARY_DIR}/blk00000.dat
+    COPYONLY)
+
 add_test(NAME HUB_test_api COMMAND test_api)
