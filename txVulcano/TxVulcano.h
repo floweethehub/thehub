@@ -1,5 +1,5 @@
 /*
- * This file is part of the bitcoin-classic project
+ * This file is part of the Flowee project
  * Copyright (C) 2016,2019 Tom Zander <tomz@freedommail.ch>
  *
  * This program is free software: you can redistribute it and/or modify
@@ -17,6 +17,8 @@
  */
 #ifndef TXVULCANO_H
 #define TXVULCANO_H
+
+#include <QString>
 
 #include "Wallet.h"
 
@@ -83,6 +85,7 @@ private:
     int m_transactionsToCreate;
     int m_transactionsCreated;
     int m_blockSizeLeft;
+    int m_lastPrintedBlockSizeLeft = 0;
     QList<int> m_nextBlockSize;
 
     boost::asio::deadline_timer m_timer;

@@ -1,5 +1,5 @@
 /*
- * This file is part of the bitcoin-classic project
+ * This file is part of the Flowee project
  * Copyright (C) 2019 Tom Zander <tomz@freedommail.ch>
  *
  * This program is free software: you can redistribute it and/or modify

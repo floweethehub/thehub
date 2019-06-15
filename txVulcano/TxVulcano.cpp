@@ -1,5 +1,5 @@
 /*
- * This file is part of the bitcoin-classic project
+ * This file is part of the Flowee project
  * Copyright (C) 2016,2019 Tom Zander <tomz@freedommail.ch>
  *
  * This program is free software: you can redistribute it and/or modify
@@ -38,7 +38,7 @@ TxVulcano::TxVulcano(boost::asio::io_service &ioService)
     : m_networkManager(ioService),
       m_transactionsToCreate(5000000),
       m_transactionsCreated(0),
-      m_blockSizeLeft(50000000),
+      m_blockSizeLeft(-1),
       m_timer(ioService),
       m_walletMutex(QMutex::Recursive),
       m_wallet("mywallet")
@@ -48,6 +48,8 @@ TxVulcano::TxVulcano(boost::asio::io_service &ioService)
     m_workerThread.start();
     // connect but make sure that the processNewBlock is on the Qt thread.
     connect (this, SIGNAL(newBlockFound(Message)), SLOT(processNewBlock(Message)), Qt::QueuedConnection);
+
+    setMaxBlockSize(50);
 }
 
 TxVulcano::~TxVulcano()
@@ -70,7 +72,7 @@ void TxVulcano::tryConnect(const EndPoint &ep)
 void TxVulcano::setMaxBlockSize(int sizeInMb)
 {
     m_nextBlockSize.clear();
-    int sequence[] { 0, 50, 100, 250, 600, 1000, 1400, 1900, -1 };
+    int sequence[] { 0, 20, 50, 100, 250, 600, 1000, 1400, 1900, -1 };
     for (int i = 1; sequence[i] > 0 && sequence[i - 1] <= sizeInMb; ++i) {
         const int size = std::min(sizeInMb, sequence[i]);
         for (int n = 0; n < 5; ++n) {
@@ -79,6 +81,8 @@ void TxVulcano::setMaxBlockSize(int sizeInMb)
     }
     assert(!m_nextBlockSize.isEmpty());
     m_blockSizeLeft = m_nextBlockSize.takeFirst() * 1000000;
+    m_lastPrintedBlockSizeLeft = m_blockSizeLeft;
+    logCritical() << "Setting block size wanted to" << (m_blockSizeLeft / 1000000) << "MB";
 }
 
 void TxVulcano::connectionEstablished(const EndPoint &)
@@ -218,6 +222,7 @@ void TxVulcano::incomingMessage(const Message& message)
             else
                 m_blockSizeLeft = m_nextBlockSize.takeFirst() * 1000000;
             logCritical() << "Setting block size wanted to" << (m_blockSizeLeft / 1000000) << "MB";
+            m_lastPrintedBlockSizeLeft = m_blockSizeLeft;
         }
     }
     else if (message.serviceId() == Api::BlockNotificationService && message.messageId() == Api::BlockNotification::NewBlockOnChain) {
@@ -269,8 +274,13 @@ void TxVulcano::incomingMessage(const Message& message)
                 m_connection.disconnect();
                 QCoreApplication::exit(0);
             }
-
             m_blockSizeLeft -= txData.transaction.size();
+            if (m_lastPrintedBlockSizeLeft - m_blockSizeLeft > 1000000) {
+                m_lastPrintedBlockSizeLeft = m_blockSizeLeft;
+                float left = m_lastPrintedBlockSizeLeft / 1000000.;
+                logCritical() << "Block still"
+                    << (m_lastPrintedBlockSizeLeft + 500000) / 1000000 << "MB from goal";
+            }
             if (m_blockSizeLeft <= 0) {
                 logCritical() << "Block is full enough, calling generate()";
                 m_transactionsInProgress.clear();
