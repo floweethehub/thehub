@@ -168,11 +168,11 @@ public:
     int32_t saveLeaf(const UnspentOutput *uo);
 
     // session management.
-    void commit();
+    void commit(const UODBPrivate *priv);
     void rollback();
 
     // update m_changeCount
-    void addChange(const UODBPrivate *priv, int count = 1);
+    void addChange(int count = 1);
 
     bool openInfo(int targetHeight);
 
@@ -202,7 +202,8 @@ public:
     uint256 m_lastBlockHash;
 
     // Amount of inserts/deletes since last flush
-    std::atomic_int m_changeCount;
+    std::atomic_int m_changeCountBlock; // changes made that can't be saved yet.
+    int m_changeCount; // changes that are waiting to be saved
     int m_changesSinceJumptableWritten = 0;
     int m_changesSincePrune = 0;
     std::atomic_bool m_flushScheduled;

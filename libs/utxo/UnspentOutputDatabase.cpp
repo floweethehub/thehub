@@ -282,7 +282,7 @@ void UnspentOutputDatabase::blockFinished(int blockheight, const uint256 &blockI
         df->m_lastBlockHash = blockId;
         df->m_lastBlockHeight = blockheight;
         totalChanges += df->m_changesSinceJumptableWritten;
-        df->commit();
+        df->commit(d);
     }
 
     d->checkCapacity();
@@ -476,7 +476,7 @@ DataFile::DataFile(const boost::filesystem::path &filename)
       m_nextBucketIndex(1),
       m_nextLeafIndex(1),
       m_path(filename),
-      m_changeCount(0),
+      m_changeCountBlock(0),
       m_flushScheduled(false),
       m_usageCount(1)
 {
@@ -517,12 +517,6 @@ void DataFile::insert(const UODBPrivate *priv, const uint256 &txid, int firstOut
     const uint32_t shortHash = createShortHash(txid);
     uint32_t bucketId;
     {
-        if (!priv->memOnly && m_changeCount > UODBPrivate::limits.ChangesToSave * 2) {
-            // Saving is too slow! We are more than an entire chunk-size behind.
-            // forcefully slow down adding data into memory.
-            boost::this_thread::sleep_for(boost::chrono::microseconds(m_changeCount.load() / 10));
-        }
-
         BucketHolder bucket;
         uint32_t lastCommittedBucketIndex;
         do {
@@ -558,7 +552,7 @@ void DataFile::insert(const UODBPrivate *priv, const uint256 &txid, int firstOut
             bucket->saveAttempt = 0;
             bucket.unlock();
 
-            addChange(priv, lastOutput - firstOutput + 1);
+            addChange(lastOutput - firstOutput + 1);
 
             if (bucketId > MEMMASK && (bucketId & MEMMASK) <= lastCommittedBucketIndex) {
                 std::lock_guard<std::recursive_mutex> lock(m_lock);
@@ -609,7 +603,7 @@ void DataFile::insert(const UODBPrivate *priv, const uint256 &txid, int firstOut
     }
     bucket->saveAttempt = 0;
     bucket.unlock();
-    addChange(priv);
+    addChange();
 }
 
 void DataFile::insertAll(const UODBPrivate *priv, const UnspentOutputDatabase::BlockData &data, size_t start, size_t end)
@@ -620,7 +614,7 @@ void DataFile::insertAll(const UODBPrivate *priv, const UnspentOutputDatabase::B
         insert(priv, o.txid, o.firstOutput, o.lastOutput, data.blockHeight, o.offsetInBlock);
     }
     int spaceLeft = UODBPrivate::limits.FileFull - m_writeBuffer.offset();
-    if (m_changeCount.load() * 120 > spaceLeft) {
+    if (m_changeCountBlock.load() * 120 > spaceLeft) {
         int notFull = 0; // only change if its still the default value.
         m_fileFull.compare_exchange_strong(notFull, 1);
         DEBUGUTXO << "insertAll: Marking file full";
@@ -703,11 +697,6 @@ SpentOutput DataFile::remove(const UODBPrivate *priv, const uint256 &txid, int i
     const auto cheapHash = txid.GetCheapHash();
     const uint32_t shortHash = createShortHash(cheapHash);
 
-    if (!priv->memOnly && m_changeCount > UODBPrivate::limits.ChangesToSave * 2) {
-        // Saving is too slow! We are more than an entire chunk-size behind.
-        // forcefully slow down adding data into memory.
-        boost::this_thread::sleep_for(boost::chrono::microseconds(m_changeCount.load() / 10));
-    }
     uint32_t bucketId;
     BucketHolder bucket;
     do {
@@ -747,7 +736,7 @@ SpentOutput DataFile::remove(const UODBPrivate *priv, const uint256 &txid, int i
                     else
                         bucket->unspentOutputs.erase(ref);
                     bucket.unlock();
-                    addChange(priv);
+                    addChange();
                     std::lock_guard<std::recursive_mutex> lock(m_lock);
                     if (deleteBucket)
                         m_jumptables[shortHash] = 0;
@@ -889,7 +878,7 @@ SpentOutput DataFile::remove(const UODBPrivate *priv, const uint256 &txid, int i
             answer.offsetInBlock = uo.offsetInBlock();
             assert(answer.isValid());
 
-            addChange(priv);
+            addChange();
             break;
         }
     }
@@ -916,7 +905,7 @@ void DataFile::flushSomeNodesToDisk(ForceBool force)
         lastCommittedBucketIndex = m_lastCommittedBucketIndex;
         bucketsToNotSave = m_bucketsToNotSave;
     }
-    const int changeCountStartAtStart = m_changeCount.load();
+    const int changeCountAtStart = m_changeCount;
     int32_t flushedToDiskCount = 0;
     int32_t leafsFlushedToDisk = 0;
     std::list<SavedBucket> savedBuckets;
@@ -1035,7 +1024,7 @@ void DataFile::flushSomeNodesToDisk(ForceBool force)
     }
     logInfo(Log::UTXO) << "Flushed" << flushedToDiskCount << "to disk." << m_path.filename().string() << "Filesize now:" << m_writeBuffer.offset();
 
-    m_changeCount.fetch_sub(std::min(changeCountStartAtStart, flushedToDiskCount * 4));
+    m_changeCount -= std::min(changeCountAtStart, flushedToDiskCount * 4);
     m_jumptableNeedsSave = true;
     if (m_writeBuffer.offset() > UODBPrivate::limits.FileFull) {
         int notFull = 0; // only change if its still the default value.
@@ -1072,7 +1061,7 @@ std::string DataFile::flushAll()
     m_nextBucketIndex = 1;
     m_nextLeafIndex = 1;
     m_memBuffers.clear();
-    commit();
+    commit(nullptr);
 
     DataFileCache cache(m_path);
     auto infoFilename = cache.writeInfoFile(this);
@@ -1089,7 +1078,7 @@ int32_t DataFile::saveLeaf(const UnspentOutput *uo)
     return offset;
 }
 
-void DataFile::commit()
+void DataFile::commit(const UODBPrivate *priv)
 {
     // mutex already locked by caller.
     const int nextBucketIndex = m_nextBucketIndex.load();
@@ -1106,6 +1095,21 @@ void DataFile::commit()
     m_leafIdsBackup.clear();
     m_bucketsToNotSave.clear();
     m_committedBucketLocations.clear();
+
+    const int move = m_changeCountBlock.load();
+    m_changeCountBlock.fetch_sub(move);
+    m_changeCount += move;
+    if (priv && !priv->memOnly && m_changeCount > UODBPrivate::limits.ChangesToSave) {
+        if (m_flushScheduled && m_changeCount > UODBPrivate::limits.ChangesToSave * 2
+                && move < UODBPrivate::limits.ChangesToSave) {
+            // Saving is too slow! We are more than an entire chunk-size behind.
+            // forcefully slow down adding data into memory.
+            boost::this_thread::sleep_for(boost::chrono::microseconds(m_changeCount));
+        }
+        bool old = false;
+        if (m_flushScheduled.compare_exchange_strong(old, true))
+            priv->ioService.post(std::bind(&DataFile::flushSomeNodesToDisk_callback, this));
+    }
 }
 
 void DataFile::rollback()
@@ -1308,17 +1312,13 @@ void DataFile::rollback()
     m_leafsBackup.clear();    // clear these as the pointers have moved ownership
     m_leafIdsBackup.clear();
 
-    commit();
+    m_changeCountBlock.store(0);
+    commit(nullptr);
 }
 
-void DataFile::addChange(const UODBPrivate *priv, int count)
+void DataFile::addChange(int count)
 {
-    m_changeCount += count;
-    if (!m_flushScheduled && !priv->memOnly && m_changeCount > UODBPrivate::limits.ChangesToSave) {
-        bool old = false;
-        if (m_flushScheduled.compare_exchange_strong(old, true))
-            priv->ioService.post(std::bind(&DataFile::flushSomeNodesToDisk_callback, this));
-    }
+    m_changeCountBlock.fetch_add(count);
 }
 
 bool DataFile::openInfo(int targetHeight)
