@@ -225,7 +225,7 @@ enum Tags {
     Headers,
     BestBlockHash,
     VerificationProgress,
-    XXXPruned, // unused
+    FilterOutputIndex,  ///< integer to limit transaction fetching to outputs
     XXXBip9ForkId, // unused
     XXXBip9ForkStatus, // unused
 

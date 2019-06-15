@@ -236,33 +236,39 @@ struct TransactionSerializationOptions
             else if (returnInputs && type == Tx::PrevTxIndex) {
                 builder.add(Api::BlockChain::Tx_IN_OutIndex, iter.intData());
             }
-            else if ((returnOutputs || returnOutputAmounts) && type == Tx::OutputValue) {
-                builder.add(Api::BlockChain::Tx_Out_Index, outIndex++);
-                builder.add(Api::BlockChain::Tx_Out_Amount, iter.longData());
+            else if (type == Tx::OutputValue) {
+                if ((returnOutputs || returnOutputAmounts) &&
+                            (filterOutputs.empty() || filterOutputs.find(outIndex) != filterOutputs.end())) {
+                    builder.add(Api::BlockChain::Tx_Out_Index, outIndex);
+                    builder.add(Api::BlockChain::Tx_Out_Amount, iter.longData());
+                }
             }
             else if ((returnOutputs || returnOutputScripts || returnOutputAddresses) && type == Tx::OutputScript) {
-                if (!returnOutputs && !returnOutputAmounts) // if not done before OutputValue
-                    builder.add(Api::BlockChain::Tx_Out_Index, outIndex++);
-                if (returnOutputs || returnOutputScripts)
-                    builder.add(Api::BlockChain::Tx_OutputScript, iter.byteData());
-                if (returnOutputAddresses) {
-                    CScript scriptPubKey(iter.byteData());
+                if (filterOutputs.empty() || filterOutputs.find(outIndex) != filterOutputs.end()) {
+                    if (!returnOutputs && !returnOutputAmounts) // if not added before in OutputValue
+                        builder.add(Api::BlockChain::Tx_Out_Index, outIndex);
+                    if (returnOutputs || returnOutputScripts)
+                        builder.add(Api::BlockChain::Tx_OutputScript, iter.byteData());
+                    if (returnOutputAddresses) {
+                        CScript scriptPubKey(iter.byteData());
 
-                    std::vector<std::vector<unsigned char> > vSolutions;
-                    Script::TxnOutType whichType;
-                    bool recognizedTx = Script::solver(scriptPubKey, whichType, vSolutions);
-                    if (recognizedTx && (whichType == Script::TX_PUBKEY || whichType == Script::TX_PUBKEYHASH)) {
-                        if (whichType == Script::TX_PUBKEYHASH) {
-                            assert(vSolutions[0].size() == 20);
-                            builder.addByteArray(Api::BlockChain::Tx_Out_Address, vSolutions[0].data(), 20);
-                        } else if (whichType == Script::TX_PUBKEY) {
-                            CPubKey pubKey(vSolutions[0]);
-                            assert (pubKey.IsValid());
-                            CKeyID address = pubKey.GetID();
-                            builder.addByteArray(Api::BlockChain::Tx_Out_Address, address.begin(), 20);
+                        std::vector<std::vector<unsigned char> > vSolutions;
+                        Script::TxnOutType whichType;
+                        bool recognizedTx = Script::solver(scriptPubKey, whichType, vSolutions);
+                        if (recognizedTx && (whichType == Script::TX_PUBKEY || whichType == Script::TX_PUBKEYHASH)) {
+                            if (whichType == Script::TX_PUBKEYHASH) {
+                                assert(vSolutions[0].size() == 20);
+                                builder.addByteArray(Api::BlockChain::Tx_Out_Address, vSolutions[0].data(), 20);
+                            } else if (whichType == Script::TX_PUBKEY) {
+                                CPubKey pubKey(vSolutions[0]);
+                                assert (pubKey.IsValid());
+                                CKeyID address = pubKey.GetID();
+                                builder.addByteArray(Api::BlockChain::Tx_Out_Address, address.begin(), 20);
+                            }
                         }
                     }
                 }
+                outIndex++;
             }
 
             type = iter.next();
@@ -280,6 +286,7 @@ struct TransactionSerializationOptions
     bool returnOutputAmounts = false;
     bool returnOutputScripts = false;
     bool returnOutputAddresses = false;
+    std::set<int> filterOutputs;
 };
 
 class GetBlock : public Api::DirectParser
@@ -655,6 +662,10 @@ public:
                 opt.returnOutputScripts = parser.boolData();
             } else if (parser.tag() == Api::BlockChain::Include_OutputAddresses) {
                 opt.returnOutputAddresses = parser.boolData();
+            } else if (parser.tag() == Api::BlockChain::FilterOutputIndex) {
+                if (!parser.isInt() || parser.intData() < 0)
+                    throw Api::ParserException("FilterOutputIndex should be a positive number");
+                opt.filterOutputs.insert(parser.intData());
             }
         }
         if (fullTxData) // if explicitly asked.
