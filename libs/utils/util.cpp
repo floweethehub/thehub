@@ -298,7 +298,6 @@ boost::filesystem::path GetDefaultDataDir()
     // Unix: $XDG_DATA_HOME/flowee (typically $HOME/.local/share/flowee)
 
     std::string dirName = "flowee";
-    // append "/BTC" to the above for the legacy bitcoin chain.
 
 #ifdef WIN32
     // Windows

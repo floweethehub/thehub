@@ -79,7 +79,7 @@ inline std::string _(const char* psz)
 void SetupEnvironment();
 bool SetupNetworking();
 
-#define LogPrintf(...) Log::MessageLogger(BTC_MESSAGELOG_FILE, BTC_MESSAGELOG_LINE, BTC_MESSAGELOG_FUNC).infoCompat(nullptr, __VA_ARGS__)
+#define LogPrintf(...) Log::MessageLogger(BCH_MESSAGELOG_FILE, BCH_MESSAGELOG_LINE, BCH_MESSAGELOG_FUNC).infoCompat(nullptr, __VA_ARGS__)
 
 /**
  * When we switch to C++11, this can be switched to variadic templates instead

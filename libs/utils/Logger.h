@@ -428,21 +428,21 @@ inline SilentItem MessageLogger::noDebug(int) { return SilentItem(); }
 
 } // namespace Log
 
-#ifdef BTC_LOGCONTEXT
-  #define BTC_MESSAGELOG_FILE __FILE__
-  #define BTC_MESSAGELOG_LINE __LINE__
-  #define BTC_MESSAGELOG_FUNC __PRETTY_FUNCTION__
+#ifdef BCH_LOGCONTEXT
+  #define BCH_MESSAGELOG_FILE __FILE__
+  #define BCH_MESSAGELOG_LINE __LINE__
+  #define BCH_MESSAGELOG_FUNC __PRETTY_FUNCTION__
 #else
-  #define BTC_MESSAGELOG_FILE nullptr
-  #define BTC_MESSAGELOG_LINE 0
-  #define BTC_MESSAGELOG_FUNC nullptr
+  #define BCH_MESSAGELOG_FILE nullptr
+  #define BCH_MESSAGELOG_LINE 0
+  #define BCH_MESSAGELOG_FUNC nullptr
 #endif
 
-#define logDebug Log::MessageLogger(BTC_MESSAGELOG_FILE, BTC_MESSAGELOG_LINE, BTC_MESSAGELOG_FUNC).debug
-#define logInfo Log::MessageLogger(BTC_MESSAGELOG_FILE, BTC_MESSAGELOG_LINE, BTC_MESSAGELOG_FUNC).info
-#define logWarning Log::MessageLogger(BTC_MESSAGELOG_FILE, BTC_MESSAGELOG_LINE, BTC_MESSAGELOG_FUNC).warning
-#define logCritical Log::MessageLogger(BTC_MESSAGELOG_FILE, BTC_MESSAGELOG_LINE, BTC_MESSAGELOG_FUNC).critical
-#define logFatal Log::MessageLogger(BTC_MESSAGELOG_FILE, BTC_MESSAGELOG_LINE, BTC_MESSAGELOG_FUNC).fatal
+#define logDebug Log::MessageLogger(BCH_MESSAGELOG_FILE, BCH_MESSAGELOG_LINE, BCH_MESSAGELOG_FUNC).debug
+#define logInfo Log::MessageLogger(BCH_MESSAGELOG_FILE, BCH_MESSAGELOG_LINE, BCH_MESSAGELOG_FUNC).info
+#define logWarning Log::MessageLogger(BCH_MESSAGELOG_FILE, BCH_MESSAGELOG_LINE, BCH_MESSAGELOG_FUNC).warning
+#define logCritical Log::MessageLogger(BCH_MESSAGELOG_FILE, BCH_MESSAGELOG_LINE, BCH_MESSAGELOG_FUNC).critical
+#define logFatal Log::MessageLogger(BCH_MESSAGELOG_FILE, BCH_MESSAGELOG_LINE, BCH_MESSAGELOG_FUNC).fatal
 
 #define BCH_NO_DEBUG_MACRO while (false) Log::MessageLogger().noDebug
 
