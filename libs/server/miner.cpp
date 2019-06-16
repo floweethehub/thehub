@@ -233,8 +233,7 @@ CBlockTemplate* Mining::CreateNewBlock(Validation::Engine &validationEngine) con
             const CTransaction& tx = iter->GetTx();
 
             bool fOrphan = false;
-            BOOST_FOREACH(CTxMemPool::txiter parent, mempool->GetMemPoolParents(iter))
-            {
+            for (CTxMemPool::txiter parent : mempool->GetMemPoolParents(iter)) {
                 if (!inBlock.count(parent)) {
                     fOrphan = true;
                     break;
@@ -292,8 +291,7 @@ CBlockTemplate* Mining::CreateNewBlock(Validation::Engine &validationEngine) con
             nBlockSigOps += nTxSigOps;
             nFees += nTxFees;
 
-            if (fPrintPriority)
-            {
+            if (fPrintPriority) {
                 double dPriority = iter->GetPriority(nHeight);
                 CAmount dummy;
                 mempool->ApplyDeltas(tx.GetHash(), dPriority, dummy);
@@ -304,8 +302,7 @@ CBlockTemplate* Mining::CreateNewBlock(Validation::Engine &validationEngine) con
             inBlock.insert(iter);
 
             // Add transactions that depend on this one to the priority queue
-            BOOST_FOREACH(CTxMemPool::txiter child, mempool->GetMemPoolChildren(iter))
-            {
+            for (CTxMemPool::txiter child : mempool->GetMemPoolChildren(iter)) {
                 if (fPriorityBlock) {
                     waitPriIter wpiter = waitPriMap.find(child);
                     if (wpiter != waitPriMap.end()) {
@@ -383,8 +380,7 @@ CBlockTemplate* Mining::CreateNewBlock(Validation::Engine &validationEngine) con
 void Mining::IncrementExtraNonce(CBlock* pblock, const CBlockIndex* pindexPrev, unsigned int& nExtraNonce)
 {
     // Update nExtraNonce
-    if (m_hashPrevBlock != pblock->hashPrevBlock)
-    {
+    if (m_hashPrevBlock != pblock->hashPrevBlock) {
         nExtraNonce = 0;
         m_hashPrevBlock = pblock->hashPrevBlock;
     }
@@ -392,6 +388,9 @@ void Mining::IncrementExtraNonce(CBlock* pblock, const CBlockIndex* pindexPrev, 
     unsigned int nHeight = pindexPrev->nHeight+1; // Height first in coinbase required for block.version=2
     CMutableTransaction txCoinbase(pblock->vtx[0]);
     txCoinbase.vin[0].scriptSig = (CScript() << nHeight << CScriptNum(nExtraNonce)) << m_coinbaseComment;
+    const uint32_t coinbaseSize = ::GetSerializeSize(txCoinbase, SER_NETWORK, PROTOCOL_VERSION);
+    if (coinbaseSize < 100)
+        txCoinbase.vin[0].scriptSig << std::vector<uint8_t>(100 - coinbaseSize - 1);
     assert(txCoinbase.vin[0].scriptSig.size() <= 100);
 
     pblock->vtx[0] = txCoinbase;
