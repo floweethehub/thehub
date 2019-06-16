@@ -439,8 +439,8 @@ void InitParameterInteraction()
     assert(Policy::blockSizeAcceptLimit() >= miningSize);
 
     const int64_t mempoolMaxSize = GetArg("-maxmempool", Settings::DefaultMaxMempoolSize) * 4500000;
-    if (mempoolMaxSize < miningSize * 1000000) {
-        if (SoftSetArg("-maxmempool", boost::lexical_cast<std::string>(miningSize * 4 / 1000000)))
+    if (mempoolMaxSize < miningSize * 4) {
+        if (SoftSetArg("-maxmempool", boost::lexical_cast<std::string>(miningSize * 4)))
             logCritical(Log::Net) << "parameter interaction: -blockmaxsize  N -> setting -maxmempool=4N";
     }
 
