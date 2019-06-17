@@ -243,8 +243,8 @@ struct TransactionSerializationOptions
                 builder.add(Api::BlockChain::Tx_Out_Amount, iter.longData());
             }
             else if (type == Tx::OutputScript) {
-                if (returnOutputs || returnOutputScripts || returnOutputAddresses
-                        && filterOutputs.empty() || filterOutputs.find(outIndex) != filterOutputs.end()) {
+                if ((returnOutputs || returnOutputScripts || returnOutputAddresses)
+                        && (filterOutputs.empty() || filterOutputs.find(outIndex) != filterOutputs.end())) {
                     if (!returnOutputs && !returnOutputAmounts) // if not added before in OutputValue
                         builder.add(Api::BlockChain::Tx_Out_Index, outIndex);
                     if (returnOutputs || returnOutputScripts)
@@ -642,7 +642,7 @@ public:
                     throw Api::ParserException("Unknown block hash");
             } else if (parser.tag() == Api::BlockChain::Tx_OffsetInBlock) {
                 m_offsetInBlock = parser.intData();
-                if (m_offsetInBlock < 91)
+                if (m_offsetInBlock < 81)
                     throw Api::ParserException("OffsetInBlock should be a positive number");
             } else if (parser.tag() == Api::BlockChain::FullTransactionData) {
                 fullTxData = parser.boolData();
@@ -673,7 +673,7 @@ public:
         else if (m_returnTxId || opt.shouldRun()) // we imply false if they want a subset.
             m_fullTxData = false;
 
-        if (!index || m_offsetInBlock < 91)
+        if (!index || m_offsetInBlock < 81)
             throw Api::ParserException("Incomplete request.");
         if (index->nDataPos < 4 || (index->nStatus & BLOCK_HAVE_DATA) == 0)
             throw Api::ParserException("Block known but data not available");
