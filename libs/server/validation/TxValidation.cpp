@@ -328,7 +328,7 @@ void TxValidationState::checkTransaction()
             assert(size >= 0);
             CAmount mempoolRejectFee = parent->mempool->GetMinFee(static_cast<size_t>(size)).GetFee(nSize);
             if (mempoolRejectFee > 0 && nModifiedFees < mempoolRejectFee) {
-                // return state.DoS(0, false, REJECT_INSUFFICIENTFEE, "mempool min fee not met", false, strprintf("%d < %d", nFees, mempoolRejectFee));
+                logInfo(Log::Mempool) << "transaction rejected, low fee:" << nModifiedFees << "<" << mempoolRejectFee << "sat";
                 throw Exception("mempool min fee not met", Validation::RejectInsufficientFee, 0);
             } else if (GetBoolArg("-relaypriority", Settings::DefaultRelayPriority) && nModifiedFees < ::minRelayTxFee.GetFee(nSize)
                        && !AllowFree(entry.GetPriority(static_cast<uint32_t>(tip->nHeight + 1)))) {

@@ -1533,7 +1533,12 @@ void ThreadOpenConnections()
             ProcessOneShot();
             for (const std::string& strAddr : mapMultiArgs["-connect"]) {
                 CAddress addr;
-                OpenNetworkConnection(addr, NULL, strAddr.c_str());
+                if (OpenNetworkConnection(addr, NULL, strAddr.c_str())) {
+                    CNode *node = FindNode(std::string(strAddr));
+                    if (node)
+                        node->fWhitelisted = true;
+                }
+
                 for (int i = 0; i < 10 && i < nLoop; i++)
                 {
                     MilliSleep(500);

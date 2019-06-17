@@ -1956,7 +1956,7 @@ bool static ProcessMessage(CNode* pfrom, std::string strCommand, CDataStream& vR
 
         LOCK(cs_main);
         if (IsInitialBlockDownload() && !pfrom->fWhitelisted) {
-            logDebug(Log::Net) << "Ignoring getheaders from peer=" <<pfrom->id << "because node is in initial block download";
+            logDebug(Log::Net) << "Ignoring getheaders from peer:" <<pfrom->id << "because node is in initial block download";
             return true;
         }
 
@@ -2824,6 +2824,8 @@ bool SendMessages(CNode* pto)
             return true;
 
         // Address refresh broadcast
+        if (pindexBestHeader == nullptr)
+            pindexBestHeader = chainActive.Tip();
         int64_t nNow = GetTimeMicros();
         if (!IsInitialBlockDownload() && pto->nNextLocalAddrSend < nNow) {
             AdvertiseLocal(pto);
@@ -2876,8 +2878,6 @@ bool SendMessages(CNode* pto)
         state.rejects.clear();
 
         // Start block sync
-        if (pindexBestHeader == nullptr)
-            pindexBestHeader = chainActive.Tip();
         bool fFetch = state.fPreferredDownload || (nPreferredDownload == 0 && !pto->fClient && !pto->fOneShot); // Download if this is a nice peer, or we have no nice peers and this one might do.
         if (!state.fSyncStarted && !pto->fClient && !fReindex) {
             // Only actively request headers from a single peer, unless we're close to today.
