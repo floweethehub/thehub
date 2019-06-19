@@ -28,6 +28,7 @@ add_executable(test_api
 )
 target_link_libraries(test_api
     flowee_networkmanager
+    flowee_utils
     ${TEST_LIBS} ${OPENSSL_LIBRARIES})
 
 configure_file(
