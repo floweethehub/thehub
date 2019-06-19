@@ -106,7 +106,7 @@ Flowee::ReturnCodes PruneCommand::run()
         out << "Done" << endl;
         return Flowee::Ok;
     } catch (const std::runtime_error &ex) {
-        err << ex.what();
+        err << ex.what() << endl;
         return Flowee::CommandFailed;
     }
 }

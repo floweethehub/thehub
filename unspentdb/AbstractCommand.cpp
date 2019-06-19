@@ -32,6 +32,7 @@ AbstractCommand::AbstractCommand()
     : out(stdout),
       err(stderr)
 {
+    Log::Manager::instance()->clearLogLevels(Log::InfoLevel);
 }
 
 AbstractCommand::~AbstractCommand()
