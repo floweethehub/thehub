@@ -68,7 +68,8 @@ private:
     HashStorage m_addresses;
     QString m_basedir;
 
-    QSqlDatabase m_db;
+    QSqlDatabase m_insertDb;
+    QSqlDatabase m_selectDb;
     QList<QSqlQuery> m_insertQuery;
 
     int m_lastKnownHeight = -1;

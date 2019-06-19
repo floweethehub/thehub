@@ -49,31 +49,37 @@ AddressIndexer::AddressIndexer(const boost::filesystem::path &basedir)
 void AddressIndexer::loadSetting(const QSettings &settings)
 {
     auto db = valueFromSettings(settings, "db_driver");
-    m_db = QSqlDatabase::addDatabase(db);
-    if (!m_db.isValid()) {
+    m_insertDb = QSqlDatabase::addDatabase(db, "insertConnection");
+    if (!m_insertDb.isValid()) {
         if (QSqlDatabase::drivers().contains(db)) {
             logFatal().nospace() << "Failed to open a databse (" << db << "), missing libs?";
         } else {
             logFatal() << "The configured database is not known. Please select from this list:";
             logFatal() << QSqlDatabase::drivers().toStdList();
         }
-        logCritical() << "Error reported:" << m_db.lastError().text();
+        logCritical() << "Error reported:" << m_insertDb.lastError().text();
         throw std::runtime_error("Failed to read database");
     }
 
+    m_selectDb = QSqlDatabase::addDatabase(db, "selectConnection");
     if (db == "QPSQL") {
-        m_db.setDatabaseName(valueFromSettings(settings, "db_database"));
-        m_db.setUserName(valueFromSettings(settings, "db_username"));
-        m_db.setPassword(valueFromSettings(settings, "db_password"));
-        m_db.setHostName(valueFromSettings(settings, "db_hostname"));
+        m_insertDb.setDatabaseName(valueFromSettings(settings, "db_database"));
+        m_insertDb.setUserName(valueFromSettings(settings, "db_username"));
+        m_insertDb.setPassword(valueFromSettings(settings, "db_password"));
+        m_insertDb.setHostName(valueFromSettings(settings, "db_hostname"));
+        m_selectDb.setDatabaseName(valueFromSettings(settings, "db_database"));
+        m_selectDb.setUserName(valueFromSettings(settings, "db_username"));
+        m_selectDb.setPassword(valueFromSettings(settings, "db_password"));
+        m_selectDb.setHostName(valueFromSettings(settings, "db_hostname"));
     } else if (db == "QSQLITE") {
-        m_db.setDatabaseName(m_basedir + "/addresses.db");
+        m_insertDb.setDatabaseName(m_basedir + "/addresses.db");
+        m_selectDb.setDatabaseName(m_basedir + "/addresses.db");
     }
 
-    if (m_db.isValid() && m_db.open()) {
+    if (m_insertDb.isValid() && m_insertDb.open() && m_selectDb.open()) {
         createTables();
     } else {
-        logFatal() << "Failed opening the database-connection" << m_db.lastError().text();
+        logFatal() << "Failed opening the database-connection" << m_insertDb.lastError().text();
         throw std::runtime_error("Failed to open database connection");
     }
     Q_ASSERT(m_dirtyData == nullptr);
@@ -83,7 +89,7 @@ void AddressIndexer::loadSetting(const QSettings &settings)
 int AddressIndexer::blockheight()
 {
     if (m_lastKnownHeight == -1) {
-        QSqlQuery query(m_db);
+        QSqlQuery query(m_selectDb);
         query.prepare("select blockHeight from LastKnownState");
         if (!query.exec()) {
             logFatal() << "Failed to select" << query.lastError().text();
@@ -141,7 +147,7 @@ std::vector<AddressIndexer::TxData> AddressIndexer::find(const uint160 &address)
     if (result.db == -1)
         return answer;
 
-    QSqlQuery query(m_db);
+    QSqlQuery query(m_selectDb);
     const QString select = QString("select offset_in_block, block_height, out_index "
                                   "FROM AddressUsage%1 "
                                   "WHERE address_row=:row").arg(result.db, 2, 10, QChar('_'));
@@ -176,7 +182,7 @@ void AddressIndexer::commitFinished(int blockHeight)
 
 void AddressIndexer::createNewDirtyData()
 {
-    m_dirtyData = new DirtyData(this, &m_db);
+    m_dirtyData = new DirtyData(this, &m_insertDb);
 }
 
 void AddressIndexer::createTables()
@@ -192,7 +198,7 @@ void AddressIndexer::createTables()
      *  blockHeight    INTEGER
      */
 
-    QSqlQuery query(m_db);
+    QSqlQuery query(m_insertDb);
     bool doInsert = false;
     if (!query.exec("select count(*) from LastKnownState")) {
         QString q("create table LastKnownState ("
