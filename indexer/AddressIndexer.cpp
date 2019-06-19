@@ -27,6 +27,9 @@
 
 #include <boost/filesystem.hpp>
 namespace {
+
+static QString createIndexString("create index %1_index on %1 (address_row)");
+
 QString valueFromSettings(const QSettings &settings, const QString &key) {
     QVariant x = settings.value(QString("addressdb/") + key);
     if (x.isNull())
@@ -215,6 +218,18 @@ void AddressIndexer::createTables()
             throw std::runtime_error("Failed to insert row");
         }
     }
+
+    for (int db = 0;; ++db) {
+        if (!query.exec(QString("select count(*) from ") + addressTable(db))) // found the last DB
+            break;
+
+        // Make sure there is an index on tables we have not finished inserting into yet.
+        if (db > 0) {
+            QString tableName = addressTable(db -1);
+            if (query.exec(createIndexString.arg(tableName)))
+                logCritical() << "Created index on SQL table" << tableName;
+        }
+    }
 }
 
 bool AddressIndexer::isCommitting() const
@@ -264,6 +279,14 @@ void DirtyData::commitAllData()
                 if (!query.exec(q.arg(table))) {
                     logFatal() << "Failed to create table" << query.lastError().text();
                     QCoreApplication::exit(1);
+                }
+
+                // when creating a new table, set the index on the previous table.
+                if (db > 0) {
+                    if (!query.exec(createIndexString.arg(addressTable(db - 1)))) {
+                        logFatal() << "Failed to create index" << query.lastError().text();
+                        QCoreApplication::exit(1);
+                    }
                 }
             }
         }
