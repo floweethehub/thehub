@@ -241,11 +241,11 @@ void Pruner::prune()
         // new file size is all leafs (55 bytes each)
         // then the max 30 bytes to link to it from a bucket, times the amount of leafs in a bucket.
         // since we can expect a bucket to be re-written that (=amount of leafs) amount of times.
-        int newFileSize = 0;
+        uint32_t newFileSize = 0;
         for (auto bucket : buckets) {
             newFileSize += static_cast<int>(bucket.unspentOutputs.size()) * (55 + 30 + /* add some for security */ 20);
         }
-        boost::filesystem::resize_file(outFilename, newFileSize);
+        boost::filesystem::resize_file(outFilename, std::min((uint32_t) 0x7FFFFFFE, newFileSize));
     }
     int outFileSize = 0;
     {
