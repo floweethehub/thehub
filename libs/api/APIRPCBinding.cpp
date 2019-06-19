@@ -466,8 +466,10 @@ public:
             }
             if (opt.shouldRun()) {
                 Tx::Iterator iter(m_block, posAndSize.first);
-                iter.next(Tx::PrevTxIndex); // skip version, prevTxId and prevTxIndex for coinbase
-                assert(iter.tag() == Tx::PrevTxIndex);
+                if (posAndSize.first < 91) {
+                    iter.next(Tx::PrevTxIndex); // skip version, prevTxId and prevTxIndex for coinbase
+                    assert(iter.tag() == Tx::PrevTxIndex);
+                }
                 opt.serialize(builder, iter);
             }
             if (m_fullTxData)
