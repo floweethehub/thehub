@@ -50,6 +50,11 @@ private slots:
     void addressDbFinishedProcessingBlock();
     void checkBlockArrived();
 
+    void onFindAddressRequest(const Message &message);
+
+signals:
+    void requestFindAddress(const Message &message);
+
 private:
     void requestBlock();
     void hubConnected(const EndPoint &ep);
@@ -63,6 +68,7 @@ private:
 private:
     QTimer m_pollingTimer;
     Streaming::BufferPool m_pool;
+    Streaming::BufferPool m_poolAddressAnswers;
     WorkerThreads m_workers;
     TxIndexer m_txdb;
     SpentOuputIndexer m_spentOutputDb;

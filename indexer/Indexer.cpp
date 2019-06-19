@@ -32,17 +32,20 @@
 
 Indexer::Indexer(const boost::filesystem::path &basedir)
     : NetworkService(Api::IndexerService),
+    m_poolAddressAnswers(2 * 1024 * 1024),
     m_txdb(m_workers.ioService(), basedir / "txindex"),
     m_spentOutputDb(m_workers.ioService(), basedir / "spent"),
     m_addressdb(basedir / "addresses"),
     m_network(m_workers.ioService())
 {
+    qRegisterMetaType<Message>("Message");
     m_network.addService(this);
 
     // TODO add some auto-save of the databases.
     connect (&m_addressdb, SIGNAL(finishedProcessingBlock()), SLOT(addressDbFinishedProcessingBlock()));
     connect (&m_pollingTimer, SIGNAL(timeout()), SLOT(checkBlockArrived()));
     m_pollingTimer.start(2 * 60 * 1000);
+    connect (this, SIGNAL(requestFindAddress(Message)), this, SLOT(onFindAddressRequest(Message)), Qt::QueuedConnection);
 }
 
 Indexer::~Indexer()
@@ -192,38 +195,9 @@ void Indexer::onIncomingMessage(NetworkService::Remote *con, const Message &mess
             return;
         }
 
-        Streaming::MessageParser parser(message);
-        while (parser.next() == Streaming::FoundTag) {
-            if (parser.tag() == Api::Indexer::BitcoinAddress) {
-                if (parser.dataLength() != 20) {
-                    con->connection.disconnect();
-                    return;
-                }
-                const uint160 *a = reinterpret_cast<const uint160*>(parser.bytesDataBuffer().begin());
-                logDebug() << "FindAddress on address:" << *a;
-                auto data = m_addressdb.find(*a);
-                con->pool.reserve(data.size() * 25);
-                Streaming::MessageBuilder builder(con->pool);
-                int bh = -1, oib = -1;
-                for (auto item : data) {
-                    if (item.blockHeight != bh) // avoid repeating oneself (makes the message smaller).
-                        builder.add(Api::Indexer::BlockHeight, item.blockHeight);
-                    bh = item.blockHeight;
-                    if (item.offsetInBlock != oib)
-                        builder.add(Api::Indexer::OffsetInBlock, item.offsetInBlock);
-                    oib = item.offsetInBlock;
-                    builder.add(Api::Indexer::OutIndex, item.outputIndex);
-                    builder.add(Api::Indexer::Separator, true);
-                }
-
-                Message reply = builder.message(Api::IndexerService, Api::Indexer::FindAddressReply);
-                const int requestId = message.headerInt(Api::RequestId);
-                if (requestId != -1)
-                    reply.setHeaderInt(Api::RequestId, requestId);
-                con->connection.send(reply);
-                return; // just one request per message
-            }
-        }
+        // since the AddressDB is backed by a slow SQL database, move the
+        // handlign out of this thread in order to keep networkmanager IO going fast.
+        emit requestFindAddress(message);
     }
     else if (message.messageId() == Api::Indexer::FindSpentOutput) {
         if (!m_enableSpentDb) {
@@ -278,6 +252,52 @@ void Indexer::checkBlockArrived()
         // Hub never sent the block to us :(
         m_lastRequestedBlock = 0;
         requestBlock();
+    }
+}
+
+void Indexer::onFindAddressRequest(const Message &message)
+{
+    NetworkConnection con;
+    try {
+        con = std::move(m_network.connection(m_network.endPoint(message.remote), NetworkManager::OnlyExisting));
+    } catch (...) {
+        // remote no longer connected.
+        return;
+    }
+    if (!con.isConnected())
+        return;
+
+    Streaming::MessageParser parser(message);
+    while (parser.next() == Streaming::FoundTag) {
+        if (parser.tag() == Api::Indexer::BitcoinAddress) {
+            if (parser.dataLength() != 20) {
+                con.disconnect();
+                return;
+            }
+            const uint160 *a = reinterpret_cast<const uint160*>(parser.bytesDataBuffer().begin());
+            logDebug() << "FindAddress on address:" << *a;
+            auto data = m_addressdb.find(*a);
+            m_poolAddressAnswers.reserve(data.size() * 30);
+            Streaming::MessageBuilder builder(m_poolAddressAnswers);
+            int bh = -1, oib = -1;
+            for (auto item : data) {
+                if (item.blockHeight != bh) // avoid repeating oneself (makes the message smaller).
+                    builder.add(Api::Indexer::BlockHeight, item.blockHeight);
+                bh = item.blockHeight;
+                if (item.offsetInBlock != oib)
+                    builder.add(Api::Indexer::OffsetInBlock, item.offsetInBlock);
+                oib = item.offsetInBlock;
+                builder.add(Api::Indexer::OutIndex, item.outputIndex);
+                builder.add(Api::Indexer::Separator, true);
+            }
+
+            Message reply = builder.message(Api::IndexerService, Api::Indexer::FindAddressReply);
+            const int requestId = message.headerInt(Api::RequestId);
+            if (requestId != -1)
+                reply.setHeaderInt(Api::RequestId, requestId);
+            con.send(reply);
+            return; // just one request per message
+        }
     }
 }
 
@@ -435,7 +455,7 @@ void Indexer::processNewBlock(const Message &message)
             if (blockHeight % 500 == 0)
                 logCritical() << "Processing block" << blockHeight;
             if (m_lastRequestedBlock <= blockHeight)
-                m_lastRequestedBlock= 0;
+                m_lastRequestedBlock = 0;
         } else if (parser.tag() == Api::BlockChain::BlockHash) {
             blockId = parser.uint256Data();
         } else if (parser.tag() == Api::BlockChain::Separator) {
