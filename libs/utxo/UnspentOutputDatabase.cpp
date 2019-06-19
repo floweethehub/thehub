@@ -403,6 +403,8 @@ UODBPrivate::UODBPrivate(boost::asio::io_service &service, const boost::filesyst
     }
     if (dataFiles.isEmpty()) {
         dataFiles.append(DataFile::createDatafile(filepathForIndex(1), 0, uint256()));
+    } else if (dataFiles.size() > 1 && dataFiles.last()->m_lastBlockHeight == 0) {
+        dataFiles.removeLast();
     } else {
         // find a checkpoint version all datafiles can agree on.
         bool allEqual = false;

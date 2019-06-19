@@ -102,3 +102,7 @@ bool DataFileList::isEmpty() const
     return d->list.empty();
 }
 
+void DataFileList::removeLast()
+{
+    d->list.resize(d->list.size() - 1);
+}

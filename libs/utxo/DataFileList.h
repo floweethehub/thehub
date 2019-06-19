@@ -38,6 +38,7 @@ public:
     void append(DataFile *datafile);
     ValueType &operator[](int pos);
     bool isEmpty() const;
+    void removeLast();
 
 private:
     DataFileListPrivate *d = nullptr;
