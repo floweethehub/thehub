@@ -298,7 +298,7 @@ void UnspentOutputDatabase::blockFinished(int blockheight, const uint256 &blockI
 
         if (d->doPrune && d->dataFiles.size() > 1) { // prune the DB files.
             d->doPrune = false;
-            logCritical() << "Pruning the UTXO";
+            logCritical() << "Garbage-collecting the sha256-DB";
             int db = d->dataFiles.size() - 2; // we skip the last DB file
             int jump = 1; // we don't do all DBs every time, this creates a nice sequence.
             do {
@@ -321,7 +321,7 @@ void UnspentOutputDatabase::blockFinished(int blockheight, const uint256 &blockI
                     pruner.commit();
                     d->dataFiles[db] = new DataFile(dbFilename);
                 } catch (const std::runtime_error &pruneFailure) {
-                    logCritical() << "Skipping pruning of db file" << db << "reason:" << pruneFailure;
+                    logCritical() << "Skipping GCing of db file" << db << "reason:" << pruneFailure;
                     pruner.cleanup();
                 }
 

@@ -158,8 +158,8 @@ void Pruner::cleanup()
 
 void Pruner::prune()
 {
-    logCritical() << "Pruning" << m_dbFile;
-    logInfo() << "Starting pruning. Counting buckets...";
+    logCritical() << "Garbage Collecting" << m_dbFile;
+    logInfo() << "Starting gc. Counting buckets...";
     std::ifstream in(m_infoFile, std::ios::binary | std::ios::in);
     if (!in.is_open())
         throw std::runtime_error("Failed to open info file");
@@ -269,7 +269,7 @@ void Pruner::prune()
         outFile.open(outFilename, std::ios_base::binary | std::ios_base::out);
         if (!outFile.is_open())
             throw std::runtime_error("Failed to open replacement db file for writing");
-        logInfo() << "Pruning is now copying leafs and buckets";
+        logInfo() << "GC is now copying leafs and buckets";
 
         std::shared_ptr<char> outStream = std::shared_ptr<char>(const_cast<char*>(outFile.const_data()), nothing);
         Streaming::BufferPool outBuf = Streaming::BufferPool(outStream, static_cast<int>(outFile.size()), true);
