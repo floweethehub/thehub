@@ -477,6 +477,7 @@ DataFile::DataFile(const boost::filesystem::path &filename)
       m_nextLeafIndex(1),
       m_path(filename),
       m_changeCountBlock(0),
+      m_changeCount(0),
       m_flushScheduled(false),
       m_usageCount(1)
 {
@@ -1024,7 +1025,7 @@ void DataFile::flushSomeNodesToDisk(ForceBool force)
     }
     logInfo(Log::UTXO) << "Flushed" << flushedToDiskCount << "to disk." << m_path.filename().string() << "Filesize now:" << m_writeBuffer.offset();
 
-    m_changeCount -= std::min(changeCountAtStart, flushedToDiskCount * 4);
+    m_changeCount.fetch_sub(std::min(changeCountAtStart, flushedToDiskCount * 4));
     m_jumptableNeedsSave = true;
     if (m_writeBuffer.offset() > UODBPrivate::limits.FileFull) {
         int notFull = 0; // only change if its still the default value.
@@ -1098,13 +1099,15 @@ void DataFile::commit(const UODBPrivate *priv)
 
     const int move = m_changeCountBlock.load();
     m_changeCountBlock.fetch_sub(move);
-    m_changeCount += move;
-    if (priv && !priv->memOnly && m_changeCount > UODBPrivate::limits.ChangesToSave) {
-        if (m_flushScheduled && m_changeCount > UODBPrivate::limits.ChangesToSave * 2
+    m_changeCount.fetch_add(move);
+    const int cc = m_changeCount.load();
+    if (priv && !priv->memOnly && cc > UODBPrivate::limits.ChangesToSave) {
+        if (m_flushScheduled && cc > UODBPrivate::limits.ChangesToSave * 2
                 && move < UODBPrivate::limits.ChangesToSave) {
             // Saving is too slow! We are more than an entire chunk-size behind.
             // forcefully slow down adding data into memory.
-            boost::this_thread::sleep_for(boost::chrono::microseconds(m_changeCount));
+            logInfo(Log::UTXO) << "saving too slow. Count:" << cc << "sleeping a little";
+            boost::this_thread::sleep_for(boost::chrono::microseconds(std::min(cc, 100000)));
         }
         bool old = false;
         if (m_flushScheduled.compare_exchange_strong(old, true))
