@@ -298,6 +298,7 @@ void NetworkManagerConnection::connect()
 void NetworkManagerConnection::connect_priv()
 {
     assert(m_strand.running_in_this_thread());
+    assert(m_remote.announcePort == m_remote.peerPort); // its an outgoing connection
     if (m_isConnecting)
         return;
     if (m_isClosingDown)
@@ -312,6 +313,7 @@ void NetworkManagerConnection::connect_priv()
         if (m_remote.hostname.empty())
             m_remote.hostname = m_remote.ipAddress.to_string();
         boost::asio::ip::tcp::endpoint endpoint(m_remote.ipAddress, m_remote.announcePort);
+        m_socket = std::move(boost::asio::ip::tcp::socket(d->ioService));
         m_socket.async_connect(endpoint, m_strand.wrap(
            std::bind(&NetworkManagerConnection::onConnectComplete, shared_from_this(), std::placeholders::_1)));
     }
