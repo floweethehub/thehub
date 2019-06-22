@@ -203,7 +203,7 @@ public:
 
     // Amount of inserts/deletes since last flush
     std::atomic_int m_changeCountBlock; // changes made that can't be saved yet.
-    int m_changeCount; // changes that are waiting to be saved
+    std::atomic_int m_changeCount; // changes that are waiting to be saved
     int m_changesSinceJumptableWritten = 0;
     int m_changesSincePrune = 0;
     std::atomic_bool m_flushScheduled;
