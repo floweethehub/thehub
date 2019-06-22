@@ -1,6 +1,6 @@
 /*
  * This file is part of the Flowee project
- * Copyright (C) 2016,2018 Tom Zander <tomz@freedommail.ch>
+ * Copyright (C) 2016,2018-2019 Tom Zander <tomz@freedommail.ch>
  *
  * This program is free software: you can redistribute it and/or modify
  * it under the terms of the GNU General Public License as published by
@@ -78,7 +78,19 @@ public:
     void setMessageSize(int size);
 
     ConstBuffer buffer();
+    /**
+     * Create a message based on the build data and the argument header-data.
+     */
     Message message(int serviceId = -1, int messageId = -1);
+
+    /**
+     * Create a message based on the build data using the
+     * incoming message as a base, assuming that the resurned one is a reply to.
+     *
+     * Please notice that it is only legal to call this method for
+     * no-header type messages.
+     */
+    Message reply(const Message &incoming, int messageId = -1);
 
 private:
     void add(uint32_t tag, const unsigned char *data, unsigned int length);

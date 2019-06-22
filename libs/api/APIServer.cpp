@@ -207,7 +207,7 @@ void Api::Server::Connection::incomingMessage(const Message &message)
         ss << "Flowee:" << HUB_SERIES << " (" << CLIENT_VERSION_MAJOR << "-" << CLIENT_VERSION_MINOR
            << "." << CLIENT_VERSION_REVISION << ")";;
         builder.add(Meta::GenericByteData, ss.str());
-        m_connection.send(builder.message(APIService, Meta::VersionReply));
+        m_connection.send(builder.reply(message));
         return;
     }
 
@@ -251,15 +251,12 @@ void Api::Server::Connection::incomingMessage(const Message &message)
             m_bufferPool.reserve(reserveSize);
             Streaming::MessageBuilder builder(m_bufferPool);
             rpcParser->buildReply(builder, result);
-            Message reply = builder.message(message.serviceId(), rpcParser->replyMessageId());
+            Message reply = builder.reply(message, rpcParser->replyMessageId());
             if (reserveSize < reply.body().size())
                 logDebug(Log::ApiServer) << "Generated message larger than space reserved."
                                          << message.serviceId() << message.messageId()
                                          << "reserved:" << reserveSize << "built:" << reply.body().size();
             assert(reply.body().size() <= reserveSize); // fail fast.
-            const int requestId = message.headerInt(Api::RequestId);
-            if (requestId != -1)
-                reply.setHeaderInt(Api::RequestId, requestId);
             m_connection.send(reply);
         } catch (const ParserException &e) {
             logWarning(Log::ApiServer) << e;
@@ -289,15 +286,12 @@ void Api::Server::Connection::incomingMessage(const Message &message)
         Streaming::MessageBuilder builder(m_bufferPool);
         try {
             directParser->buildReply(message, builder);
-            Message reply = builder.message(message.serviceId(), directParser->replyMessageId());
+            Message reply = builder.reply(message, directParser->replyMessageId());
             if (reserveSize < reply.body().size())
                 logDebug(Log::ApiServer) << "Generated message larger than space reserved."
                                          << message.serviceId() << message.messageId()
                                          << "reserved:" << reserveSize << "built:" << reply.body().size();
             assert(reply.body().size() <= reserveSize); // fail fast.
-            const int requestId = message.headerInt(Api::RequestId);
-            if (requestId != -1)
-                reply.setHeaderInt(Api::RequestId, requestId);
             m_connection.send(reply);
         } catch (const ParserException &e) {
             logWarning(Log::ApiServer) << e;

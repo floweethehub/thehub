@@ -1,6 +1,6 @@
 /*
  * This file is part of the Flowee project
- * Copyright (C) 2016,2018 Tom Zander <tomz@freedommail.ch>
+ * Copyright (C) 2016,2018-2019 Tom Zander <tomz@freedommail.ch>
  *
  * This program is free software: you can redistribute it and/or modify
  * it under the terms of the GNU General Public License as published by
@@ -244,6 +244,20 @@ Message Streaming::MessageBuilder::message(int serviceId, int messageId)
     }
     m_beforeHeader = (m_messageType != NoHeader);
     return Message(m_buffer->commit(), serviceId, messageId);
+}
+
+Message Streaming::MessageBuilder::reply(const Message &incoming, int messageId)
+{
+    assert(m_beforeHeader == false); // should not call this before adding any data.
+    assert(m_messageType == NoHeader);
+    Message m = message(incoming.serviceId(),
+                        messageId == -1 ? incoming.messageId() +1 : messageId);
+    const auto headers = incoming.headerData();
+    for (auto iter = headers.begin(); iter != headers.end(); ++iter) {
+        if (iter->first > 10) // anything below 10 is not allowed to be used by users.
+            m.setHeaderInt(iter->first, iter->second);
+    }
+    return m;
 }
 
 int Streaming::serialisedUIntSize(uint64_t unsignedInteger)
