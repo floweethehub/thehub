@@ -37,11 +37,10 @@ Then clone the repo and use cmake to create the makefile
 
 # More details
 
-* https://www.flowee.org
+* https://flowee.org
 * https://gitlab.com/FloweeTheHub/thehub
 
 # Social
 
 * Twitter: https://twitter.com/floweethehub
 * Discord: https://discord.gg/WXPcf6G
-* Email group: https://groups.google.com/d/forum/flowee
