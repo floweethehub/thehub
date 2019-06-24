@@ -252,16 +252,11 @@ bool StartHTTPRPC()
     return true;
 }
 
-void InterruptHTTPRPC()
-{
-    logCritical(Log::RPC) << "Interrupting HTTP RPC server";
-}
-
 void StopHTTPRPC()
 {
-    logCritical(Log::RPC) << "Stopping HTTP RPC server";
     UnregisterHTTPHandler("/", true);
     if (httpRPCTimerInterface) {
+        logCritical(Log::RPC) << "Stopping HTTP RPC server";
         RPCUnregisterTimerInterface(httpRPCTimerInterface);
         delete httpRPCTimerInterface;
         httpRPCTimerInterface = 0;

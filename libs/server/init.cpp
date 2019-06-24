@@ -163,9 +163,7 @@ UnspentOutputDatabase *g_utxo = nullptr;
 void Interrupt(boost::thread_group& threadGroup)
 {
     InterruptHTTPServer();
-    InterruptHTTPRPC();
     InterruptRPC();
-    InterruptREST();
     InterruptTorControl();
     threadGroup.interrupt_all();
 }
