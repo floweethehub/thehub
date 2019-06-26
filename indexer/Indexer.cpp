@@ -158,8 +158,7 @@ void Indexer::onIncomingMessage(NetworkService::Remote *con, const Message &mess
             builder.add(Api::Indexer::AddressIndexer, true);
         if (m_enableSpentDb)
             builder.add(Api::Indexer::SpentOutputIndexer, true);
-        con->connection.send(builder.message(Api::IndexerService,
-                                             Api::Indexer::GetAvailableIndexersReply));
+        con->connection.send(builder.reply(message));
     }
     else if (message.messageId() == Api::Indexer::FindTransaction) {
         if (!m_enableTxDB) {
@@ -180,11 +179,7 @@ void Indexer::onIncomingMessage(NetworkService::Remote *con, const Message &mess
                 Streaming::MessageBuilder builder(con->pool);
                 builder.add(Api::Indexer::BlockHeight, data.blockHeight);
                 builder.add(Api::Indexer::OffsetInBlock, data.offsetInBlock);
-                Message reply = builder.message(Api::IndexerService, Api::Indexer::FindTransactionReply);
-                const int requestId = message.headerInt(Api::RequestId);
-                if (requestId != -1)
-                    reply.setHeaderInt(Api::RequestId, requestId);
-                con->connection.send(reply);
+                con->connection.send(builder.reply(message));
                 return; // just one item per message
             }
         }
@@ -230,11 +225,7 @@ void Indexer::onIncomingMessage(NetworkService::Remote *con, const Message &mess
         Streaming::MessageBuilder builder(con->pool);
         builder.add(Api::Indexer::BlockHeight, data.blockHeight);
         builder.add(Api::Indexer::OffsetInBlock, data.offsetInBlock);
-        Message reply = builder.message(Api::IndexerService, Api::Indexer::FindSpentOutputReply);
-        const int requestId = message.headerInt(Api::RequestId);
-        if (requestId != -1)
-            reply.setHeaderInt(Api::RequestId, requestId);
-        con->connection.send(reply);
+        con->connection.send(builder.reply(message));
     }
 }
 

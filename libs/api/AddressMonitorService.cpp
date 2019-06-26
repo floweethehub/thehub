@@ -172,10 +172,7 @@ void AddressMonitorService::onIncomingMessage(Remote *remote_, const Message &me
         builder.add(Api::AddressMonitor::Result, done);
         if (!error.empty())
             builder.add(Api::AddressMonitor::ErrorMessage, error);
-        remote->connection.send(builder.message(Api::AddressMonitorService,
-                                               message.messageId() == Api::AddressMonitor::Subscribe ?
-                                                   Api::AddressMonitor::SubscribeReply :
-                                                   Api::AddressMonitor::UnsubscribeReply));
+        remote->connection.send(builder.reply(message));
         updateBools();
     }
 }
