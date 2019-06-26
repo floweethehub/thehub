@@ -1,6 +1,6 @@
 /*
  * This file is part of the Flowee project
- * Copyright (C) 2016-2018 Tom Zander <tomz@freedommail.ch>
+ * Copyright (C) 2016-2019 Tom Zander <tomz@freedommail.ch>
  *
  * This program is free software: you can redistribute it and/or modify
  * it under the terms of the GNU General Public License as published by
@@ -76,6 +76,22 @@ void TestBuffers::testBuilder()
     QVERIFY(data[2] == 'b');
     QVERIFY(data[3] == 'l');
     QVERIFY(data[4] == 'a');
+}
+
+void TestBuffers::testBuilderReply()
+{
+    Message input(4, 101);
+    input.setHeaderInt(11, 21);
+    input.setHeaderInt(110, 91);
+
+    MessageBuilder builder(NoHeader);
+    builder.add(1, "bla");
+    Message reply = builder.reply(input);
+    QVERIFY(reply.body().size() == 5);
+    QCOMPARE(reply.headerInt(Network::ServiceId), 4);
+    QCOMPARE(reply.headerInt(Network::MessageId), 102); // input + 1
+    QCOMPARE(reply.headerInt(11), 21);
+    QCOMPARE(reply.headerInt(110), 91);
 }
 
 void TestBuffers::testParser()

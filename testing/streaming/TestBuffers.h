@@ -1,6 +1,6 @@
 /*
  * This file is part of the Flowee project
- * Copyright (C) 2018 Tom Zander <tomz@freedommail.ch>
+ * Copyright (C) 2018-2019 Tom Zander <tomz@freedommail.ch>
  *
  * This program is free software: you can redistribute it and/or modify
  * it under the terms of the GNU General Public License as published by
@@ -27,6 +27,7 @@ private slots:
     void testBasic();
     void testMultiBuffer();
     void testBuilder();
+    void testBuilderReply();
     void testParser();
     void testStringRefInParser();
     void testClear();
