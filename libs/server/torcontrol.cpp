@@ -700,7 +700,7 @@ void StartTorControl(boost::thread_group& threadGroup, CScheduler& scheduler)
 void InterruptTorControl()
 {
     if (base) {
-        LogPrintf("tor: Thread interrupt\n");
+        logInfo(Log::Tor) << "Thread interrupt";
         event_base_loopbreak(base);
     }
 }

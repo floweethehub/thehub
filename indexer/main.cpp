@@ -24,6 +24,7 @@
 
 int main(int argc, char **argv)
 {
+    setenv("QT_NO_GLIB", "1", 1);
     FloweeServiceApplication app(argc, argv);
     app.setOrganizationName("flowee");
     app.setOrganizationDomain("flowee.org");

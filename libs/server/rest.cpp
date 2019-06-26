@@ -639,10 +639,6 @@ void StartREST()
         RegisterHTTPHandler(uri_prefixes[i].prefix, false, uri_prefixes[i].handler);
 }
 
-void InterruptREST()
-{
-}
-
 void StopREST()
 {
     for (unsigned int i = 0; i < ARRAYLEN(uri_prefixes); i++)

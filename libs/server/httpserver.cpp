@@ -465,8 +465,8 @@ void StartHTTPServer()
 
 void InterruptHTTPServer()
 {
-    logCritical(Log::HTTP) << "Interrupting HTTP server";
     if (eventHTTP) {
+        logCritical(Log::HTTP) << "Interrupting HTTP server";
         // Unlisten sockets
         BOOST_FOREACH (evhttp_bound_socket *socket, boundSockets) {
             evhttp_del_accept_socket(eventHTTP, socket);
@@ -480,13 +480,16 @@ void InterruptHTTPServer()
 
 void StopHTTPServer()
 {
-    logCritical(Log::HTTP) << "Stopping HTTP server";
+    bool stopped = false;
     if (workQueue) {
+        stopped = true;
+        logCritical(Log::HTTP) << "Stopping HTTP server";
         logInfo(Log::HTTP) << "Waiting for HTTP worker threads to exit";
         workQueue->WaitExit();
         delete workQueue;
     }
     if (eventBase) {
+        stopped = true;
         logInfo(Log::HTTP) << "Waiting for HTTP event thread to exit";
         // Give event loop a few seconds to exit (to send back last RPC responses), then break it
         // Before this was solved with event_base_loopexit, but that didn't work as expected in
@@ -505,14 +508,17 @@ void StopHTTPServer()
         }
     }
     if (eventHTTP) {
+        stopped = true;
         evhttp_free(eventHTTP);
         eventHTTP = 0;
     }
     if (eventBase) {
+        stopped = true;
         event_base_free(eventBase);
         eventBase = 0;
     }
-    logCritical(Log::HTTP) << "Stopped HTTP server";
+    if (stopped)
+        logCritical(Log::HTTP) << "Stopped HTTP server";
 }
 
 struct event_base* EventBase()

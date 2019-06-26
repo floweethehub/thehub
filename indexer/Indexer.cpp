@@ -16,6 +16,9 @@
  * along with this program.  If not, see <http://www.gnu.org/licenses/>.
  */
 #include "Indexer.h"
+#include "AddressIndexer.h"
+#include "TxIndexer.h"
+#include "SpentOuputIndexer.h"
 
 #include <Logger.h>
 #include <streaming/MessageBuilder.h>
@@ -30,19 +33,63 @@
 #include <qfile.h>
 #include <qcoreapplication.h>
 
+namespace {
+
+static std::vector<std::atomic<int> > s_requestedHeights = std::vector<std::atomic<int> >(3);
+
+struct Token {
+    Token(int wantedHeight) {
+        for (int i = 0; i < s_requestedHeights.size(); ++i) {
+            if (s_requestedHeights[i] == -1) {
+                m_token = i;
+                break;
+            }
+        }
+        assert(m_token >= 0); // if fail, then make sure your vector size matches the max number of indexer-threads
+        s_requestedHeights[m_token] = wantedHeight;
+    }
+    ~Token() {
+        s_requestedHeights[m_token] = -1;
+    }
+
+    int allocatedTokens() const {
+        int answer = 0;
+        for (size_t i = 0; i < s_requestedHeights.size(); ++i) {
+            if (s_requestedHeights[i].load() != -1)
+                answer++;
+        }
+        return answer;
+    }
+    // assume that the allocator for the block we just requested will
+    // set the token to -1 soon.
+    void requestingBlock(int blockHeight) {
+        for (size_t i = 0; i < s_requestedHeights.size(); ++i) {
+            if (s_requestedHeights[i] == blockHeight)
+                s_requestedHeights[i] = -1;
+        }
+    }
+private:
+    int m_token = -1;
+};
+
+}
+
+
 Indexer::Indexer(const boost::filesystem::path &basedir)
     : NetworkService(Api::IndexerService),
+      m_basedir(basedir),
     m_poolAddressAnswers(2 * 1024 * 1024),
-    m_txdb(m_workers.ioService(), basedir / "txindex"),
-    m_spentOutputDb(m_workers.ioService(), basedir / "spent"),
-    m_addressdb(basedir / "addresses"),
     m_network(m_workers.ioService())
 {
     qRegisterMetaType<Message>("Message");
     m_network.addService(this);
 
+    // init static
+    for (size_t i = 0; i < s_requestedHeights.size(); ++i) {
+        s_requestedHeights[i] = -1;
+    }
+
     // TODO add some auto-save of the databases.
-    connect (&m_addressdb, SIGNAL(finishedProcessingBlock()), SLOT(addressDbFinishedProcessingBlock()));
     connect (&m_pollingTimer, SIGNAL(timeout()), SLOT(checkBlockArrived()));
     m_pollingTimer.start(2 * 60 * 1000);
     connect (this, SIGNAL(requestFindAddress(Message)), this, SLOT(onFindAddressRequest(Message)), Qt::QueuedConnection);
@@ -50,6 +97,26 @@ Indexer::Indexer(const boost::filesystem::path &basedir)
 
 Indexer::~Indexer()
 {
+    if (m_txdb)
+        m_txdb->requestInterruption();
+    if (m_addressdb)
+        m_addressdb->requestInterruption();
+    if (m_spentOutputDb)
+        m_spentOutputDb->requestInterruption();
+
+    m_waitForBlock.notify_all();
+    if (m_txdb) {
+        m_txdb->wait();
+        delete m_txdb;
+    }
+    if (m_addressdb) {
+        m_addressdb->wait();
+        delete m_addressdb;
+    }
+    if (m_spentOutputDb) {
+        m_spentOutputDb->wait();
+        delete m_spentOutputDb;
+    }
 }
 
 void Indexer::tryConnectHub(const EndPoint &ep)
@@ -70,7 +137,6 @@ void Indexer::bind(boost::asio::ip::tcp::endpoint endpoint)
 }
 
 void Indexer::loadConfig(const QString &filename, const EndPoint &prioHubLocation)
-
 {
     using boost::asio::ip::tcp;
 
@@ -79,18 +145,17 @@ void Indexer::loadConfig(const QString &filename, const EndPoint &prioHubLocatio
     QSettings settings(filename, QSettings::IniFormat);
     EndPoint hub(prioHubLocation);
 
+    bool enableTxDB = true, enableAddressDb = false, enableSpentDb = false;
     const QStringList groups = settings.childGroups();
     for (auto group : groups) {
         if (group == "addressdb") {
-            m_enableAddressDb = settings.value("addressdb/enabled", "false").toBool();
-            if (m_enableAddressDb)
-                m_addressdb.loadSetting(settings);
+            enableAddressDb = settings.value("addressdb/enabled", "false").toBool();
         }
         else if (group == "txdb") {
-            m_enableTxDB = settings.value("txdb/enabled", "false").toBool();
+            enableTxDB = settings.value("txdb/enabled", "false").toBool();
         }
         else if (group == "spentdb") {
-            m_enableSpentDb = settings.value("spentdb/enabled", "false").toBool();
+            enableSpentDb = settings.value("spentdb/enabled", "false").toBool();
         }
         else if (group == "services") {
             if (!hub.isValid()) { // only if user didn't override using commandline
@@ -137,12 +202,47 @@ void Indexer::loadConfig(const QString &filename, const EndPoint &prioHubLocatio
     if (!m_isServer) // then add localhost ipv6
         bind(tcp::endpoint(boost::asio::ip::address_v6::loopback(), 1234));
 
-    // connecting to upstream Hub is the last thing we do
+    // make sure we have the right workers.
+    QList<QThread*> newThreads;
+    if (enableAddressDb && !m_addressdb) {
+        m_addressdb = new AddressIndexer(m_basedir / "addresses", this);
+        newThreads.append(m_addressdb);
+    } else if (!enableAddressDb && m_addressdb) {
+        m_addressdb->requestInterruption();
+        m_addressdb->wait();
+        delete m_addressdb;
+        m_addressdb = nullptr;
+    }
+    if (enableTxDB && !m_txdb) {
+        m_txdb = new TxIndexer(m_workers.ioService(), m_basedir / "txindex", this);
+        newThreads.append(m_txdb);
+    } else if (!enableTxDB && m_txdb) {
+        m_txdb->requestInterruption();
+        m_txdb->wait();
+        delete m_txdb;
+        m_txdb = nullptr;
+    }
+    if (enableSpentDb && !m_spentOutputDb) {
+        m_spentOutputDb = new SpentOutputIndexer(m_workers.ioService(), m_basedir / "spent", this);
+        newThreads.append(m_spentOutputDb);
+    } else if (!enableSpentDb && m_spentOutputDb) {
+        m_spentOutputDb->requestInterruption();
+        m_spentOutputDb->wait();
+        delete m_spentOutputDb;
+        m_spentOutputDb = nullptr;
+    }
+
+    // connect to upstream Hub
     try {
         if (hub.isValid())
             tryConnectHub(hub);
     } catch (const std::exception &e) {
         logFatal() << "Config: Hub connection string invalid." << e;
+    }
+
+    // start new threads as the last thing we do
+    for (auto t : newThreads) {
+        t->start();
     }
 }
 
@@ -152,16 +252,16 @@ void Indexer::onIncomingMessage(NetworkService::Remote *con, const Message &mess
     if (message.messageId() == Api::Indexer::GetAvailableIndexers) {
         con->pool.reserve(10);
         Streaming::MessageBuilder builder(con->pool);
-        if (m_enableTxDB)
+        if (m_txdb)
             builder.add(Api::Indexer::TxIdIndexer, true);
-        if (m_enableAddressDb)
+        if (m_addressdb)
             builder.add(Api::Indexer::AddressIndexer, true);
-        if (m_enableSpentDb)
+        if (m_spentOutputDb)
             builder.add(Api::Indexer::SpentOutputIndexer, true);
         con->connection.send(builder.reply(message));
     }
     else if (message.messageId() == Api::Indexer::FindTransaction) {
-        if (!m_enableTxDB) {
+        if (!m_txdb) {
             con->connection.disconnect();
             return;
         }
@@ -174,7 +274,7 @@ void Indexer::onIncomingMessage(NetworkService::Remote *con, const Message &mess
                     return;
                 }
                 const uint256 *txid = reinterpret_cast<const uint256*>(parser.bytesDataBuffer().begin());
-                auto data = m_txdb.find(*txid);
+                auto data = m_txdb->find(*txid);
                 con->pool.reserve(20);
                 Streaming::MessageBuilder builder(con->pool);
                 builder.add(Api::Indexer::BlockHeight, data.blockHeight);
@@ -185,7 +285,7 @@ void Indexer::onIncomingMessage(NetworkService::Remote *con, const Message &mess
         }
     }
     else if (message.messageId() == Api::Indexer::FindAddress) {
-        if (!m_enableAddressDb) {
+        if (!m_addressdb) {
             con->connection.disconnect();
             return;
         }
@@ -195,7 +295,7 @@ void Indexer::onIncomingMessage(NetworkService::Remote *con, const Message &mess
         emit requestFindAddress(message);
     }
     else if (message.messageId() == Api::Indexer::FindSpentOutput) {
-        if (!m_enableSpentDb) {
+        if (!m_spentOutputDb) {
             con->connection.disconnect();
             return;
         }
@@ -220,7 +320,7 @@ void Indexer::onIncomingMessage(NetworkService::Remote *con, const Message &mess
             con->connection.disconnect();
             return;
         }
-        auto data = m_spentOutputDb.findSpendingTx(*txid, outIndex);
+        auto data = m_spentOutputDb->findSpendingTx(*txid, outIndex);
         con->pool.reserve(20);
         Streaming::MessageBuilder builder(con->pool);
         builder.add(Api::Indexer::BlockHeight, data.blockHeight);
@@ -229,15 +329,42 @@ void Indexer::onIncomingMessage(NetworkService::Remote *con, const Message &mess
     }
 }
 
-void Indexer::addressDbFinishedProcessingBlock()
+Message Indexer::nextBlock(int height, unsigned long timeout)
 {
-    requestBlock();
+    logDebug() << height;
+    QMutexLocker lock(&m_nextBlockLock);
+    // store an RAII token to synchronize all threads.
+    Token token(height);
+    while (!QThread::currentThread()->isInterruptionRequested()) {
+        if (m_nextBlock.serviceId() == Api::BlockChainService && m_nextBlock.messageId() == Api::BlockChain::GetBlockReply) {
+            Streaming::MessageParser parser(m_nextBlock.body());
+            parser.next();
+            if (parser.tag() == Api::BlockChain::BlockHeight && parser.intData() == height)
+                return m_nextBlock;
+        }
+
+        int totalWanted = 0;
+        if (m_txdb) totalWanted++;
+        if (m_spentOutputDb) totalWanted++;
+        if (m_addressdb) totalWanted++;
+        if (token.allocatedTokens() == totalWanted) {
+            requestBlock();
+            // make the token de-allocate all threads we expect to get served
+            // to avoid us re-requesting this same block again in race-conditions.
+            token.requestingBlock(m_lastRequestedBlock);
+        }
+
+        // wait until the network-manager thread actually finds the block-message as sent by the Hub
+        m_waitForBlock.wait(&m_nextBlockLock, timeout);
+    }
+    return Message();
 }
 
 void Indexer::checkBlockArrived()
 {
     if (!m_serverConnection.isConnected())
         return;
+    QMutexLocker lock(&m_nextBlockLock);
     if (m_lastRequestedBlock != 0 && QDateTime::currentMSecsSinceEpoch() - m_timeLastRequest > 20000) {
         logDebug() << "repeating block request";
         // Hub never sent the block to us :(
@@ -267,7 +394,7 @@ void Indexer::onFindAddressRequest(const Message &message)
             }
             const uint160 *a = reinterpret_cast<const uint160*>(parser.bytesDataBuffer().begin());
             logDebug() << "FindAddress on address:" << *a;
-            auto data = m_addressdb.find(*a);
+            auto data = m_addressdb->find(*a);
             m_poolAddressAnswers.reserve(data.size() * 30);
             Streaming::MessageBuilder builder(m_poolAddressAnswers);
             int bh = -1, oib = -1;
@@ -294,44 +421,42 @@ void Indexer::onFindAddressRequest(const Message &message)
 
 void Indexer::hubConnected(const EndPoint &ep)
 {
-    int txHeight = m_enableTxDB ? m_txdb.blockheight() : -1;
-    int adHeight = m_enableAddressDb ? m_addressdb.blockheight() : -1;
-    int spentHeight = m_enableSpentDb ? m_spentOutputDb.blockheight() : -1;
+    int txHeight = m_txdb ? m_txdb->blockheight() : -1;
+    int adHeight = m_addressdb ? m_addressdb->blockheight() : -1;
+    int spentHeight = m_spentOutputDb ? m_spentOutputDb->blockheight() : -1;
     logCritical() << "Connection to hub established." << ep << "TxDB:" << txHeight
                   << "addressDB:" << adHeight
                   << "spentOutputDB" << spentHeight;
     m_serverConnection.send(Message(Api::APIService, Api::Meta::Version));
     m_serverConnection.send(Message(Api::BlockNotificationService, Api::BlockNotification::Subscribe));
-    if (!m_addressdb.isCommitting())
-        requestBlock();
+    QMutexLocker lock(&m_nextBlockLock);
+    requestBlock();
 }
 
 void Indexer::requestBlock()
 {
-    if (!m_enableAddressDb && !m_enableTxDB && !m_enableSpentDb)
-        return;
     int blockHeight = 9999999;
-    if (m_enableAddressDb)
-        blockHeight = m_addressdb.blockheight();
-    if (m_enableTxDB)
-        blockHeight = std::min(blockHeight, m_txdb.blockheight());
-    if (m_enableSpentDb)
-        blockHeight = std::min(blockHeight, m_spentOutputDb.blockheight());
-    blockHeight++; // request the next one
-    if (m_lastRequestedBlock == blockHeight)
+    for (size_t i = 0; i < s_requestedHeights.size(); ++i) {
+        int h = s_requestedHeights.at(i).load();
+        if (h != -1)
+            blockHeight = std::min(h, blockHeight);
+    }
+    if (blockHeight == 9999999)
         return;
+    assert(m_lastRequestedBlock != blockHeight);
     m_lastRequestedBlock = blockHeight;
     m_timeLastRequest = QDateTime::currentMSecsSinceEpoch();
     m_pool.reserve(20);
     Streaming::MessageBuilder builder(m_pool);
     builder.add(Api::BlockChain::BlockHeight, blockHeight);
-    if (m_enableTxDB && m_txdb.blockheight() < blockHeight)
+    if (m_txdb)
         builder.add(Api::BlockChain::Include_TxId, true);
-    if (m_enableAddressDb && m_addressdb.blockheight() < blockHeight)
+    if (m_addressdb)
         builder.add(Api::BlockChain::Include_OutputAddresses, true);
-    if (m_enableSpentDb && m_spentOutputDb.blockheight() < blockHeight)
+    if (m_spentOutputDb)
         builder.add(Api::BlockChain::Include_Inputs, true);
     builder.add(Api::BlockChain::Include_OffsetInBlock, true);
+    logDebug() << "requesting block" << blockHeight;
     m_serverConnection.send(builder.message(Api::BlockChainService, Api::BlockChain::GetBlock));
 }
 
@@ -344,11 +469,22 @@ void Indexer::hubSentMessage(const Message &message)
 {
     if (message.serviceId() == Api::BlockChainService) {
         if (message.messageId() == Api::BlockChain::GetBlockReply) {
-            try {
-                processNewBlock(message);
-            } catch (const std::exception &e) {
-                logFatal() << "processing block failed due to:" << e;
-                QCoreApplication::exit(4);
+            int blockHeight = -1;
+            Streaming::MessageParser parser(message.body());
+            while (parser.next() == Streaming::FoundTag) {
+                if (parser.tag() == Api::BlockChain::BlockHeight) {
+                    blockHeight = parser.intData();
+                    logDebug() << "Hub sent us block" << blockHeight;
+                    if (blockHeight % 500 == 0)
+                        logCritical() << "Processing block" << blockHeight;
+                    break;
+                }
+            }
+            QMutexLocker lock(&m_nextBlockLock);
+            if (m_lastRequestedBlock == blockHeight) {
+                m_nextBlock = message;
+                m_lastRequestedBlock = 0;
+                m_waitForBlock.notify_all();
             }
         }
     }
@@ -375,16 +511,20 @@ void Indexer::hubSentMessage(const Message &message)
             }
             if (serviceId == Api::BlockChainService && messageId == Api::BlockChain::GetBlock) {
                 logCritical() << "Failed to get block, assuming we are at 'top' of chain";
-                if (m_enableAddressDb)
-                    logCritical() << "AddressDB now at:" << m_addressdb.blockheight();
-                if (m_enableTxDB)
-                    logCritical() << "txDb now at:" << m_txdb.blockheight();
-                if (m_enableSpentDb)
-                    logCritical() << "spentDB now at:" << m_spentOutputDb.blockheight();
+                if (m_addressdb)
+                    logCritical() << "AddressDB now at:" << m_addressdb->blockheight();
+                if (m_txdb)
+                    logCritical() << "txDb now at:" << m_txdb->blockheight();
+                if (m_spentOutputDb)
+                    logCritical() << "spentDB now at:" << m_spentOutputDb->blockheight();
                 m_indexingFinished = true;
                 m_lastRequestedBlock = 0;
-                m_addressdb.flush();
-                m_txdb.saveCaches();
+                if (m_addressdb)
+                    m_addressdb->flush();
+                if (m_txdb)
+                    m_txdb->saveCaches();
+                if (m_spentOutputDb)
+                    m_spentOutputDb->saveCaches();
             }
             else logCritical() << "Failure detected" << serviceId << messageId;
         }
@@ -393,18 +533,19 @@ void Indexer::hubSentMessage(const Message &message)
         Streaming::MessageParser parser(message.body());
         while (parser.next() == Streaming::FoundTag) {
             if (parser.tag() == Api::BlockNotification::BlockHeight) {
-                if (!m_enableSpentDb && !m_enableAddressDb && !m_enableTxDB) return; // user likes to torture us. :(
+                if (!m_spentOutputDb && !m_addressdb && !m_txdb) return; // user likes to torture us. :(
                 int blockHeight = 9999999;
-                if (m_enableAddressDb)
-                    blockHeight = m_addressdb.blockheight();
-                if (m_enableTxDB)
-                    blockHeight = std::min(blockHeight, m_txdb.blockheight());
-                if (m_enableSpentDb)
-                    blockHeight = std::min(blockHeight, m_spentOutputDb.blockheight());
+                if (m_addressdb)
+                    blockHeight = m_addressdb->blockheight();
+                if (m_txdb)
+                    blockHeight = std::min(blockHeight, m_txdb->blockheight());
+                if (m_spentOutputDb)
+                    blockHeight = std::min(blockHeight, m_spentOutputDb->blockheight());
                 if (parser.intData() == blockHeight + 1
                         || (m_indexingFinished && parser.intData() >= blockHeight)) {
                     m_indexingFinished = false;
                     m_lastRequestedBlock = 0;
+                    QMutexLocker lock(&m_nextBlockLock);
                     requestBlock();
                 }
             }
@@ -419,78 +560,4 @@ void Indexer::clientConnected(NetworkConnection &con)
 {
     logCritical() << "A client connected";
     con.accept();
-}
-
-void Indexer::processNewBlock(const Message &message)
-{
-    m_indexingFinished = false;
-    int txOffsetInBlock = 0;
-    int outputIndex = -1;
-    uint256 blockId;
-    uint256 txid;
-    Streaming::MessageParser parser(message.body());
-    int blockHeight = -1;
-
-    bool updateTxDb = false;
-    bool updateAddressDb = false;
-    bool updateSpentDb = false;
-    uint256 prevTxId; bool gotPrevTxId = false;
-    while (parser.next() == Streaming::FoundTag) {
-        if (parser.tag() == Api::BlockChain::BlockHeight) {
-            if (blockHeight != -1) Streaming::MessageParser::debugMessage(message);
-            assert(blockHeight == -1);
-            blockHeight = parser.intData();
-            updateTxDb = m_enableTxDB && blockHeight == m_txdb.blockheight() + 1;
-            updateAddressDb = m_enableAddressDb && blockHeight == m_addressdb.blockheight() + 1;
-            updateSpentDb = m_enableSpentDb && blockHeight == m_spentOutputDb.blockheight() + 1;
-            if (blockHeight % 500 == 0)
-                logCritical() << "Processing block" << blockHeight;
-            if (m_lastRequestedBlock <= blockHeight)
-                m_lastRequestedBlock = 0;
-        } else if (parser.tag() == Api::BlockChain::BlockHash) {
-            blockId = parser.uint256Data();
-        } else if (parser.tag() == Api::BlockChain::Separator) {
-            if (updateTxDb && txOffsetInBlock > 0 && !txid.IsNull()) {
-                assert(blockHeight > 0);
-                assert(blockHeight > m_txdb.blockheight());
-                m_txdb.insert(txid, blockHeight, txOffsetInBlock);
-            }
-            txOffsetInBlock = 0;
-            outputIndex = -1;
-        } else if (parser.tag() == Api::BlockChain::Tx_OffsetInBlock) {
-            txOffsetInBlock = parser.intData();
-        } else if (parser.tag() == Api::BlockChain::TxId) {
-            txid = parser.uint256Data();
-        } else if (parser.tag() == Api::BlockChain::Tx_Out_Index) {
-            outputIndex = parser.intData();
-        } else if (updateAddressDb && parser.tag() == Api::BlockChain::Tx_Out_Address) {
-            assert(parser.dataLength() == 20);
-            assert(outputIndex >= 0);
-            assert(blockHeight > 0);
-            assert(txOffsetInBlock > 0);
-            m_addressdb.insert(parser.bytesDataBuffer(), outputIndex, blockHeight, txOffsetInBlock);
-        } else if (updateSpentDb && txOffsetInBlock > 91 && parser.tag() == Api::BlockChain::Tx_IN_TxId) {
-            prevTxId = parser.uint256Data();
-            gotPrevTxId = true;
-        } else if (updateSpentDb && txOffsetInBlock > 91 && parser.tag() == Api::BlockChain::Tx_IN_OutIndex) {
-            Q_ASSERT(gotPrevTxId);
-            gotPrevTxId = false;
-            Q_ASSERT(!prevTxId.IsNull());
-            Q_ASSERT(parser.isInt());
-            Q_ASSERT(blockHeight > 0);
-            Q_ASSERT(txOffsetInBlock > 80);
-            m_spentOutputDb.insertSpentTransaction(prevTxId, parser.intData(), blockHeight, txOffsetInBlock);
-        }
-    }
-    assert(blockHeight > 0);
-    assert(!blockId.IsNull());
-    if (updateTxDb)
-        m_txdb.blockFinished(blockHeight, blockId);
-    if (updateAddressDb)
-        m_addressdb.blockFinished(blockHeight, blockId);
-    if (updateSpentDb)
-        m_spentOutputDb.blockFinished(blockHeight, blockId);
-    // if not updating addressDB, go to next block directly instead of waiting on its signal
-    if (!updateAddressDb && (updateTxDb || updateSpentDb))
-        requestBlock();
 }

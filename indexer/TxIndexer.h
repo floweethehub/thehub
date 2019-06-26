@@ -18,12 +18,16 @@
 #ifndef TXINDEXER_H
 #define TXINDEXER_H
 
+#include <QThread>
 #include <UnspentOutputDatabase.h>
 
-class TxIndexer
+class Indexer;
+
+class TxIndexer: public QThread
 {
+    Q_OBJECT
 public:
-    TxIndexer(boost::asio::io_service &service, const boost::filesystem::path &basedir);
+    TxIndexer(boost::asio::io_service &service, const boost::filesystem::path &basedir, Indexer *datasource);
 
     int blockheight() const;
     uint256 blockId() const;
@@ -39,8 +43,11 @@ public:
 
     TxData find(const uint256 &txid) const;
 
+    void run() override;
+
 private:
     UnspentOutputDatabase m_txdb;
+    Indexer *m_dataSource;
 };
 
 #endif

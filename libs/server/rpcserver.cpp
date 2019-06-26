@@ -417,7 +417,8 @@ void StartRPC()
 
 void InterruptRPC()
 {
-    LogPrint("rpc", "Interrupting RPC\n");
+    if (fRPCRunning)
+        logInfo(Log::RPC) << "Interrupting RPC";
     // Interrupt e.g. running longpolls
     fRPCRunning = false;
 }

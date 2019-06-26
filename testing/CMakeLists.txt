@@ -41,8 +41,8 @@ if (${Qt5Core_FOUND})
         add_custom_target(check COMMAND ${CMAKE_CTEST_COMMAND} DEPENDS
             test_utxo
             test_doublespend
+            test_protocol
             test_prevector
-            bitcoin-protocol
             test_hub
             test_streaming
             test_networkmanager

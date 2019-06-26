@@ -18,14 +18,19 @@
 #ifndef INDEXER_H
 #define INDEXER_H
 
-#include "AddressIndexer.h"
-#include "TxIndexer.h"
-#include "SpentOuputIndexer.h"
+#include <QString>
 
+#include <Message.h>
 #include <NetworkManager.h>
 #include <NetworkService.h>
+#include <QMutex>
+#include <QWaitCondition>
 #include <WorkerThreads.h>
 #include <qtimer.h>
+
+class AddressIndexer;
+class TxIndexer;
+class SpentOutputIndexer;
 
 class Indexer : public QObject, public NetworkService
 {
@@ -46,8 +51,11 @@ public:
     // network service API
     void onIncomingMessage(Remote *con, const Message &message, const EndPoint &ep) override;
 
+    /// called by the workerthreads to get a block-message. Blocking.
+    Message nextBlock(int height, unsigned long timeout = ULONG_MAX);
+
 private slots:
-    void addressDbFinishedProcessingBlock();
+    void requestBlock();
     void checkBlockArrived();
 
     void onFindAddressRequest(const Message &message);
@@ -56,32 +64,37 @@ signals:
     void requestFindAddress(const Message &message);
 
 private:
-    void requestBlock();
     void hubConnected(const EndPoint &ep);
     void hubDisconnected();
     void hubSentMessage(const Message &message);
 
     void clientConnected(NetworkConnection &con);
 
-    void processNewBlock(const Message &message);
-
 private:
     QTimer m_pollingTimer;
     Streaming::BufferPool m_pool;
     Streaming::BufferPool m_poolAddressAnswers;
+
+    boost::filesystem::path m_basedir;
+    TxIndexer *m_txdb = nullptr;
+    SpentOutputIndexer *m_spentOutputDb = nullptr;
+    AddressIndexer *m_addressdb = nullptr;
+
     WorkerThreads m_workers;
-    TxIndexer m_txdb;
-    SpentOuputIndexer m_spentOutputDb;
-    AddressIndexer m_addressdb;
     NetworkManager m_network;
     NetworkConnection m_serverConnection;
 
-    bool m_enableTxDB = true, m_enableAddressDb = false, m_enableSpentDb = false;
     bool m_indexingFinished = false;
     bool m_isServer = false; /// remembers if we (successfully) called m_network::bind() once.
 
     int m_lastRequestedBlock = 0;
     quint64 m_timeLastRequest = 0;
+
+
+    // data to process blocks in different workers.
+    Message m_nextBlock;
+    mutable QMutex m_nextBlockLock;
+    mutable QWaitCondition m_waitForBlock;
 };
 
 #endif
