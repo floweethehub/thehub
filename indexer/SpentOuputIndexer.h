@@ -15,15 +15,19 @@
  * You should have received a copy of the GNU General Public License
  * along with this program.  If not, see <http://www.gnu.org/licenses/>.
  */
-#ifndef SPENTOUPUTINDEXER_H
-#define SPENTOUPUTINDEXER_H
+#ifndef SPENTOUTPUTINDEXER_H
+#define SPENTOUTPUTINDEXER_H
 
+#include <QThread>
 #include <UnspentOutputDatabase.h>
 
-class SpentOuputIndexer
+class Indexer;
+
+class SpentOutputIndexer : public QThread
 {
+    Q_OBJECT
 public:
-    SpentOuputIndexer(boost::asio::io_service &service, const boost::filesystem::path &basedir);
+    SpentOutputIndexer(boost::asio::io_service &service, const boost::filesystem::path &basedir, Indexer *indexer);
 
     int blockheight() const;
     uint256 blockId() const;
@@ -46,8 +50,11 @@ public:
 
     TxData findSpendingTx(const uint256 &txid, int output) const;
 
+    void run() override;
+
 private:
     UnspentOutputDatabase m_txdb;
+    Indexer *m_dataSource;
 };
 
 #endif

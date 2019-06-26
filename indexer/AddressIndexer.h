@@ -19,21 +19,24 @@
 #define ADDRESSINDEXER_H
 
 #include <QList>
-#include <qobject.h>
+#include <QThread>
 #include <qsqldatabase.h>
 #include <qsqlquery.h>
 #include <streaming/ConstBuffer.h>
 
 #include "HashStorage.h"
 
+#include <boost/filesystem/path.hpp>
+
 class QSettings;
 class DirtyData;
+class Indexer;
 
-class AddressIndexer : public QObject
+class AddressIndexer : public QThread
 {
     Q_OBJECT
 public:
-    AddressIndexer(const boost::filesystem::path &basedir);
+    AddressIndexer(const boost::filesystem::path &basedir, Indexer *datasource);
     void loadSetting(const QSettings &settings);
 
     int blockheight();
@@ -48,38 +51,13 @@ public:
 
     std::vector<TxData> find(const uint160 &address) const;
 
-    bool isCommitting() const;
-
     void flush();
 
-signals:
-    void finishedProcessingBlock();
-
-private slots:
-    void commitFinished(int blockHeight);
-    void createNewDirtyData();
+    void run() override;
 
 private:
     void createTables();
-
-    DirtyData *m_dirtyData = nullptr;
-
-
-    HashStorage m_addresses;
-    QString m_basedir;
-
-    QSqlDatabase m_insertDb;
-    QSqlDatabase m_selectDb;
-    QList<QSqlQuery> m_insertQuery;
-
-    int m_lastKnownHeight = -1;
-    bool m_isCommitting = false; // if there is DirtyData running in another thread committing stuff
-};
-
-class DirtyData : public QObject {
-    Q_OBJECT
-public:
-    DirtyData(QObject *parent, QSqlDatabase *db);
+    void commitAllData();
 
     struct Entry {
         short outIndex;
@@ -87,18 +65,16 @@ public:
     };
     std::vector<std::deque<Entry> > m_uncommittedData;
     int m_uncommittedCount = 0;
+    int m_height = -1;
 
-    void setHeight(int height);
+    HashStorage m_addresses;
+    QString m_basedir;
+    Indexer *m_dataSource;
 
-public slots:
-    void commitAllData();
-
-signals:
-    void finished(int height);
-
-private:
-    int m_height;
-    QSqlDatabase *m_db;
+    QSqlDatabase m_insertDb;
+    QSqlDatabase m_selectDb;
+    QList<QSqlQuery> m_insertQuery;
+    QAtomicInt m_flushRequesed;
 };
 
 #endif
