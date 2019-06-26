@@ -104,7 +104,7 @@ Indexer::~Indexer()
     if (m_spentOutputDb)
         m_spentOutputDb->requestInterruption();
 
-    m_waitForBlock.notify_all();
+    m_waitForBlock.wakeAll();
     if (m_txdb) {
         m_txdb->wait();
         delete m_txdb;
@@ -484,7 +484,7 @@ void Indexer::hubSentMessage(const Message &message)
             if (m_lastRequestedBlock == blockHeight) {
                 m_nextBlock = message;
                 m_lastRequestedBlock = 0;
-                m_waitForBlock.notify_all();
+                m_waitForBlock.wakeAll();
             }
         }
     }
