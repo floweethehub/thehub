@@ -69,7 +69,7 @@ bool fCheckpointsEnabled = Settings::DefaultCheckpointsEnabled;
 /** Fees smaller than this (in satoshi) are considered zero fee (for relaying, mining and transaction creation) */
 CFeeRate minRelayTxFee = CFeeRate(Settings::DefaultMinRelayTxFee);
 
-CTxMemPool mempool(::minRelayTxFee);
+CTxMemPool mempool;
 
 const std::string strMessageMagic = "Bitcoin Signed Message:\n";
 

@@ -89,7 +89,6 @@
 #ifdef ENABLE_WALLET
 CWallet* pwalletMain = NULL;
 #endif
-bool fFeeEstimatesInitialized = false;
 
 #if ENABLE_ZMQ
 static CZMQNotificationInterface* pzmqNotificationInterface = NULL;
@@ -112,7 +111,6 @@ enum BindFlags {
     BF_WHITELIST    = (1U << 2),
 };
 
-static const char* FEE_ESTIMATES_FILENAME="fee_estimates.dat";
 CClientUIInterface uiInterface; // Declared but not defined in ui_interface.h
 
 //////////////////////////////////////////////////////////////////////////////
@@ -195,17 +193,6 @@ void Shutdown()
     StopNode();
     StopTorControl();
     UnregisterNodeSignals(GetNodeSignals());
-
-    if (fFeeEstimatesInitialized)
-    {
-        boost::filesystem::path est_path = GetDataDir() / FEE_ESTIMATES_FILENAME;
-        CAutoFile est_fileout(fopen(est_path.string().c_str(), "wb"), SER_DISK, CLIENT_VERSION);
-        if (!est_fileout.IsNull())
-            mempool.WriteFeeEstimates(est_fileout);
-        else
-            logWarning(Log::FeeEstimation) << "Shutdown: Failed to write fee estimates to" << est_path.string();
-        fFeeEstimatesInitialized = false;
-    }
 
     Application::quit(0);
     Application::exec(); // waits for threads to finish.
@@ -853,13 +840,6 @@ bool AppInit2(boost::thread_group& threadGroup, CScheduler& scheduler)
         return false;
     }
     logInfo(Log::Bench).nospace() << "block index load took: " << GetTimeMillis() - nStart << "ms";
-
-    boost::filesystem::path est_path = GetDataDir() / FEE_ESTIMATES_FILENAME;
-    CAutoFile est_filein(fopen(est_path.string().c_str(), "rb"), SER_DISK, CLIENT_VERSION);
-    // Allowed to fail as this file IS missing on first startup.
-    if (!est_filein.IsNull())
-        mempool.ReadFeeEstimates(est_filein);
-    fFeeEstimatesInitialized = true;
 
 
     // ********************************************************* Step 7: network initialization

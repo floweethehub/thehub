@@ -41,7 +41,6 @@ set (FLOWEE_SERVER_FILES
     miner.cpp
     net.cpp
     noui.cpp
-    policy/fees.cpp
     policy/policy.cpp
     pow.cpp
     primitives/FastUndoBlock.cpp

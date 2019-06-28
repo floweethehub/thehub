@@ -146,7 +146,6 @@ bool ShutdownRequested()
 ////////////////////////////////////
 
 MockBlockValidation::MockBlockValidation()
-    : mp(minFee)
 {
 }
 

@@ -373,18 +373,9 @@ class CTxMemPool
 {
 private:
     unsigned int nTransactionsUpdated;
-    CBlockPolicyEstimator* minerPolicyEstimator;
 
     uint64_t totalTxSize; //! sum of all mempool tx' byte sizes
     uint64_t cachedInnerUsage; //! sum of dynamic memory usage of all the map elements (NOT the maps themselves)
-
-    CFeeRate minReasonableRelayFee;
-
-    mutable int64_t lastRollingFeeUpdate;
-    bool blockSinceLastRollingFeeBump;
-    mutable double rollingMinimumFeeRate; //! minimum fee to get into the pool, decreases exponentially
-
-    void trackPackageRemoved(const CFeeRate& rate);
 
 public:
 
@@ -452,11 +443,8 @@ public:
     std::map<uint256, std::pair<double, CAmount> > mapDeltas;
 
     /** Create a new CTxMemPool.
-     *  minReasonableRelayFee should be a feerate which is, roughly, somewhere
-     *  around what it "costs" to relay a transaction around the network and
-     *  below which we would reasonably say a transaction has 0-effective-fee.
      */
-    CTxMemPool(const CFeeRate& _minReasonableRelayFee = CFeeRate());
+    CTxMemPool();
     ~CTxMemPool();
 
     // addUnchecked must updated state for all ancestors of a given transaction,
@@ -475,12 +463,9 @@ public:
     /**
      * @brief removeForBlock should be called when a block is accepted on-chain which would remove all conflicting transactions from mempool.
      * @param vtx the list of transactions contained in the block.
-     * @param nBlockHeight blockHeight
      * @param conflicts out-variable to be filled with conflicting transactions.
-     * @param fCurrentEstimate true if the block is 'current'. False if it is a historical block.
      */
-    void removeForBlock(const std::vector<CTransaction>& vtx, unsigned int nBlockHeight,
-                        std::list<CTransaction>& conflicts, bool fCurrentEstimate = true);
+    void removeForBlock(const std::vector<CTransaction>& vtx, std::list<CTransaction>& conflicts);
     void clear();
     void _clear(); //lock free
     void queryHashes(std::vector<uint256>& vtxid);
@@ -526,13 +511,9 @@ public:
      */
     bool CalculateMemPoolAncestors(const CTxMemPoolEntry &entry, setEntries &setAncestors, uint64_t limitAncestorCount, uint64_t limitAncestorSize, uint64_t limitDescendantCount, uint64_t limitDescendantSize, std::string &errString, bool fSearchForParents = true);
 
-    /** The minimum fee to get into the mempool, which may itself not be enough
-      *  for larger-sized transactions.
-      *  The minReasonableRelayFee constructor arg is used to bound the time it
-      *  takes the fee rate to go back down all the way to 0. When the feerate
-      *  would otherwise be half of this, it is set to 0 instead.
+    /** The minimum fee to get into the mempool
       */
-    CFeeRate GetMinFee(size_t sizelimit) const;
+    CFeeRate GetMinFee() const;
 
     /** Remove transactions from the mempool until its dynamic size is <= sizelimit.
       *  pvNoSpendsRemaining, if set, will be populated with the list of transactions
@@ -563,28 +544,6 @@ public:
 
     bool lookup(const uint256 &hash, CTransaction& result) const;
     bool lookup(const uint256 &hash, Tx& result) const;
-
-    /** Estimate fee rate needed to get into the next nBlocks
-     *  If no answer can be given at nBlocks, return an estimate
-     *  at the lowest number of blocks where one can be given
-     */
-    CFeeRate estimateSmartFee(int nBlocks, int *answerFoundAtBlocks = NULL) const;
-
-    /** Estimate fee rate needed to get into the next nBlocks */
-    CFeeRate estimateFee(int nBlocks) const;
-
-    /** Estimate priority needed to get into the next nBlocks
-     *  If no answer can be given at nBlocks, return an estimate
-     *  at the lowest number of blocks where one can be given
-     */
-    double estimateSmartPriority(int nBlocks, int *answerFoundAtBlocks = NULL) const;
-
-    /** Estimate priority needed to get into the next nBlocks */
-    double estimatePriority(int nBlocks) const;
-    
-    /** Write/Read estimates to disk */
-    bool WriteFeeEstimates(CAutoFile& fileout) const;
-    bool ReadFeeEstimates(CAutoFile& filein);
 
     size_t DynamicMemoryUsage() const;
 

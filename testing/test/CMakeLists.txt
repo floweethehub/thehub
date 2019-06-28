@@ -96,7 +96,6 @@ set (TEST_SOURCES
     multisig_tests.cpp
     netbase_tests.cpp
     pmt_tests.cpp
-    policyestimator_tests.cpp
     rpc_tests.cpp
     sanity_tests.cpp
     sighash_tests.cpp

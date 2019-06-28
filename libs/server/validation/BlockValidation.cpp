@@ -595,8 +595,7 @@ void ValidationEnginePrivate::processNewBlock(std::shared_ptr<BlockValidationSta
 #endif
 
                 std::list<CTransaction> txConflicted;
-                mempool->removeForBlock(block.vtx, index->nHeight, txConflicted,
-                                        Blocks::DB::instance()->headerChain().Height() - index->nHeight > 5);
+                mempool->removeForBlock(block.vtx, txConflicted);
                 index->RaiseValidity(BLOCK_VALID_SCRIPTS); // done
                 state->signalChildren(); // start tx-validation of next one.
 

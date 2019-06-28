@@ -324,9 +324,7 @@ void TxValidationState::checkTransaction()
             if ((entry.sigOpCount > MAX_STANDARD_TX_SIGOPS) || (nBytesPerSigOp && entry.sigOpCount > nSize / nBytesPerSigOp))
                 throw Exception("bad-txns-too-many-sigops", Validation::RejectNonstandard);
 
-            const auto size = GetArg("-maxmempool", Settings::DefaultMaxMempoolSize) * 1000000;
-            assert(size >= 0);
-            CAmount mempoolRejectFee = parent->mempool->GetMinFee(static_cast<size_t>(size)).GetFee(nSize);
+            CAmount mempoolRejectFee = parent->mempool->GetMinFee().GetFee(nSize);
             if (mempoolRejectFee > 0 && nModifiedFees < mempoolRejectFee) {
                 logInfo(Log::Mempool) << "transaction rejected, low fee:" << nModifiedFees << "<" << mempoolRejectFee << "sat";
                 throw Exception("mempool min fee not met", Validation::RejectInsufficientFee, 0);

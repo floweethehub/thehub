@@ -91,7 +91,6 @@ public:
      */
     std::vector<FastBlock> createChain(CBlockIndex *parent, int blocks) const;
 
-    CFeeRate minFee;
     CTxMemPool mp;
 };
 

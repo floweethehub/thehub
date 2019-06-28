@@ -666,16 +666,7 @@ UniValue estimatefee(const UniValue& params, bool fHelp)
             );
 
     RPCTypeCheck(params, boost::assign::list_of(UniValue::VNUM));
-
-    int nBlocks = params[0].get_int();
-    if (nBlocks < 1)
-        nBlocks = 1;
-
-    CFeeRate feeRate = mempool.estimateFee(nBlocks);
-    if (feeRate == CFeeRate(0))
-        return -1.0;
-
-    return ValueFromAmount(feeRate.GetFeePerK());
+    return -1.0;
 }
 
 UniValue estimatepriority(const UniValue& params, bool fHelp)
@@ -697,12 +688,7 @@ UniValue estimatepriority(const UniValue& params, bool fHelp)
             );
 
     RPCTypeCheck(params, boost::assign::list_of(UniValue::VNUM));
-
-    int nBlocks = params[0].get_int();
-    if (nBlocks < 1)
-        nBlocks = 1;
-
-    return mempool.estimatePriority(nBlocks);
+    return -1;
 }
 
 UniValue estimatesmartfee(const UniValue& params, bool fHelp)
@@ -731,13 +717,9 @@ UniValue estimatesmartfee(const UniValue& params, bool fHelp)
 
     RPCTypeCheck(params, boost::assign::list_of(UniValue::VNUM));
 
-    int nBlocks = params[0].get_int();
-
     UniValue result(UniValue::VOBJ);
-    int answerFound;
-    CFeeRate feeRate = mempool.estimateSmartFee(nBlocks, &answerFound);
-    result.push_back(Pair("feerate", feeRate == CFeeRate(0) ? -1.0 : ValueFromAmount(feeRate.GetFeePerK())));
-    result.push_back(Pair("blocks", answerFound));
+    result.push_back(Pair("feerate", -1));
+    result.push_back(Pair("blocks", 0));
     return result;
 }
 
@@ -767,13 +749,9 @@ UniValue estimatesmartpriority(const UniValue& params, bool fHelp)
 
     RPCTypeCheck(params, boost::assign::list_of(UniValue::VNUM));
 
-    int nBlocks = params[0].get_int();
-
     UniValue result(UniValue::VOBJ);
-    int answerFound;
-    double priority = mempool.estimateSmartPriority(nBlocks, &answerFound);
-    result.push_back(Pair("priority", priority));
-    result.push_back(Pair("blocks", answerFound));
+    result.push_back(Pair("priority", -1));
+    result.push_back(Pair("blocks", 0));
     return result;
 }
 

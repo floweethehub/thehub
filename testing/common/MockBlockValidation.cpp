@@ -25,7 +25,6 @@
 #include <main.h>
 
 MockBlockValidation::MockBlockValidation()
-    : mp(minFee)
 {
 }
 
