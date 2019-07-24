@@ -15,19 +15,18 @@
  * You should have received a copy of the GNU General Public License
  * along with this program.  If not, see <http://www.gnu.org/licenses/>.
  */
+#include <QString>
+#include <Logger.h>
 #include "NetworkPaymentProcessor.h"
+
 #include <APIProtocol.h>
 
-#include "Logger.h"
 #include <streaming/MessageBuilder.h>
+#include <streaming/MessageParser.h>
+#include <primitives/FastTransaction.h>
 #include <cashaddr.h>
 #include <base58.h>
 
-#include <QCoreApplication>
-#include <QDebug>
-#include <qfile.h>
-
-#include <streaming/MessageParser.h>
 
 NetworkPaymentProcessor::NetworkPaymentProcessor(NetworkConnection && connection, QObject *parent)
     : QObject(parent),
@@ -40,7 +39,6 @@ NetworkPaymentProcessor::NetworkPaymentProcessor(NetworkConnection && connection
 
 void NetworkPaymentProcessor::onIncomingMessage(const Message &message)
 {
-    Streaming::MessageParser::debugMessage(message);
     Streaming::MessageParser parser(message.body());
     if (message.serviceId() == Api::APIService) {
         if (message.messageId() == Api::Meta::VersionReply) {
@@ -84,7 +82,7 @@ void NetworkPaymentProcessor::onIncomingMessage(const Message &message)
         QString address;
         uint64_t amount = 0;
         auto type = parser.next();
-        bool mined = false;
+        int offsetInBlock = 0, blockheight = 0;
         while (type == Streaming::FoundTag) {
             if (parser.tag() == Api::AddressMonitor::TxId) {
                 txid = parser.bytesDataBuffer();
@@ -94,18 +92,49 @@ void NetworkPaymentProcessor::onIncomingMessage(const Message &message)
             } else if (parser.tag() == Api::AddressMonitor::Amount) {
                 amount = parser.longData();
             } else if (parser.tag() == Api::AddressMonitor::OffsetInBlock) {
-                // TODO maybe actually remember the offset?
-                mined = true;
+                offsetInBlock = parser.intData();
+            } else if (parser.tag() == Api::AddressMonitor::BlockHeight) {
+                blockheight = parser.intData();
             }
             type = parser.next();
         }
-        // TODO question of consistency, should we revert the order of the txid here, or on the server-side?
-        QByteArray txIdCopy(txid.begin(), txid.size());
-        for (int i = txid.size() / 2; i >= 0; --i)
-            qSwap(*(txIdCopy.data() + i), *(txIdCopy.data() + txIdCopy.size() -1 - i));
-        logInfo(Log::POS) << "Tx for us is" << txIdCopy.toHex().data() << " amount:" << amount << "mined:" << mined;
+        if (blockheight > 0) {
+            logCritical(Log::POS) << "Hub mined a transation paying us." << address
+                                  << "Block:" << blockheight << "offset:"
+                                  << offsetInBlock << "Amount (sat):" << amount;
+        } else if (txid.size() == 32) {
+            uint256 hash(txid.begin());
+            logCritical(Log::POS) << "Hub recived (mempool) a transaction transation paying us." << address
+                                  << "txid:" << hash << "Amount (sat):" << amount;
 
-        emit txFound(address, txIdCopy, amount, mined);
+        } else {
+            logCritical(Log::POS) << "HUb sent TransactionFound message that looks to be missing data";
+            Streaming::MessageParser::debugMessage(message);
+        }
+    }
+    else if (message.messageId() == Api::AddressMonitor::DoubleSpendFound) {
+        QString address;
+        uint64_t amount = 0;
+        Streaming::ConstBuffer txid, duplicateTx;
+        auto type = parser.next();
+        while (type == Streaming::FoundTag) {
+            if (parser.tag() == Api::AddressMonitor::TxId) {
+                assert(parser.isByteArray());
+                txid = parser.bytesDataBuffer();
+            } else if (parser.tag() == Api::AddressMonitor::GenericByteData) {
+                assert(parser.isByteArray());
+                duplicateTx = parser.bytesDataBuffer();
+            } else if (parser.tag() == Api::AddressMonitor::BitcoinAddress) {
+                assert(parser.isByteArray());
+                address = QString::fromStdString(CashAddress::encode("bitcoincash:", parser.unsignedBytesData()));
+            } else if (parser.tag() == Api::AddressMonitor::Amount) {
+                amount = parser.longData();
+            }
+            type = parser.next();
+        }
+        Tx tx(duplicateTx);
+        logCritical(Log::POS) << "WARN: double spend detected on one of our monitored addresses:" << address
+                              << "amount:" << amount << "tx:" << tx.createHash();
     }
 }
 

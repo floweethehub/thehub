@@ -300,31 +300,27 @@ enum MessageIds {
      */
     TransactionFound,
     /**
-     * When a block is mined that ends up rejecting a transaction to us,
-     * the hub sends this message to the client.
-     * Same content as TransactionFound
+     * Notify of a douple spend on one of the subscribed addresses.
      */
-    TransactionRejected
+    DoubleSpendFound
 };
 
 enum Tags {
-    Separator = Api::Separator,
     GenericByteData = Api::GenericByteData,
-
     /// A string representing an address.
     BitcoinAddress = Api::BitcoinAddress, // Unused at this time.
     /// A bytearray for a full sha256 txid
     TxId = Api::TxId,
-    /// if the transaction is added in a block, this is the block-hash.
-    BlockHash = Api::BlockHash,
     /// An unsigned 64 bit number for the amount of satshi you received
     Amount = Api::Amount,
-    /// positive-number. the amount of addresses found in the subscribe/unsubscribe message
-    Result,
+    BlockHeight = Api::BlockHeight,
     /// If a transaction is added in a block, this is the offset-in-block
     OffsetInBlock = Api::OffsetInBlock,
     /// A string giving a human (or, at least, developer) readable error message
-    ErrorMessage
+    ErrorMessage,
+
+    /// positive-number. the amount of addresses found in the subscribe/unsubscribe message
+    Result
 };
 }
 

@@ -31,9 +31,6 @@ public:
     void onIncomingMessage(const Message &message);
     void addListenAddress(const QString &address);
 
-signals:
-    void txFound(const QString &bitcoinAddress, const QByteArray &txId, qint64 amount, bool mined);
-
 private:
     void connectionEstablished(const EndPoint &endpoint);
 

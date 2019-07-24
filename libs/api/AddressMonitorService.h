@@ -60,16 +60,19 @@ protected:
     }
 
 private:
-    enum FindReason {
-        Mempool,
-        Confirmed,
-        Conflicted
+    struct Match {
+        Match() : amount(0) {}
+        uint64_t amount;
+        std::deque<CKeyID> keys;
     };
 
-    void findTransactions(Tx::Iterator && iter, FindReason findReason, const FastBlock *block = nullptr);
+    bool match(Tx::Iterator &iter, const std::deque<NetworkService::Remote *> &remotes, std::map<int, Match> &matchingRemotes) const;
+
     void updateBools();
+    /// Callback for just subscribed addresses to find if there is a hit in the mempool.
     void findTxInMempool(int connectionId, const CKeyID &keyId);
 
+    std::mutex m_poolMutex;
     Streaming::BufferPool m_pool;
 
     // true if any remote added a watch

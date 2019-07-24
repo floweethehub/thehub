@@ -23,6 +23,7 @@ add_executable(test_api
     BlackBoxTest.cpp
     TestLive.cpp
     TestBlockchain.cpp
+    TestAddressMonitor.cpp
     main.cpp
     data.qrc
 )

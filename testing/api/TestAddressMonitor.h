@@ -15,31 +15,16 @@
  * You should have received a copy of the GNU General Public License
  * along with this program.  If not, see <http://www.gnu.org/licenses/>.
  */
-#include "TestLive.h"
-#include "TestBlockchain.h"
-#include "TestAddressMonitor.h"
+#ifndef TESTADDRESSMONITOR_H
+#define TESTADDRESSMONITOR_H
 
-#include <QTest>
+#include "BlackBoxTest.h"
 
-int main(int x, char **y)
+class TestAddressMonitor : public BlackBoxTest
 {
-    if (x > 1) {
-        QFileInfo file(QString::fromLatin1(y[1]));
-        if (file.exists())
-            BlackBoxTest::setHubExecutable(file.absoluteFilePath());
-    }
-    int rc = 0;
-    if (!rc) {
-        TestApiBlockchain test;
-        rc = QTest::qExec(&test);
-    }
-    if (!rc) {
-        TestApiLive test;
-        rc = QTest::qExec(&test);
-    }
-    if (!rc) {
-        TestAddressMonitor test;
-        rc = QTest::qExec(&test);
-    }
-    return rc;
-}
+    Q_OBJECT
+private slots:
+    void testBasic();
+};
+
+#endif
