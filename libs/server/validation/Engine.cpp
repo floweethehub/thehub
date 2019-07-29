@@ -147,7 +147,7 @@ void Validation::Engine::waitValidationFinished()
         dd->waitVariable.wait(lock);
 }
 
-std::weak_ptr<ValidationEnginePrivate> Validation::Engine::priv()
+std::weak_ptr<ValidationEnginePrivate> Validation::Engine::priv() const
 {
     return d;
 }

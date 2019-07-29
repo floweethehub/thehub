@@ -166,7 +166,7 @@ public:
     void start();
 
     /// \internal
-    std::weak_ptr<ValidationEnginePrivate> priv();
+    std::weak_ptr<ValidationEnginePrivate> priv() const;
 
 private:
     std::shared_ptr<ValidationEnginePrivate> d;
