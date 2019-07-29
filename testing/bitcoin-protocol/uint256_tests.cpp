@@ -1,6 +1,7 @@
 /*
  * This file is part of the Flowee project
  * Copyright (C) 2011-2015 The Bitcoin Core developers
+ * Copyright (C) 2019 Tom Zander <tomz@freedommail.ch>
  *
  * This program is free software: you can redistribute it and/or modify
  * it under the terms of the GNU General Public License as published by
@@ -159,6 +160,19 @@ void TestUint256::comparison()
     QVERIFY( OneS < MaxS );
     QVERIFY( R1S < MaxS );
     QVERIFY( R2S < MaxS );
+
+    // the new Compare method;
+
+    QCOMPARE(ZeroL.Compare(OneL), -1);
+    QCOMPARE(ZeroL.Compare(ZeroL), 0);
+    QCOMPARE(OneL.Compare(OneL), 0);
+    QCOMPARE(OneL.Compare(ZeroL), 1);
+
+    // in contrary to the previous method, this compares from back to front.
+    QCOMPARE(R1L.Compare(R2L), -1);
+    QCOMPARE(R1L.Compare(R1L), 0);
+    QCOMPARE(R2L.Compare(R2L), 0);
+    QCOMPARE(R2L.Compare(R1L), 1);
 }
 
 void TestUint256::methods()

@@ -2,6 +2,7 @@
  * This file is part of the Flowee project
  * Copyright (C) 2009-2010 Satoshi Nakamoto
  * Copyright (C) 2009-2015 The Bitcoin Core developers
+ * Copyright (C) 2019 Tom Zander <tomz@freedommail.ch>
  *
  * This program is free software: you can redistribute it and/or modify
  * it under the terms of the GNU General Public License as published by
@@ -63,17 +64,14 @@ public:
     }
 
     inline int Compare(const base_blob &other) const {
-        for (size_t i = 0; i < sizeof(data); i++) {
-            uint8_t a = data[sizeof(data) - 1 - i];
-            uint8_t b = other.data[sizeof(data) - 1 - i];
-            if (a > b) {
+        for (size_t i = sizeof(data); i > 0; --i) {
+            const uint8_t a = data[i - 1];
+            const uint8_t b = other.data[i - 1];
+            if (a > b)
                 return 1;
-            }
-            if (a < b) {
+            if (a < b)
                 return -1;
-            }
         }
-
         return 0;
     }
 
