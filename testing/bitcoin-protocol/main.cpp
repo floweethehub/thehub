@@ -16,6 +16,7 @@
  * along with this program.  If not, see <http://www.gnu.org/licenses/>.
  */
 #include "bip32_tests.h"
+#include "uint256_tests.h"
 #include "checkdatasig_tests.h"
 #include "pow_tests.h"
 #include "script_P2SH_tests.h"
@@ -28,6 +29,10 @@ int main(int x, char **y)
     int rc = 0;
     {
         TestBip32 test;
+        rc = QTest::qExec(&test);
+    }
+    if (!rc) {
+        TestUint256 test;
         rc = QTest::qExec(&test);
     }
     if (!rc) {
