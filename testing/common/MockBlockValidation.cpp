@@ -18,6 +18,7 @@
  */
 
 #include "MockBlockValidation.h"
+#include "validation/BlockValidation_p.h"
 
 #include <chain.h>
 #include <chainparams.h>
@@ -119,6 +120,11 @@ std::vector<FastBlock> MockBlockValidation::appendChain(int blocks, CKey &coinba
         future.waitUntilFinished();
     }
     return answer;
+}
+
+uint32_t MockBlockValidation::tipValidationFlags(bool requireStandard) const
+{
+    return priv().lock()->tipFlags.scriptValidationFlags(requireStandard);
 }
 
 std::vector<FastBlock> MockBlockValidation::createChain(CBlockIndex *parent, int blocks) const
