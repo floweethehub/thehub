@@ -1,0 +1,39 @@
+The test-chain included in this directory was created by txVulcano.
+
+I used a hub with `--regtest` and `-blockmaxsize=9000` to make sure we have
+plenty of blocks, while avoding a large file in git.
+    block 111 and 112 should be 8000
+    block 113 114   19100
+
+I also changed txVulcano to not random the keys, so these are the private keys
+and each tx has ouptuts for each of these.
+All the coinbases use the first priv key.
+
+private key: "cNnFrGGpZbxhDTCsyfk28eehxHfnUieFNDyzZKaL9dC1Ay9xL5c2" "n363aPHJ5CyAKf47odGbsgh9H4G1TXVzRm"
+private key: "cVcZEKRhQb3wsnSkDzf8rPQJjnvQygwfs7Zwbxr2pFVacCspcDp9" "mgkASUzP4FN3wyFLzvyVRSrUSTPxiBTwEH"
+private key: "cVRMSAvhu21UyrQSRZ3YkPKZDS7GQMC7Gm5QkuVQab3RYLr7vda3" "mg9Yp6iqnG7WcGVyr7Cn8PjkBzdHrjCQBx"
+private key: "cNiMiS9SFaSnQoUZPYkacNm78MeCsVDGPAoob9XXDB8RDmK9TVxw" "mzUKyQe4Pxjie5cawo7ZpCw3Ufe3pV5fLz"
+private key: "cSQtynRPJB8Hex2pHUWQ7HwFrhZtfTnhhidtPzEMLRyfoDSXMiVF" "mrpGHw9de9JqESNUo2mvHgKAKuoeWYdKxQ"
+private key: "cQeHsMxX86beWj7NqW7L9AxujuPvnuXNsKxKXzdDWnMbKTmgM4eX" "mrxWVW3VbSept9EiBtwHw4R8yzjUcka39W"
+private key: "cNyc6D2x62QyZzJC7ChpuVvMSEJYc8UuM6zBX9XpM6kMhpAydAno" "mspJTiuuFt8nyigce5WQyTvuEiaYZjW2nH"
+private key: "cQAJKhwQxi71Z9MxG9ogJSpsypEsnZhpfa5LPQQvWVjPQcXuQp4C" "n2dPkNfgkthQw9ZPpWH3rXS9TE5qX8Au7P"
+private key: "cUxTCnUPYiaKN9YJJ1dkb4YkPPv4RpWdMgdXofVzStYC21xSFtCS" "n45MJiWZvzAeiitmQA1W3HBJqNJvJAsfx8"
+private key: "cPpNBBha3Au8pFgAARx1wupKr8ThoXcRxNLJHSYPbWuqWdVswnVE" "msa7pVf91FPar9CMnQxPSZxAiztfJrDrkT"
+private key: "cPaDHmCDkffxCUmPW3piarCzyHk49hUYi673Gmc3KzfzKW6svWW5" "mqcovRDNhbJJ2C3W4ys3qERyac9pnRWgAq"
+private key: "cQGf93EogVHq5gPKEgvAuKszeXQKAPJp5o77iorgNUNcq1BFSaTQ" "mwkRQQmAp4d1tsBsmA2GxtBAXGUCwLrji6"
+private key: "cSdgsy4WdR77xszSnoHHKdusb7STu4dWpqbCiwkGGQDMkJ9H1p7P" "mjQs3gd9DGaEyKSAHhuNsCVkYEHYURtuYQ"
+private key: "cVMu6roppo5KtU6BbnMSMD8oj7PdacM4Vbmi2tuEifbg8sEqfWsi" "msa4kkViefMXrR2oZ52FK2MLBJ4Z5RAXhd"
+private key: "cN13n3j1A75JMw3CLpu6c2xvCsBsB8ePjHmzXc6RkmNDatJgniPg" "n1xzPyht3xmsae4EH9AJYZAMYFCm1LM2A3"
+private key: "cTFih7Swh4fysU55QkUtFvbzX37S5cEAkQKnn5rDfVtCUnFBKj9W" "mx7j8sdp4MpDqHtCw7HR95ku8TmRokhqgU"
+private key: "cUFoavUK4AvgNS5oXXS74HgV1CEjqVPNKuNrLV4x19pWW15bWRb6" "mxvMyNP1wyeb2KyvLqZryeDo58F4msdc32"
+private key: "cSsRMq4toCgVRkBZYtwdaB9W6aKCLrcfeK7xcs41F13ci5ojTTeW" "n3xp1EHoB1ZpVeq6LiY9iwrA1ZDFJ75y7D"
+private key: "cPK76bLk67QQ8ExDs4ZZyZ9dfxQQ6XmbrSpugpY7tKKhQNukjqjR" "mvVdQA5dZA5EhbGqehQx8fRDmm6iakQNF7"
+private key: "cRqWeqWTDaVJpsfJdSb4UVYnpcYzYTkGpi225vUxSAa1HV9ah7z1" "mmS9oxwcYxSpXYSxyAMzUDgwzfKjegEjGy"
+
+
+Now, if I want to spend anything, just start the chain in a hub-qt.
+Check with getblockhash/getblock which txids there are and for blocks > 110 each tx has about 20 outputs
+which match the above addresses (in order).
+Some will be spent, but most are not.
+To be sure you can always check the utxo using `bin/unspent-db export -f data-1.db`
+

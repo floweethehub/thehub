@@ -31,13 +31,12 @@ void TestAddressMonitor::testBasic()
     pool.reserve(50);
     Streaming::MessageBuilder builder(pool);
     uint160 address;
-    address.SetHex("0x12354c465d473347aa8af8201327eff524e15db4");
+    address.SetHex("0x460451D9A29C2E625D783C4EF7070A66EBC69CEC");
     builder.add(Api::AddressMonitor::BitcoinAddress, address);
-    address.SetHex("0x0fa606b0f3a7afbc21da18897de305dd2144b1da");
+    address.SetHex("0x6956C39898BDA7B1315ED15461283A9DF4AB770D");
     builder.add(Api::AddressMonitor::BitcoinAddress, address);
     auto m = waitForReply(0, builder.message(Api::AddressMonitorService,
                                           Api::AddressMonitor::Subscribe), Api::AddressMonitor::SubscribeReply);
-
     QVERIFY(m.messageId() == Api::AddressMonitor::SubscribeReply);
 
     Streaming::MessageParser::debugMessage(m);
@@ -90,5 +89,5 @@ void TestAddressMonitor::testBasic()
             QVERIFY(seenBlockHeight);
         }
     }
-    QCOMPARE(total, 19);
+    QCOMPARE(total, 196);
 }

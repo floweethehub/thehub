@@ -132,7 +132,7 @@ void BlackBoxTest::feedDefaultBlocksToHub(int hubIndex)
                 Streaming::MessageParser p(m->body());
                 p.next();
                 if (p.tag() == Api::BlockHeight) {
-                    if (p.intData() == 114) {
+                    if (p.intData() == 115) {
                         logDebug() << "  feed done, shutting down helper hub";
                         auto pid = hub.proc->processId();
                         if (pid > 0) kill(pid, SIGTERM); // politely tell the Hub to terminate

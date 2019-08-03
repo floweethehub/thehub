@@ -38,7 +38,7 @@ protected:
      * This method starts a new Hub with a known blockchain and connects to \a hubIndex
      * and waits until that hub is synchronized with the new one.
      *
-     * For block 112 the tx-heights are; 81 181 1019 1855 2692 3529 4366 5203 6040 6877 7714
+     * For block 112 the tx-heights are; 81 181 1019 1857 2694 3531 4368 5202 6042 6879
      */
     void feedDefaultBlocksToHub(int hubIndex);
 
