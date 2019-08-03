@@ -24,7 +24,7 @@ build-debian-stable:
     paths:
     - bin
     - build/testing/*/test_*
-    expire_in: 10 hrs
+    expire_in: 100 hrs
 
 test_utxo:
   stage: test
