@@ -406,7 +406,7 @@ public:
                 ++txOutputCount;
             }
             else if (type == Tx::OutputScript) {
-                txOutputScriptSizes += iter.dataLength(); // the 6 for the outindex
+                txOutputScriptSizes += iter.dataLength() + 4;
                 if (!txMatched) {
                     CScript scriptPubKey(iter.byteData());
 
