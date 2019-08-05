@@ -155,6 +155,8 @@ public:
      */
     void writeInt32(unsigned int data);
 
+    void writeHex(const char *string);
+
     /// Stream interface for compatibility with the legacy serialization
     inline void write(const char *buf, size_t size) {
         memcpy(data(), buf, size);

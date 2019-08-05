@@ -16,6 +16,8 @@
  * along with this program.  If not, see <http://www.gnu.org/licenses/>.
  */
 #include "BufferPool.h"
+#include "../utilstrencodings.h"
+
 #include <boost/math/constants/constants.hpp>
 
 Streaming::BufferPool::BufferPool(int default_size)
@@ -107,6 +109,25 @@ void Streaming::BufferPool::writeInt32(unsigned int data)
     d = d >> 8;
     m_writePointer[3] = static_cast<char>(d & 0xFF);
     markUsed(4);
+}
+
+void Streaming::BufferPool::writeHex(const char *string)
+{
+    if (string[0] == '0' && string[1] == 'x')
+        string += 2;
+    while (m_writePointer < m_buffer.get() + m_size) {
+        while (isspace(*string))
+            string++;
+        int8_t c = HexDigit(*string++);
+        if (c == (int8_t) -1)
+            break;
+        uint8_t n = (c << 4);
+        c = HexDigit(*string++);
+        if (c == (int8_t)-1)
+            break;
+        m_writePointer[0] = n | c;
+        m_writePointer += 1;
+    }
 }
 
 int Streaming::BufferPool::offset() const
