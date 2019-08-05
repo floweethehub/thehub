@@ -864,20 +864,9 @@ CAmount GetBlockSubsidy(int nHeight, const Consensus::Params& consensusParams)
 
 bool IsInitialBlockDownload()
 {
-    const CChainParams& chainParams = Params();
-    LOCK(cs_main);
     if (Blocks::DB::instance()->isReindexing())
         return true;
-    if (fCheckpointsEnabled && chainActive.Height() < Checkpoints::GetTotalBlocksEstimate(chainParams.Checkpoints()))
-        return true;
-    static bool lockIBDState = false;
-    if (lockIBDState)
-        return false;
-    bool state = (chainActive.Height() < pindexBestHeader->nHeight - 24 * 6 ||
-            pindexBestHeader->GetBlockTime() < GetTime() - chainParams.MaxTipAge());
-    if (!state)
-        lockIBDState = true;
-    return state;
+    return Blocks::DB::instance()->headerChain().Height() - chainActive.Height() > 1000;
 }
 
 void AlertNotify(const std::string& strMessage, bool fThread)
@@ -1778,18 +1767,6 @@ bool static ProcessMessage(CNode* pfrom, std::string strCommand, CDataStream& vR
 
     else if (strCommand == NetMsgType::INV)
     {
-        if (chainparams.GetConsensus().hf201905Height > chainActive.Height()) {
-            // this means we are not just in initial block download, we are in a state
-            // where filling the mempool or getting the latest block just doesn't make any sense.
-            return true;
-        }
-        if (Blocks::DB::instance()->headerChain().Height() - chainActive.Height() > 6) {
-            // If we are still more than an hour lagging behind the best chain, ignore
-            // incoming transactions till we are more up-to-date.
-            // This immediately avoids a lot of transactions from being blacklisted due to
-            // missing inputs.
-            return true;
-        }
         std::vector<CInv> vInv;
         vRecv >> vInv;
         if (vInv.size() > MAX_INV_SZ)
@@ -1799,6 +1776,10 @@ bool static ProcessMessage(CNode* pfrom, std::string strCommand, CDataStream& vR
         }
 
         bool fBlocksOnly = GetBoolArg("-blocksonly", Settings::DefaultBlocksOnly);
+
+        // When catching up, avoid accepting transactions before we reach the tip, since they could get blacklisted.
+        if (Blocks::DB::instance()->headerChain().Height() - chainActive.Height() > 6)
+            fBlocksOnly = true;
 
         // Allow whitelisted peers to send data other than blocks in blocks only mode if whitelistrelay is true
         if (pfrom->fWhitelisted && GetBoolArg("-whitelistrelay", Settings::DefaultWhitelistRelay))
@@ -1816,7 +1797,7 @@ bool static ProcessMessage(CNode* pfrom, std::string strCommand, CDataStream& vR
             pfrom->AddInventoryKnown(inv);
 
             bool fAlreadyHave = AlreadyHave(inv);
-            logDebug(Log::Net) << "got inv:" << inv << (fAlreadyHave ? "have" : "new") << "peer:" << pfrom->id;
+            logDebug(Log::Net) << "got inv:" << inv << (fAlreadyHave ? "have." : "new.") << "Peer:" << pfrom->id;
 
             if (inv.type == MSG_BLOCK) {
                 UpdateBlockAvailability(pfrom->GetId(), inv.hash);
@@ -1879,12 +1860,8 @@ bool static ProcessMessage(CNode* pfrom, std::string strCommand, CDataStream& vR
                                     << " to peer:" << pfrom->id;
                 }
             }
-            else
-            {
-                if (fBlocksOnly)
-                    LogPrint("net", "transaction (%s) inv sent in violation of protocol peer=%d\n", inv.hash.ToString(), pfrom->id);
-                else if (!fAlreadyHave && !fReindex)
-                    pfrom->AskFor(inv);
+            else if (!fBlocksOnly && !fAlreadyHave && !fReindex) {
+                pfrom->AskFor(inv);
             }
 
             // Track requests for our stuff
@@ -2887,8 +2864,8 @@ bool SendMessages(CNode* pto)
         // Start block sync
         bool fFetch = state.fPreferredDownload || (nPreferredDownload == 0 && !pto->fClient && !pto->fOneShot); // Download if this is a nice peer, or we have no nice peers and this one might do.
         if (!state.fSyncStarted && !pto->fClient && !fReindex) {
-            // Only actively request headers from a single peer, unless we're close to today.
-            if ((nSyncStarted == 0 && fFetch) || pindexBestHeader->GetBlockTime() > GetAdjustedTime() - 24 * 60 * 60) {
+            // Only actively request headers from small number of peers, unless we're close to today.
+            if (nSyncStarted < 5 || pindexBestHeader->GetBlockTime() > GetAdjustedTime() - 24 * 60 * 60) {
                 state.fSyncStarted = true;
                 nSyncStarted++;
                 const CBlockIndex *pindexStart = pindexBestHeader;
