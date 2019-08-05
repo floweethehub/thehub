@@ -539,5 +539,22 @@ inline Log::Item operator<<(Log::Item item, const std::list<V> &set) {
 template<class V>
 inline Log::SilentItem operator<<(Log::SilentItem item, const std::list<V>&) { return item; }
 
+#ifdef QLIST_H
+template<class V>
+inline Log::Item operator<<(Log::Item item, const QList<V> &list) {
+    if (item.isEnabled()) {
+        const bool old = item.useSpace();
+        item.nospace() << '(';
+        bool first = true;
+        for (const V &v : list) { if (!first) item << ','; first = false; item << v; }
+        item << ')';
+        if (old)
+            return item.space();
+    }
+    return item;
+}
+template<class V>
+inline Log::SilentItem operator<<(Log::SilentItem item, const QList<V>&) { return item; }
+#endif
 
 #endif
