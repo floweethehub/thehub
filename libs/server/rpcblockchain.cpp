@@ -812,7 +812,7 @@ UniValue reconsiderblock(const UniValue& params, bool fHelp)
     future.waitUntilFinished();
 
     auto acceptedBlock = Blocks::DB::instance()->headerChain()[pblockindex->nHeight];
-    if (acceptedBlock != pblockindex)
+    if (acceptedBlock && acceptedBlock != pblockindex)
         logCritical(Log::RPC) << "Reconsider block done on block and alternate chain still wins. Consider invalidating block:"
             << acceptedBlock->GetBlockHash();
 
