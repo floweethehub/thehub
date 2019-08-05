@@ -1,6 +1,6 @@
 /*
  * This file is part of the Flowee project
- * Copyright (C) 2017-2018 Tom Zander <tomz@freedommail.ch>
+ * Copyright (C) 2017-2019 Tom Zander <tomz@freedommail.ch>
  *
  * This program is free software: you can redistribute it and/or modify
  * it under the terms of the GNU General Public License as published by
@@ -218,6 +218,15 @@ void Log::Manager::loadDefaultTestSetup(const std::function<const char*()> &test
 
 void Log::Manager::parseConfig(const boost::filesystem::path &configfile, const boost::filesystem::path &logfilename)
 {
+    struct ErrorLogger {
+        std::deque<std::string> errors;
+        ~ErrorLogger() {
+            for (auto e : errors) {
+                logFatal(Log::Bitcoin) << e;
+            }
+        }
+    };
+    ErrorLogger errorLogger; // logging only after the lock has been released and we are sure that everything is initialized.
     std::lock_guard<std::mutex> lock(d->lock);
     d->enabledSections.clear();
 
@@ -308,8 +317,7 @@ void Log::Manager::parseConfig(const boost::filesystem::path &configfile, const 
                     d->enabledSections[section] = level;
                 }
             } catch (const std::exception &e) {
-                logDebug() << e;
-                // unparsable line
+                errorLogger.errors.push_back(std::string("Failed parsing logs config line: '") + line +"'");
             }
         }
     } else {
