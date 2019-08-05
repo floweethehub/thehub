@@ -437,7 +437,8 @@ void InitLogging()
 
     Log::Manager::instance()->parseConfig(GetConfigFile("logs.conf"), GetDataDir(true) / "hub.log");
     logCritical(Log::Bitcoin) << "\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n";
-    logCritical(Log::Bitcoin).nospace() << "Flowee the Hub version " << FormatFullVersion() << "(" << CLIENT_DATE << ")";
+    logCritical(Log::Bitcoin) << "Flowee the Hub version " << CLIENT_BUILD.c_str()
+                              << "Built:" << CLIENT_DATE.c_str();
 }
 
 /** Initialize bitcoin.
