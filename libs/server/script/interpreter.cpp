@@ -309,7 +309,7 @@ bool static IsLowDERSignature(const valtype &vchSig, ScriptError *serror, const 
 }
 
 static bool CheckSignatureEncoding(const std::vector<unsigned char> &vchSig, unsigned int flags, ScriptError *serror, const CheckType type) {
-    if ((flags & SCRIPT_ENABLE_SCHNORR) && (vchSig.size() == 65)) {
+    if ((flags & SCRIPT_ENABLE_SCHNORR) && (vchSig.size() == (type == CheckDataSigChecks ? 64 : 65))) {
         // In a generic-signature context, 64-byte signatures are interpreted
         // as Schnorr signatures (always correctly encoded) when flag set.
         if (type & ECDSAOnly)
@@ -1264,7 +1264,10 @@ bool EvalScript(std::vector<std::vector<unsigned char> >& stack, const CScript& 
                         uint256 messagehash(vchHash);
 
                         CPubKey pubkey(vchPubKey);
-                        fSuccess = pubkey.verifyECDSA(messagehash, vchSig);
+                        if ((flags & SCRIPT_ENABLE_SCHNORR) && vchSig.size() == 64)
+                            fSuccess = pubkey.verifySchnorr(messagehash, vchSig);
+                        else
+                            fSuccess = pubkey.verifyECDSA(messagehash, vchSig);
                     }
 
                     if (!fSuccess && (flags & SCRIPT_VERIFY_NULLFAIL) && vchSig.size())
