@@ -683,12 +683,11 @@ void ValidationEnginePrivate::processNewBlock(std::shared_ptr<BlockValidationSta
     m_mempoolTime.fetch_add(GetTimeMicros() - start);
 #endif
     if (state->m_onResultFlags & Validation::ForwardGoodToPeers) {
-        int nBlockEstimate = Checkpoints::GetTotalBlocksEstimate(Params().Checkpoints());
+        int totalBlocks = Blocks::DB::instance()->headerChain().Height();
         LOCK(cs_vNodes);
         for (CNode* pnode : vNodes) {
-            if (blockchain->Height() > (pnode->nStartingHeight != -1 ? pnode->nStartingHeight - 2000 : nBlockEstimate)) {
+            if (blockchain->Height() > totalBlocks - 10)
                 pnode->PushBlockHash(hash);
-            }
         }
     }
 }

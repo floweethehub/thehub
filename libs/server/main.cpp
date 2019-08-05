@@ -1783,6 +1783,13 @@ bool static ProcessMessage(CNode* pfrom, std::string strCommand, CDataStream& vR
             // where filling the mempool or getting the latest block just doesn't make any sense.
             return true;
         }
+        if (Blocks::DB::instance()->headerChain().Height() - chainActive.Height() > 6) {
+            // If we are still more than an hour lagging behind the best chain, ignore
+            // incoming transactions till we are more up-to-date.
+            // This immediately avoids a lot of transactions from being blacklisted due to
+            // missing inputs.
+            return true;
+        }
         std::vector<CInv> vInv;
         vRecv >> vInv;
         if (vInv.size() > MAX_INV_SZ)
