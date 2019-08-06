@@ -113,8 +113,10 @@ std::future<std::string> Validation::Engine::addTransaction(const Tx &tx, uint32
     bool start = true;
     {
         std::lock_guard<std::mutex> rejects(d->recentRejectsLock);
-        if (d->recentTxRejects.contains(hash))
+        if (d->recentTxRejects.contains(hash)) {
+            state->m_promise.set_value("recently rejected");
             start = false;
+        }
     }
     if (start && CTxOrphanCache::contains(hash))
         start = false;
