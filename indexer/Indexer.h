@@ -52,6 +52,7 @@ public:
     void onIncomingMessage(Remote *con, const Message &message, const EndPoint &ep) override;
 
     /// called by the workerthreads to get a block-message. Blocking.
+    /// \param height is the requested blockheight of the next block to process
     Message nextBlock(int height, unsigned long timeout = ULONG_MAX);
 
 private slots:

@@ -38,18 +38,19 @@ namespace {
 static std::vector<std::atomic<int> > s_requestedHeights = std::vector<std::atomic<int> >(3);
 
 struct Token {
-    Token(int wantedHeight) {
+    Token(int wantedHeight) : m_wantedHeight(wantedHeight) {
         for (int i = 0; i < s_requestedHeights.size(); ++i) {
-            if (s_requestedHeights[i] == -1) {
+            int expected = -1;
+            if (s_requestedHeights[i].compare_exchange_strong(expected, wantedHeight)) {
                 m_token = i;
                 break;
             }
         }
         assert(m_token >= 0); // if fail, then make sure your vector size matches the max number of indexer-threads
-        s_requestedHeights[m_token] = wantedHeight;
     }
     ~Token() {
-        s_requestedHeights[m_token] = -1;
+        // only exchange when someone else didn't take our slot yet.
+        s_requestedHeights[m_token].compare_exchange_strong(m_wantedHeight, -1);
     }
 
     int allocatedTokens() const {
@@ -60,16 +61,9 @@ struct Token {
         }
         return answer;
     }
-    // assume that the allocator for the block we just requested will
-    // set the token to -1 soon.
-    void requestingBlock(int blockHeight) {
-        for (size_t i = 0; i < s_requestedHeights.size(); ++i) {
-            if (s_requestedHeights[i] == blockHeight)
-                s_requestedHeights[i] = -1;
-        }
-    }
 private:
     int m_token = -1;
+    int m_wantedHeight = 0;
 };
 
 }
@@ -240,9 +234,9 @@ void Indexer::loadConfig(const QString &filename, const EndPoint &prioHubLocatio
         logFatal() << "Config: Hub connection string invalid." << e;
     }
 
-    // start new threads as the last thing we do
+    // start new threads as the last thing we do, put it in the future for stability.
     for (auto t : newThreads) {
-        t->start();
+        QTimer::singleShot(500, t, SLOT(start()));
     }
 }
 
@@ -331,7 +325,6 @@ void Indexer::onIncomingMessage(NetworkService::Remote *con, const Message &mess
 
 Message Indexer::nextBlock(int height, unsigned long timeout)
 {
-    logDebug() << height;
     QMutexLocker lock(&m_nextBlockLock);
     // store an RAII token to synchronize all threads.
     Token token(height);
@@ -349,9 +342,6 @@ Message Indexer::nextBlock(int height, unsigned long timeout)
         if (m_addressdb) totalWanted++;
         if (token.allocatedTokens() == totalWanted) {
             requestBlock();
-            // make the token de-allocate all threads we expect to get served
-            // to avoid us re-requesting this same block again in race-conditions.
-            token.requestingBlock(m_lastRequestedBlock);
         }
 
         // wait until the network-manager thread actually finds the block-message as sent by the Hub
@@ -443,6 +433,11 @@ void Indexer::requestBlock()
     }
     if (blockHeight == 9999999)
         return;
+    // Unset requests now we acted on them.
+    for (size_t i = 0; i < s_requestedHeights.size(); ++i) {
+        int expected = blockHeight;
+        s_requestedHeights[i].compare_exchange_strong(expected, -1);
+    }
     assert(m_lastRequestedBlock != blockHeight);
     m_lastRequestedBlock = blockHeight;
     m_timeLastRequest = QDateTime::currentMSecsSinceEpoch();
