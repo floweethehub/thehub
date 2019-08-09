@@ -1,7 +1,7 @@
 /*
  * This file is part of the Flowee project
  * Copyright (c) 2011-2014 The Bitcoin Core developers
- * Copyright (C) 2017 Tom Zander <tomz@freedommail.ch>
+ * Copyright (C) 2017,2019 Tom Zander <tomz@freedommail.ch>
  *
  * This program is free software: you can redistribute it and/or modify
  * it under the terms of the GNU General Public License as published by
@@ -22,6 +22,7 @@
 #include <encodings_legacy.h>
 
 #include <Application.h>
+#include <cashaddr.h>
 
 /* Base58 characters are:
      "123456789ABCDEFGHJKLMNPQRSTUVWXYZabcdefghijkmnopqrstuvwxyz"
@@ -45,9 +46,14 @@ QValidator::State BitcoinAddressEntryValidator::validate(QString &input, int &po
     if (input.isEmpty())
         return QValidator::Intermediate;
 
+    enum Type {
+        Old,
+        Cash
+    };
+    Type type = input.startsWith('q') ? Cash : Old;
+
     // Correction
-    for (int idx = 0; idx < input.size();)
-    {
+    for (int idx = 0; idx < input.size();) {
         bool removeChar = false;
         QChar ch = input.at(idx);
         // Corrections made are very conservative on purpose, to avoid
@@ -69,32 +75,35 @@ QValidator::State BitcoinAddressEntryValidator::validate(QString &input, int &po
             removeChar = true;
 
         // To next character
-        if (removeChar)
+        if (removeChar) {
             input.remove(idx, 1);
-        else
+        } else {
+            if (type == Cash && ch.isUpper())
+                input[idx] = input.at(idx).toLower();
             ++idx;
+        }
     }
 
-    // Validation
-    QValidator::State state = QValidator::Acceptable;
-    for (int idx = 0; idx < input.size(); ++idx)
-    {
+    for (int idx = 0; idx < input.size(); ++idx) {
         int ch = input.at(idx).unicode();
 
-        if (((ch >= '0' && ch<='9') ||
-            (ch >= 'a' && ch<='z') ||
-            (ch >= 'A' && ch<='Z')) &&
-            ch != 'l' && ch != 'I' && ch != '0' && ch != 'O')
-        {
+        switch (type) {
+        case Old:
             // Alphanumeric and not a 'forbidden' character
-        }
-        else
-        {
-            state = QValidator::Invalid;
+            if (!(((ch >= '0' && ch<='9') || (ch >= 'a' && ch<='z') || (ch >= 'A' && ch<='Z'))
+                  && ch != 'l' && ch != 'I' && ch != '0' && ch != 'O'))
+                return QValidator::Invalid;
+            break;
+
+        case Cash:
+            if (!(((ch >= '0' && ch<='9') || (ch >= 'a' && ch<='z'))
+                    && ch != 'i' && ch != 'b' && ch != 'i' && ch != 'o'))
+                return QValidator::Invalid;
+        break;
         }
     }
 
-    return state;
+    return QValidator::Acceptable;
 }
 
 BitcoinAddressCheckValidator::BitcoinAddressCheckValidator(QObject *parent) :
@@ -108,6 +117,10 @@ QValidator::State BitcoinAddressCheckValidator::validate(QString &input, int &po
     // Validate the passed Bitcoin address
     CBitcoinAddress addr(input.toStdString());
     if (addr.IsValid())
+        return QValidator::Acceptable;
+
+    CashAddress::Content c = CashAddress::decodeCashAddrContent(input.toStdString(), "bitcoincash");
+    if (c.type == CashAddress::PUBKEY_TYPE && c.hash.size() == 20)
         return QValidator::Acceptable;
 
     return QValidator::Invalid;

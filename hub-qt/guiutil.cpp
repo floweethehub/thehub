@@ -1,7 +1,7 @@
 /*
  * This file is part of the Flowee project
  * Copyright (c) 2011-2015 The Bitcoin Core developers
- * Copyright (C) 2017 Tom Zander <tomz@freedommail.ch>
+ * Copyright (C) 2017,2019 Tom Zander <tomz@freedommail.ch>
  *
  * This program is free software: you can redistribute it and/or modify
  * it under the terms of the GNU General Public License as published by
@@ -71,6 +71,7 @@
 #include <QSettings>
 #include <QTextDocument> // for Qt::mightBeRichText
 #include <QThread>
+#include <cashaddr.h>
 
 #if QT_VERSION < 0x050000
 #include <QUrl>
@@ -984,9 +985,13 @@ QString uriPrefix()
 QString convertCashBitcoinAddress(const QString &address)
 {
     CBitcoinAddress orig(address.toStdString());
-
     if (!orig.IsValid()) {
-        // TODO attempt convert from cashaddress
+        CashAddress::Content c = CashAddress::decodeCashAddrContent(address.toStdString(), "bitcoincash");
+        if (c.type == CashAddress::PUBKEY_TYPE && c.hash.size() == 20) {
+            CKeyID id(reinterpret_cast<const char*>(&c.hash[0]));
+            orig.Set(id);
+            return QString::fromStdString(orig.ToString());
+        }
     }
     return address;
 }
