@@ -1683,10 +1683,6 @@ bool static ProcessMessage(CNode* pfrom, std::string strCommand, CDataStream& vR
             if (!xthinEnabled)
                 pfrom->PushMessage(NetMsgType::SENDHEADERS);
         }
-
-        // send our listening port in a separate version message
-        if (pfrom->nVersion >= EXPEDITED_VERSION)
-            pfrom->PushMessage(NetMsgType::VERSION2, GetListenPort());
     }
 
 
@@ -2591,31 +2587,6 @@ bool static ProcessMessage(CNode* pfrom, std::string strCommand, CDataStream& vR
             LogPrint("net", "Unparseable reject message received\n");
         }
 #endif
-    }
-    else if (strCommand == NetMsgType::XPEDITEDREQUEST)
-    {
-        HandleExpeditedRequest(vRecv,pfrom);
-    }
-    else if (strCommand == NetMsgType::XPEDITEDBLK)
-    {
-        HandleExpeditedBlock(vRecv,pfrom);
-    }
-    else if (strCommand == NetMsgType::VERSION2)
-    {
-        // Each connection can only send one version message
-        if (pfrom->addrFromPort != 0) {
-            pfrom->PushMessage(NetMsgType::REJECT, strCommand, REJECT_DUPLICATE, std::string("Duplicate version2 message"));
-            LOCK(cs_main);
-            Misbehaving(pfrom->GetId(), 15);
-            return false;
-        }
-
-        vRecv >> pfrom->addrFromPort;
-        pfrom->PushMessage(NetMsgType::VERACK2);
-    }
-    else if (strCommand == NetMsgType::VERACK2)
-    {
-        CheckAndRequestExpeditedBlocks(pfrom);
     }
 
     else

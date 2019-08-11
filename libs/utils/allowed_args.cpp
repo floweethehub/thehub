@@ -386,7 +386,7 @@ static void addNodeRelayOptions(AllowedArgs& allowedArgs)
         .addArg("maxexpeditedtxrecipients=<n>", requiredInt, _("The maximum number of nodes this node will forward expedited transactions to"))
         .addArg("minrelaytxfee=<amt>", requiredAmount, strprintf(_("Fees (in BCH/kB) smaller than this are considered zero fee for relaying, mining and transaction creation (default: %s)"),
             FormatMoney(DefaultMinRelayTxFee)))
-        .addArg("use-thinblocks", optionalBool, _("Enable thin blocks to speed up the relay of blocks (default: true)"))
+        .addArg("use-thinblocks", optionalBool, _("Enable thin blocks to speed up the relay of blocks (default: false)"))
         ;
 }
 

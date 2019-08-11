@@ -623,7 +623,7 @@ bool AppInit2(boost::thread_group& threadGroup, CScheduler& scheduler)
     if (GetBoolArg("-peerbloomfilters", true))
         nLocalServices |= NODE_BLOOM;
 
-    if (GetBoolArg("-use-thinblocks", true))
+    if (GetBoolArg("-use-thinblocks", false))
         nLocalServices |= NODE_XTHIN;
     if (Params().NetworkIDString() == CBaseChainParams::MAIN) {
         if (Policy::blockSizeAcceptLimit() < 8000000)

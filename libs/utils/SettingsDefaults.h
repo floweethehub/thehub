@@ -65,7 +65,7 @@ static const uint64_t DefaultMaxUploadTarget = 0;
 static const unsigned int DefaultMaxPeerConnections = 125;
 
 /** The default minimum number of thin nodes to connect to */
-static const int DefaultMinThinPeers = 2;
+static const int DefaultMinThinPeers = 0;
 
 static const unsigned int DefaultMaxReceiveBuffer = 5 * 1000;
 static const unsigned int DefaultMaxSendBuffer    = 1 * 1000;

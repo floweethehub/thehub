@@ -109,7 +109,7 @@ public:
 bool HaveThinblockNodes();
 bool CheckThinblockTimer(const uint256 &hash);
 inline bool IsThinBlocksEnabled() {
-    return GetBoolArg("-use-thinblocks", true);
+    return GetBoolArg("-use-thinblocks", false);
 }
 bool IsChainNearlySyncd();
 CBloomFilter createSeededBloomFilter(const std::vector<uint256>& vOrphanHashes);
