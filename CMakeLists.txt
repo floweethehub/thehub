@@ -14,7 +14,7 @@
 # You should have received a copy of the GNU General Public License
 # along with this program.  If not, see <http://www.gnu.org/licenses/>.
 
-cmake_minimum_required (VERSION 3.0.2)
+cmake_minimum_required (VERSION 3.13)
 project (Flowee)
 
 set(COPYRIGHT_YEAR 2019)
@@ -93,37 +93,77 @@ if (mark_release)
     endif ()
 endif ()
 
-######################
-#### Include hierarchy
-######################
 
-set(UNIVALUE_LIBRARY "${CMAKE_BINARY_DIR}/lib/${CMAKE_STATIC_LIBRARY_PREFIX}univalue${CMAKE_STATIC_LIBRARY_SUFFIX}")
-set(LEVELDB_LIBRARY
-    "${CMAKE_BINARY_DIR}/lib/${CMAKE_STATIC_LIBRARY_PREFIX}leveldb${CMAKE_STATIC_LIBRARY_SUFFIX}"
-    "${CMAKE_BINARY_DIR}/lib/${CMAKE_STATIC_LIBRARY_PREFIX}memenv${CMAKE_STATIC_LIBRARY_SUFFIX}"
-)
-set(SECP256K1_LIBRARY "${CMAKE_BINARY_DIR}/lib/${CMAKE_STATIC_LIBRARY_PREFIX}secp256k1${CMAKE_STATIC_LIBRARY_SUFFIX}")
+# required packages below this
+message ("===== Find required dependencies")
 
-# define the include dirs for each section
-set(3RDPARTY_INCLUDES)
 find_package(OpenSSL REQUIRED)
 message ("Using OpenSSL ${OPENSSL_VERSION}")
-set(LIBCRYPTO_INCLUDES
-    ${3RDPARTY_INCLUDES}
-    ${OPENSSL_INCLUDE_DIR}
-    ${CMAKE_SOURCE_DIR}/libs/crypto
-    ${CMAKE_SOURCE_DIR}/libs
+
+find_package(Boost 1.67.0
+    REQUIRED
+    chrono filesystem iostreams program_options system thread ${boost_test_lib}
 )
-set(LIBUTILS_INCLUDES ${LIBCRYPTO_INCLUDES} ${CMAKE_SOURCE_DIR}/libs/utils ${CMAKE_SOURCE_DIR}/libs/interfaces)
-set(LIBNETWORKMANAGER_INCLUDES ${LIBUTILS_INCLUDES} ${CMAKE_SOURCE_DIR}/libs/networkmanager)
-set(LIBAPPUTILS_INCLUDES ${LIBNETWORKMANAGER_INCLUDES} ${CMAKE_SOURCE_DIR}/libs/apputils)
-set(LIBUTXO_INCLUDES ${LIBUTILS_INCLUDES} ${CMAKE_SOURCE_DIR}/libs/utxo)
-set(LIBCONSOLE_INCLUDES ${LIBUTILS_INCLUDES} ${CMAKE_SOURCE_DIR}/libs/console)
+
+if (enable_wallet)
+    find_package(BerkeleyDB REQUIRED)
+    message ("NOTICE: txVulcano is not compiled when wallet is enabled")
+endif ()
+
+# Since our 3rd party require this, lets give a nice warning here.
+find_program(AUTOCONF autoconf)
+if (NOT AUTOCONF)
+    message ("ERROR: autoconf is required for 3rd-party libraries compilation.")
+endif()
+
+find_package(Event REQUIRED)
 
 
-# these two should only ever be used by the hub hub-qt and the unit tests.
-set(LIBSERVER_INCLUDES ${LIBNETWORKMANAGER_INCLUDES} ${CMAKE_SOURCE_DIR}/libs/server ${CMAKE_SOURCE_DIR}/libs/server/wallet)
-set(LIBAPI_INCLUDES ${LIBSERVER_INCLUDES} ${CMAKE_SOURCE_DIR}/libs/api)
+message ("===== Find optional dependencies")
+
+find_package(ZeroMQ 4.0)
+if (${ZMQ_FOUND})
+    set (ENABLE_ZMQ 1)
+else ()
+    # remove "NOTFOUND" so we can just link to it, which then is a no-op
+    set (ZMQ_LIBRARIES "")
+endif ()
+
+find_package(Miniupnpc)
+if (${MINIUPNP_FOUND})
+    set (USE_UPNP 1)
+else ()
+    set (MINIUPNP_LIBRARY "")
+endif ()
+
+find_package(QREncode)
+if (${QREncode_FOUND})
+    set (USE_QRCODE 1)
+else ()
+    set (QREncode_LIBRARIES "")
+endif()
+
+find_package(Qt5Core)
+if (${Qt5Core_FOUND})
+    message("-- Qt5 found, version ${Qt5Core_VERSION_STRING}")
+    find_package(Qt5Network)
+else()
+    message("Missing qt5 (core) library, not building pos, hub-qt, txVulcano")
+    set (enable_gui FALSE)
+endif()
+if (enable_gui)
+    find_package(Qt5Widgets)
+    if (NOT ${Qt5Widgets_FOUND})
+        message("Missing qt5 (widgets) library, not building hub-qt")
+        set (enable_gui FALSE)
+    endif ()
+endif ()
+if (enable_gui)
+    find_package(Qt5DBus)
+    if (${Qt5DBus_FOUND})
+        set (USE_DBUS 1)
+    endif ()
+endif ()
 
 ######################
 #### Generate config.h
@@ -192,74 +232,6 @@ foreach (ARG "" "-std=gnu++11" "-std=c++11")
     set (_V "${_V}_")
 endforeach()
 
-
-message ("===== Find optional dependencies")
-
-find_package(ZeroMQ 4.0)
-if (${ZMQ_FOUND})
-    set (ENABLE_ZMQ 1)
-else ()
-    # remove "NOTFOUND" so we can just link to it, which then is a no-op
-    set (ZMQ_LIBRARIES "")
-endif ()
-
-find_package(Miniupnpc)
-if (${MINIUPNP_FOUND})
-    set (USE_UPNP 1)
-else ()
-    set (MINIUPNP_LIBRARY "")
-endif ()
-
-find_package(QREncode)
-if (${QREncode_FOUND})
-    set (USE_QRCODE 1)
-else ()
-    set (QREncode_LIBRARIES "")
-endif()
-
-find_package(Qt5Core)
-if (${Qt5Core_FOUND})
-    message("-- Qt5 found, version ${Qt5Core_VERSION_STRING}")
-    find_package(Qt5Network)
-else()
-    message("Missing qt5 (core) library, not building pos, hub-qt, txVulcano")
-    set (enable_gui FALSE)
-endif()
-if (enable_gui)
-    find_package(Qt5Widgets)
-    if (NOT ${Qt5Widgets_FOUND})
-        message("Missing qt5 (widgets) library, not building hub-qt")
-        set (enable_gui FALSE)
-    endif ()
-endif ()
-if (enable_gui)
-    find_package(Qt5DBus)
-    if (${Qt5DBus_FOUND})
-        set (USE_DBUS 1)
-    endif ()
-endif ()
-
-# required packages below this
-message ("===== Find required dependencies")
-
-find_package(Boost 1.56.0
-    REQUIRED
-    chrono filesystem iostreams program_options system thread ${boost_test_lib}
-)
-
-if (enable_wallet)
-    find_package(BerkeleyDB REQUIRED)
-    message ("NOTICE: txVulcano is not compiled when wallet is enabled")
-endif ()
-
-# Since our 3rd party require this, lets give a nice warning here.
-find_program(AUTOCONF autoconf)
-if (NOT AUTOCONF)
-    message ("ERROR: autoconf is required for 3rd-party libraries compilation.")
-endif()
-
-find_package(Event REQUIRED)
-
 configure_file (
     "${CMAKE_SOURCE_DIR}/libs/config/flowee-config.h.in"
     ${CMAKE_BINARY_DIR}/include/config/flowee-config.h
@@ -274,6 +246,41 @@ add_definitions(-DHAVE_CONFIG_H -DHAVE_BUILD_INFO)
 
 # no-deprecated is needed for dbwrapper (leveldb)
 set(CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS} -Wvla -pthread -Wno-deprecated ")
+
+
+
+######################
+#### Include hierarchy
+######################
+
+set(UNIVALUE_LIBRARY "${CMAKE_BINARY_DIR}/lib/${CMAKE_STATIC_LIBRARY_PREFIX}univalue${CMAKE_STATIC_LIBRARY_SUFFIX}")
+set(LEVELDB_LIBRARY
+    "${CMAKE_BINARY_DIR}/lib/${CMAKE_STATIC_LIBRARY_PREFIX}leveldb${CMAKE_STATIC_LIBRARY_SUFFIX}"
+    "${CMAKE_BINARY_DIR}/lib/${CMAKE_STATIC_LIBRARY_PREFIX}memenv${CMAKE_STATIC_LIBRARY_SUFFIX}"
+)
+set(SECP256K1_LIBRARY "${CMAKE_BINARY_DIR}/lib/${CMAKE_STATIC_LIBRARY_PREFIX}secp256k1${CMAKE_STATIC_LIBRARY_SUFFIX}")
+
+# define the include dirs for each section
+set(3RDPARTY_INCLUDES)
+set(LIBCRYPTO_INCLUDES
+    ${3RDPARTY_INCLUDES}
+    ${Boost_INCLUDE_DIRS}
+    ${OPENSSL_INCLUDE_DIR}
+    ${CMAKE_SOURCE_DIR}/libs/crypto
+    ${CMAKE_SOURCE_DIR}/libs
+)
+message ("OpenSSL includes: ${OPENSSL_INCLUDE_DIR}")
+set(LIBUTILS_INCLUDES ${LIBCRYPTO_INCLUDES} ${CMAKE_SOURCE_DIR}/libs/utils ${CMAKE_SOURCE_DIR}/libs/interfaces)
+set(LIBNETWORKMANAGER_INCLUDES ${LIBUTILS_INCLUDES} ${CMAKE_SOURCE_DIR}/libs/networkmanager)
+set(LIBAPPUTILS_INCLUDES ${LIBNETWORKMANAGER_INCLUDES} ${CMAKE_SOURCE_DIR}/libs/apputils)
+set(LIBUTXO_INCLUDES ${LIBUTILS_INCLUDES} ${CMAKE_SOURCE_DIR}/libs/utxo)
+set(LIBCONSOLE_INCLUDES ${LIBUTILS_INCLUDES} ${CMAKE_SOURCE_DIR}/libs/console)
+
+
+# these two should only ever be used by the hub hub-qt and the unit tests.
+set(LIBSERVER_INCLUDES ${LIBNETWORKMANAGER_INCLUDES} ${CMAKE_SOURCE_DIR}/libs/server ${CMAKE_SOURCE_DIR}/libs/server/wallet)
+set(LIBAPI_INCLUDES ${LIBSERVER_INCLUDES} ${CMAKE_SOURCE_DIR}/libs/api)
+
 
 add_subdirectory(libs)
 add_subdirectory(hub)
