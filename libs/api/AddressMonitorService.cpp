@@ -49,7 +49,8 @@ void AddressMonitorService::SyncTx(const Tx &tx)
     std::map<int, Match> matches;
     Tx::Iterator iter(tx);
     bool m = match(iter, rem, matches);
-    assert(m); // our tx object should have data
+    if (!m)
+        return;
 
     for (auto i = matches.begin(); i != matches.end(); ++i) {
         Match &match = i->second;
@@ -136,7 +137,8 @@ void AddressMonitorService::DoubleSpendFound(const Tx &first, const Tx &duplicat
     std::map<int, Match> matches;
     Tx::Iterator iter(first);
     bool m = match(iter, rem, matches);
-    assert(m); // our first tx object should have data
+    if (!m)
+        return;
 
     Tx::Iterator iter2(duplicate);
     m = match(iter2, rem, matches);
