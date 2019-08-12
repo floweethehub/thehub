@@ -212,8 +212,9 @@ void FileLogChannel::reopenLogFiles()
     boost::filesystem::create_directories(m_logFilename.parent_path());
 
     m_fileout = fopen(m_logFilename.string().c_str(), "a");
-    if (m_fileout)
-        setbuf(m_fileout, NULL); // unbuffered
+    if (!m_fileout)
+        throw std::runtime_error(std::string("Failed to open(append) file: ") + m_logFilename.string());
+    setbuf(m_fileout, NULL); // unbuffered
 }
 
 void FileLogChannel::setPath(const std::string &path)

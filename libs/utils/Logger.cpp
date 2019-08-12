@@ -35,6 +35,17 @@
 #include <boost/algorithm/string.hpp> // for to_lower() / split()
 #include <boost/filesystem/fstream.hpp>
 
+namespace {
+struct ErrorLogger {
+    std::deque<std::string> errors;
+    ~ErrorLogger() {
+        for (auto e : errors) {
+            logFatal(Log::Bitcoin) << e;
+        }
+    }
+};
+}
+
 class Log::ManagerPrivate {
 public:
     std::list<Channel*> channels;
@@ -192,9 +203,14 @@ void Log::Manager::log(Log::Item *item)
 
 void Log::Manager::reopenLogFiles()
 {
+    ErrorLogger errorLogger;
     std::lock_guard<std::mutex> lock(d->lock);
-    for (auto channel : d->channels) {
-        channel->reopenLogFiles();
+    for (auto c : d->channels) {
+        try {
+            c->reopenLogFiles();
+        } catch (const std::exception &e) {
+            errorLogger.errors.push_back(std::string("Re-opening log file failed with: ") + e.what());
+        }
     }
 }
 
@@ -218,14 +234,6 @@ void Log::Manager::loadDefaultTestSetup(const std::function<const char*()> &test
 
 void Log::Manager::parseConfig(const boost::filesystem::path &configfile, const boost::filesystem::path &logfilename)
 {
-    struct ErrorLogger {
-        std::deque<std::string> errors;
-        ~ErrorLogger() {
-            for (auto e : errors) {
-                logFatal(Log::Bitcoin) << e;
-            }
-        }
-    };
     ErrorLogger errorLogger; // logging only after the lock has been released and we are sure that everything is initialized.
     std::lock_guard<std::mutex> lock(d->lock);
     d->enabledSections.clear();
@@ -336,13 +344,19 @@ void Log::Manager::parseConfig(const boost::filesystem::path &configfile, const 
             d->enabledSections[i] = Log::WarningLevel;
     }
 
-    if (!loadedConsoleLog && GetBoolArg("-printtoconsole", false))
-        d->channels.push_back(new ConsoleLogChannel());
-
+    bool fallbackToConsole = false;
     // in case they need it, lets open then now.
     for (auto c : d->channels) {
-        c->reopenLogFiles();
+        try {
+            c->reopenLogFiles();
+        } catch (const std::exception &e) {
+            errorLogger.errors.push_back(std::string("Opening log file failed with: ") + e.what());
+            fallbackToConsole = true;
+        }
     }
+
+    if (!loadedConsoleLog && (fallbackToConsole || GetBoolArg("-printtoconsole", false)))
+        d->channels.push_back(new ConsoleLogChannel());
 }
 
 const std::string &Log::Manager::sectionString(short section)
