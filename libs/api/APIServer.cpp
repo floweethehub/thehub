@@ -35,6 +35,39 @@
 // the amount of seconds after which we disconnect incoming connections that have done anything yet.
 #define INTRODUCTION_TIMEOUT 4
 
+#ifdef __linux__
+#ifndef _GNU_SOURCE
+# define _GNU_SOURCE     /* To get defns of NI_MAXSERV and NI_MAXHOST */
+#endif
+
+namespace {
+std::deque<std::string> allInterfaces() {
+    std::deque<std::string> answer;
+
+    struct ifaddrs *ifaddr;
+    if (getifaddrs(&ifaddr) == -1)
+        return answer;
+
+    for (struct ifaddrs *ifa = ifaddr; ifa; ifa = ifa->ifa_next) {
+        if (ifa->ifa_addr == nullptr)
+            continue;
+        int family = ifa->ifa_addr->sa_family;
+        if (family != AF_INET && family != AF_INET6)
+            continue;
+        char host[NI_MAXHOST];
+        int s = getnameinfo(ifa->ifa_addr,
+                            (family == AF_INET) ? sizeof(struct sockaddr_in) : sizeof(struct sockaddr_in6),
+                            host, NI_MAXHOST,
+                            nullptr, 0, NI_NUMERICHOST);
+        if (s == 0)
+            answer.push_back(std::string(host));
+    }
+    freeifaddrs(ifaddr);
+    return answer;
+}
+}
+#endif
+
 Api::Server::Server(boost::asio::io_service &service)
     : m_networkManager(service),
       m_timerRunning(false),
@@ -55,6 +88,13 @@ Api::Server::Server(boost::asio::io_service &service)
                 endpoints.push_back(tcp::endpoint(boost::asio::ip::address_v4::loopback(), port));
                 endpoints.push_back(tcp::endpoint(boost::asio::ip::address_v6::loopback(), port));
                 continue;
+#ifdef __linux__
+            } else if (host == "0.0.0.0") {
+                for (auto iface : allInterfaces()) {
+                    endpoints.push_back(tcp::endpoint(boost::asio::ip::address::from_string(iface), port));
+                }
+                continue;
+#endif
             }
             try {
                 endpoints.push_back(tcp::endpoint(boost::asio::ip::address::from_string(host), port));
