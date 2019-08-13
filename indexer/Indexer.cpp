@@ -423,7 +423,7 @@ void Indexer::hubConnected(const EndPoint &ep)
     requestBlock();
 }
 
-void Indexer::requestBlock()
+void Indexer::requestBlock(int newBlockHeight)
 {
     int blockHeight = 9999999;
     for (size_t i = 0; i < s_requestedHeights.size(); ++i) {
@@ -431,8 +431,16 @@ void Indexer::requestBlock()
         if (h != -1)
             blockHeight = std::min(h, blockHeight);
     }
-    if (blockHeight == 9999999)
+    if (newBlockHeight > 0) {
+        // this means a new block just became available.
+        if (blockHeight == 9999999)
+            blockHeight = newBlockHeight;
+        else if (blockHeight != newBlockHeight) // we are not ready for it yet
+            return;
+    }
+    else if (blockHeight == 9999999)
         return;
+
     // Unset requests now we acted on them.
     for (size_t i = 0; i < s_requestedHeights.size(); ++i) {
         int expected = blockHeight;
@@ -527,23 +535,8 @@ void Indexer::hubSentMessage(const Message &message)
     else if (message.serviceId() == Api::BlockNotificationService && message.messageId() == Api::BlockNotification::NewBlockOnChain) {
         Streaming::MessageParser parser(message.body());
         while (parser.next() == Streaming::FoundTag) {
-            if (parser.tag() == Api::BlockNotification::BlockHeight) {
-                if (!m_spentOutputDb && !m_addressdb && !m_txdb) return; // user likes to torture us. :(
-                int blockHeight = 9999999;
-                if (m_addressdb)
-                    blockHeight = m_addressdb->blockheight();
-                if (m_txdb)
-                    blockHeight = std::min(blockHeight, m_txdb->blockheight());
-                if (m_spentOutputDb)
-                    blockHeight = std::min(blockHeight, m_spentOutputDb->blockheight());
-                if (parser.intData() == blockHeight + 1
-                        || (m_indexingFinished && parser.intData() >= blockHeight)) {
-                    m_indexingFinished = false;
-                    m_lastRequestedBlock = 0;
-                    QMutexLocker lock(&m_nextBlockLock);
-                    requestBlock();
-                }
-            }
+            if (parser.tag() == Api::BlockNotification::BlockHeight)
+                requestBlock(parser.intData());
         }
     }
     else {

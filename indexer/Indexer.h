@@ -56,7 +56,7 @@ public:
     Message nextBlock(int height, unsigned long timeout = ULONG_MAX);
 
 private slots:
-    void requestBlock();
+    void requestBlock(int newBlockHeight = -1);
     void checkBlockArrived();
 
     void onFindAddressRequest(const Message &message);
