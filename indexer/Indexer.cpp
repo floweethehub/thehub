@@ -421,7 +421,7 @@ void Indexer::hubConnected(const EndPoint &ep)
     m_serverConnection.send(Message(Api::APIService, Api::Meta::Version));
     m_serverConnection.send(Message(Api::BlockNotificationService, Api::BlockNotification::Subscribe));
     QMutexLocker lock(&m_nextBlockLock);
-    requestBlock();
+    requestBlock(m_lastRequestedBlock);
 }
 
 void Indexer::requestBlock(int newBlockHeight)
@@ -433,11 +433,14 @@ void Indexer::requestBlock(int newBlockHeight)
             blockHeight = std::min(h, blockHeight);
     }
     if (newBlockHeight > 0) {
-        // this means a new block just became available.
         if (blockHeight == 9999999)
             blockHeight = newBlockHeight;
-        else if (blockHeight != newBlockHeight) // we are not ready for it yet
-            return;
+        else if (newBlockHeight < blockHeight)
+            // this means the hub reconnected and we need to re-request our block
+            blockHeight = newBlockHeight;
+        else if (blockHeight != newBlockHeight)
+            // this means a new block just became available.
+            return; // we are not ready for it yet
     }
     else if (blockHeight == 9999999)
         return;

@@ -149,8 +149,10 @@ void AddressIndexer::blockFinished(int blockheight, const uint256 &)
 {
     Q_ASSERT(blockheight > m_height);
     m_height = blockheight;
-    if (++m_uncommittedCount > 150000)
+    if (++m_uncommittedCount > 150000) {
         commitAllData();
+        m_uncommittedCount = 0;
+    }
 }
 
 void AddressIndexer::insert(const Streaming::ConstBuffer &addressId, int outputIndex, int blockHeight, int offsetInBlock)
