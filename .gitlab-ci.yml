@@ -6,7 +6,6 @@ stages:
 - deploy
 
 variables:
-  HUB_IMG: flowee/hub
   PACKAGE_NAME: flowee-${CI_COMMIT_REF_NAME}-${CI_COMMIT_SHORT_SHA}
 
 #####  Debian stable
@@ -124,27 +123,6 @@ flowee-linux.zip:
     - ${PACKAGE_NAME}
   dependencies:
     - build-static
-
-createHubDocker:
-  stage: deploy
-  script:
-    - docker login -u flowee -p $DOCKER_TOKEN
-    - mv bin support/docker/hub
-    - docker build --tag=$HUB_IMG:${CI_COMMIT_REF_NAME} support/docker/hub
-    - docker image push $HUB_IMG:${CI_COMMIT_REF_NAME}
-  image: docker:latest
-  services:
-    - docker:dind
-  dependencies:
-    - build-static
-  allow_failure: true
-  only:
-    refs:
-      - branches
-    variables:
-      - $DOCKER_TOKEN
-  except:
-    - master
 
 ##### Build as standard as it gets.
 
