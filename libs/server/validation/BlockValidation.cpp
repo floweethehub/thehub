@@ -684,6 +684,7 @@ void ValidationEnginePrivate::processNewBlock(std::shared_ptr<BlockValidationSta
 #endif
     if (state->m_onResultFlags & Validation::ForwardGoodToPeers) {
         int totalBlocks = Blocks::DB::instance()->headerChain().Height();
+logFatal(Log::BlockValidation) << "Forward good to peers" << totalBlocks;
         LOCK(cs_vNodes);
         for (CNode* pnode : vNodes) {
             if (blockchain->Height() > totalBlocks - 10)

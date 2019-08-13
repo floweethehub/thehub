@@ -200,6 +200,7 @@ void Indexer::loadConfig(const QString &filename, const EndPoint &prioHubLocatio
     QList<QThread*> newThreads;
     if (enableAddressDb && !m_addressdb) {
         m_addressdb = new AddressIndexer(m_basedir / "addresses", this);
+        m_addressdb->loadSetting(settings);
         newThreads.append(m_addressdb);
     } else if (!enableAddressDb && m_addressdb) {
         m_addressdb->requestInterruption();

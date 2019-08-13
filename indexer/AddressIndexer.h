@@ -32,11 +32,14 @@ class QSettings;
 class DirtyData;
 class Indexer;
 
+class TableSpecification;
+
 class AddressIndexer : public QThread
 {
     Q_OBJECT
 public:
     AddressIndexer(const boost::filesystem::path &basedir, Indexer *datasource);
+    ~AddressIndexer();
     void loadSetting(const QSettings &settings);
 
     int blockheight();
@@ -75,6 +78,8 @@ private:
     QSqlDatabase m_selectDb;
     QList<QSqlQuery> m_insertQuery;
     QAtomicInt m_flushRequesed;
+
+    TableSpecification *m_spec = nullptr;
 };
 
 #endif

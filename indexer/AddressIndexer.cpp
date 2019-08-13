@@ -31,8 +31,6 @@
 
 namespace {
 
-static QString createIndexString("create index %1_index on %1 (address_row)");
-
 QString valueFromSettings(const QSettings &settings, const QString &key) {
     QVariant x = settings.value(QString("addressdb/") + key);
     if (x.isNull())
@@ -46,12 +44,49 @@ QString addressTable(int index) {
 
 }
 
+class TableSpecification
+{
+public:
+    virtual bool queryTableExists(QSqlQuery &query, const QString &tableName) const {
+        return query.exec("select count(*) from " + tableName);
+    }
+
+    // we only create one index type, so this API is assuming a lot.
+    virtual bool createIndexIfNotExists(QSqlQuery &query, const QString &tableName) const {
+        QString createIndexString("create index %1_index on %1 (address_row)");
+        return query.exec(createIndexString.arg(tableName));
+    }
+};
+
+class PostgresTables : public TableSpecification
+{
+public:
+    bool queryTableExists(QSqlQuery &query, const QString &tableName) const override {
+        bool ok = query.exec("select exists (select 1 from pg_tables where tablename='" + tableName.toLower()
+                   + "' and schemaname='public')");
+        if (!ok)
+            return false;
+        query.next();
+        return query.value(0).toInt() == 1;
+    }
+
+    bool createIndexIfNotExists(QSqlQuery &query, const QString &tableName) const override {
+        QString createIndexString("CREATE INDEX IF NOT EXISTS %1_index ON %1 (address_row)");
+        return query.exec(createIndexString.arg(tableName.toLower()));
+    }
+};
+
 AddressIndexer::AddressIndexer(const boost::filesystem::path &basedir, Indexer *datasource)
     : m_addresses(basedir),
       m_basedir(QString::fromStdWString(basedir.wstring())),
       m_dataSource(datasource),
       m_flushRequesed(0)
 {
+}
+
+AddressIndexer::~AddressIndexer()
+{
+    delete m_spec;
 }
 
 void AddressIndexer::loadSetting(const QSettings &settings)
@@ -68,6 +103,8 @@ void AddressIndexer::loadSetting(const QSettings &settings)
         logCritical() << "Error reported:" << m_insertDb.lastError().text();
         throw std::runtime_error("Failed to read database");
     }
+    delete m_spec;
+    m_spec = nullptr;
 
     m_selectDb = QSqlDatabase::addDatabase(db, "selectConnection");
     if (db == "QPSQL") {
@@ -79,6 +116,7 @@ void AddressIndexer::loadSetting(const QSettings &settings)
         m_selectDb.setUserName(valueFromSettings(settings, "db_username"));
         m_selectDb.setPassword(valueFromSettings(settings, "db_password"));
         m_selectDb.setHostName(valueFromSettings(settings, "db_hostname"));
+        m_spec = new PostgresTables();
     } else if (db == "QSQLITE") {
         m_insertDb.setDatabaseName(m_basedir + "/addresses.db");
         m_selectDb.setDatabaseName(m_basedir + "/addresses.db");
@@ -170,6 +208,9 @@ std::vector<AddressIndexer::TxData> AddressIndexer::find(const uint160 &address)
 
 void AddressIndexer::createTables()
 {
+    if (m_spec == nullptr)
+        m_spec = new TableSpecification(); // generic one.
+
     /* Tables
      * AddressUsage_N
      *  address_row     INTEGER   (the row that the hashStorage provided us with)
@@ -183,7 +224,7 @@ void AddressIndexer::createTables()
 
     QSqlQuery query(m_insertDb);
     bool doInsert = false;
-    if (!query.exec("select count(*) from LastKnownState")) {
+    if (!m_spec->queryTableExists(query, "LastKnownState")) {
         QString q("create table LastKnownState ("
                   "blockHeight INTEGER)");
         if (!query.exec(q)) {
@@ -200,14 +241,14 @@ void AddressIndexer::createTables()
     }
 
     for (int db = 0;; ++db) {
-        if (!query.exec(QString("select count(*) from ") + addressTable(db))) // found the last DB
+        if (!m_spec->queryTableExists(query, addressTable(db))) // found the last DB
             break;
 
         // Make sure there is an index on tables we have not finished inserting into yet.
         if (db > 0) {
             QString tableName = addressTable(db -1);
-            if (query.exec(createIndexString.arg(tableName)))
-                logCritical() << "Created index on SQL table" << tableName;
+            if (m_spec->createIndexIfNotExists(query, tableName))
+                logInfo() << "Created index on SQL table" << tableName;
         }
     }
 }
@@ -286,7 +327,7 @@ void AddressIndexer::commitAllData()
 
                 // when creating a new table, set the index on the previous table.
                 if (db > 0) {
-                    if (!query.exec(createIndexString.arg(addressTable(db - 1)))) {
+                    if (m_spec->createIndexIfNotExists(query, addressTable(db - 1))) {
                         logFatal() << "Failed to create index" << query.lastError().text();
                         QCoreApplication::exit(1);
                     }
