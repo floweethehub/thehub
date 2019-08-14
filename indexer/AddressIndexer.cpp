@@ -80,7 +80,7 @@ AddressIndexer::AddressIndexer(const boost::filesystem::path &basedir, Indexer *
     : m_addresses(basedir),
       m_basedir(QString::fromStdWString(basedir.wstring())),
       m_dataSource(datasource),
-      m_flushRequesed(0)
+      m_flushRequested(0)
 {
 }
 
@@ -257,7 +257,7 @@ void AddressIndexer::createTables()
 
 void AddressIndexer::flush()
 {
-    m_flushRequesed = 1;
+    m_flushRequested = 1;
 }
 
 void AddressIndexer::run()
@@ -266,9 +266,9 @@ void AddressIndexer::run()
     while (!isInterruptionRequested()) {
         Message message = m_dataSource->nextBlock(blockheight() + 1, 2000);
 
-        if (m_flushRequesed.load() == 1) {
+        if (m_flushRequested.load() == 1) {
             commitAllData();
-            m_flushRequesed = 0;
+            m_flushRequested = 0;
         }
         if (message.body().size() == 0) // typically true if the flush was requested
             continue;
@@ -308,6 +308,12 @@ void AddressIndexer::run()
 
 void AddressIndexer::commitAllData()
 {
+    Q_ASSERT(QThread::currentThread() == this);
+    if (m_height == -1) {
+        Q_ASSERT(m_uncommittedData.empty());
+        return;
+    }
+
     QTime time;
     time.start();
     int rowsInserted = 0;
@@ -329,7 +335,7 @@ void AddressIndexer::commitAllData()
 
                 // when creating a new table, set the index on the previous table.
                 if (db > 0) {
-                    if (m_spec->createIndexIfNotExists(query, addressTable(db - 1))) {
+                    if (!m_spec->createIndexIfNotExists(query, addressTable(db - 1))) {
                         logFatal() << "Failed to create index" << query.lastError().text();
                         QCoreApplication::exit(1);
                     }

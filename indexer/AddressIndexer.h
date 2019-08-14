@@ -77,7 +77,7 @@ private:
     QSqlDatabase m_insertDb;
     QSqlDatabase m_selectDb;
     QList<QSqlQuery> m_insertQuery;
-    QAtomicInt m_flushRequesed;
+    QAtomicInt m_flushRequested;
 
     TableSpecification *m_spec = nullptr;
 };
