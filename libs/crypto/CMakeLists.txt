@@ -70,3 +70,7 @@ install(FILES
     compat/endian.h
     compat/byteswap.h
 DESTINATION include/flowee/crypto/compat/)
+# this is really from the top-level cmake, but as this is the top-level library, we install it here
+install(FILES
+    ${CMAKE_BINARY_DIR}/include/config/flowee-config.h
+DESTINATION include/flowee/config/)

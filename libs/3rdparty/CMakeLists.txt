@@ -50,3 +50,8 @@ ExternalProject_Add_Step(secp256k1 autogen
     WORKING_DIRECTORY ${CMAKE_CURRENT_SOURCE_DIR}/secp256k1
     COMMENT "Creating secp256k1 configure"
 )
+
+install(FILES
+    ${CMAKE_BINARY_DIR}/lib/libsecp256k1.a
+    ${CMAKE_BINARY_DIR}/lib/libsecp256k1.la
+DESTINATION lib)
