@@ -500,7 +500,7 @@ void Indexer::hubSentMessage(const Message &message)
             Streaming::MessageParser parser(message.body());
             while (parser.next() == Streaming::FoundTag) {
                 if (parser.tag() == Api::Meta::GenericByteData) {
-                    logInfo() << "Server is at version" << parser.stringData();
+                    logCritical() << "Server is at version" << parser.stringData();
                 }
             }
         }
