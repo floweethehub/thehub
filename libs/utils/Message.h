@@ -1,6 +1,6 @@
 /*
  * This file is part of the Flowee project
- * Copyright (C) 2016 Tom Zander <tomz@freedommail.ch>
+ * Copyright (C) 2016-2019 Tom Zander <tomz@freedommail.ch>
  *
  * This program is free software: you can redistribute it and/or modify
  * it under the terms of the GNU General Public License as published by
@@ -20,6 +20,7 @@
 
 #include "streaming/ConstBuffer.h"
 #include <NetworkEnums.h>
+#include <APIProtocol.h>
 #include <map>
 #include <cassert>
 
@@ -31,6 +32,13 @@ class Message
 public:
     /// default constructor, creates an empty message object
     Message(int serviceId = -1, int messageId = -1);
+
+    bool inline matches(Api::ServiceIds serviceId, int messageId = -1) {
+        return this->serviceId() == serviceId && (messageId == -1 || this->messageId() == messageId);
+    }
+    bool inline matches(int messageId) {
+        return this->messageId() == messageId;
+    }
 
     /**
      * Create a messge object that is a slice of the \a sharedBuffer.
