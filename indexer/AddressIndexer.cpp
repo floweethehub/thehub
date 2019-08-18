@@ -122,7 +122,7 @@ void AddressIndexer::loadSetting(const QSettings &settings)
         m_selectDb.setDatabaseName(m_basedir + "/addresses.db");
     }
 
-    if (m_insertDb.isValid() && m_insertDb.open() && m_selectDb.open()) {
+    if (m_selectDb.isValid() && m_insertDb.open() && m_selectDb.open()) {
         createTables();
     } else {
         logFatal() << "Failed opening the database-connection" << m_insertDb.lastError().text();
@@ -324,7 +324,7 @@ void AddressIndexer::commitAllData()
         if (!list.empty()) {
             const QString table = addressTable(db);
             QSqlQuery query(m_insertDb);
-            if (!query.exec(QString("select count(*) from ") + table)) {
+            if (!m_spec->queryTableExists(query, table)) {
                 static QString q("create table %1 ("
                           "address_row INTEGER, "
                           "block_height INTEGER, offset_in_block INTEGER, out_index INTEGER)");

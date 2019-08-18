@@ -90,6 +90,8 @@ private:
 
     int m_lastRequestedBlock = 0;
     quint64 m_timeLastRequest = 0;
+    quint64 m_timeLastLogLine = 0;
+
 
 
     // data to process blocks in different workers.
