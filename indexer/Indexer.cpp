@@ -133,13 +133,20 @@ void Indexer::bind(boost::asio::ip::tcp::endpoint endpoint)
 void Indexer::loadConfig(const QString &filename, const EndPoint &prioHubLocation)
 {
     using boost::asio::ip::tcp;
-
-    if (!QFile::exists(filename))
-        return;
-    QSettings settings(filename, QSettings::IniFormat);
     EndPoint hub(prioHubLocation);
 
-    bool enableTxDB = true, enableAddressDb = false, enableSpentDb = false;
+    if (!QFile::exists(filename)) {
+        if (m_txdb == nullptr && hub.isValid()) {
+            // lets do SOMETHING by default.
+            m_txdb = new TxIndexer(m_workers.ioService(), m_basedir / "txindex", this);
+            tryConnectHub(hub);
+            QTimer::singleShot(500, m_txdb, SLOT(start()));
+        }
+        return;
+    }
+    QSettings settings(filename, QSettings::IniFormat);
+
+    bool enableTxDB = false, enableAddressDb = false, enableSpentDb = false;
     const QStringList groups = settings.childGroups();
     for (auto group : groups) {
         if (group == "addressdb") {
