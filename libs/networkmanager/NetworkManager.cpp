@@ -100,6 +100,8 @@ NetworkConnection NetworkManager::connection(const EndPoint &remote, ConnectionE
 
         if (connect == AutoCreate) {
             EndPoint ep(remote);
+            if (ep.ipAddress.is_unspecified()) // try to see if hostname is an IP. If so, bypass DNS lookup
+                try { ep.ipAddress = boost::asio::ip::address::from_string(ep.hostname); } catch (...) {}
             ep.peerPort = ep.announcePort; // outgoing connections always have those the same.
             ep.connectionId = ++d->lastConnectionId;
             d->connections.insert(std::make_pair(ep.connectionId, std::make_shared<NetworkManagerConnection>(d, ep)));
