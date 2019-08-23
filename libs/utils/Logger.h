@@ -428,6 +428,8 @@ inline SilentItem MessageLogger::noDebug(int) { return SilentItem(); }
 
 } // namespace Log
 
+bool InterpretBool(const std::string& strValue);
+
 #ifdef BCH_LOGCONTEXT
   #define BCH_MESSAGELOG_FILE __FILE__
   #define BCH_MESSAGELOG_LINE __LINE__

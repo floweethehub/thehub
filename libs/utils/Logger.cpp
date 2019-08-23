@@ -17,7 +17,7 @@
  */
 #include "Logger.h"
 #include "LogChannels_p.h"
-#include "util.h"
+#include "utiltime.h"
 #include "chainparamsbase.h"
 
 #include <fstream>
@@ -355,7 +355,7 @@ void Log::Manager::parseConfig(const boost::filesystem::path &configfile, const 
         }
     }
 
-    if (!loadedConsoleLog && (fallbackToConsole || GetBoolArg("-printtoconsole", false)))
+    if (!loadedConsoleLog && fallbackToConsole)
         d->channels.push_back(new ConsoleLogChannel());
 }
 
@@ -415,6 +415,15 @@ Log::MessageLogger::MessageLogger(const char *filename, int line, const char *fu
 {
 }
 
+
+static const std::set<std::string> affirmativeStrings{"", "1", "t", "y", "true", "yes"};
+
+/** Interpret string as boolean, for argument parsing */
+bool InterpretBool(const std::string& strValue)
+{
+    std::string token = boost::trim_copy(strValue);
+    return (affirmativeStrings.count(token) != 0);
+}
 
 /////////////////////////////////////////////////
 

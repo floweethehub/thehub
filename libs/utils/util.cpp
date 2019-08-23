@@ -175,15 +175,6 @@ public:
 }
 instance_of_cinit;
 
-static const std::set<std::string> affirmativeStrings{"", "1", "t", "y", "true", "yes"};
-
-/** Interpret string as boolean, for argument parsing */
-bool InterpretBool(const std::string& strValue)
-{
-    std::string token = boost::trim_copy(strValue);
-    return (affirmativeStrings.count(token) != 0);
-}
-
 /** Turn -noX into -X=0 */
 static void InterpretNegativeSetting(std::string& strKey, std::string& strValue)
 {
