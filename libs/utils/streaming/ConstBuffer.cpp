@@ -68,8 +68,12 @@ std::shared_ptr<char> Streaming::ConstBuffer::internal_buffer() const
 
 Streaming::ConstBuffer Streaming::ConstBuffer::mid(int offset, int length) const
 {
-    assert(m_start + offset + length <= m_stop);
-    return ConstBuffer(m_buffer, m_start + offset, m_start + offset + length);
+    if (length > 0) {
+        assert(m_start + offset + length <= m_stop);
+        return ConstBuffer(m_buffer, m_start + offset, m_start + offset + length);
+    }
+    assert(m_start + offset <= m_stop);
+    return ConstBuffer(m_buffer, m_start + offset, m_stop);
 }
 
 char Streaming::ConstBuffer::operator[](size_t idx) const

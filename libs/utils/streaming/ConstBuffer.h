@@ -65,7 +65,7 @@ public:
 
     std::shared_ptr<char> internal_buffer() const;
 
-    ConstBuffer mid(int offset, int length) const;
+    ConstBuffer mid(int offset, int length = -1) const;
 
 private:
     std::shared_ptr<char> m_buffer;
