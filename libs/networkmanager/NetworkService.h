@@ -33,7 +33,7 @@ class RemoteContainer;
  * In the NetworkManager system messages are optionally routed to handlers
  * using a service ID. Handling messages for a specific service, as they come
  * from the network can be done by inherting from the NetworkService class
- * and reimplementing the onIncomiingMessage() call.
+ * and reimplementing the onIncomingMessage() call.
  *
  * Please note that this class adds to the very basic NetworkServiceBase class
  * a safe way to reply to your incoming messages.
