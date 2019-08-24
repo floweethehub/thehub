@@ -31,7 +31,6 @@ set (HUB_QT_LIBS
     flowee_networkmanager
     flowee_console
     flowee_utils
-    flowee_crypto
 
     ${LEVELDB_LIBRARY}
     ${SECP256K1_LIBRARY}
@@ -42,7 +41,6 @@ set (HUB_QT_LIBS
     ${BERKELEY_DB_LIBRARIES}
     ${MINIUPNP_LIBRARY}
     ${OPENSSL_LIBRARIES}
-    ${BOOST_THREAD_LIBRARY}
     ${QREncode_LIBRARIES}
 )
 

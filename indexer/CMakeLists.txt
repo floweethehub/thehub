@@ -28,13 +28,12 @@ include_directories(${LIBAPPUTILS_INCLUDES} ${LIBUTXO_INCLUDES} ${CMAKE_BINARY_D
 
 set (IDX_LIBS
     flowee_utxo
-    flowee_apputils
     flowee_networkmanager
+    flowee_apputils
     flowee_utils
 
     ${OPENSSL_LIBRARIES}
     ${Boost_LIBRARIES}
-    ${BOOST_THREAD_LIBRARY}
 )
 
 if (${Qt5Sql_FOUND})

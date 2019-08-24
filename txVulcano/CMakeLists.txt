@@ -32,10 +32,10 @@ add_executable(txVulcano
 )
 
 target_link_libraries(txVulcano
-    flowee_utils
-    flowee_apputils
-    flowee_networkmanager
     flowee_server
+    flowee_networkmanager
+    flowee_apputils
+    flowee_utils
 
     ${LEVELDB_LIBRARY}
     ${SECP256K1_LIBRARY}
@@ -45,7 +45,6 @@ target_link_libraries(txVulcano
     ${ZMQ_LIBRARIES}
     ${Event_LIBRARIES}
     ${MINIUPNP_LIBRARY}
-    ${BOOST_THREAD_LIBRARY}
     Qt5::Core
 )
 

@@ -24,5 +24,3 @@ add_library(flowee_utxo STATIC
     UTXOInteralError.cpp
 )
 add_definitions(-DLOG_DEFAULT_SECTION=1100)
-
-target_link_libraries(flowee_utxo flowee_utils)

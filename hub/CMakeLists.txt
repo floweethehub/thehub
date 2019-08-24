@@ -22,9 +22,7 @@ set (HUB_LIBS
     flowee_api
     flowee_server
     flowee_networkmanager
-    flowee_console
     flowee_utils
-    flowee_crypto
 
     ${LEVELDB_LIBRARY}
     ${SECP256K1_LIBRARY}

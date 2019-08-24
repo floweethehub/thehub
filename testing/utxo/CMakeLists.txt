@@ -22,8 +22,8 @@ add_executable(test_utxo
     test_utxo.cpp
 )
 target_link_libraries(test_utxo
-    flowee_utils
     flowee_utxo
+    flowee_utils
 
     ${TEST_LIBS}
     ${OPENSSL_LIBRARIES}
