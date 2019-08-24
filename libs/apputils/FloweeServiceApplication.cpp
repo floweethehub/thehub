@@ -61,23 +61,24 @@ FloweeServiceApplication::~FloweeServiceApplication()
         logFatal(m_appLogSection) << "Shutdown";
 }
 
-void FloweeServiceApplication::addServerOptions(QCommandLineParser &parser)
+void FloweeServiceApplication::addServerOptions(QCommandLineParser &parser, Options options)
 {
     m_isServer = true;
-    addClientOptions(parser);
+    addClientOptions(parser, options);
 }
 
-void FloweeServiceApplication::addClientOptions(QCommandLineParser &parser)
+void FloweeServiceApplication::addClientOptions(QCommandLineParser &parser, Options options)
 {
     m_parser = &parser;
 #ifndef BCH_NO_DEBUG_OUTPUT
     parser.addOption(m_debug);
 #endif
     parser.addOption(m_version);
-    parser.addOption(m_connect);
+    if (!options.testFlag(NoConnect))
+        parser.addOption(m_connect);
     if (m_isServer) {
         parser.addOption(m_bindAddress);
-    } else {
+    } else if (!options.testFlag(NoVerbosity)) {
         parser.addOption(m_verbose);
         parser.addOption(m_quiet);
     }

@@ -36,8 +36,15 @@ public:
     FloweeServiceApplication(int &argc, char **argv, int appLogSection = LOG_DEFAULT_SECTION);
     ~FloweeServiceApplication();
 
-    void addServerOptions(QCommandLineParser &parser);
-    void addClientOptions(QCommandLineParser &parser);
+    enum Option {
+        NoOptions = 0,
+        NoConnect = 1,
+        NoVerbosity = 2
+    };
+    Q_DECLARE_FLAGS(Options, Option)
+
+    void addServerOptions(QCommandLineParser &parser, Options options = NoOptions);
+    void addClientOptions(QCommandLineParser &parser, Options options = NoOptions);
     void setup(const char *logFilename = nullptr, const QString &configFilePath = QString());
 
     EndPoint serverAddressFromArguments(short defaultPort) const;
@@ -75,5 +82,7 @@ private:
 
     QCommandLineParser *m_parser = nullptr;
 };
+
+Q_DECLARE_OPERATORS_FOR_FLAGS(FloweeServiceApplication::Options)
 
 #endif
