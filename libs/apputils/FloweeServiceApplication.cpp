@@ -169,10 +169,22 @@ EndPoint FloweeServiceApplication::serverAddressFromArguments(short defaultPort)
     return ep;
 }
 
-QList<boost::asio::ip::tcp::endpoint> FloweeServiceApplication::bindingEndPoints(QCommandLineParser &parser, int defaultPort) const
+QList<boost::asio::ip::tcp::endpoint> FloweeServiceApplication::bindingEndPoints(QCommandLineParser &parser, int defaultPort, DefaultBindOption defaultBind) const
 {
+    QStringList addresses = parser.values(m_bindAddress);
+    if (addresses.isEmpty()) {
+        switch (defaultBind) {
+        case FloweeServiceApplication::LocalhostAsDefault:
+            addresses << "localhost";
+            break;
+        case FloweeServiceApplication::AllInterfacesAsDefault:
+            addresses << "0.0.0.0";
+            break;
+        }
+    }
+
     QList<boost::asio::ip::tcp::endpoint> answer;
-    for (const QString &address : parser.values(m_bindAddress)) {
+    for (const QString &address : addresses) {
         std::string hostname;
         uint16_t port = defaultPort;
         SplitHostPort(address.toStdString(), port, hostname);

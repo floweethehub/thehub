@@ -41,13 +41,20 @@ public:
     void setup(const char *logFilename = nullptr, const QString &configFilePath = QString());
 
     EndPoint serverAddressFromArguments(short defaultPort) const;
+
+    enum DefaultBindOption {
+        UserSupplied,           ///< If the user doesn't supply a bind option, we don't bind.
+        LocalhostAsDefault,     ///< If no user supplied bind was found, we bind to localhost (ipv4 and ipv6)
+        AllInterfacesAsDefault  ///< If no user supplied bind was found, we bind to all found interfaces.
+    };
+
     /**
      * Return all end points based on the command line arguments.
      * We accept "localhost" as a string to bind to that.
      *
      * We accept "0.0.0.0" as a wildcard to all local interfaces. Please note this requires QtNetworkLib.
      */
-    QList<boost::asio::ip::tcp::endpoint> bindingEndPoints(QCommandLineParser &parser, int defaultPort) const;
+    QList<boost::asio::ip::tcp::endpoint> bindingEndPoints(QCommandLineParser &parser, int defaultPort, DefaultBindOption defaultBind = UserSupplied) const;
 
     void handleSigHub() const;
 

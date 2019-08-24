@@ -50,12 +50,12 @@ int main(int argc, char **argv)
     Indexer indexer(basedir.toStdString());
 
     // become a server
-    for (auto ep : app.bindingEndPoints(parser, 1234)) {
-        logCritical().nospace() << "Binding to " << ep.address().to_string().c_str() << ":" << ep.port();
+    for (auto ep : app.bindingEndPoints(parser, 1234, FloweeServiceApplication::LocalhostAsDefault)) {
+        logCritical().nospace() << "Trying to bind to " << ep.address().to_string().c_str() << ":" << ep.port();
         try {
             indexer.bind(ep);
         } catch (std::exception &e) {
-            logCritical() << "  " << e << "skipping";
+            logCritical() << "   nope, not binding there due to:" << e;
         }
     }
 
