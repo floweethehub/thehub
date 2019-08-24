@@ -24,6 +24,7 @@
 #include <server/BlocksDB.h>
 #include <server/script/interpreter.h>
 #include <utxo/UnspentOutputDatabase.h>
+#include <WaitUntilFinishedHelper.h>
 
 #include <boost/foreach.hpp>
 

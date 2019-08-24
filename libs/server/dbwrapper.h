@@ -22,7 +22,6 @@
 #include "clientversion.h"
 #include "serialize.h"
 #include "streaming/streams.h"
-#include "util.h"
 #include "utilstrencodings.h"
 #include "version.h"
 
@@ -182,7 +181,7 @@ public:
         if (!status.ok()) {
             if (status.IsNotFound())
                 return false;
-            LogPrintf("LevelDB read failure: %s\n", status.ToString());
+            logCritical(Log::DB) << "LevelDB read failure:" << status.ToString();
             HandleError(status);
         }
         try {
@@ -215,7 +214,7 @@ public:
         if (!status.ok()) {
             if (status.IsNotFound())
                 return false;
-            LogPrintf("LevelDB read failure: %s\n", status.ToString());
+            logCritical(Log::DB) << "LevelDB read failure:" << status.ToString();
             HandleError(status);
         }
         return true;

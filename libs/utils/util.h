@@ -51,33 +51,16 @@ static const char DEFAULT_RPCCONNECT[] = "127.0.0.1";
 static const int DEFAULT_HTTP_CLIENT_TIMEOUT = 900;
 static const bool DEFAULT_LOGIPS        = false;
 
-/** Signals for translation. */
-class CTranslationInterface
-{
-public:
-    /** Translate a message to the native language of the user. */
-    boost::signals2::signal<std::string (const char* psz)> Translate;
-};
-
 extern std::map<std::string, std::string> mapArgs;
 extern std::map<std::string, std::vector<std::string> > mapMultiArgs;
-extern bool fServer;
-extern std::string strMiscWarning;
-extern bool fLogIPs;
-extern CTranslationInterface translationInterface;
 
 /**
- * Translation function: Call Translate signal on UI interface, which returns a boost::optional result.
- * If no translation slot is registered, nothing is returned, and simply return the input.
+ * old deprecated method to do translation of GUI output.
  */
 inline std::string _(const char* psz)
 {
-    boost::optional<std::string> rv = translationInterface.Translate(psz);
-    return rv ? (*rv) : psz;
+    return std::string(psz);
 }
-
-void SetupEnvironment();
-bool SetupNetworking();
 
 #define LogPrintf(...) Log::MessageLogger(BCH_MESSAGELOG_FILE, BCH_MESSAGELOG_LINE, BCH_MESSAGELOG_FUNC).infoCompat(nullptr, __VA_ARGS__)
 
@@ -116,27 +99,16 @@ static inline bool error(const char* format)
 
 void PrintExceptionContinue(const std::exception *pex, const char* pszThread);
 void ParseParameters(int argc, const char*const argv[], const Settings::AllowedArgs& allowedArgs);
-void FileCommit(FILE *fileout);
-bool TruncateFile(FILE *file, unsigned int length);
-int RaiseFileDescriptorLimit(int nMinFD);
-void AllocateFileRange(FILE *file, unsigned int offset, unsigned int length);
-bool RenameOver(boost::filesystem::path src, boost::filesystem::path dest);
 bool TryCreateDirectory(const boost::filesystem::path& p);
 boost::filesystem::path GetDefaultDataDir();
 const boost::filesystem::path &GetDataDir(bool fNetSpecific = true);
 void ClearDatadirCache();
 boost::filesystem::path GetConfigFile(const std::string &filename = "");
-#ifndef WIN32
-boost::filesystem::path GetPidFile();
-void CreatePidFile(const boost::filesystem::path &path, pid_t pid);
-#endif
 void ReadConfigFile(std::map<std::string, std::string>& mapSettingsRet, std::map<std::string, std::vector<std::string> >& mapMultiSettingsRet);
 #ifdef WIN32
 boost::filesystem::path GetSpecialFolderPath(int nFolder, bool fCreate = true);
 #endif
 boost::filesystem::path GetTempPath();
-void ShrinkDebugFile();
-void runCommand(const std::string& strCommand);
 
 inline bool IsSwitchChar(char c)
 {
@@ -196,58 +168,4 @@ void SetThreadPriority(int nPriority);
 void RenameThread(const char* name);
 
 
-/**
- * .. and a wrapper that just calls func once
- */
-template <typename Callable> void TraceThread(const char* name,  Callable func)
-{
-    std::string s = strprintf("bitcoin-%s", name);
-    RenameThread(s.c_str());
-    try
-    {
-        LogPrintf("%s thread start\n", name);
-        func();
-        LogPrintf("%s thread exit\n", name);
-    }
-    catch (const boost::thread_interrupted&)
-    {
-        LogPrintf("%s thread interrupt\n", name);
-        throw;
-    }
-    catch (const std::exception& e) {
-        PrintExceptionContinue(&e, name);
-        throw;
-    }
-    catch (...) {
-        PrintExceptionContinue(NULL, name);
-        throw;
-    }
-}
-
-/**
- * @brief Use the WaitUntilFinishedHelper class to start a method in a strand and wait until its done.
- * Usage is simple, you create an instance and all the work is done in the constructor.
- * After the constructor is finished, your method in the strand will have returned.
- */
-class WaitUntilFinishedHelper
-{
-public:
-    WaitUntilFinishedHelper(const std::function<void()> &target, BoostCompatStrand *strand);
-    WaitUntilFinishedHelper(const WaitUntilFinishedHelper &other);
-    ~WaitUntilFinishedHelper();
-
-    void run();
-
-private:
-    struct Private {
-        mutable std::mutex mutex;
-        std::function<void()> target;
-        std::atomic<int> ref;
-        BoostCompatStrand *strand;
-    };
-    Private *d;
-
-    void handle();
-};
-
-#endif // BITCOIN_UTIL_H
+#endif

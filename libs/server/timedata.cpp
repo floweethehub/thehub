@@ -18,11 +18,11 @@
 
 #include "timedata.h"
 
-#include "netbase.h"
-#include "sync.h"
+#include <netbase.h>
+#include <sync.h>
 #include "UiInterface.h"
-#include "util.h"
-#include "utilstrencodings.h"
+#include "serverutil.h"
+#include <utilstrencodings.h>
 
 static CCriticalSection cs_nTimeOffset;
 static int64_t nTimeOffset = 0;

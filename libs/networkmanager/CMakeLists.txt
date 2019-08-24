@@ -30,5 +30,9 @@ install(FILES ${CMAKE_CURRENT_BINARY_DIR}/libflowee_networkmanager.a DESTINATION
 install(FILES
     NetworkConnection.h
     NetworkEndPoint.h
+    NetworkException.h
     NetworkManager.h
+    NetworkQueueFullError.h
+    NetworkServiceBase.h
+    NetworkService.h
 DESTINATION include/flowee/networkmanager)

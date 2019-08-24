@@ -44,7 +44,7 @@
 #include "rpcserver.h"
 #include "scheduler.h"
 #include "UiInterface.h"
-#include "util.h"
+#include <serverutil.h>
 #include <SettingsDefaults.h>
 
 #ifdef ENABLE_WALLET
@@ -105,6 +105,16 @@ static void InitMessage(const std::string &message)
 {
     logCritical(Log::Bitcoin) << "init message:" << message;
 }
+
+/** Signals for translation. */
+class CTranslationInterface
+{
+public:
+    /** Translate a message to the native language of the user. */
+    boost::signals2::signal<std::string (const char* psz)> Translate;
+};
+CTranslationInterface translationInterface;
+
 
 /*
    Translate string to current locale using Qt.

@@ -29,6 +29,8 @@
 // from libs/server
 #include <chain.h>
 
+#include <boost/scoped_ptr.hpp>
+
 
 static void nothing(const char *){}
 

@@ -20,7 +20,7 @@
 #include <SettingsDefaults.h>
 #include "utilstrencodings.h"
 #include "net.h"
-#include "util.h"
+#include "serverutil.h"
 #include <hmac_sha256.h>
 
 #include <deque>

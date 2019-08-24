@@ -20,11 +20,11 @@
 #include "TestFloweeSession.h"
 #include "script/sigcache.h"
 #include "MockApplication.h"
-#include <Application.h>
 #include <utxo/UnspentOutputDatabase.h>
 #include <BlocksDB.h>
 #include <interfaces/validationinterface.h>
 #include <UiInterface.h>
+#include <util.h>
 #include <main.h>
 #ifdef ENABLE_WALLET
 # include <wallet/wallet.h>

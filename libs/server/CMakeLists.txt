@@ -53,6 +53,7 @@ set (FLOWEE_SERVER_FILES
     rpcrawtransaction.cpp
     rpcserver.cpp
     scheduler.cpp
+    serverutil.cpp
     script/interpreter.cpp
     script/script_error.cpp
     script/sigcache.cpp

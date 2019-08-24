@@ -27,6 +27,7 @@
 
 #include "amount.h"
 #include "init.h"
+#include "util.h"
 #include "main.h" // For DEFAULT_SCRIPTCHECK_THREADS
 #include "net.h"
 #include "policy/policy.h" // for DEFAULT_BLOCK_ACCEPT_SIZE

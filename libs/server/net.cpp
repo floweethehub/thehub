@@ -37,6 +37,7 @@
 #include "scheduler.h"
 #include "UiInterface.h"
 #include <utilstrencodings.h>
+#include "serverutil.h"
 #include "thinblock.h"
 #include "policy/policy.h"
 
@@ -89,6 +90,35 @@ namespace {
 
         ListenSocket(SOCKET socket, bool whitelisted) : socket(socket), whitelisted(whitelisted) {}
     };
+
+    void FileCommit(FILE *fileout)
+    {
+        fflush(fileout); // harmless if redundantly called
+#ifdef WIN32
+        HANDLE hFile = (HANDLE)_get_osfhandle(_fileno(fileout));
+        FlushFileBuffers(hFile);
+#else
+# if defined(__linux__) || defined(__NetBSD__)
+        fdatasync(fileno(fileout));
+        #elif defined(__APPLE__) && defined(F_FULLFSYNC)
+        fcntl(fileno(fileout), F_FULLFSYNC, 0);
+# else
+        fsync(fileno(fileout));
+# endif
+#endif
+    }
+
+    bool RenameOver(boost::filesystem::path src, boost::filesystem::path dest)
+    {
+#ifdef WIN32
+        return MoveFileExA(src.string().c_str(), dest.string().c_str(),
+                           MOVEFILE_REPLACE_EXISTING) != 0;
+#else
+        int rc = std::rename(src.string().c_str(), dest.string().c_str());
+        return (rc == 0);
+#endif /* WIN32 */
+    }
+
 }
 
 //

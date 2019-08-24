@@ -24,7 +24,7 @@
 #include "init.h"
 #include "noui.h"
 #include "scheduler.h"
-#include "util.h"
+#include <serverutil.h>
 #include "httpserver.h"
 #include "httprpc.h"
 #include "rpcserver.h"

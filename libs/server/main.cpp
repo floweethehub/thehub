@@ -31,6 +31,7 @@
 #include "consensus/validation.h"
 #include "hash.h"
 #include "init.h"
+#include "serverutil.h"
 #include "merkleblock.h"
 #include "policy/policy.h"
 #include "script/sigcache.h"

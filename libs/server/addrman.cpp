@@ -316,7 +316,7 @@ void CAddrMan::Good(const CService& addr, int64_t nTime)
     if (nUBucket == -1)
         return;
 
-    LogPrint("addrman", "Moving %s to tried\n", addr.ToString());
+    logDebug(Log::Addrman) << "Moving" << addr << "to tried";
 
     // move nId to the tried tables
     MarkTried(info, nId);

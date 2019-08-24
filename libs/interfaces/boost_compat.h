@@ -18,6 +18,8 @@
 #ifndef FLOWEE_BOOST_COMPAT
 #define FLOWEE_BOOST_COMPAT
 
+#include <boost/version.hpp>
+
 // boost didn't leave much of backwards compatibility in this one.
 #if BOOST_VERSION < 106600
 # define BoostCompatStrand boost::asio::strand

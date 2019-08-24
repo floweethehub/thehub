@@ -21,7 +21,7 @@
 #include "MockApplication.h"
 #include <chainparams.h>
 #include <primitives/key.h>
-#include <util.h>
+#include <serverutil.h>
 
 extern void noui_connect();
 

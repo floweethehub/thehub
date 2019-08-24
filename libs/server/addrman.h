@@ -26,7 +26,6 @@
 #include "random.h"
 #include "sync.h"
 #include "timedata.h"
-#include "util.h"
 
 #include <set>
 #include <mutex>
@@ -418,9 +417,8 @@ public:
                 it++;
             }
         }
-        if (nLost + nLostUnk > 0) {
-            LogPrint("addrman", "addrman lost %i new and %i tried addresses due to collisions\n", nLostUnk, nLost);
-        }
+        if (nLost + nLostUnk > 0)
+            logDebug(Log::Addrman) << "addrman lost" << nLostUnk << "new and" << nLost << "tried addresses due to collisions";
 
         validateInteral();
     }

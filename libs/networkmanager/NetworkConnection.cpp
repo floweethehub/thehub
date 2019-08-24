@@ -18,9 +18,8 @@
 #include "NetworkConnection.h"
 #include "NetworkManager.h"
 #include "NetworkManager_p.h"
-#include "Message.h"
-
-#include <util.h>
+#include <Message.h>
+#include <WaitUntilFinishedHelper.h>
 
 
 NetworkConnection::NetworkConnection()

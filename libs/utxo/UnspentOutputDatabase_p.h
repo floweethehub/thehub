@@ -32,7 +32,6 @@
 #include "BucketMap.h"
 #include "DataFileList.h"
 #include <streaming/BufferPool.h>
-#include <utils/util.h>
 
 #include <boost/iostreams/device/mapped_file.hpp>
 #include <boost/filesystem/path.hpp>

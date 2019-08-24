@@ -44,6 +44,7 @@
 #include "txmempool.h"
 #include "BlocksDB.h"
 #include "util.h"
+#include "serverutil.h"
 #include "utilmoneystr.h"
 #include <validation/Engine.h>
 

@@ -20,7 +20,7 @@
 
 #include "chainparams.h"
 #include "main.h" // For PartitionCheck
-#include "util.h"
+#include <serverutil.h>
 
 #include "test/test_bitcoin.h"
 

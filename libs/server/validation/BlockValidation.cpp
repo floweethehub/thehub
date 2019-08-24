@@ -26,6 +26,8 @@
 #include <checkpoints.h>
 #include <init.h> // for StartShutdown
 #include <main.h>
+#include <utiltime.h>
+#include <util.h>
 #include <txorphancache.h>
 #include <policy/policy.h>
 #include <timedata.h>

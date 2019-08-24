@@ -54,6 +54,7 @@ add_library(flowee_utils STATIC
     utilstrencodings.cpp
     utiltime.cpp
     WorkerThreads.cpp
+    WaitUntilFinishedHelper.cpp
 )
 
 add_dependencies(flowee_utils univalue)

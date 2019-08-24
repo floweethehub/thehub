@@ -27,8 +27,6 @@
 #include <boost/lexical_cast.hpp>
 #include <boost/make_shared.hpp>
 
-#include <util.h>
-
 #include <fstream>
 
 // #define DEBUG_CONNECTIONS

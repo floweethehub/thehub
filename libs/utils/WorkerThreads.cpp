@@ -16,8 +16,8 @@
  * along with this program.  If not, see <http://www.gnu.org/licenses/>.
  */
 #include "WorkerThreads.h"
-#include "util.h"
 #include "Logger.h"
+#include "util.h"
 
 WorkerThreads::WorkerThreads()
 {

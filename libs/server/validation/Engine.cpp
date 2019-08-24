@@ -27,6 +27,7 @@
 #include <txorphancache.h>
 #include <utxo/UnspentOutputDatabase.h>
 #include <server/BlocksDB.h>
+#include <WaitUntilFinishedHelper.h>
 
 // #define DEBUG_BLOCK_VALIDATION
 #ifdef DEBUG_BLOCK_VALIDATION

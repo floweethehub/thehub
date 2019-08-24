@@ -48,9 +48,10 @@
 #include "txmempool.h"
 #include "torcontrol.h"
 #include "UiInterface.h"
-#include "util.h"
-#include "utilmoneystr.h"
-#include "utilstrencodings.h"
+#include <util.h>
+#include "serverutil.h"
+#include <utilmoneystr.h>
+#include <utilstrencodings.h>
 #include "txorphancache.h"
 #include "validationinterface.h"
 #ifdef ENABLE_WALLET
@@ -65,9 +66,11 @@
 #ifndef WIN32
 #include <csignal>
 #include "CrashCatcher.h"
+#include <sys/resource.h>
 #endif
 
 #include <validation/VerifyDB.h>
+#include <utxo/UnspentOutputDatabase.h>
 #include <boost/algorithm/string/classification.hpp>
 #include <boost/algorithm/string/predicate.hpp>
 #include <boost/algorithm/string/replace.hpp>
@@ -80,7 +83,7 @@
 #include <boost/interprocess/sync/file_lock.hpp>
 #include <boost/thread.hpp>
 #include <openssl/crypto.h>
-#include <utxo/UnspentOutputDatabase.h>
+
 
 #if ENABLE_ZMQ
 #include "zmq/zmqnotificationinterface.h"
@@ -112,6 +115,76 @@ enum BindFlags {
 };
 
 CClientUIInterface uiInterface; // Declared but not defined in ui_interface.h
+
+namespace {
+/**
+ * this function tries to raise the file descriptor limit to the requested number.
+ * It returns the actual file descriptor limit (which may be more or less than nMinFD)
+ */
+int RaiseFileDescriptorLimit(int nMinFD) {
+#if defined(WIN32)
+    return 2048;
+#else
+    struct rlimit limitFD;
+    if (getrlimit(RLIMIT_NOFILE, &limitFD) != -1) {
+        if (limitFD.rlim_cur < (rlim_t)nMinFD) {
+            limitFD.rlim_cur = nMinFD;
+            if (limitFD.rlim_cur > limitFD.rlim_max)
+                limitFD.rlim_cur = limitFD.rlim_max;
+            setrlimit(RLIMIT_NOFILE, &limitFD);
+            getrlimit(RLIMIT_NOFILE, &limitFD);
+        }
+        return limitFD.rlim_cur;
+    }
+    return nMinFD; // getrlimit failed, assume it's fine
+#endif
+}
+
+#ifndef WIN32
+boost::filesystem::path GetPidFile()
+{
+    boost::filesystem::path pathPidFile(GetArg("-pid", Settings::hubPidFilename()));
+    if (!pathPidFile.is_complete()) pathPidFile = GetDataDir() / pathPidFile;
+    return pathPidFile;
+}
+
+void CreatePidFile(const boost::filesystem::path &path, pid_t pid)
+{
+    FILE* file = fopen(path.string().c_str(), "w");
+    if (file)
+    {
+        fprintf(file, "%d\n", pid);
+        fclose(file);
+    }
+}
+#endif
+
+void ShrinkDebugFile()
+{
+    // Scroll hub.log if it's getting too big
+    boost::filesystem::path pathLog = GetDataDir() / "hub.log";
+    FILE* file = fopen(pathLog.string().c_str(), "r");
+    if (file && boost::filesystem::file_size(pathLog) > 10 * 1000000)
+    {
+        // Restart the file with some of the end
+        std::vector <char> vch(200000,0);
+        fseek(file, -((long)vch.size()), SEEK_END);
+        int nBytes = fread(begin_ptr(vch), 1, vch.size(), file);
+        fclose(file);
+
+        file = fopen(pathLog.string().c_str(), "w");
+        if (file)
+        {
+            fwrite(begin_ptr(vch), 1, nBytes, file);
+            fclose(file);
+        }
+    }
+    else if (file != NULL)
+        fclose(file);
+}
+
+
+}
 
 //////////////////////////////////////////////////////////////////////////////
 //

@@ -24,6 +24,7 @@
 #include "Application.h"
 #include "init.h" // for StartShutdown
 #include "hash.h"
+#include "util.h"
 #include <validation/Engine.h>
 
 #include "chain.h"
