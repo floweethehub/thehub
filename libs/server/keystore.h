@@ -26,6 +26,8 @@
 #include "script/standard.h"
 #include "sync.h"
 
+#include <utils/support/allocators/secure.h>
+
 #include <boost/signals2/signal.hpp>
 #include <boost/variant.hpp>
 

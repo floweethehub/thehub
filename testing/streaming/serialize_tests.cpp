@@ -307,7 +307,7 @@ void Test_Serialize::insert_delete()
     QCOMPARE(ss[3], (char)0xff);
 
     // Make sure GetAndClear does the right thing:
-    CSerializeData d;
+    std::vector<char> d;
     ss.GetAndClear(d);
     QCOMPARE(ss.size(), (size_t) 0);
 }

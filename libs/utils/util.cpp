@@ -26,7 +26,6 @@
 #include <SettingsDefaults.h>
 
 #include "chainparamsbase.h"
-#include "random.h"
 #include "serialize.h"
 #include "sync.h"
 #include "utilstrencodings.h"

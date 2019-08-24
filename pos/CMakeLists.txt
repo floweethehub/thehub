@@ -33,7 +33,6 @@ set (POS_LIBS
     flowee_networkmanager
     flowee_utils
 
-    ${OPENSSL_LIBRARIES}
     ${Boost_LIBRARIES}
     ${BOOST_THREAD_LIBRARY}
 )

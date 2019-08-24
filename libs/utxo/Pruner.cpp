@@ -1,6 +1,6 @@
 /*
  * This file is part of the Flowee project
- * Copyright (C) 2018 Tom Zander <tomz@freedommail.ch>
+ * Copyright (C) 2018-2019 Tom Zander <tomz@freedommail.ch>
  *
  * This program is free software: you can redistribute it and/or modify
  * it under the terms of the GNU General Public License as published by
@@ -20,13 +20,15 @@
 #include "UnspentOutputDatabase_p.h"
 #include <streaming/MessageBuilder.h>
 #include <streaming/MessageParser.h>
-#include <utils/random.h>
 
 #include <fstream>
 #include <boost/iostreams/device/mapped_file.hpp>
 #include <boost/filesystem.hpp>
 #include <boost/filesystem/fstream.hpp>
 #include <utils/hash.h>
+#include <utils/utiltime.h>
+
+#include <stdlib.h>
 
 namespace {
 static void nothing(const char *){}
@@ -138,9 +140,10 @@ Pruner::Pruner(const std::string &dbFile, const std::string &infoFile, DBType db
       m_infoFile(infoFile),
       m_dbType(dbType)
 {
+    srandom(static_cast<uint32_t>(GetTimeMillis()));
     assert(m_dbType == OlderDB || m_dbType == MostActiveDB);
     char buf[20];
-    snprintf(buf, 20, ".new%d", GetRandInt(INT_MAX));
+    snprintf(buf, 20, ".new%d", random());
     m_tmpExtension = std::string(buf);
 }
 

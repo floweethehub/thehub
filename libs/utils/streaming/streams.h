@@ -20,7 +20,6 @@
 #ifndef FLOWEE_STREAMS_H
 #define FLOWEE_STREAMS_H
 
-#include "support/allocators/zeroafterfree.h"
 #include "serialize.h"
 
 #include <algorithm>
@@ -44,7 +43,7 @@
 class CDataStream
 {
 protected:
-    typedef CSerializeData vector_type;
+    typedef std::vector<char> vector_type;
     vector_type vch;
     unsigned int nReadPos;
 public:
@@ -77,11 +76,6 @@ public:
         Init(nTypeIn, nVersionIn);
     }
 #endif
-
-    CDataStream(const vector_type& vchIn, int nTypeIn, int nVersionIn) : vch(vchIn.begin(), vchIn.end())
-    {
-        Init(nTypeIn, nVersionIn);
-    }
 
     CDataStream(const std::vector<char>& vchIn, int nTypeIn, int nVersionIn) : vch(vchIn.begin(), vchIn.end())
     {
@@ -306,7 +300,7 @@ public:
         return (*this);
     }
 
-    void GetAndClear(CSerializeData &data) {
+    void GetAndClear(vector_type &data) {
         data.insert(data.end(), begin(), end());
         clear();
     }

@@ -797,10 +797,10 @@ int CNetMessage::readData(const char *pch, unsigned int nBytes)
 // requires LOCK(cs_vSend)
 void SocketSendData(CNode *pnode)
 {
-    std::deque<CSerializeData>::iterator it = pnode->vSendMsg.begin();
+    std::deque<std::vector<char>>::iterator it = pnode->vSendMsg.begin();
 
     while (it != pnode->vSendMsg.end()) {
-        const CSerializeData &data = *it;
+        const std::vector<char> &data = *it;
         assert(data.size() > pnode->nSendOffset);
         int nBytes = send(pnode->hSocket, &data[pnode->nSendOffset], data.size() - pnode->nSendOffset, MSG_NOSIGNAL | MSG_DONTWAIT);
         if (nBytes > 0) {
@@ -2599,7 +2599,7 @@ void CNode::EndMessage() UNLOCK_FUNCTION(cs_vSend)
 
     logDebug(Log::Net).nospace() << "(" << nSize << " bytes) peer=" << id;
 
-    std::deque<CSerializeData>::iterator it = vSendMsg.insert(vSendMsg.end(), CSerializeData());
+    auto it = vSendMsg.insert(vSendMsg.end(), std::vector<char>());
     ssSend.GetAndClear(*it);
     nSendSize += (*it).size();
 

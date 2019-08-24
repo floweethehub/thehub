@@ -27,7 +27,6 @@
 #include "hash.h"
 #include "sync.h"
 #include "uint256.h"
-#include "random.h"
 #include "util.h"
 #include "utilstrencodings.h"
 
@@ -590,8 +589,10 @@ static bool ConnectThroughProxy(const proxyType &proxy, const std::string& strDe
     // do socks negotiation
     if (proxy.randomize_credentials) {
         ProxyCredentials random_auth;
-        random_auth.username = strprintf("%i", insecure_rand());
-        random_auth.password = strprintf("%i", insecure_rand());
+        srandom(GetTimeMillis());
+
+        random_auth.username = strprintf("%i", static_cast<uint32_t>(random()));
+        random_auth.password = strprintf("%i", static_cast<uint32_t>(random()));
         if (!Socks5(strDest, (unsigned short)port, &random_auth, hSocket))
             return false;
     } else {
