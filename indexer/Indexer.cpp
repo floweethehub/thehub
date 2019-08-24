@@ -124,9 +124,9 @@ void Indexer::tryConnectHub(const EndPoint &ep)
     m_serverConnection.connect();
 }
 
-void Indexer::bind(boost::asio::ip::tcp::endpoint endpoint)
+void Indexer::bind(const boost::asio::ip::tcp::endpoint &endpoint)
 {
-    m_network.bind(endpoint, std::bind(&Indexer::clientConnected, this, std::placeholders::_1));
+    m_network.bind(endpoint);
     m_isServer = true;
 }
 
@@ -555,10 +555,4 @@ void Indexer::hubSentMessage(const Message &message)
     else {
         Streaming::MessageParser::debugMessage(message);
     }
-}
-
-void Indexer::clientConnected(NetworkConnection &con)
-{
-    logCritical() << "A client connected";
-    con.accept();
 }

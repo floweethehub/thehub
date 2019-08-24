@@ -43,7 +43,7 @@ public:
     void tryConnectHub(const EndPoint &ep);
 
     /// listen to incoming requests
-    void bind(boost::asio::ip::tcp::endpoint endpoint);
+    void bind(const boost::asio::ip::tcp::endpoint &endpoint);
 
     /// load config, if prioHubLocation is valid prefer that one.
     void loadConfig(const QString &filename, const EndPoint &prioHubLocation);

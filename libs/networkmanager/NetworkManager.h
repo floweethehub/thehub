@@ -72,7 +72,16 @@ public:
      * New connections can be vetted in this callback and you need to call NetworkConnection::accept() on
      * the new connection in your callback handler method.
      */
-    void bind(boost::asio::ip::tcp::endpoint endpoint, const std::function<void(NetworkConnection&)> &callback);
+    void bind(const boost::asio::ip::tcp::endpoint &endpoint, const std::function<void(NetworkConnection&)> &callback);
+
+    /**
+     * Listen for incoming connections.
+     * Adds a callback that will be called when a new connection comes in.
+     *
+     * New connections are always accepted.
+     * the new connection in your callback handler method.
+     */
+    void bind(const boost::asio::ip::tcp::endpoint &endpoint);
 
     void addService(NetworkServiceBase *service);
     void removeService(NetworkServiceBase *service);

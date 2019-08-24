@@ -123,7 +123,7 @@ void NetworkManager::punishNode(int remoteId, int punishment)
     d->punishNode(remoteId, punishment);
 }
 
-void NetworkManager::bind(tcp::endpoint endpoint, const std::function<void(NetworkConnection&)> &callback)
+void NetworkManager::bind(const tcp::endpoint &endpoint, const std::function<void(NetworkConnection&)> &callback)
 {
     boost::recursive_mutex::scoped_lock lock(d->mutex);
     try {
@@ -136,6 +136,11 @@ void NetworkManager::bind(tcp::endpoint endpoint, const std::function<void(Netwo
 
     if (d->servers.size() == 1) // start cron
         d->cronHourly(boost::system::error_code());
+}
+
+void NetworkManager::bind(const tcp::endpoint &endpoint)
+{
+    bind(endpoint, std::bind(&NetworkManagerPrivate::alwaysConnectingNewConnectionHandler, d, std::placeholders::_1));
 }
 
 void NetworkManager::addService(NetworkServiceBase *service)

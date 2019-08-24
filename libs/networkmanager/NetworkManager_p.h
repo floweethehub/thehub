@@ -311,6 +311,10 @@ public:
     NetworkManagerPrivate(boost::asio::io_service &service);
     ~NetworkManagerPrivate();
 
+    inline void alwaysConnectingNewConnectionHandler(NetworkConnection &con) {
+        con.accept();
+    }
+
     void punishNode(int connectionId, int punishScore);
     void cronHourly(const boost::system::error_code& error);
 
