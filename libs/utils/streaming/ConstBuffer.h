@@ -40,6 +40,10 @@ public:
         return m_start != nullptr && m_stop != nullptr;
     }
 
+    bool isEmpty() const {
+        return m_start == m_stop;
+    }
+
     /// Construct from already allocated storage.
     /// Keep in mind that a shared_ptr can have a custom dtor if we want to send something special
     explicit ConstBuffer(std::shared_ptr<char> buffer, char const *start, char const *stop);
