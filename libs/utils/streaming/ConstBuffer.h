@@ -71,6 +71,8 @@ public:
 
     ConstBuffer mid(int offset, int length = -1) const;
 
+    bool startsWith(const Streaming::ConstBuffer &other) const;
+
 private:
     std::shared_ptr<char> m_buffer;
     char const* m_start;

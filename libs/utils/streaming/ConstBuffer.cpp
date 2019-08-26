@@ -1,6 +1,6 @@
 /*
  * This file is part of the Flowee project
- * Copyright (C) 2016 Tom Zander <tomz@freedommail.ch>
+ * Copyright (C) 2016-2019 Tom Zander <tomz@freedommail.ch>
  *
  * This program is free software: you can redistribute it and/or modify
  * it under the terms of the GNU General Public License as published by
@@ -18,6 +18,7 @@
 #include "ConstBuffer.h"
 
 #include <cassert>
+#include <cstdint>
 
 Streaming::ConstBuffer::ConstBuffer()
     : m_buffer(nullptr),
@@ -80,4 +81,21 @@ char Streaming::ConstBuffer::operator[](size_t idx) const
 {
     assert(begin() + idx < end());
     return *(begin() + idx);
+}
+
+bool Streaming::ConstBuffer::startsWith(const Streaming::ConstBuffer &other) const
+{
+    if (!other.isValid()) return false;
+    if (other.size() > size()) return false;
+
+    const char *s1 = m_start;
+    const char *s2 = other.begin();
+    while (s2 != other.end()) {
+        const uint8_t a = static_cast<uint8_t>(*s1);
+        const uint8_t b = static_cast<uint8_t>(*s2);
+        if (a != b)
+            return false;
+        s1++; s2++;
+    }
+    return true;
 }

@@ -36,6 +36,9 @@ private slots:
     void testCMFTypes();
     void testParsers();
     void benchSerialize();
+
+    void testConstBufMid();
+    void testConstBufStartsWith();
 };
 
 #endif

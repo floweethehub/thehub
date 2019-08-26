@@ -439,3 +439,35 @@ void TestBuffers::benchSerialize()
         // QCOMPARE(result, 992230948217398);
     }
 }
+
+void TestBuffers::testConstBufMid()
+{
+    Streaming::BufferPool pool;
+    pool.writeHex("0x308409123809128309182093801923809128309128");
+    Streaming::ConstBuffer buf = pool.commit();
+    QCOMPARE(buf.size(), 21);
+    QCOMPARE(buf.isEmpty(), false);
+    QCOMPARE(buf.isValid(), true);
+
+    auto buf2 = buf.mid(4, 5);
+    QCOMPARE(buf2.size(), 5);
+    QCOMPARE(buf2.begin(), buf.begin() + 4);
+
+    buf2 = buf.mid(6);
+    QCOMPARE(buf2.size(), 21 - 6);
+    QCOMPARE(buf2.begin(), buf.begin() + 6);
+}
+
+void TestBuffers::testConstBufStartsWith()
+{
+    Streaming::BufferPool pool;
+    pool.writeHex("0x308409123809128309182093801923809128309128");
+    Streaming::ConstBuffer buf = pool.commit();
+    QCOMPARE(buf.size(), 21);
+    auto buf2 = buf.mid(0, 10);
+    QVERIFY(buf.startsWith(buf2));
+    QVERIFY(buf2.startsWith(buf2));
+    QVERIFY(!buf2.startsWith(buf));
+    QVERIFY(!buf2.startsWith(Streaming::ConstBuffer()));
+    QVERIFY(!buf2.startsWith(buf.mid(1)));
+}
