@@ -25,7 +25,7 @@ The fastest way to try Flowee is by installing docker. See more details [here](s
 
 To compile and install Flowee on Ubuntu, install the dependencies
 
-`sudo apt install libevent-dev libboost-all-dev libminiupnpc-dev qt5-default protobuf-compiler libprotobuf-dev`
+`sudo apt install libevent-dev libboost-all-dev libminiupnpc-dev qt5-default protobuf-compiler libprotobuf-dev pkgconf`
 
 Then clone the repo and use cmake to create the makefile
 
