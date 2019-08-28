@@ -46,6 +46,8 @@ public:
     void blockFinished(int blockheight, const uint256 &blockId);
     void insert(const Streaming::ConstBuffer &addressId, int outputIndex, int blockHeight, int offsetInBlock);
 
+    void reachedTopOfChain();
+
     struct TxData {
         int offsetInBlock = 0;
         int blockHeight = -1;
@@ -53,8 +55,6 @@ public:
     };
 
     std::vector<TxData> find(const uint160 &address) const;
-
-    void flush();
 
     void run() override;
 
@@ -78,6 +78,12 @@ private:
     QSqlDatabase m_selectDb;
     QList<QSqlQuery> m_insertQuery;
     QAtomicInt m_flushRequested;
+    enum TopOfChain {
+        InInitialSync = 0,
+        InitialSyncFinished = 1,
+        FlushRequested = 2
+    };
+    QAtomicInt m_topOfChain;
 
     TableSpecification *m_spec = nullptr;
 };

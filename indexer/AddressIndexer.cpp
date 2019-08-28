@@ -107,6 +107,10 @@ void AddressIndexer::loadSetting(const QSettings &settings)
     m_spec = nullptr;
 
     m_selectDb = QSqlDatabase::addDatabase(db, "selectConnection");
+    logInfo().nospace() << "AddressIndexer database(" << db << ") "
+                        << valueFromSettings(settings, "db_username")
+                        << "@" << valueFromSettings(settings, "db_hostname")
+                        << " DB: " << valueFromSettings(settings, "db_database");
     if (db == "QPSQL") {
         m_insertDb.setDatabaseName(valueFromSettings(settings, "db_database"));
         m_insertDb.setUserName(valueFromSettings(settings, "db_username"));
@@ -134,13 +138,13 @@ int AddressIndexer::blockheight()
 {
     if (m_height == -1) {
         QSqlQuery query(m_selectDb);
-        query.prepare("select blockHeight from LastKnownState");
-        if (!query.exec()) {
+        if (!query.exec("select blockheight from LastKnownState")) {
             logFatal() << "Failed to select" << query.lastError().text();
             QCoreApplication::exit(1);
         }
         query.next();
         m_height = query.value(0).toInt();
+        m_topOfChain = m_spec->queryTableExists(query, "IBD") ? InInitialSync : InitialSyncFinished;
     }
     return m_height;
 }
@@ -177,6 +181,13 @@ void AddressIndexer::insert(const Streaming::ConstBuffer &addressId, int outputI
     ++m_uncommittedCount;
 }
 
+void AddressIndexer::reachedTopOfChain()
+{
+    Q_ASSERT(m_height != -1); // make sure blockHeight was called before this one
+    m_topOfChain.testAndSetAcquire(InInitialSync, FlushRequested);
+    m_flushRequested = 1;
+}
+
 std::vector<AddressIndexer::TxData> AddressIndexer::find(const uint160 &address) const
 {
     std::vector<TxData> answer;
@@ -185,7 +196,7 @@ std::vector<AddressIndexer::TxData> AddressIndexer::find(const uint160 &address)
         return answer;
 
     QSqlQuery query(m_selectDb);
-    const QString select = QString("select offset_in_block, block_height, out_index "
+    const QString select = QString("select DISTINCT(offset_in_block, block_height, out_index) "
                                   "FROM AddressUsage%1 "
                                   "WHERE address_row=:row").arg(result.db, 2, 10, QChar('_'));
     query.prepare(select);
@@ -227,9 +238,8 @@ void AddressIndexer::createTables()
     QSqlQuery query(m_insertDb);
     bool doInsert = false;
     if (!m_spec->queryTableExists(query, "LastKnownState")) {
-        QString q("create table LastKnownState ("
-                  "blockHeight INTEGER)");
-        if (!query.exec(q)) {
+        logInfo() << "Creating tables...";
+        if (!query.exec("create table LastKnownState (blockheight INTEGER)")) {
             logFatal() << "Failed to create table" << query.lastError().text();
             throw std::runtime_error("Failed to create table");
         }
@@ -240,31 +250,22 @@ void AddressIndexer::createTables()
             logFatal() << "Failed to insert row" << query.lastError().text();
             throw std::runtime_error("Failed to insert row");
         }
-    }
-
-    for (int db = 0;; ++db) {
-        if (!m_spec->queryTableExists(query, addressTable(db))) // found the last DB
-            break;
-
-        // Make sure there is an index on tables we have not finished inserting into yet.
-        if (db > 0) {
-            QString tableName = addressTable(db -1);
-            if (m_spec->createIndexIfNotExists(query, tableName))
-                logInfo() << "Created index on SQL table" << tableName;
+        if (!query.exec("create table IBD (busy INTEGER)")) {
+            logFatal() << "Failed to create notificatoin table IBD" << query.lastError().text();
+            throw std::runtime_error("Failed to create table");
+        }
+        if (!query.exec("insert into IBD values (42)")) {
+            logFatal() << "Failed...";
+            throw std::runtime_error("Failed...");
         }
     }
-}
-
-void AddressIndexer::flush()
-{
-    m_flushRequested = 1;
 }
 
 void AddressIndexer::run()
 {
     assert(m_dataSource);
     while (!isInterruptionRequested()) {
-        Message message = m_dataSource->nextBlock(blockheight() + 1, 2000);
+        Message message = m_dataSource->nextBlock(blockheight() + 1, m_uncommittedData.empty() ? ULONG_MAX : 20000);
 
         if (m_flushRequested.load() == 1) {
             commitAllData();
@@ -332,9 +333,8 @@ void AddressIndexer::commitAllData()
                     logFatal() << "Failed to create table" << query.lastError().text();
                     QCoreApplication::exit(1);
                 }
-
                 // when creating a new table, set the index on the previous table.
-                if (db > 0) {
+                if (db > 0 && m_topOfChain.load() == InitialSyncFinished) {
                     if (!m_spec->createIndexIfNotExists(query, addressTable(db - 1))) {
                         logFatal() << "Failed to create index" << query.lastError().text();
                         QCoreApplication::exit(1);
@@ -387,5 +387,20 @@ void AddressIndexer::commitAllData()
     }
 
     m_insertDb.commit();
+
+    if (m_topOfChain == FlushRequested) { // only ever run this code once per DB
+        logCritical() << "Reached top of chain, creating indexes on our tables";
+        for (int db = 0;; ++db) {
+            if (!m_spec->queryTableExists(query, addressTable(db))) // found the last DB
+                break;
+            const QString tableName = addressTable(db);
+            if (m_spec->createIndexIfNotExists(query, tableName))
+                logInfo() << "Created index on SQL table" << tableName;
+        }
+        logCritical() << "Dropping table 'IBD' which was our indicator of initial sync";
+        query.exec("drop table IBD");
+        m_topOfChain = InitialSyncFinished;
+    }
+
     logInfo().nospace() << "AddressDB: SQL-DB took " << time.elapsed() << "ms to insert " << rowsInserted << " rows";
 }

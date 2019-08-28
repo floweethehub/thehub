@@ -159,9 +159,9 @@ void Indexer::loadConfig(const QString &filename, const EndPoint &prioHubLocatio
             enableSpentDb = settings.value("spentdb/enabled", "false").toBool();
         }
         else if (group == "services") {
-            if (!hub.isValid()) { // only if user didn't override using commandline
+            if (hub.hostname.empty()) { // only if user didn't override using commandline
                 QString connectionString = settings.value("services/hub").toString();
-                hub = EndPoint("", 1234);
+                hub = EndPoint("", 1235); // clear the IP address-default
                 SplitHostPort(connectionString.toStdString(), hub.announcePort, hub.hostname);
             }
         }
@@ -353,7 +353,8 @@ Message Indexer::nextBlock(int height, unsigned long timeout)
         }
 
         // wait until the network-manager thread actually finds the block-message as sent by the Hub
-        m_waitForBlock.wait(&m_nextBlockLock, timeout);
+        if (!m_waitForBlock.wait(&m_nextBlockLock, timeout))
+            break;
     }
     return Message();
 }
@@ -433,6 +434,11 @@ void Indexer::hubConnected(const EndPoint &ep)
 
 void Indexer::requestBlock(int newBlockHeight)
 {
+    if (!m_serverConnection.isConnected()) {
+        logCritical() << "Waiting for hub";
+        return;
+    }
+
     int blockHeight = 9999999;
     for (size_t i = 0; i < s_requestedHeights.size(); ++i) {
         int h = s_requestedHeights.at(i).load();
@@ -457,7 +463,6 @@ void Indexer::requestBlock(int newBlockHeight)
         int expected = blockHeight;
         s_requestedHeights[i].compare_exchange_strong(expected, -1);
     }
-    assert(m_lastRequestedBlock != blockHeight);
     m_lastRequestedBlock = blockHeight;
     m_timeLastRequest = QDateTime::currentMSecsSinceEpoch();
     m_pool.reserve(20);
@@ -535,8 +540,9 @@ void Indexer::hubSentMessage(const Message &message)
                     logCritical() << "spentDB now at:" << m_spentOutputDb->blockheight();
                 m_indexingFinished = true;
                 m_lastRequestedBlock = 0;
-                if (m_addressdb)
-                    m_addressdb->flush();
+                if (m_addressdb) {
+                    m_addressdb->reachedTopOfChain();
+                }
                 if (m_txdb)
                     m_txdb->saveCaches();
                 if (m_spentOutputDb)
