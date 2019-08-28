@@ -91,7 +91,7 @@ build-static:
     - bin
     - etc/flowee
     - systemd
-    expire_in: 1 hrs
+    expire_in: 100 hrs
 
 flowee-deb:
   stage: deploy
