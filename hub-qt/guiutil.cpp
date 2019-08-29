@@ -132,7 +132,7 @@ void setupAddressWidget(QValidatedLineEdit *widget, QWidget *parent)
 #if QT_VERSION >= 0x040700
     // We don't want translators to use own addresses in translations
     // and this is the only place, where this address is supplied.
-    widget->setPlaceholderText(QObject::tr("Enter a Bitcoin address (e.g. %1)").arg("1NS17iag9jJgTHD1VXjvLCEnZuQ3rJDE9L"));
+    widget->setPlaceholderText(QObject::tr("Enter a Bitcoin address (e.g. %1)").arg("qpgn5ka4jptc98a9ftycvujxx33e79nxuqlz5mvxns"));
 #endif
     widget->setValidator(new BitcoinAddressEntryValidator(parent));
     widget->setCheckValidator(new BitcoinAddressCheckValidator(parent));
@@ -989,6 +989,12 @@ QString convertCashBitcoinAddress(const QString &address)
         CashAddress::Content c = CashAddress::decodeCashAddrContent(address.toStdString(), "bitcoincash");
         if (c.type == CashAddress::PUBKEY_TYPE && c.hash.size() == 20) {
             CKeyID id(reinterpret_cast<const char*>(&c.hash[0]));
+            orig.Set(id);
+            return QString::fromStdString(orig.ToString());
+        }
+        if (c.type == CashAddress::SCRIPT_TYPE && c.hash.size() == 20) {
+            uint160 bytes(reinterpret_cast<const char*>(&c.hash[0]));
+            CScriptID id(bytes);
             orig.Set(id);
             return QString::fromStdString(orig.ToString());
         }

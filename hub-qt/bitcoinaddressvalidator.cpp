@@ -50,7 +50,9 @@ QValidator::State BitcoinAddressEntryValidator::validate(QString &input, int &po
         Old,
         Cash
     };
-    Type type = input.startsWith('q') ? Cash : Old;
+    static const QString CashPrefix = "bitcoincash:";
+    Type type = (input.startsWith('q') || input.startsWith('p')
+                 || input.startsWith(CashPrefix.left(10))) ? Cash : Old;
 
     // Correction
     for (int idx = 0; idx < input.size();) {
@@ -84,7 +86,13 @@ QValidator::State BitcoinAddressEntryValidator::validate(QString &input, int &po
         }
     }
 
-    for (int idx = 0; idx < input.size(); ++idx) {
+    int idx = 0;
+    if (type == Cash) { // skip over the 'bitcoincash:' prefix
+        QString left = input.left(12);
+        if (CashPrefix.left(left.size()) == left)
+            idx = left.size();
+    }
+    for (; idx < input.size(); ++idx) {
         int ch = input.at(idx).unicode();
 
         switch (type) {
@@ -120,7 +128,7 @@ QValidator::State BitcoinAddressCheckValidator::validate(QString &input, int &po
         return QValidator::Acceptable;
 
     CashAddress::Content c = CashAddress::decodeCashAddrContent(input.toStdString(), "bitcoincash");
-    if (c.type == CashAddress::PUBKEY_TYPE && c.hash.size() == 20)
+    if ((c.type == CashAddress::PUBKEY_TYPE || c.type == CashAddress::SCRIPT_TYPE) && c.hash.size() == 20)
         return QValidator::Acceptable;
 
     return QValidator::Invalid;
