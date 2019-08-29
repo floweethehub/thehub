@@ -115,7 +115,7 @@ bool NetworkConnection::isConnected() const
 EndPoint NetworkConnection::endPoint() const
 {
     auto d = m_parent.lock();
-    if (d && d->isConnected())
+    if (d)
         return d->endPoint();
     return EndPoint();
 }

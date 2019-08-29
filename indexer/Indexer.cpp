@@ -435,7 +435,7 @@ void Indexer::hubConnected(const EndPoint &ep)
 void Indexer::requestBlock(int newBlockHeight)
 {
     if (!m_serverConnection.isConnected()) {
-        logCritical() << "Waiting for hub";
+        logCritical() << "Waiting for hub" << m_serverConnection.endPoint();
         return;
     }
 
