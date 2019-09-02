@@ -1,6 +1,6 @@
 /*
  * This file is part of the flowee project
- * Copyright (C) 2017-2018 Tom Zander <tomz@freedommail.ch>
+ * Copyright (C) 2017-2019 Tom Zander <tomz@freedommail.ch>
  *
  * This program is free software: you can redistribute it and/or modify
  * it under the terms of the GNU General Public License as published by
@@ -251,4 +251,9 @@ void Validation::Engine::shutdown()
 void Validation::Engine::start()
 {
     d->strand.post(std::bind(&ValidationEnginePrivate::findMoreJobs, d));
+}
+
+uint32_t Validation::Engine::tipValidationFlags(bool requireStandard) const
+{
+    return priv().lock()->tipFlags.scriptValidationFlags(requireStandard);
 }

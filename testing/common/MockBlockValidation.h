@@ -62,8 +62,6 @@ public:
         return appendChain(blocks, key, out);
     }
 
-    uint32_t tipValidationFlags(bool requireStandard = false) const;
-
     /**
      * @brief This creates a chain of blocks on top of a random index.
      * @param parent the index that is to be extended

@@ -1,6 +1,6 @@
 /*
  * This file is part of the flowee project
- * Copyright (C) 2017-2018 Tom Zander <tomz@freedommail.ch>
+ * Copyright (C) 2017-2019 Tom Zander <tomz@freedommail.ch>
  *
  * This program is free software: you can redistribute it and/or modify
  * it under the terms of the GNU General Public License as published by
@@ -164,6 +164,11 @@ public:
      * will start processing those.
      */
     void start();
+
+    /**
+     * Return the validation flags we determined based on current chain-tip.
+     */
+    uint32_t tipValidationFlags(bool requireStandard = false) const;
 
     /// \internal
     std::weak_ptr<ValidationEnginePrivate> priv() const;
