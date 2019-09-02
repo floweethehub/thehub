@@ -386,6 +386,8 @@ enum {
     // BUIP010 Xtreme Thinblocks: an Xtreme thin block contains the first 8 bytes of all the tx hashes 
     // and also provides the missing transactions that are needed at the other end to reconstruct the block
     MSG_XTHINBLOCK,
+
+    MSG_DOUBLESPENDPROOF = 0x94a0
 };
 
 

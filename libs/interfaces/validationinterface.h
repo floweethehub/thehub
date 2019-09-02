@@ -2,7 +2,7 @@
  * This file is part of the Flowee project
  * Copyright (C) 2009-2010 Satoshi Nakamoto
  * Copyright (C) 2009-2015 The Bitcoin Core developers
- * Copyright (C) 2017-2018 Tom Zander <tomz@freedommail.ch>
+ * Copyright (C) 2017-2019 Tom Zander <tomz@freedommail.ch>
  *
  * This program is free software: you can redistribute it and/or modify
  * it under the terms of the GNU General Public License as published by
@@ -32,6 +32,7 @@ class CTransaction;
 class uint256;
 class Tx;
 class FastBlock;
+class DoubleSpendProof;
 
 class ValidationInterface {
 public:
@@ -62,10 +63,17 @@ public:
     /** Notifies listeners that a key for mining is required (coinbase) */
     virtual void GetScriptForMining(boost::shared_ptr<CReserveScript>) {}
 
-    /** Notifies listeners that we received a double-spend.
+    /**
+     * Notifies listeners that we received a double-spend.
      * First is the tx that is in our mempool, duplicate is the one we received and reject
      */
     virtual void DoubleSpendFound(const Tx &first, const Tx &duplicate) {}
+
+    /**
+     * Notifies listeners that we received a double-spend proof.
+     * First is the tx that is in our mempool, proof is the actual proof.
+     */
+    virtual void DoubleSpendFound(const Tx &txInMempool, const DoubleSpendProof &proof) {}
 };
 
 class ValidationInterfaceBroadcaster : public ValidationInterface
@@ -81,6 +89,7 @@ public:
     void ResendWalletTransactions(int64_t nBestBlockTime) override;
     void GetScriptForMining(boost::shared_ptr<CReserveScript>) override;
     void DoubleSpendFound(const Tx &first, const Tx &duplicate) override;
+    void DoubleSpendFound(const Tx &txInMempool, const DoubleSpendProof &proof) override;
 
     void addListener(ValidationInterface *impl);
     void removeListener(ValidationInterface *impl);

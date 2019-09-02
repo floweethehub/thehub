@@ -17,6 +17,8 @@
  */
 
 #include "Engine.h"
+#include "../DoubleSpendProofStorage.h"
+#include "../DoubleSpendProof.h"
 #include <SettingsDefaults.h>
 #include <primitives/transaction.h>
 #include <UnspentOutputData.h>
@@ -413,6 +415,17 @@ void TxValidationState::checkTransaction()
         CTxOrphanCache::instance()->EraseOrphansByTime();
 
         parent->strand.post(std::bind(&TxValidationState::sync, shared_from_this()));
+    } catch (const Validation::DoubleSpendException &ex) {
+        raii.result = strprintf("%i: %s", Validation::RejectConflict, "txn-mempool-conflict");
+        logWarning(Log::TxValidation) << "Tx-Validation found a double spend";
+
+        m_doubleSpendTx = ex.otherTx;
+        m_doubleSpendProofId = ex.id;
+
+        parent->strand.post(std::bind(&TxValidationState::notifyDoubleSpend, shared_from_this()));
+
+        std::lock_guard<std::mutex> rejects(parent->recentRejectsLock);
+        parent->recentTxRejects.insert(txid);
     } catch (const Exception &ex) {
         raii.result = strprintf("%i: %s", ex.rejectCode(), ex.what());
         if (inputsMissing) {// if missing inputs, add to orphan cache
@@ -464,6 +477,39 @@ void TxValidationState::sync()
 
     ValidationNotifier().SyncTransaction(m_tx.createOldTransaction());
     ValidationNotifier().SyncTx(m_tx);
+}
+
+void TxValidationState::notifyDoubleSpend()
+{
+    std::shared_ptr<ValidationEnginePrivate> parent = m_parent.lock();
+    if (parent.get() == nullptr)
+        return;
+    assert(parent->strand.running_in_this_thread());
+
+    // send INV to all peers
+    if (m_doubleSpendProofId != -1) {
+        auto dsp = mempool.doubleSpendProofStorage()->proof(m_doubleSpendProofId);
+        if (!dsp.isEmpty()) {
+            CInv inv(MSG_DOUBLESPENDPROOF, dsp.createHash());
+            const CTransaction oldTx = m_doubleSpendTx.createOldTransaction();
+
+            LOCK(cs_vNodes);
+            for (CNode* pnode : vNodes) {
+                if(!pnode->fRelayTxes)
+                    continue;
+                LOCK(pnode->cs_filter);
+                if (pnode->pfilter) {
+                    // For nodes that we sent this Tx before, send a proof.
+                    if (pnode->pfilter->IsRelevantAndUpdate(oldTx))
+                        pnode->PushInventory(inv);
+                } else {
+                    pnode->PushInventory(inv);
+                }
+            }
+        }
+    }
+
+    ValidationNotifier().DoubleSpendFound(m_doubleSpendTx, m_tx);
 }
 
 

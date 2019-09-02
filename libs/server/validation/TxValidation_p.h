@@ -54,9 +54,16 @@ public:
     std::int32_t m_originatingNodeId;
     std::uint64_t m_originalInsertTime;
 
+    // Data for double-spend-notifications (done in notifyDoubleSpend())
+    Tx m_doubleSpendTx;
+    int m_doubleSpendProofId = -1;
+
     void checkTransaction();
     /// Only called when fully successful, to be called in the strand.
     void sync();
+
+    /// to be called in the strand
+    void notifyDoubleSpend();
 };
 
 
