@@ -39,8 +39,8 @@ public:
     // the hub pushed a transaction into its mempool
     void SyncTx(const Tx &tx) override;
     void SyncAllTransactionsInBlock(const FastBlock &block, CBlockIndex *index) override;
-    // void SetBestChain(const CBlockLocator &locator) override;
     void DoubleSpendFound(const Tx &first, const Tx &duplicate) override;
+    void DoubleSpendFound(const Tx &txInMempool, const DoubleSpendProof &proof) override;
 
     void onIncomingMessage(Remote *con, const Message &message, const EndPoint &ep) override;
 
@@ -61,8 +61,7 @@ protected:
 
 private:
     struct Match {
-        Match() : amount(0) {}
-        uint64_t amount;
+        std::deque<uint64_t> amounts;
         std::deque<CKeyID> keys;
     };
 

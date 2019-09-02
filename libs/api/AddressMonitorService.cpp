@@ -16,20 +16,22 @@
  * along with this program.  If not, see <http://www.gnu.org/licenses/>.
  */
 #include "AddressMonitorService.h"
+
+// server 'lib'
+#include <txmempool.h>
+#include <DoubleSpendProof.h>
 #include <encodings_legacy.h>
+#include <chain.h>
+#include <Application.h>
+
 #include <NetworkManager.h>
 #include <APIProtocol.h>
 
 #include <Logger.h>
 #include <Message.h>
-#include <chain.h>
-
 #include <streaming/MessageBuilder.h>
 #include <streaming/MessageParser.h>
-
-#include "Application.h"
-#include "txmempool.h"
-
+#include <streaming/streams.h>
 #include <primitives/FastBlock.h>
 
 AddressMonitorService::AddressMonitorService()
@@ -48,19 +50,20 @@ void AddressMonitorService::SyncTx(const Tx &tx)
     const auto rem = remotes();
     std::map<int, Match> matches;
     Tx::Iterator iter(tx);
-    bool m = match(iter, rem, matches);
-    if (!m)
+    if (!match(iter, rem, matches))
         return;
 
     for (auto i = matches.begin(); i != matches.end(); ++i) {
         Match &match = i->second;
         std::lock_guard<std::mutex> guard(m_poolMutex);
-        m_pool.reserve(match.keys.size() * 24 + 50);
+        m_pool.reserve(match.keys.size() * 24 + match.amounts.size() * 10 + 40);
         Streaming::MessageBuilder builder(m_pool);
         for (auto key : match.keys)
             builder.add(Api::AddressMonitor::BitcoinAddress, key);
-        builder.add(Api::AddressMonitor::Amount, i->second.amount);
+        for (auto amount : match.amounts)
+            builder.add(Api::AddressMonitor::Amount, amount);
         builder.add(Api::AddressMonitor::TxId, tx.createHash());
+        logDebug(Log::MonitorService) << "Remote" << i->first << "gets" << match.keys.size() << "tx notification(s)";
         rem[i->first]->connection.send(builder.message(Api::AddressMonitorService, Api::AddressMonitor::TransactionFound));
     }
 }
@@ -94,7 +97,7 @@ bool AddressMonitorService::match(Tx::Iterator &iter, const std::deque<NetworkSe
                         RemoteWithKeys *rwk = static_cast<RemoteWithKeys*>(remotes.at(i));
                         if (rwk->keys.find(keyID) != rwk->keys.end()) {
                             Match &m = matchingRemotes[i];
-                            m.amount += amount;
+                            m.amounts.push_back(amount);
                             m.keys.push_back(keyID);
                         }
                     }
@@ -118,13 +121,15 @@ void AddressMonitorService::SyncAllTransactionsInBlock(const FastBlock &block, C
         for (auto i = matches.begin(); i != matches.end(); ++i) {
             Match &match = i->second;
             std::lock_guard<std::mutex> guard(m_poolMutex);
-            m_pool.reserve(match.keys.size() * 24 + 30);
+            m_pool.reserve(match.keys.size() * 24 + match.amounts.size() * 10 + 20);
             Streaming::MessageBuilder builder(m_pool);
             for (auto key : match.keys)
                 builder.add(Api::AddressMonitor::BitcoinAddress, key);
-            builder.add(Api::AddressMonitor::Amount, i->second.amount);
+            for (auto amount : match.amounts)
+                builder.add(Api::AddressMonitor::Amount, amount);
             builder.add(Api::AddressMonitor::OffsetInBlock, static_cast<uint64_t>(iter.prevTx().offsetInBlock(block)));
             builder.add(Api::AddressMonitor::BlockHeight, index->nHeight);
+            logDebug(Log::MonitorService) << "Remote" << i->first << "gets" << match.keys.size() << "tx notification(s) from block";
             rem[i->first]->connection.send(builder.message(Api::AddressMonitorService, Api::AddressMonitor::TransactionFound));
         }
     }
@@ -132,28 +137,56 @@ void AddressMonitorService::SyncAllTransactionsInBlock(const FastBlock &block, C
 
 void AddressMonitorService::DoubleSpendFound(const Tx &first, const Tx &duplicate)
 {
-    logCritical(Log::MonitorService) << "Double spend found" << first.createHash() << duplicate.createHash();
+    logDebug(Log::MonitorService) << "Double spend found" << first.createHash() << duplicate.createHash();
     const auto rem = remotes();
     std::map<int, Match> matches;
     Tx::Iterator iter(first);
-    bool m = match(iter, rem, matches);
-    if (!m)
-        return;
+    if (!match(iter, rem, matches))
+        return; // returns false if no listeners
 
     Tx::Iterator iter2(duplicate);
-    m = match(iter2, rem, matches);
+    bool m = match(iter2, rem, matches);
     assert(m); // our duplicate tx object should have data
 
     for (auto i = matches.begin(); i != matches.end(); ++i) {
         Match &match = i->second;
         std::lock_guard<std::mutex> guard(m_poolMutex);
-        m_pool.reserve(match.keys.size() * 24 + 40 + duplicate.size());
+        m_pool.reserve(match.keys.size() * 24 + match.amounts.size() * 10 + 30 + duplicate.size());
         Streaming::MessageBuilder builder(m_pool);
         for (auto key : match.keys)
             builder.add(Api::AddressMonitor::BitcoinAddress, key);
-        builder.add(Api::AddressMonitor::Amount, i->second.amount);
+        for (auto amount : match.amounts)
+            builder.add(Api::AddressMonitor::Amount, amount);
         builder.add(Api::AddressMonitor::TxId, first.createHash());
         builder.add(Api::AddressMonitor::GenericByteData, duplicate.data());
+        rem[i->first]->connection.send(builder.message(Api::AddressMonitorService, Api::AddressMonitor::DoubleSpendFound));
+    }
+}
+
+void AddressMonitorService::DoubleSpendFound(const Tx &txInMempool, const DoubleSpendProof &proof)
+{
+    logDebug(Log::MonitorService) << "Double spend proof found. TxId:" << txInMempool.createHash();
+    const auto rem = remotes();
+    std::map<int, Match> matches;
+    Tx::Iterator iter(txInMempool);
+    if (!match(iter, rem, matches))
+        return; // returns false if no listeners
+
+    CDataStream stream(SER_NETWORK, PROTOCOL_VERSION);
+    stream << proof;
+    const std::vector<uint8_t> serializedProof(stream.begin(), stream.end());
+
+    for (auto i = matches.begin(); i != matches.end(); ++i) {
+        Match &match = i->second;
+        std::lock_guard<std::mutex> guard(m_poolMutex);
+        m_pool.reserve(match.keys.size() * 24 + match.amounts.size() * 10 + 35 + serializedProof.size());
+        Streaming::MessageBuilder builder(m_pool);
+        for (auto key : match.keys)
+            builder.add(Api::AddressMonitor::BitcoinAddress, key);
+        for (auto amount : match.amounts)
+            builder.add(Api::AddressMonitor::Amount, amount);
+        builder.add(Api::AddressMonitor::TxId, txInMempool.createHash());
+        builder.addByteArray(Api::AddressMonitor::GenericByteData, &serializedProof[0], serializedProof.size());
         rem[i->first]->connection.send(builder.message(Api::AddressMonitorService, Api::AddressMonitor::DoubleSpendFound));
     }
 }
@@ -162,8 +195,6 @@ void AddressMonitorService::onIncomingMessage(Remote *remote_, const Message &me
 {
     assert(dynamic_cast<RemoteWithKeys*>(remote_));
     RemoteWithKeys *remote = static_cast<RemoteWithKeys*>(remote_);
-    if (message.messageId() == Api::AddressMonitor::Subscribe)
-        logInfo(Log::MonitorService) << "Remote" << ep.connectionId << "registered a new address";
 
     if (message.messageId() == Api::AddressMonitor::Subscribe
             || message.messageId() == Api::AddressMonitor::Unsubscribe) {
@@ -196,6 +227,8 @@ void AddressMonitorService::onIncomingMessage(Remote *remote_, const Message &me
         remote->pool.reserve(10 + error.size());
         Streaming::MessageBuilder builder(remote->pool);
         builder.add(Api::AddressMonitor::Result, done);
+        if (message.messageId() == Api::AddressMonitor::Subscribe)
+            logInfo(Log::MonitorService) << "Remote" << ep.connectionId << "registered" << done << "new address(es)";
         if (!error.empty())
             builder.add(Api::AddressMonitor::ErrorMessage, error);
         remote->connection.send(builder.reply(message));
