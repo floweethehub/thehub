@@ -21,7 +21,10 @@
 #include <streaming/MessageBuilder.h>
 #include <streaming/MessageParser.h>
 
+#include <DoubleSpendProof.h>
 #include <uint256.h>
+
+#include <primitives/FastTransaction.h>
 
 void TestAddressMonitor::testBasic()
 {
@@ -90,4 +93,139 @@ void TestAddressMonitor::testBasic()
         }
     }
     QCOMPARE(total, 196);
+}
+
+void TestAddressMonitor::testDoubleSpendProof()
+{
+    /*
+     * In this test we use the existing testing chain and spend one of the outputs twice.
+     * Both transactions have 1 in, 1 out.
+     * The outputs are different and the addresses are the ones hardcoded in the onConnected()
+     * method so the monitor should always trigger on our sending those tx's to the nodes.
+     *
+     * We first send one tx to one node, then (after waiting for propagation) the other to
+     * the second node.
+     * Then we wait for the double spend proofs to be send to us from both nodes.
+     * The last node that actually saw the double spend just parrots it to us, with a transaction
+     * and not a proof.
+     * Then the other node (the first) should get a double spend as proof over p2p which we should
+     * get from the monitor.
+     */
+
+    // on connect, always subscribe to the two outputs that
+    struct MonitorAddressesInit {
+        explicit MonitorAddressesInit(NetworkManager *nm) : network(nm) { Q_ASSERT(nm); }
+        void onConnected(const EndPoint &ep) {
+            Streaming::BufferPool pool;
+            pool.reserve(50);
+            Streaming::MessageBuilder builder(pool);
+            uint160 address1;
+            address1.SetHex("2a6bfbe42790e346a0990e16d9a97ad56a263884");
+            builder.add(Api::AddressMonitor::BitcoinAddress, address1);
+            uint160 address2;
+            address2.SetHex("226db9f47b0302a14b3bee10a892808bbfb249a4");
+            builder.add(Api::AddressMonitor::BitcoinAddress, address2);
+            auto subscribeMessage = builder.message(Api::AddressMonitorService, Api::AddressMonitor::Subscribe);
+            network->connection(ep).send(subscribeMessage);
+        }
+    private:
+        NetworkManager *network;
+    };
+
+    MonitorAddressesInit subscriber(&m_network);
+    m_onConnectCallbacks.push_back(std::bind(&MonitorAddressesInit::onConnected, &subscriber, std::placeholders::_1));
+    m_onConnectCallbacks.push_back(std::bind(&MonitorAddressesInit::onConnected, &subscriber, std::placeholders::_1));
+
+    startHubs(2);
+    feedDefaultBlocksToHub(0);
+    waitForHeight(115); // make sure all nodes are at the same tip.
+
+    Streaming::BufferPool pool;
+    // two transactions that both spend the first output of the first (non-coinbase) tx on block 115
+    // The spend TO the amove addresses.
+    pool.writeHex("0x01000000010b9d14b709aa59bd594edca17db2951c6660ebc8daa31ceae233a5550314f158000000006b483045022100b34a120e69bc933ae16c10db0f565cb2da1b80a9695a51707e8a80c9aa5c22bf02206c390cb328763ab9ab2d45f874d308af2837d6d8cfc618af76744b9eeb69c3934121022708a547a1d14ba6df79ec0f4216eeec65808cf0a32f09ad1cf730b44e8e14a6ffffffff01faa7be00000000001976a9148438266ad57aa9d9160e99a046e39027e4fb6b2a88ac00000000");
+    Tx tx1(pool.commit());
+
+    pool.writeHex("0x01000000010b9d14b709aa59bd594edca17db2951c6660ebc8daa31ceae233a5550314f158000000006b483045022100d9d22406611228d64e6b674de8b16e802f8f789f8338130506c7741cdae9116602202dc63a4f5f9e750eec9dfc1557469bda43d3491b358484e5c25992a381048a494121022708a547a1d14ba6df79ec0f4216eeec65808cf0a32f09ad1cf730b44e8e14a6ffffffff01ea80be00000000001976a914a449b2bf8b8092a810ee3b4ba102037bf4b96d2288ac00000000");
+    Tx tx2(pool.commit());
+
+    logDebug() << "Sending tx1 to hub0" << tx1.createHash();
+
+    // I sent one tx to peer zero, and wait for it to be synchronized on peer 1 as well.
+    m_hubs[1].m_waitForMessageId = Api::AddressMonitor::TransactionFound;
+    m_hubs[1].m_waitForServiceId = Api::AddressMonitorService;
+    m_hubs[1].m_waitForMessageId2 = -1;
+    m_hubs[1].m_foundMessage.store(nullptr);
+
+    Streaming::MessageBuilder builder(pool);
+    builder.add(Api::LiveTransactions::GenericByteData, tx1.data());
+    con[0].send(builder.message(Api::LiveTransactionService, Api::LiveTransactions::SendTransaction));
+
+    QTRY_VERIFY_WITH_TIMEOUT(m_hubs[1].m_foundMessage.load() != nullptr, 15000);
+    auto m = *m_hubs[1].m_foundMessage.load();
+    QCOMPARE(m.serviceId(), (int) Api::AddressMonitorService);
+    QCOMPARE(m.messageId(), (int) Api::AddressMonitor::TransactionFound);
+
+
+    // now we send the second tx and expect a double-spend-notification from both peers.
+    // This will be propagated by proof between them.
+
+    m_hubs[0].m_waitForMessageId = m_hubs[1].m_waitForMessageId = Api::AddressMonitor::DoubleSpendFound;
+    m_hubs[0].m_waitForServiceId = Api::AddressMonitorService;
+    m_hubs[0].m_waitForMessageId2 = -1;
+    m_hubs[0].m_foundMessage.store(nullptr);
+    m_hubs[1].m_foundMessage.store(nullptr);
+
+    logDebug() << "Sending tx2 to hub1" << tx2.createHash();
+    // double-spend-tx (same input, other output and amount)
+    builder = Streaming::MessageBuilder(pool);
+    builder.add(Api::LiveTransactions::GenericByteData, tx2.data());
+    // Sent this to HUB 1
+    con[1].send(builder.message(Api::LiveTransactionService, Api::LiveTransactions::SendTransaction));
+
+
+    // from hub 1 I should have received an old fashioned double spend. THe one with TX.
+    QTRY_VERIFY(m_hubs[1].m_foundMessage.load() != nullptr);
+    m = *m_hubs[1].m_foundMessage.load();
+    QCOMPARE(m.serviceId(), (int) Api::AddressMonitorService);
+    QCOMPARE(m.messageId(), (int) Api::AddressMonitor::DoubleSpendFound);
+
+    Streaming::MessageParser p(m);
+    p.next();
+    QCOMPARE(p.tag(), (uint32_t) Api::AddressMonitor::BitcoinAddress);
+    QCOMPARE(p.dataLength(), 20);
+    p.next();
+    QCOMPARE(p.tag(), (uint32_t) Api::AddressMonitor::BitcoinAddress);
+    QCOMPARE(p.dataLength(), 20);
+    p.next();
+    QCOMPARE(p.tag(), (uint32_t) Api::AddressMonitor::Amount);
+    QCOMPARE(p.longData(), (uint64_t) 12494842);
+    p.next();
+    QCOMPARE(p.tag(), (uint32_t) Api::AddressMonitor::Amount);
+    QCOMPARE(p.longData(), (uint64_t) 12484842);
+    p.next();
+    QCOMPARE(p.tag(), (uint32_t) Api::AddressMonitor::TxId);
+    QCOMPARE(p.dataLength(), 32);
+    p.next();
+    QCOMPARE(p.tag(), (uint32_t) Api::AddressMonitor::GenericByteData); // the transaction.
+    QCOMPARE(p.dataLength(), 192);
+
+
+    // From peer 0 I get a double spend notifaction as well, but one based on the proof.
+    QTRY_VERIFY(m_hubs[0].m_foundMessage.load() != nullptr);
+    m = *m_hubs[0].m_foundMessage.load();
+
+    p = Streaming::MessageParser(m);
+    p.next();
+    QCOMPARE(p.tag(), (uint32_t) Api::AddressMonitor::BitcoinAddress);
+    QCOMPARE(p.dataLength(), 20);
+    p.next();
+    QCOMPARE(p.tag(), (uint32_t) Api::AddressMonitor::Amount);
+    QCOMPARE(p.longData(), (uint64_t) 12494842);
+    p.next();
+    QCOMPARE(p.tag(), (uint32_t) Api::AddressMonitor::TxId);
+    QCOMPARE(p.dataLength(), 32);
+    p.next();
+    QCOMPARE(p.tag(), (uint32_t) Api::AddressMonitor::GenericByteData); // the proof
+    QCOMPARE(p.dataLength(), 400);
 }

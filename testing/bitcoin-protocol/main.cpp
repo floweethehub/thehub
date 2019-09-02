@@ -23,6 +23,7 @@
 #include "script_tests.h"
 #include "scriptnum_tests.h"
 #include "transaction_tests.h"
+#include "DoubleSpendProofTest.h"
 
 int main(int x, char **y)
 {
@@ -57,6 +58,10 @@ int main(int x, char **y)
     }
     if (!rc) {
         TransactionTests test;
+        rc = QTest::qExec(&test);
+    }
+    if (!rc) {
+        DoubleSpendProofTest test;
         rc = QTest::qExec(&test);
     }
     return rc;

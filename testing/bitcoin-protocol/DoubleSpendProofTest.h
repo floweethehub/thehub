@@ -15,17 +15,18 @@
  * You should have received a copy of the GNU General Public License
  * along with this program.  If not, see <http://www.gnu.org/licenses/>.
  */
-#ifndef TESTADDRESSMONITOR_H
-#define TESTADDRESSMONITOR_H
+#ifndef DOUBLESPENDPROOFTEST_H
+#define DOUBLESPENDPROOFTEST_H
 
-#include "BlackBoxTest.h"
+#include <common/TestFloweeSession.h>
 
-class TestAddressMonitor : public BlackBoxTest
+class DoubleSpendProofTest : public TestFloweeSession
 {
     Q_OBJECT
 private slots:
-    void testBasic();
-    void testDoubleSpendProof();
+    void basic();
+    void proofOrder();
+    void serialization();
 };
 
 #endif

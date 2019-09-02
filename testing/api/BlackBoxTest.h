@@ -10,6 +10,8 @@
 #include <WorkerThreads.h>
 #include <Message.h>
 
+#include <functional>
+
 class QProcess;
 class NetworkManager;
 
@@ -54,6 +56,9 @@ protected:
      */
     Message waitForReply(int hub, const Message &message, int messageId, int timeout = 30000);
 
+    /// Checks if all hubs reached at least the designated height
+    bool waitForHeight(int height);
+
     struct Hub {
         QProcess *proc;
         int p2pPort = 0;
@@ -73,6 +78,8 @@ protected:
     QString m_currentTest;
     QString m_baseDir;
     static QString s_hubPath;
+
+    std::vector<std::function<void(const EndPoint&)> > m_onConnectCallbacks;
 };
 
 #endif

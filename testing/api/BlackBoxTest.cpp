@@ -7,6 +7,18 @@
 #include <util.h>
 #include <sys/types.h>
 
+namespace {
+void writeLogsConf(const QString &nodePath)
+{
+    QFile logConfFile(nodePath + "logs.conf");
+    bool ok = logConfFile.open(QIODevice::WriteOnly);
+    Q_ASSERT(ok);
+    QTextStream log(&logConfFile);
+    log << "channel file\noption timestamp time\nALL debug\n2101 quiet\n#3000 quiet\n#3001 info\n";
+    logConfFile.close();
+}
+}
+
 QString BlackBoxTest::s_hubPath = QString();
 
 BlackBoxTest::BlackBoxTest(QObject *parent)
@@ -28,6 +40,8 @@ void BlackBoxTest::startHubs(int amount, Connect connect)
 {
     Q_ASSERT(m_hubs.empty());
     Q_ASSERT(amount > 0);
+    Q_ASSERT(m_onConnectCallbacks.size() <= amount);
+    m_onConnectCallbacks.resize(amount);
     m_hubs.reserve(amount + 1);
     m_currentTest = QString(QTest::currentTestFunction());
     m_baseDir = QDir::tempPath() + QString("/flowee-bbtest-%1").arg(rand());
@@ -55,15 +69,9 @@ void BlackBoxTest::startHubs(int amount, Connect connect)
             "discover=false\n";
 
         if (connect == ConnectHubs && i > 0)
-            conf << "connect=127.0.0.1:" << hub.p2pPort - 2 << "\n\n";
+            conf << "addnode=127.0.0.1:" << hub.p2pPort - 2 << "\n\n";
         confFile.close();
-
-        QFile logConfFile(nodePath + "logs.conf");
-        ok = logConfFile.open(QIODevice::WriteOnly);
-        Q_ASSERT(ok);
-        QTextStream log(&logConfFile);
-        log << "channel file\noption timestamp time\nALL debug\n2101 quiet\n#3000 quiet\n#3001 info\n";
-        logConfFile.close();
+        writeLogsConf(nodePath);
 
         hub.proc->setProgram(s_hubPath);
         hub.proc->setWorkingDirectory(nodePath);
@@ -73,9 +81,13 @@ void BlackBoxTest::startHubs(int amount, Connect connect)
         con.push_back(std::move(m_network.connection(
                 EndPoint(boost::asio::ip::address_v4::loopback(), hub.apiPort))));
         con.back().setOnIncomingMessage(std::bind(&BlackBoxTest::Hub::addMessage, &m_hubs.back(), std::placeholders::_1));
+        if (m_onConnectCallbacks.at(i))
+            con.back().setOnConnected(m_onConnectCallbacks.at(i));
     }
     MilliSleep(500); // Assuming that the hub takes half a second is better than assuming it doesn't and hitting the reconnect-time.
-    con.back().connect();
+    for (int i = 0; i < amount; ++i) {
+        con.at(i).connect();
+    }
     logDebug() << "Hubs started";
 }
 
@@ -88,6 +100,7 @@ void BlackBoxTest::feedDefaultBlocksToHub(int hubIndex)
     logDebug().nospace() << "Starting new hub with pre-prepared chain: node" << m_hubs.size();
     QString nodePath = m_baseDir + QString("/node%1/").arg(m_hubs.size());
     QDir(nodePath).mkpath("regtest/blocks");
+    writeLogsConf(nodePath + "/regtest/");
     QFile blk(":/blk00000.dat");
     bool ok = blk.open(QIODevice::ReadOnly);
     Q_ASSERT(ok);
@@ -97,8 +110,10 @@ void BlackBoxTest::feedDefaultBlocksToHub(int hubIndex)
     {
         QProcess proc1;
         proc1.setProgram(s_hubPath);
-        proc1.setArguments(QStringList() << "-api=false" << "-server=false" << "-regtest" << "-listen=false"
-                           << "-datadir=." << "-reindex" << "-stopafterblockimport");
+        auto args = QStringList() << "-api=false" << "-server=false" << "-regtest" << "-listen=false"
+                           << "-datadir=." << "-reindex" << "-stopafterblockimport";
+        proc1.setArguments(args);
+        logFatal() << args;
         proc1.setWorkingDirectory(nodePath);
         proc1.start(QProcess::ReadOnly);
         proc1.waitForFinished();
@@ -107,8 +122,10 @@ void BlackBoxTest::feedDefaultBlocksToHub(int hubIndex)
     Hub hub;
     hub.proc = new QProcess(this);
     hub.proc->setProgram(s_hubPath);
-    hub.proc->setArguments(QStringList() << "-api=false" << "-server=false" << "-regtest" << "-listen=false"
-                    << "-datadir=." << QString("-connect=127.0.0.1:%1").arg(target.p2pPort));
+    auto args = QStringList() << "-api=false" << "-server=false" << "-regtest"
+                    << "-datadir=." << QString("-connect=127.0.0.1:%1").arg(target.p2pPort);
+    hub.proc->setArguments(args);
+    logFatal() << args;
     hub.proc->setWorkingDirectory(nodePath);
     hub.proc->start(QProcess::ReadOnly);
     m_hubs.push_back(hub);
@@ -179,6 +196,30 @@ Message BlackBoxTest::waitForReply(int hubId, const Message &message, int messag
     }
 }
 
+bool BlackBoxTest::waitForHeight(int height)
+{
+    QSet<int> nodes;
+    for (int i = 0; i < (int) con.size(); ++i)
+        nodes.insert(i);
+
+    QTime timer;
+    timer.start();
+    while (!nodes.isEmpty() && timer.elapsed() < 30000) {
+        MilliSleep(100);
+        auto copy(nodes);
+        for (auto i : copy) {
+            auto m = waitForReply(i, Message(Api::BlockChainService, Api::BlockChain::GetBlockCount), Api::BlockChain::GetBlockCountReply);
+            if (m.serviceId() == Api::BlockChainService) { // not an error.
+                Streaming::MessageParser p(m);
+                p.next();
+                if (p.intData() >= height)
+                    nodes.remove(i);
+            }
+        }
+    }
+    return nodes.isEmpty();
+}
+
 void BlackBoxTest::cleanup()
 {
     for (int i = 0; i < con.size(); ++i) {
@@ -231,6 +272,7 @@ void BlackBoxTest::cleanup()
     m_hubs.clear();
     m_currentTest.clear();
     m_baseDir.clear();
+    m_onConnectCallbacks.clear();
 }
 
 void BlackBoxTest::Hub::addMessage(const Message &message)
