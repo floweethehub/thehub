@@ -33,6 +33,7 @@
 #include "checkpoints.h"
 #include "compat/sanity.h"
 #include "consensus/validation.h"
+#include "DoubleSpendProofStorage.h"
 #include "httpserver.h"
 #include "httprpc.h"
 #include <primitives/key.h>
@@ -774,6 +775,7 @@ bool AppInit2(boost::thread_group& threadGroup, CScheduler& scheduler)
     }
 
     Application::instance()->validation()->setMempool(&mempool);
+    scheduler.scheduleEvery(std::bind(&DoubleSpendProofStorage::periodicCleanup,  mempool.doubleSpendProofStorage()), 60);
 
     // ********************************************************* Step 5: verify wallet database integrity
 #ifdef ENABLE_WALLET

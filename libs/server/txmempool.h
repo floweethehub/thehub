@@ -2,7 +2,7 @@
  * This file is part of the Flowee project
  * Copyright (C) 2009-2010 Satoshi Nakamoto
  * Copyright (C) 2009-2015 The Bitcoin Core developers
- * Copyright (C) 2017 Tom Zander <tomz@freedommail.ch>
+ * Copyright (C) 2017-2019 Tom Zander <tomz@freedommail.ch>
  *
  * This program is free software: you can redistribute it and/or modify
  * it under the terms of the GNU General Public License as published by
@@ -35,6 +35,8 @@
 class CAutoFile;
 class CBlockIndex;
 class UnspentOutputDatabase;
+class DoubleSpendProofStorage;
+class DoubleSpendProof;
 
 inline double AllowFreeThreshold()
 {
@@ -112,6 +114,7 @@ public:
     uint64_t nCountWithDescendants; //! number of descendant transactions
     uint64_t nSizeWithDescendants;  //! ... and size
     CAmount nModFeesWithDescendants;  //! ... and total fees (all including us)
+    int dsproof = -1;
 
     CTxMemPoolEntry(const Tx &tx);
 
@@ -424,6 +427,14 @@ public:
         return m_utxo;
     }
 
+    /**
+     * Add a double spend proof we received elsewhere to an existing mempool-entry.
+     * Return CTransaction of the mempool entry we added this to.
+     */
+    Tx addDoubleSpendProof(const DoubleSpendProof &proof);
+
+    DoubleSpendProofStorage *doubleSpendProofStorage() const;
+
 private:
     typedef std::map<txiter, setEntries, CompareIteratorByHash> cacheMap;
 
@@ -454,8 +465,17 @@ public:
     void addUnchecked(const uint256& hash, const CTxMemPoolEntry &entry, bool fCurrentEstimate = true);
     void addUnchecked(const uint256& hash, const CTxMemPoolEntry &entry, const setEntries &setAncestors, bool fCurrentEstimate = true);
 
-    /// throws if something goes wrong
-    bool insertTx(const CTxMemPoolEntry &entry);
+    /**
+     * Check entry for double spend, and adds if Ok.
+     * Notice that the entry.dsproof int gets changed if there was a double-spend-proof already.
+     * Throws if something goes wrong.
+     */
+    bool insertTx(CTxMemPoolEntry &entry);
+
+    inline bool insertTx(Tx &tx) {
+        CTxMemPoolEntry entry(tx);
+        return insertTx(entry);
+    }
 
     void remove(const CTransaction &tx, std::list<CTransaction>& removed, bool fRecursive = false);
     void removeForReorg(unsigned int nMemPoolHeight, int flags);
@@ -544,6 +564,7 @@ public:
 
     bool lookup(const uint256 &hash, CTransaction& result) const;
     bool lookup(const uint256 &hash, Tx& result) const;
+    bool lookup(const COutPoint &outpoint, Tx& result) const;
 
     size_t DynamicMemoryUsage() const;
 
@@ -591,6 +612,7 @@ private:
     void removeUnchecked(txiter entry);
 
     UnspentOutputDatabase *m_utxo;
+    DoubleSpendProofStorage *m_dspStorage;
 };
 
 // We want to sort transactions by coin age priority

@@ -2,7 +2,7 @@
  * This file is part of the Flowee project
  * Copyright (C) 2009-2010 Satoshi Nakamoto
  * Copyright (C) 2009-2015 The Bitcoin Core developers
- * Copyright (C) 2017 Tom Zander <tomz@freedommail.ch>
+ * Copyright (C) 2017-2019 Tom Zander <tomz@freedommail.ch>
  *
  * This program is free software: you can redistribute it and/or modify
  * it under the terms of the GNU General Public License as published by
@@ -18,6 +18,8 @@
  * along with this program.  If not, see <http://www.gnu.org/licenses/>.
  */
 
+#include "DoubleSpendProof.h"
+#include "DoubleSpendProofStorage.h"
 #include "txmempool.h"
 
 #include "consensus/consensus.h"
@@ -356,13 +358,15 @@ void CTxMemPoolEntry::UpdateState(int64_t modifySize, CAmount modifyFee, int64_t
 
 CTxMemPool::CTxMemPool() :
     nTransactionsUpdated(0),
-    m_utxo(nullptr)
+    m_utxo(nullptr),
+    m_dspStorage(new DoubleSpendProofStorage())
 {
     _clear(); //lock free clear
 }
 
 CTxMemPool::~CTxMemPool()
 {
+    delete m_dspStorage;
 }
 
 unsigned int CTxMemPool::GetTransactionsUpdated() const
@@ -428,19 +432,39 @@ void CTxMemPool::addUnchecked(const uint256& hash, const CTxMemPoolEntry &entry,
     totalTxSize += entry.GetTxSize();
 }
 
-bool CTxMemPool::insertTx(const CTxMemPoolEntry &entry)
+bool CTxMemPool::insertTx(CTxMemPoolEntry &entry)
 {
     assert(m_utxo);
+    assert(entry.dsproof == -1);
     LOCK(cs);
 
     if (exists(entry.tx.createHash()))
         return false;
 
     for (const CTxIn &txin : entry.oldTx.vin) {
+        int proofId = doubleSpendProofStorage()->claimOrphan(txin.prevout);
+        if (proofId != -1) {
+            entry.dsproof = proofId;
+            // if we find this here, AS AN ORPHAN, then nothing has entered the mempool yet
+            // that claimed it. As such we don't have to check for conflicts.
+            assert(mapNextTx.find(txin.prevout) != mapNextTx.end()); // Check anyway
+            continue;
+        }
         auto oldTx = mapNextTx.find(txin.prevout);
         if (oldTx != mapNextTx.end()) { // double spend detected!
-            ValidationNotifier().DoubleSpendFound(oldTx->second.tx, entry.tx);
-            throw Validation::Exception("txn-mempool-conflict", Validation::RejectConflict, 0);
+            auto iter = mapTx.find(oldTx->second.tx.createHash());
+            assert(mapTx.end() != iter);
+            int newProofId = -1;
+            if (iter->dsproof == -1) { // no DS proof exists, lets make one.
+                auto item = *iter;
+                item.dsproof = m_dspStorage->add(DoubleSpendProof::create(oldTx->second.tx, entry.tx));
+                logDebug(Log::Mempool) << "Double spend found, creating double spend proof"
+                                       << oldTx->second.tx.createHash()
+                                       << entry.tx.createHash() << "proof:" << item.dsproof;
+                mapTx.replace(iter, item);
+                newProofId = item.dsproof;
+            }
+            throw Validation::DoubleSpendException(oldTx->second.tx, newProofId);
         }
 
         auto iter = mapTx.find(txin.prevout.hash);
@@ -657,6 +681,17 @@ bool CTxMemPool::lookup(const uint256 &hash, Tx& result) const
     return true;
 }
 
+bool CTxMemPool::lookup(const COutPoint &outpoint, Tx& result) const
+{
+    LOCK(cs);
+
+    auto oldTx = mapNextTx.find(outpoint);
+    if (oldTx == mapNextTx.end())
+        return false;
+    result = oldTx->second.tx;
+    return true;
+}
+
 void CTxMemPool::PrioritiseTransaction(const uint256 hash, const std::string strHash, double dPriorityDelta, const CAmount& nFeeDelta)
 {
     {
@@ -787,6 +822,29 @@ void CTxMemPool::setUtxo(UnspentOutputDatabase *utxo)
     m_utxo = utxo;
 }
 
+Tx CTxMemPool::addDoubleSpendProof(const DoubleSpendProof &proof)
+{
+    LOCK(cs);
+    auto oldTx = mapNextTx.find(COutPoint(proof.prevTxId(), proof.prevOutIndex()));
+    if (oldTx == mapNextTx.end())
+        return Tx();
+
+    auto iter = mapTx.find(oldTx->second.tx.createHash());
+    assert(mapTx.end() != iter);
+    if (iter->dsproof != -1)   // A DSProof already exists for this tx.
+        return Tx(); // don't propagate new one.
+
+    auto item = *iter;
+    item.dsproof = m_dspStorage->add(proof);
+    mapTx.replace(iter, item);
+
+    return oldTx->second.tx;
+}
+
+DoubleSpendProofStorage *CTxMemPool::doubleSpendProofStorage() const
+{
+    return m_dspStorage;
+}
 
 CFeeRate CTxMemPool::GetMinFee() const
 {
