@@ -87,7 +87,7 @@ void TestDoubleSpend::test()
     future = bv->addTransaction(duplicate);
     result = future.get();
     QCOMPARE(result, std::string("258: txn-mempool-conflict"));
-    QVERIFY(myValidatioInterface.first.isValid());
+    QTRY_COMPARE(myValidatioInterface.first.isValid(), true);
     QCOMPARE(HexStr(myValidatioInterface.first.createHash()), HexStr(first.createHash()));
     QCOMPARE(HexStr(myValidatioInterface.duplicate.createHash()), HexStr(duplicate.createHash()));
 }

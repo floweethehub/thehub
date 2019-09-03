@@ -2,6 +2,7 @@
  * This file is part of the Flowee project
  * Copyright (C) 2009-2010 Satoshi Nakamoto
  * Copyright (C) 2009-2015 The Bitcoin Core developers
+ * Copyright (C) 2019 Tom Zander <tomz@freedommail.ch>
  *
  * This program is free software: you can redistribute it and/or modify
  * it under the terms of the GNU General Public License as published by
@@ -271,7 +272,11 @@ extern const char *XPEDITEDBLK;
  * @since protocol version 80000
  */
 extern const char *XPEDITEDTXN;
-};
+/**
+ * Double spend proof
+ */
+extern const char *DSPROOF;
+}
 
 /* Get a vector of all valid message types (see above) */
 const std::vector<std::string> &getAllNetMessageTypes();
@@ -347,13 +352,11 @@ class CInv
 public:
     CInv();
     CInv(int typeIn, const uint256& hashIn);
-    CInv(const std::string& strType, const uint256& hashIn);
 
     ADD_SERIALIZE_METHODS
 
     template <typename Stream, typename Operation>
-    inline void SerializationOp(Stream& s, Operation ser_action, int nType, int nVersion)
-    {
+    inline void SerializationOp(Stream& s, Operation ser_action, int nType, int nVersion) {
         READWRITE(type);
         READWRITE(hash);
     }
@@ -368,8 +371,8 @@ public:
         return hash;
     }
 
-    // TODO: make private (improves encapsulation)
 public:
+    // TODO: make private (improves encapsulation)
     int type;
     uint256 hash;
 };
@@ -386,6 +389,8 @@ enum {
     // BUIP010 Xtreme Thinblocks: an Xtreme thin block contains the first 8 bytes of all the tx hashes 
     // and also provides the missing transactions that are needed at the other end to reconstruct the block
     MSG_XTHINBLOCK,
+
+    MSG_DOUBLESPENDPROOF = 0x94a0
 };
 
 

@@ -38,3 +38,11 @@ Validation::Exception::Exception(const std::string &error, Validation::RejectCod
 {
     m_rejectCode = rejectCode;
 }
+
+
+Validation::DoubleSpendException::DoubleSpendException(const Tx &otherTx, int dspProofId)
+    : Exception("", 0),
+      otherTx(otherTx),
+      id(dspProofId)
+{
+}

@@ -2,6 +2,7 @@
  * This file is part of the Flowee project
  * Copyright (c) 2009-2010 Satoshi Nakamoto
  * Copyright (c) 2009-2015 The Bitcoin Core developers
+ * Copyright (C) 2019 Tom Zander <tomz@freedommail.ch>
  *
  * This program is free software: you can redistribute it and/or modify
  * it under the terms of the GNU General Public License as published by
@@ -60,6 +61,8 @@ const char *VERACK2="buverack";
 const char *XPEDITEDREQUEST="req_xpedited";
 const char *XPEDITEDBLK="Xb";
 const char *XPEDITEDTxn="Xt";
+
+const char *DSPROOF="dsproof-beta";
 }
 
 static const char* ppszTypeName[] =
@@ -199,22 +202,6 @@ CInv::CInv(int typeIn, const uint256& hashIn)
     hash = hashIn;
 }
 
-CInv::CInv(const std::string& strType, const uint256& hashIn)
-{
-    unsigned int i;
-    for (i = 1; i < ARRAYLEN(ppszTypeName); i++)
-    {
-        if (strType == ppszTypeName[i])
-        {
-            type = i;
-            break;
-        }
-    }
-    if (i == ARRAYLEN(ppszTypeName))
-        throw std::out_of_range(strprintf("CInv::CInv(string, uint256): unknown type '%s'", strType));
-    hash = hashIn;
-}
-
 bool operator<(const CInv& a, const CInv& b)
 {
     return (a.type < b.type || (a.type == b.type && a.hash < b.hash));
@@ -222,14 +209,23 @@ bool operator<(const CInv& a, const CInv& b)
 
 bool CInv::IsKnownType() const
 {
-    return (type >= 1 && type < (int)ARRAYLEN(ppszTypeName));
+    return type >= 1 && type < 8 || type == MSG_DOUBLESPENDPROOF;
 }
 
 const char* CInv::GetCommand() const
 {
-    if (!IsKnownType())
-        throw std::out_of_range(strprintf("CInv::GetCommand(): type=%d unknown type", type));
-    return ppszTypeName[type];
+    switch (type) {
+    case MSG_TX: return NetMsgType::TX;
+    case MSG_BLOCK: return NetMsgType::BLOCK;
+    case MSG_FILTERED_BLOCK: return "filtered block";
+    case MSG_THINBLOCK: return NetMsgType::THINBLOCK;
+    case MSG_XTHINBLOCK: return NetMsgType::XTHINBLOCK;
+    case 6: return NetMsgType::XBLOCKTX;
+    case 7: return NetMsgType::GET_XBLOCKTX;
+    case MSG_DOUBLESPENDPROOF: return NetMsgType::DSPROOF;
+    default:
+        return "unknown type";
+    }
 }
 
 std::string CInv::ToString() const

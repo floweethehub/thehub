@@ -2,7 +2,7 @@
  * This file is part of the Flowee project
  * Copyright (C) 2009-2010 Satoshi Nakamoto
  * Copyright (C) 2009-2014 The Bitcoin Core developers
- * Copyright (C) 2017-2018 Tom Zander <tomz@freedommail.ch>
+ * Copyright (C) 2017-2019 Tom Zander <tomz@freedommail.ch>
  *
  * This program is free software: you can redistribute it and/or modify
  * it under the terms of the GNU General Public License as published by
@@ -73,6 +73,11 @@ void ValidationInterfaceBroadcaster::GetScriptForMining(boost::shared_ptr<CReser
 void ValidationInterfaceBroadcaster::DoubleSpendFound(const Tx &first, const Tx &duplicate)
 {
     for (auto i : m_listeners) i->DoubleSpendFound(first, duplicate);
+}
+
+void ValidationInterfaceBroadcaster::DoubleSpendFound(const Tx &txInMempool, const DoubleSpendProof &proof)
+{
+    for (auto i : m_listeners) i->DoubleSpendFound(txInMempool, proof);
 }
 
 void ValidationInterfaceBroadcaster::addListener(ValidationInterface *impl)

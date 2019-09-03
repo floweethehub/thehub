@@ -22,6 +22,8 @@
 #include <stdexcept>
 #include <string>
 
+#include <primitives/FastTransaction.h>
+
 namespace Validation {
 
 enum RejectCodes {
@@ -74,6 +76,18 @@ private:
     int m_punishment;
     RejectCodes m_rejectCode;
     bool m_corruptionPossible = false;
+};
+
+/**
+ * A special subclass of the validation exception reserved for transactions being marked
+ * as double spends.
+ */
+class DoubleSpendException : public Exception {
+public:
+    DoubleSpendException(const Tx &otherTx, int dspProofId);
+
+    const Tx otherTx;
+    const int id;
 };
 }
 

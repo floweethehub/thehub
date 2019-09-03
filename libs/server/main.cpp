@@ -29,6 +29,8 @@
 #include "consensus/consensus.h"
 #include "consensus/merkle.h"
 #include "consensus/validation.h"
+#include "DoubleSpendProof.h"
+#include "DoubleSpendProofStorage.h"
 #include "hash.h"
 #include "init.h"
 #include "serverutil.h"
@@ -1363,6 +1365,9 @@ bool static AlreadyHave(const CInv& inv) EXCLUSIVE_LOCKS_REQUIRED(cs_main)
         }
     case MSG_BLOCK:
         return Blocks::Index::exists(inv.hash);
+    case MSG_DOUBLESPENDPROOF:
+        return mempool.doubleSpendProofStorage()->exists(inv.hash)
+                || mempool.doubleSpendProofStorage()->isRecentlyRejectedProof(inv.hash);
     }
     // Don't know what it is, just say we already got one
     return true;
@@ -1484,8 +1489,7 @@ void static ProcessGetData(CNode* pfrom, const Consensus::Params& consensusParam
                     }
                 }
             }
-            else if (inv.IsKnownType())
-            {
+            else if (inv.IsKnownType()) {
                 // Send stream from relay memory
                 bool pushed = false;
                 {
@@ -1495,7 +1499,7 @@ void static ProcessGetData(CNode* pfrom, const Consensus::Params& consensusParam
                         pfrom->PushMessage(inv.GetCommand(), (*mi).second);
                     }
                 }
-                if (!pushed && inv.type == MSG_TX) {
+                if (inv.type == MSG_TX) {
                     CTransaction tx;
                     if (mempool.lookup(inv.hash, tx)) {
                         CDataStream ss(SER_NETWORK, PROTOCOL_VERSION);
@@ -1505,9 +1509,18 @@ void static ProcessGetData(CNode* pfrom, const Consensus::Params& consensusParam
                         pushed = true;
                     }
                 }
-                if (!pushed) {
-                    vNotFound.push_back(inv);
+                else if (inv.type == MSG_DOUBLESPENDPROOF) {
+                    DoubleSpendProof dsp = mempool.doubleSpendProofStorage()->lookup(inv.hash);
+                    if (!dsp.isEmpty()) {
+                        CDataStream ss(SER_NETWORK, PROTOCOL_VERSION);
+                        ss.reserve(600);
+                        ss << dsp;
+                        pfrom->PushMessage(NetMsgType::DSPROOF, ss);
+                        pushed = true;
+                    }
                 }
+                if (!pushed)
+                    vNotFound.push_back(inv);
             }
 
             // Track requests for our stuff.
@@ -1766,8 +1779,7 @@ bool static ProcessMessage(CNode* pfrom, std::string strCommand, CDataStream& vR
     {
         std::vector<CInv> vInv;
         vRecv >> vInv;
-        if (vInv.size() > MAX_INV_SZ)
-        {
+        if (vInv.size() > MAX_INV_SZ) {
             Misbehaving(pfrom->GetId(), 20);
             return error("message inv size() = %u", vInv.size());
         }
@@ -1785,12 +1797,8 @@ bool static ProcessMessage(CNode* pfrom, std::string strCommand, CDataStream& vR
         LOCK(cs_main);
 
         std::vector<CInv> vToFetch;
-
-        for (unsigned int nInv = 0; nInv < vInv.size(); nInv++)
-        {
+        for (unsigned int nInv = 0; nInv < vInv.size(); nInv++) {
             const CInv &inv = vInv[nInv];
-
-            boost::this_thread::interruption_point();
             pfrom->AddInventoryKnown(inv);
 
             bool fAlreadyHave = AlreadyHave(inv);
@@ -1857,7 +1865,8 @@ bool static ProcessMessage(CNode* pfrom, std::string strCommand, CDataStream& vR
                                     << " to peer:" << pfrom->id;
                 }
             }
-            else if (!fBlocksOnly && !fAlreadyHave && !fReindex) {
+            else if ((inv.type == MSG_DOUBLESPENDPROOF || inv.type == MSG_TX)
+                    && !fBlocksOnly && !fAlreadyHave && !fReindex) {
                 pfrom->AskFor(inv);
             }
 
@@ -2551,7 +2560,6 @@ bool static ProcessMessage(CNode* pfrom, std::string strCommand, CDataStream& vR
         }
     }
 
-
     else if (strCommand == NetMsgType::FILTERCLEAR)
     {
         if (!GetBoolArg("-peerbloomfilters", true)) {
@@ -2565,6 +2573,67 @@ bool static ProcessMessage(CNode* pfrom, std::string strCommand, CDataStream& vR
         pfrom->fRelayTxes = true;
     }
 
+    else if (strCommand == NetMsgType::DSPROOF) {
+        uint256 hash;
+        try {
+            DoubleSpendProof dsp;
+            vRecv >> dsp;
+            if (dsp.isEmpty())
+                throw std::runtime_error("DSP empty");
+
+            hash = dsp.createHash();
+            CInv inv(MSG_DOUBLESPENDPROOF, hash);
+            pfrom->setAskFor.erase(inv.hash);
+            {
+                LOCK(cs_main);
+                mapAlreadyAskedFor.erase(hash);
+            }
+
+            switch (dsp.validate(mempool, Application::instance()->validation()->tipValidationFlags(fRequireStandard))) {
+            case DoubleSpendProof::Valid: {
+                const auto tx = mempool.addDoubleSpendProof(dsp);
+                if (tx.size() > 0) { // added to mempool correctly, then forward to nodes.
+                    ValidationNotifier().DoubleSpendFound(tx, dsp);
+
+                    CTransaction oldTx = tx.createOldTransaction();
+                    LOCK(cs_vNodes);
+                    for (CNode* pnode : vNodes) {
+                        if(!pnode->fRelayTxes || pnode == pfrom)
+                            continue;
+                        LOCK(pnode->cs_filter);
+                        if (pnode->pfilter) {
+                            // For nodes that we sent this Tx before, send a proof.
+                            if (pnode->pfilter->IsRelevantAndUpdate(oldTx))
+                                pnode->PushInventory(inv);
+                        } else {
+                            pnode->PushInventory(inv);
+                        }
+                    }
+                }
+                break;
+            }
+            case DoubleSpendProof::MissingTransction:
+                logDebug(Log::Net) << "DoubleSpend Proof postponed: Missing Tx";
+                mempool.doubleSpendProofStorage()->addOrphan(dsp);
+                break;
+            case DoubleSpendProof::MissingUTXO:
+                logDebug(Log::Net) << "DoubleSpendProof rejected due to missing UTXO (outdated?)";
+                return false;
+            case DoubleSpendProof::Invalid:
+                throw std::runtime_error("Proof didn't validate");
+            default:
+                assert(false);
+                return false;
+            }
+        } catch (const std::exception &e) {
+            logInfo(Log::Net) << "Failure handing double spend proof. Peer:" << pfrom->GetId() << "Reason:" << e;
+            if (!hash.IsNull())
+                mempool.doubleSpendProofStorage()->markProofRejected(hash);
+            LOCK(cs_main);
+            Misbehaving(pfrom->GetId(), 10);
+            return false;
+        }
+    }
 
     else if (strCommand == NetMsgType::REJECT)
     {

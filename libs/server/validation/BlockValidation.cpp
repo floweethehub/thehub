@@ -20,6 +20,7 @@
 #include <SettingsDefaults.h>
 #include "BlockValidation_p.h"
 #include "TxValidation_p.h"
+#include "DoubleSpendProofStorage.h"
 #include "ValidationException.h"
 #include <consensus/consensus.h>
 #include <Application.h>
@@ -604,6 +605,7 @@ void ValidationEnginePrivate::processNewBlock(std::shared_ptr<BlockValidationSta
                 blockchain->SetTip(index);
                 tip.store(index);
                 mempool->AddTransactionsUpdated(1);
+                mempool->doubleSpendProofStorage()->newBlockFound();
                 cvBlockChange.notify_all();
 #ifdef ENABLE_BENCHMARKS
                 end = GetTimeMicros();
