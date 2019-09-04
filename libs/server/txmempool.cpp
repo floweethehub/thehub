@@ -621,14 +621,6 @@ void CTxMemPool::removeConflicts(const CTransaction &tx, std::list<CTransaction>
 void CTxMemPool::removeForBlock(const std::vector<CTransaction> &vtx, std::list<CTransaction> &conflicts)
 {
     LOCK(cs);
-    std::vector<CTxMemPoolEntry> entries;
-    for (const CTransaction& tx : vtx) {
-        uint256 hash = tx.GetHash();
-
-        indexed_transaction_set::iterator i = mapTx.find(hash);
-        if (i != mapTx.end())
-            entries.push_back(*i);
-    }
     for (const CTransaction& tx : vtx) {
         std::list<CTransaction> dummy;
         remove(tx, dummy, false);
