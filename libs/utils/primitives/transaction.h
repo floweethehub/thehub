@@ -2,7 +2,7 @@
  * This file is part of the Flowee project
  * Copyright (C) 2009-2010 Satoshi Nakamoto
  * Copyright (C) 2009-2015 The Bitcoin Core developers
- * Copyright (C) 2016-2018 Tom Zander <tomz@freedommail.ch>
+ * Copyright (C) 2016-2019 Tom Zander <tomz@freedommail.ch>
  *
  * This program is free software: you can redistribute it and/or modify
  * it under the terms of the GNU General Public License as published by
@@ -25,6 +25,8 @@
 #include "primitives/script.h"
 #include "serialize.h"
 #include "uint256.h"
+
+struct CMutableTransaction;
 
 /** An outpoint - a combination of a transaction hash and an index n into its vout */
 class COutPoint
@@ -208,29 +210,6 @@ public:
     std::string ToString() const;
 };
 
-struct CMutableTransaction;
-
-template<typename Stream, typename TxType>
-inline void SerializeTransaction(TxType& tx, Stream& s, int nType, int nVersion, bool withSignatures = true) {
-    ser_writedata32(s, tx.nVersion);
-    nVersion = tx.nVersion;
-    CSerActionSerialize ser_action;
-    READWRITE(tx.vin);
-    READWRITE(tx.vout);
-    READWRITE(tx.nLockTime);
-}
-
-template<typename Stream, typename TxType>
-inline std::vector<char> UnSerializeTransaction(TxType& tx, Stream& s, int nType, int nVersion) {
-    *const_cast<int32_t*>(&tx.nVersion) = ser_readdata32(s);
-    nVersion = tx.nVersion;
-    CSerActionUnserialize ser_action;
-    READWRITE(*const_cast<std::vector<CTxIn>*>(&tx.vin));
-    READWRITE(*const_cast<std::vector<CTxOut>*>(&tx.vout));
-    READWRITE(*const_cast<uint32_t*>(&tx.nLockTime));
-    return std::vector<char>();
-}
-
 /** The basic transaction that is broadcasted on the network and contained in
  * blocks.  A transaction can contain multiple inputs and outputs.
  */
@@ -275,20 +254,16 @@ public:
 
     CTransaction& operator=(const CTransaction& tx);
 
-    size_t GetSerializeSize(int nType, int nVersion) const {
-        CSizeComputer s(nType, nVersion);
-        Serialize(s, nType, nVersion);
-        return s.size();
-    }
-    template<typename Stream>
-    void Serialize(Stream& s, int nType, int version) const {
-        SerializeTransaction(*this, s, nType, nVersion);
-    }
+    ADD_SERIALIZE_METHODS
 
-    template<typename Stream>
-    void Unserialize(Stream& s, int nType, int version) {
-        txData = UnSerializeTransaction(*const_cast<CTransaction*>(this), s, nType, version);
-        UpdateHash();
+    template <typename Stream, typename Operation>
+    inline void SerializationOp(Stream& s, Operation ser_action, int nType, int nVersion) {
+        READWRITE(*const_cast<int32_t *>(&this->nVersion));
+        READWRITE(*const_cast<std::vector<CTxIn> *>(&vin));
+        READWRITE(*const_cast<std::vector<CTxOut> *>(&vout));
+        READWRITE(*const_cast<uint32_t *>(&nLockTime));
+        if (ser_action.ForRead())
+            UpdateHash();
     }
 
     bool IsNull() const {
@@ -339,19 +314,14 @@ struct CMutableTransaction
     CMutableTransaction();
     CMutableTransaction(const CTransaction& tx);
 
-    size_t GetSerializeSize(int nType, int nVersion) const {
-        CSizeComputer s(nType, nVersion);
-        Serialize(s, nType, nVersion);
-        return s.size();
-    }
-    template<typename Stream>
-    void Serialize(Stream& s, int nType, int version) const {
-        SerializeTransaction(*this, s, nType, nVersion);
-    }
+    ADD_SERIALIZE_METHODS
 
-    template<typename Stream>
-    void Unserialize(Stream& s, int nType, int version) {
-        (void) UnSerializeTransaction(*this, s, nType, nVersion);
+    template <typename Stream, typename Operation>
+    inline void SerializationOp(Stream& s, Operation ser_action, int nType, int nVersion) {
+        READWRITE(this->nVersion);
+        READWRITE(vin);
+        READWRITE(vout);
+        READWRITE(nLockTime);
     }
 
     /** Compute the hash of this CMutableTransaction. This is computed on the

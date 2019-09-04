@@ -81,9 +81,7 @@ CMutableTransaction::CMutableTransaction(const CTransaction& tx) : nVersion(tx.n
 
 uint256 CMutableTransaction::GetHash() const
 {
-    CHashWriter ss(0, 0);
-    SerializeTransaction(*this, ss, 0, 0, false);
-    return ss.GetHash();
+    return SerializeHash(*this);
 }
 
 void CTransaction::UpdateHash()
@@ -103,7 +101,6 @@ CTransaction& CTransaction::operator=(const CTransaction &tx) {
     *const_cast<std::vector<CTxOut>*>(&vout) = tx.vout;
     *const_cast<unsigned int*>(&nLockTime) = tx.nLockTime;
     hash = tx.hash;
-    txData = tx.txData;
     return *this;
 }
 
