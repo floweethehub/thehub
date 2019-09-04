@@ -19,6 +19,7 @@
 #include "DoubleSpendProofTest.h"
 
 #include <DoubleSpendProof.h>
+#include <DoubleSpendProofStorage.h>
 #include <TransactionBuilder.h>
 #include <keystore.h>
 #include <amount.h>
@@ -98,6 +99,31 @@ void DoubleSpendProofTest::basic()
     // add one to the mempool.
     bv->mempool()->insertTx(first);
     QCOMPARE(dsp.validate(*bv->mempool(), bv->tipValidationFlags()), DoubleSpendProof::Valid);
+}
+
+void DoubleSpendProofTest::mempool()
+{
+    CKey key;
+    key.MakeNewKey();
+    std::vector<FastBlock> blocks = bv->appendChain(101, key, MockBlockValidation::FullOutScript);
+    blocks.front().findTransactions();
+    const Tx coinbase = blocks.front().transactions().at(0);
+
+    Tx first, second;
+    createDoubleSpend(coinbase, 0, key, first, second);
+    bv->mempool()->insertTx(first);
+
+    auto future = bv->addTransaction(second);
+    QVERIFY(future.valid());
+    QCOMPARE(future.get(), "258: txn-mempool-conflict"); // wait until finished
+
+    QVERIFY(bv->mempool()->doubleSpendProofStorage()->proof(1).isEmpty() == false);
+
+    std::list<CTransaction> res;
+    bv->mempool()->remove(first.createOldTransaction(), res, false);
+
+    // after removing out mempool entry, the proof also goes away
+    QVERIFY(bv->mempool()->doubleSpendProofStorage()->proof(1).isEmpty());
 }
 
 void DoubleSpendProofTest::proofOrder()

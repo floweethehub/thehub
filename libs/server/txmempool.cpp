@@ -463,6 +463,10 @@ bool CTxMemPool::insertTx(CTxMemPoolEntry &entry)
                                        << entry.tx.createHash() << "proof:" << item.dsproof;
                 mapTx.replace(iter, item);
                 newProofId = item.dsproof;
+#ifndef NDEBUG
+                auto newIter = mapTx.find(oldTx->second.tx.createHash());
+                assert(newIter->dsproof == newProofId);
+#endif
             }
             throw Validation::DoubleSpendException(oldTx->second.tx, newProofId);
         }
@@ -485,6 +489,8 @@ bool CTxMemPool::insertTx(CTxMemPoolEntry &entry)
 
 void CTxMemPool::removeUnchecked(txiter it)
 {
+    if (it->dsproof != -1)
+        m_dspStorage->remove(it->dsproof);
     for (const CTxIn& txin : it->GetTx().vin)
         mapNextTx.erase(txin.prevout);
 

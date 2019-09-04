@@ -25,6 +25,7 @@ class DoubleSpendProofTest : public TestFloweeSession
     Q_OBJECT
 private slots:
     void basic();
+    void mempool();
     void proofOrder();
     void serialization();
 };

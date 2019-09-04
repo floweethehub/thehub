@@ -117,7 +117,6 @@ void DoubleSpendProofStorage::remove(int proof)
                         break;
                     }
                 }
-assert(queue.size() < sizeBefore);
                 assert(orphanLookup->second.size() < sizeBefore);
             }
         }
@@ -157,6 +156,7 @@ void DoubleSpendProofStorage::periodicCleanup()
             ++iter;
         }
     }
+    logDebug(Log::Mempool) << "DSP orphan count:" << m_orphans.size() << "DSProof count" << m_proofs.size();
 }
 
 bool DoubleSpendProofStorage::isRecentlyRejectedProof(const uint256 &proofHash) const
