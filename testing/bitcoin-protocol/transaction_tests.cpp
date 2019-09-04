@@ -108,9 +108,8 @@ void TransactionTests::tx_valid()
     for (unsigned int idx = 0; idx < tests.size(); idx++) {
         UniValue test = tests[idx];
         std::string strTest = test.write();
-        if (test[0].isArray())
-        {
-            if (test.size() != 3 || !test[1].isStr() || !test[2].isStr()) {
+        if (test[0].isArray()) {
+            if (test.size() != 3 || !test[1].isStr() || !test[2].isStr() || test[1].get_str().empty() || test[2].get_str().empty()) {
                 qWarning(strTest.c_str());
                 QFAIL("Bad test");
                 continue;
@@ -119,16 +118,14 @@ void TransactionTests::tx_valid()
             std::map<COutPoint, CScript> mapprevOutScriptPubKeys;
             UniValue inputs = test[0].get_array();
             bool fValid = true;
-        for (unsigned int inpIdx = 0; inpIdx < inputs.size(); inpIdx++) {
-            const UniValue& input = inputs[inpIdx];
-                if (!input.isArray())
-                {
+            for (unsigned int inpIdx = 0; inpIdx < inputs.size(); inpIdx++) {
+                const UniValue& input = inputs[inpIdx];
+                if (!input.isArray()) {
                     fValid = false;
                     break;
                 }
                 UniValue vinput = input.get_array();
-                if (vinput.size() != 3)
-                {
+                if (vinput.size() != 3) {
                     fValid = false;
                     break;
                 }
@@ -146,15 +143,14 @@ void TransactionTests::tx_valid()
             QVERIFY(CheckTransaction(tx, state));
             QVERIFY(state.IsValid());
 
-            for (unsigned int i = 0; i < tx.vin.size(); i++)
-            {
+            for (unsigned int i = 0; i < tx.vin.size(); i++) {
                 if (!mapprevOutScriptPubKeys.count(tx.vin[i].prevout))
                     QFAIL("Bad test");
 
                 CAmount amount = 0;
                 unsigned int verify_flags = parseScriptFlags(test[2].get_str());
                 QVERIFY(VerifyScript(tx.vin[i].scriptSig, mapprevOutScriptPubKeys[tx.vin[i].prevout],
-                                                 verify_flags, TransactionSignatureChecker(&tx, i, amount), &err));
+                        verify_flags, TransactionSignatureChecker(&tx, i, amount), &err));
                 QCOMPARE(ScriptErrorString(err), "No error");
             }
         }
