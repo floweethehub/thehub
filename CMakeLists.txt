@@ -99,6 +99,7 @@ message ("===== Find required dependencies")
 
 if (${CMAKE_SYSTEM_NAME} MATCHES "Darwin")
     set(OPENSSL_ROOT_DIR "/usr/local/opt/openssl@1.1/")
+    set(CMAKE_PREFIX_PATH  ${CMAKE_PREFIX_PATH} "/usr/local/opt/qt")
 endif()
 
 find_package(OpenSSL REQUIRED)
