@@ -13,3 +13,7 @@ if (EVENT_INCLUDE_DIR AND EVENT_LIBRARY)
 endif (EVENT_INCLUDE_DIR AND EVENT_LIBRARY)
 
 pkg_check_modules(Event REQUIRED libevent_pthreads)
+
+foreach (DIR ${Event_LIBRARY_DIRS})
+    LIST(PREPEND Event_LIBRARIES "-L${DIR}")
+endforeach ()
