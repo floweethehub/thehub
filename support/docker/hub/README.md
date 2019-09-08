@@ -1,48 +1,41 @@
-This is about the docker file created for Flowee the Hub.
+This doc is about the Docker container for "flowee/hub".
 
-Flowee the Hub provides a lot of services and the most convenient way to
-run, maintain and expand your service level is by marrying Flowee with
-dockers.
+More docs;  [online](https://flowee.org/hub)
 
-Both in Flowee as well as in Docker there is a way of thinking where you
-can start one unit (in most cases the Hub) and it becomes easy to connect
-this to with services or to connect your application to them.
+Other Docker containers [in this repo](../README.md)
 
-Starting it;
-here I'll demonstrate how you can run Flowee the Hub as a single docker
-your docker server. Please refer to docker.com for more info if you want to
-do service-duplication, fail-over and other cloud-stack setups.
+The Hub is the main clearing house between the evil and unpredictable outside world and your internal network. We don't trust the outside world, but we can trust the data that the Hub gives us thanks to the innovation of Satoshi Nakamoto and Bitcoin Cash.
 
+Starting the Hub requires at least 1 volume. This volume will gather around 200GB of data, so be aware of this.
 
 ```
-  docker volume create blockdata
-  docker run \
-    --name hubtest \
-    --mount source=blockdata,target=/data \
-    flowee/hub:master
+docker volume create flowee_hub_data
+docker run -d -v flowee_hub_data:/data -p 1235:1235 flowee/hub
 ```
 
-What this does is the following;
-You create a docker volume. These store the data that you want to keep
-between docker restarts and data you want to share with the main system.
 
-The `blockdata` source dir contains the block data. Please notice that this will
-contain all historical data. Make sure you have some 200GB available for
-it.
+## Separate blocks and main data
 
-the "blockdata" dir will contain directories like `blocks`, which hold
-the actual historical data (180GB or so) and a very important directory is
-the `unspent` subdir that holds the UTXO database data (15GB or so).  
-For performance reasons it is highly recommended to put the `unspent` dir
-on fast storage. Like an SSD. For instance by using `ln` to symlink it.
+The Hub prefers SSD based storage on /data. To keep space-usage on that volume down, you can optionally also provide a volume on /blocks, which can be HHD (slower).
+The blocks will take approx 200GB, the rest will be approx 15GB.
 
-# Remote-control of Flowee the Hub
-
-We ship the `hub-cli` application inside the docker. This means that you
-can execute it in a running docker container quite simply. Replace the
-example hubtest from the command below with your local docker name. You
-can find that name using `docker container ls` to get the ID.
+In the next example a second mapping will be made from your hosts
+`/mnt/ssd/flowee directory` directly into the docker volume. Change this to
+map to your fast-storage location.
 
 ```
-  docker container exec hubtest hub-cli help
+docker volume create flowee_hub_data
+docker run -d -v flowee_hub_data:/blocks -v /mnt/ssd/flowee:/data -p 1235:1235 flowee/hub
 ```
+
+
+Options (set as env variables);
+
+* FLOWEE_NETWORK `allows you to choose other networks, options are regtest and testnet`
+
+* FLOWEE_RPC_PASSWORD `The content of the 'cookie' password file (advanced). Please note that this is for the old style RPC, not Flowee's APIs`
+
+* FLOWEE_LOGLEVEL `allows you to change the log-level. Recognized options are info, quiet or silent`
+
+
+

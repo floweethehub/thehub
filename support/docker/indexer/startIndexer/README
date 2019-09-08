@@ -1,0 +1,12 @@
+docker volume create postgress_addressindex
+
+db=`docker run -v postgress_addressindex:/var/lib/postgresql/data -e POSTGRES_USER=flowee -e POSTGRES_PASSWORD=flowee_indexer -p 5432:5432 -d postgres`
+
+docker run -v postgress_addressindex:/data \
+    -e FLOWEE_HUB=cherry \
+    -e FLOWEE_INDEXERS=addressdb \
+    -e FLOWEE_LOGLEVEL=debug \
+    --add-host=cherry:192.168.1.3 \
+    -e "FLOWEE_DB=driver=postgres,hostname=$db,db=flowee,username=flowee,password=flowee_indexer" \
+    --link=$db \
+    -p 11234:1234 flowee/indexer:local

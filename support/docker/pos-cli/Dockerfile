@@ -6,6 +6,4 @@ RUN apt-get -y update && apt-get install -y --no-install-recommends \
    rm -rf /var/lib/apt/lists/*
 
 ADD bin /usr/bin
-CMD ["/usr/bin/startHub"]
-
-EXPOSE 8332 8334 18332 18333 1235 11235
+ENTRYPOINT ["/usr/bin/pos"]
