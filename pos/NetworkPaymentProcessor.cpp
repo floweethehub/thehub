@@ -108,7 +108,7 @@ void NetworkPaymentProcessor::onIncomingMessage(const Message &message)
                                   << "txid:" << hash << "Amount (sat):" << amount;
 
         } else {
-            logCritical(Log::POS) << "HUb sent TransactionFound message that looks to be missing data";
+            logCritical(Log::POS) << "Hub sent TransactionFound message that looks to be missing data";
             Streaming::MessageParser::debugMessage(message);
         }
     }
