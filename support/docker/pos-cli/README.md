@@ -1,15 +1,13 @@
 This doc is about the Docker container for "flowee/pos-cli".
 
-More docs;  [online](https://flowee.org/pos-cli)
-
 Other Docker containers [in this repo](../README.md)
 
 The pos-cli is a simple and fast command that can be used as a basic
 backing of a **Point-of-Sale** setup.
 
-pos-cli is not a service, it follows the so called 'entry-point' design
+pos-cli is not a service, it follows the so called '[entry-point](https://blog.codeship.com/understanding-dockers-cmd-and-entrypoint-instructions/)' design
 which in essence means it behaves just like a command-line application but
-in a docker container.
+in a Docker container.
 
 Running a basic command goes like this;
 
@@ -21,7 +19,7 @@ Usage: /usr/bin/pos [options] [address]
 Options:
   -h, --help           Displays this help.
   --version            Display version
-  --connect <ADDRESS>  server location and port
+  --connect <Hostname> server location and port
   --verbose, -v        Be more verbose
   --quiet, -q          Be quiet, only errors are shown
 
@@ -45,10 +43,9 @@ This command will not return until you hit Ctrl-C, and any activity on that
 address will be printed with a notification line.
 
 Currently notifications will be given when a transaction paying this
-transaction is seen enterning mempool (or present during startup in
-mempool).
+transaction is seen entering mempool (or present in mempool during startup).
 
-Noticiations for transactions paying the addresses monitored that are being
+Notifications for transactions paying the addresses monitored that are being
 mined will be notified.
 
 Notifications will be given when a double spend involving our transaction
