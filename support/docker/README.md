@@ -2,7 +2,7 @@ This is about the Docker images created for Flowee
 
 * [the Hub](hub/README.md) ([online](https://hub.docker.com/r/flowee/hub))
 * [Indexer](indexer/README.md) ([online](https://hub.docker.com/r/flowee/indexer))
-* [pos-cli](indexer/pos-cli) ([online](https://hub.docker.com/r/flowee/pos-cli))
+* [pos-cli](pos-cli/README.md) ([online](https://hub.docker.com/r/flowee/pos-cli))
 
 Flowee the Hub provides a lot of services and the most convenient way to
 run, maintain and expand your service level is by marrying Flowee with
