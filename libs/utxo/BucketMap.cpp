@@ -32,7 +32,7 @@ BucketMap::BucketMap()
 BucketMap::~BucketMap()
 {
     for (size_t i = 0; i < m.size(); ++i) {
-        delete m[i];
+        delete m[i].load();
     }
 }
 

@@ -48,13 +48,19 @@ To compile and install Flowee on Ubuntu, install the dependencies
 
 `sudo apt install libevent-dev libboost-all-dev libminiupnpc-dev qt5-default protobuf-compiler libprotobuf-dev pkgconf`
 
+To compile and install Flowee on MacOS, install the dependencies
+
+`brew install cmake libevent boost miniupnpc qt protobuf pkg-config`
+
 Then clone the repo and use cmake to create the makefile
 
-`cmake CMakeLists.txt`
-
-`make`
-
-`make install`
+```
+mkdir thehub/build
+cd thehub/build
+cmake CMakeLists.txt ..
+make
+make install
+```
 
 # More details
 

@@ -97,6 +97,11 @@ endif ()
 # required packages below this
 message ("===== Find required dependencies")
 
+if (${CMAKE_SYSTEM_NAME} MATCHES "Darwin")
+    set(OPENSSL_ROOT_DIR "/usr/local/opt/openssl@1.1/")
+    set(CMAKE_PREFIX_PATH  ${CMAKE_PREFIX_PATH} "/usr/local/opt/qt")
+endif()
+
 find_package(OpenSSL REQUIRED)
 message ("Using OpenSSL ${OPENSSL_VERSION}")
 
@@ -152,10 +157,16 @@ else()
     set (enable_gui FALSE)
 endif()
 if (enable_gui)
-    find_package(Qt5Widgets)
-    if (NOT ${Qt5Widgets_FOUND})
-        message("Missing qt5 (widgets) library, not building hub-qt")
+    if (${CMAKE_SYSTEM_NAME} MATCHES "Darwin")
+        # Qt GUI apps require bundles on Mac, needs work to support
+        message("GUIs not supported on MacOS (yet).")
         set (enable_gui FALSE)
+    else ()
+        find_package(Qt5Widgets)
+        if (NOT ${Qt5Widgets_FOUND})
+            message("Missing Qt5 (widgets) library, not building hub-qt")
+            set (enable_gui FALSE)
+        endif ()
     endif ()
 endif ()
 if (enable_gui)
@@ -203,22 +214,12 @@ set (WORDS_BIGENDIAN ${CMAKE_WORDS_BIGENDIAN})
 include (TestBigEndian)
 test_big_endian(CMAKE_WORDS_BIGENDIAN)
 
-include(CheckCSourceCompiles)
-check_c_source_compiles(
-    "#include <string.h>
-    int main() {
-        char buffer[1];
-        char* c = strerror_r(0, buffer, 0);
-        (void)c;
-    }
-    "
-    STRERROR_R_CHAR_P)
-
+include(CheckCXXSourceCompiles)
 # older cmake doesn't set C++11 flags, do it ourselves.
 set (_V "CPP11_ARGS")
 foreach (ARG "" "-std=gnu++11" "-std=c++11")
     set (CMAKE_REQUIRED_FLAGS ${ARG})
-    check_c_source_compiles(
+    check_cxx_source_compiles(
         "#if __cplusplus < 201103L
         # error
         #endif
@@ -231,6 +232,16 @@ foreach (ARG "" "-std=gnu++11" "-std=c++11")
     endif()
     set (_V "${_V}_")
 endforeach()
+
+check_cxx_source_compiles(
+    "#include <string.h>
+    int main() {
+        char buffer[10];
+        const char* c = strerror_r(0, buffer, 3);
+        (void)c;
+    }
+    "
+    STRERROR_R_CHAR_P)
 
 configure_file (
     "${CMAKE_SOURCE_DIR}/libs/config/flowee-config.h.in"
