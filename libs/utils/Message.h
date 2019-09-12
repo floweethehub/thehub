@@ -33,10 +33,10 @@ public:
     /// default constructor, creates an empty message object
     Message(int serviceId = -1, int messageId = -1);
 
-    bool inline matches(Api::ServiceIds serviceId, int messageId = -1) {
+    bool inline matches(Api::ServiceIds serviceId, int messageId = -1) const {
         return this->serviceId() == serviceId && (messageId == -1 || this->messageId() == messageId);
     }
-    bool inline matches(int messageId) {
+    bool inline matches(int messageId) const {
         return this->messageId() == messageId;
     }
 
@@ -129,7 +129,7 @@ public:
     }
 
     inline int size() const {
-        return m_end - m_start;
+        return static_cast<int>(m_end - m_start);
     }
 
     // Return all items to be put in a header.

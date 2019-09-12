@@ -1,6 +1,6 @@
 /*
  * This file is part of the Flowee project
- * Copyright (C) 2016 Tom Zander <tomz@freedommail.ch>
+ * Copyright (C) 2016-2019 Tom Zander <tomz@freedommail.ch>
  *
  * This program is free software: you can redistribute it and/or modify
  * it under the terms of the GNU General Public License as published by
@@ -21,9 +21,9 @@
 
 Message::Message(int serviceId, int messageId)
     : remote(-1),
-    m_start(0),
-    m_bodyStart(0),
-    m_end(0)
+    m_start(nullptr),
+    m_bodyStart(nullptr),
+    m_end(nullptr)
 {
     setServiceId(serviceId);
     setMessageId(messageId);
