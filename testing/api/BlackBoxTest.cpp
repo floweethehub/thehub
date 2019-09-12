@@ -78,8 +78,8 @@ void BlackBoxTest::startHubs(int amount, Connect connect)
         hub.proc->setArguments(QStringList() << "-conf=" + nodePath + "flowee.conf" <<"-datadir=" + m_baseDir +
                                QString("/node%1").arg(i));
         hub.proc->start(QProcess::ReadOnly);
-        con.push_back(std::move(m_network.connection(
-                EndPoint(boost::asio::ip::address_v4::loopback(), hub.apiPort))));
+        con.push_back(m_network.connection(
+                EndPoint(boost::asio::ip::address_v4::loopback(), hub.apiPort)));
         con.back().setOnIncomingMessage(std::bind(&BlackBoxTest::Hub::addMessage, &m_hubs.back(), std::placeholders::_1));
         if (m_onConnectCallbacks.at(i))
             con.back().setOnConnected(m_onConnectCallbacks.at(i));
@@ -131,8 +131,8 @@ void BlackBoxTest::feedDefaultBlocksToHub(int hubIndex)
     m_hubs.push_back(hub);
 
     // Ask the target hub its block-height and don't continue until it reaches that.
-    NetworkConnection con = std::move(m_network.connection(
-                EndPoint(boost::asio::ip::address_v4::loopback(), target.apiPort)));
+    NetworkConnection con = m_network.connection(
+                EndPoint(boost::asio::ip::address_v4::loopback(), target.apiPort));
     con.setOnIncomingMessage(std::bind(&BlackBoxTest::Hub::addMessage, &hub, std::placeholders::_1));
     hub.m_waitForMessageId = Api::BlockChain::GetBlockCountReply;
     hub.m_waitForServiceId = Api::BlockChainService;
