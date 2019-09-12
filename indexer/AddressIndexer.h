@@ -39,7 +39,7 @@ class AddressIndexer : public QThread
     Q_OBJECT
 public:
     AddressIndexer(const boost::filesystem::path &basedir, Indexer *datasource);
-    ~AddressIndexer();
+    ~AddressIndexer() override;
     void loadSetting(const QSettings &settings);
 
     int blockheight();

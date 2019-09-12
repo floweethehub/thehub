@@ -71,8 +71,8 @@ private:
 
 Indexer::Indexer(const boost::filesystem::path &basedir)
     : NetworkService(Api::IndexerService),
-      m_basedir(basedir),
     m_poolAddressAnswers(2 * 1024 * 1024),
+    m_basedir(basedir),
     m_network(m_workers.ioService())
 {
     qRegisterMetaType<Message>("Message");
@@ -115,7 +115,7 @@ Indexer::~Indexer()
 
 void Indexer::tryConnectHub(const EndPoint &ep)
 {
-    m_serverConnection = std::move(m_network.connection(ep));
+    m_serverConnection = m_network.connection(ep);
     if (!m_serverConnection.isValid())
         throw std::runtime_error("Invalid Endpoint, can't create connection");
     m_serverConnection.setOnConnected(std::bind(&Indexer::hubConnected, this, std::placeholders::_1));
@@ -181,7 +181,7 @@ void Indexer::loadConfig(const QString &filename, const EndPoint &prioHubLocatio
                 ep.ipAddress = bindAddress == "localhost"
                         ? boost::asio::ip::address_v4::loopback()
                         : boost::asio::ip::address::from_string(bindAddress.toStdString());
-            } catch (const std::runtime_error &e) {
+            } catch (const std::runtime_error &) {
                 logCritical() << "Config file has invalid IP address value to bind to.";
                 continue;
             }
@@ -376,7 +376,7 @@ void Indexer::onFindAddressRequest(const Message &message)
 {
     NetworkConnection con;
     try {
-        con = std::move(m_network.connection(m_network.endPoint(message.remote), NetworkManager::OnlyExisting));
+        con = m_network.connection(m_network.endPoint(message.remote), NetworkManager::OnlyExisting);
     } catch (...) {
         // remote no longer connected.
         return;

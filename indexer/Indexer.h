@@ -37,7 +37,7 @@ class Indexer : public QObject, public NetworkService
     Q_OBJECT
 public:
     Indexer(const boost::filesystem::path &basedir);
-    ~Indexer();
+    ~Indexer() override;
 
     /// connect to server
     void tryConnectHub(const EndPoint &ep);
@@ -89,8 +89,8 @@ private:
     bool m_isServer = false; /// remembers if we (successfully) called m_network::bind() once.
 
     int m_lastRequestedBlock = 0;
-    quint64 m_timeLastRequest = 0;
-    quint64 m_timeLastLogLine = 0;
+    qint64 m_timeLastRequest = 0;
+    qint64 m_timeLastLogLine = 0;
 
 
 

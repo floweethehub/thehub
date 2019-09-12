@@ -47,6 +47,8 @@ QString addressTable(int index) {
 class TableSpecification
 {
 public:
+    inline virtual ~TableSpecification() {}
+
     virtual bool queryTableExists(QSqlQuery &query, const QString &tableName) const {
         return query.exec("select count(*) from " + tableName);
     }
@@ -245,7 +247,7 @@ void AddressIndexer::createTables()
         }
         doInsert = true;
     }
-    if (doInsert || query.next() && query.value(0).toInt() < 1) {
+    if (doInsert || (query.next() && query.value(0).toInt() < 1)) {
         if (!query.exec("insert into LastKnownState values (0)")) {
             logFatal() << "Failed to insert row" << query.lastError().text();
             throw std::runtime_error("Failed to insert row");
