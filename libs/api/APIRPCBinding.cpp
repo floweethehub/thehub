@@ -538,16 +538,6 @@ public:
     }
 };
 
-struct PrevTransaction {
-    PrevTransaction() : vout(-1), amount(-1) {}
-    std::string txid, scriptPubKey;
-    int vout;
-    int64_t amount;
-    bool isValid() const {
-        return vout >= 0 && !txid.empty() && !scriptPubKey.empty();
-    }
-};
-
 // Util
 
 class CreateAddress : public Api::DirectParser
