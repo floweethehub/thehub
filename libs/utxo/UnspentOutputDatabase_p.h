@@ -244,7 +244,7 @@ struct Limits
     uint32_t DBFileSize = 2147483600; // 2GiB
     int32_t FileFull = 1800000000; // 1.8GB
     uint32_t AutoFlush = 5000000; // every 5 million inserts/deletes, auto-flush jumptables
-    uint32_t ChangesToSave = 200000; // every 200K inserts/deletes, start a save-round.
+    int32_t ChangesToSave = 200000; // every 200K inserts/deletes, start a save-round.
 };
 
 class UODBPrivate

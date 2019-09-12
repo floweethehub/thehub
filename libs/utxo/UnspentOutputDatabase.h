@@ -130,9 +130,9 @@ public:
         struct TxOutputs { // can hold all the data for a single transaction
             TxOutputs(const uint256 &id, int offsetInBlock, int firstOutput, int lastOutput = -1)
                 : txid(id),
-                  offsetInBlock(offsetInBlock),
                   firstOutput(firstOutput),
-                  lastOutput(lastOutput < firstOutput ? firstOutput : lastOutput) {
+                  lastOutput(lastOutput < firstOutput ? firstOutput : lastOutput),
+                  offsetInBlock(offsetInBlock) {
             }
             uint256 txid;
             int firstOutput = 0, lastOutput = 0;
