@@ -33,7 +33,7 @@ void HandleSIGHUP(int);
 class FloweeServiceApplication : public QCoreApplication {
     Q_OBJECT
 public:
-    FloweeServiceApplication(int &argc, char **argv, int appLogSection = LOG_DEFAULT_SECTION);
+    FloweeServiceApplication(int &argc, char **argv, short appLogSection = LOG_DEFAULT_SECTION);
     ~FloweeServiceApplication();
 
     enum Option {
@@ -47,7 +47,7 @@ public:
     void addClientOptions(QCommandLineParser &parser, Options options = NoOptions);
     void setup(const char *logFilename = nullptr, const QString &configFilePath = QString());
 
-    EndPoint serverAddressFromArguments(short defaultPort) const;
+    EndPoint serverAddressFromArguments(uint16_t defaultPort) const;
 
     enum DefaultBindOption {
         UserSupplied,           ///< If the user doesn't supply a bind option, we don't bind.
@@ -61,7 +61,7 @@ public:
      *
      * We accept "0.0.0.0" as a wildcard to all local interfaces. Please note this requires QtNetworkLib.
      */
-    QList<boost::asio::ip::tcp::endpoint> bindingEndPoints(QCommandLineParser &parser, int defaultPort, DefaultBindOption defaultBind = UserSupplied) const;
+    QList<boost::asio::ip::tcp::endpoint> bindingEndPoints(QCommandLineParser &parser, uint16_t defaultPort, DefaultBindOption defaultBind = UserSupplied) const;
 
     void handleSigHub() const;
 
@@ -77,7 +77,7 @@ private:
     QCommandLineOption m_connect;
     QString m_logsconf;
     QString m_logFile;
-    int m_appLogSection = -1;
+    short m_appLogSection = -1;
     bool m_isServer = false;
 
     QCommandLineParser *m_parser = nullptr;

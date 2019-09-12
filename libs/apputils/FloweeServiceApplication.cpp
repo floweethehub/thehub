@@ -43,15 +43,15 @@ void HandleSigHup(int) {
 }
 }
 
-FloweeServiceApplication::FloweeServiceApplication(int &argc, char **argv, int appLogSection)
+FloweeServiceApplication::FloweeServiceApplication(int &argc, char **argv, short appLogSection)
     : QCoreApplication(argc, argv),
       m_debug(QStringList() << "debug", "Use debug level logging"),
       m_verbose(QStringList() << "verbose" << "v", "Be more verbose"),
       m_quiet(QStringList() << "quiet" << "q", "Be quiet, only errors are shown"),
       m_version(QStringList() << "version", "Display version"),
       m_bindAddress(QStringList() << "bind", "Bind to this IP:port", "IP-ADDRESS"),
-      m_appLogSection(appLogSection),
-      m_connect("connect", "Server location and port", "Hostname")
+      m_connect("connect", "Server location and port", "Hostname"),
+      m_appLogSection(appLogSection)
 {
 }
 
@@ -94,11 +94,11 @@ void FloweeServiceApplication::setup(const char *logFilename, const QString &con
         ::exit(0);
         return;
     }
-    if (m_parser && (!m_isServer && (m_parser->isSet(m_verbose) || m_parser->isSet(m_quiet))
+    if (m_parser && (!m_isServer && (m_parser->isSet(m_verbose) || m_parser->isSet(m_quiet)
 #ifndef BCH_NO_DEBUG_OUTPUT
                      || m_parser->isSet(m_debug)
 #endif
-                     )) {
+                     ))) {
         auto *logger = Log::Manager::instance();
         logger->clearChannels();
         Log::Verbosity v = Log::WarningLevel;
@@ -144,21 +144,21 @@ void FloweeServiceApplication::setup(const char *logFilename, const QString &con
     sa_hup.sa_handler = HandleSigHup;
     sigemptyset(&sa_hup.sa_mask);
     sa_hup.sa_flags = 0;
-    sigaction(SIGHUP, &sa_hup, NULL);
+    sigaction(SIGHUP, &sa_hup, nullptr);
 
     struct sigaction sa;
     sa.sa_handler = HandleSigTerm;
     sigemptyset(&sa.sa_mask);
     sa.sa_flags = 0;
-    sigaction(SIGTERM, &sa, NULL);
-    sigaction(SIGINT, &sa, NULL);
+    sigaction(SIGTERM, &sa, nullptr);
+    sigaction(SIGINT, &sa, nullptr);
 
 
     // Ignore SIGPIPE, otherwise it will bring the daemon down if the client closes unexpectedly
     signal(SIGPIPE, SIG_IGN);
 }
 
-EndPoint FloweeServiceApplication::serverAddressFromArguments(short defaultPort) const
+EndPoint FloweeServiceApplication::serverAddressFromArguments(uint16_t defaultPort) const
 {
     Q_ASSERT(m_parser);
     EndPoint ep;
@@ -170,7 +170,7 @@ EndPoint FloweeServiceApplication::serverAddressFromArguments(short defaultPort)
     return ep;
 }
 
-QList<boost::asio::ip::tcp::endpoint> FloweeServiceApplication::bindingEndPoints(QCommandLineParser &parser, int defaultPort, DefaultBindOption defaultBind) const
+QList<boost::asio::ip::tcp::endpoint> FloweeServiceApplication::bindingEndPoints(QCommandLineParser &parser, uint16_t defaultPort, DefaultBindOption defaultBind) const
 {
     QStringList addresses = parser.values(m_bindAddress);
     if (addresses.isEmpty()) {
@@ -181,6 +181,7 @@ QList<boost::asio::ip::tcp::endpoint> FloweeServiceApplication::bindingEndPoints
         case FloweeServiceApplication::AllInterfacesAsDefault:
             addresses << "0.0.0.0";
             break;
+        case FloweeServiceApplication::UserSupplied: break;
         }
     }
 
@@ -213,6 +214,7 @@ QList<boost::asio::ip::tcp::endpoint> FloweeServiceApplication::bindingEndPoints
                 answer.append(boost::asio::ip::tcp::endpoint(boost::asio::ip::address::from_string(hostname), port));
             } catch (std::runtime_error &e) {
                 logFatal().nospace() << "Bind address didn't parse: `" << address << "'. Skipping.";
+                logDebug() << e;
             }
         }
     }
