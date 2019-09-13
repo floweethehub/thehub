@@ -293,7 +293,7 @@ void Indexer::onIncomingMessage(NetworkService::Remote *con, const Message &mess
         }
 
         // since the AddressDB is backed by a slow SQL database, move the
-        // handlign out of this thread in order to keep networkmanager IO going fast.
+        // handling out of this thread in order to keep networkmanager IO going fast.
         emit requestFindAddress(message);
     }
     else if (message.messageId() == Api::Indexer::FindSpentOutput) {
