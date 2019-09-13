@@ -1,6 +1,6 @@
 /*
  * This file is part of the Flowee project
- * Copyright (C) 2017-2018 Tom Zander <tomz@freedommail.ch>
+ * Copyright (C) 2017-2019 Tom Zander <tomz@freedommail.ch>
  *
  * This program is free software: you can redistribute it and/or modify
  * it under the terms of the GNU General Public License as published by
@@ -221,8 +221,8 @@ private:
 class Item
 {
 public:
-    explicit Item(const char *filename, int lineNumber, const char *methodName, short section, int verbosity = InfoLevel);
-    explicit Item(int verbosity = InfoLevel);
+    explicit Item(const char *filename, int lineNumber, const char *methodName, short section, short verbosity = InfoLevel);
+    explicit Item(short verbosity = InfoLevel);
     Item(const Item &other);
     ~Item();
 

@@ -319,12 +319,12 @@ void Log::Manager::parseConfig(const boost::filesystem::path &configfile, const 
                     level = FatalLevel;
                 // else if (type != "quiet")
                 if (section == -1) { // ALL
-                    for (int i = 1000; i <= 20000; i += 1000)
+                    for (short i = 1000; i <= 20000; i += 1000)
                         d->enabledSections[i] = level;
                 } else {
                     d->enabledSections[section] = level;
                 }
-            } catch (const std::exception &e) {
+            } catch (const std::exception &) {
                 errorLogger.errors.push_back(std::string("Failed parsing logs config line: '") + line +"'");
             }
         }
@@ -406,7 +406,7 @@ void Log::Manager::setLogLevel(short section, Log::Verbosity verbosity)
 /////////////////////////////////////////////////
 
 Log::MessageLogger::MessageLogger()
-    : m_line(0), m_file(0), m_method(0)
+    : m_line(0), m_file(nullptr), m_method(nullptr)
 {
 }
 
@@ -427,7 +427,7 @@ bool InterpretBool(const std::string& strValue)
 
 /////////////////////////////////////////////////
 
-Log::Item::Item(const char *filename, int line, const char *function, short section, int verbosity)
+Log::Item::Item(const char *filename, int line, const char *function, short section, short verbosity)
     : d(new State(filename, line, function, section))
 {
     d->space = true;
@@ -436,7 +436,7 @@ Log::Item::Item(const char *filename, int line, const char *function, short sect
     d->ref = 1;
 }
 
-Log::Item::Item(int verbosity)
+Log::Item::Item(short verbosity)
     : d(new State(nullptr, 0, nullptr, Log::Global))
 {
     d->space = true;
