@@ -719,14 +719,44 @@ public:
     {
     }
 
+    uint256 lookup(int blockHeight, int offsetInBlock) const
+    {
+        if (blockHeight == -1 || offsetInBlock == 0)
+            throw Api::ParserException("Invalid or missing txid / blockheight+offsetInBlock");
+        // try to find txid
+        auto index = chainActive[blockHeight];
+        if (!index)
+            throw Api::ParserException("Unknown blockheight");
+        FastBlock block;
+        try {
+            block = Blocks::DB::instance()->loadBlock(index->GetBlockPos());
+        } catch (...) {
+            throw Api::ParserException("Blockdata not present on this Hub");
+        }
+        if (offsetInBlock > block.size())
+            throw Api::ParserException("OffsetInBlock larger than block");
+        Tx::Iterator iter(block, offsetInBlock);
+        if (iter.next(Tx::End) != Tx::End)
+            throw Api::ParserException("Internal error (740)"); // 740 is the line this was on when I wrote this
+        return iter.prevTx().createHash();
+    }
+
     int calculateMessageSize(const Message &request) override {
         int validCount = 0;
         Streaming::MessageParser parser(request.body());
         uint256 txid;
+        int blockHeight = -1;
+        int offsetInBlock = 0;
         int output = 0;
         while (parser.next() == Streaming::FoundTag) {
             if (parser.tag() == Api::LiveTransactions::TxId)
                 txid = parser.uint256Data();
+            else if (parser.tag() == Api::LiveTransactions::BlockHeight) {
+                blockHeight = parser.intData();
+            }
+            else if (parser.tag() == Api::LiveTransactions::OffsetInBlock) {
+                offsetInBlock = parser.intData();
+            }
             else if (parser.tag() == Api::LiveTransactions::OutIndex) {
                 if (!parser.isInt())
                     throw Api::ParserException("index wasn't number");
@@ -734,24 +764,30 @@ public:
             }
             else if (parser.tag() == Api::Separator) {
                 if (txid.IsNull())
-                    throw Api::ParserException("Invalid or missing txid");
+                    txid = lookup(blockHeight, offsetInBlock);
+                assert(!txid.IsNull());
+                blockHeight = -1;
+                offsetInBlock = 0;
                 auto out = g_utxo->find(txid, output);
                 m_utxos.push_back(out);
                 if (out.isValid())
                     validCount++;
                 output = 0;
+                txid.SetNull();
             }
         }
 
         if (txid.IsNull())
-            throw Api::ParserException("Invalid or missing txid");
+            txid = lookup(blockHeight, offsetInBlock);
+        assert(!txid.IsNull());
+
         auto out = g_utxo->find(txid, output);
         m_utxos.push_back(out);
         if (out.isValid())
             validCount++;
 
         const bool isVerbose = replyMessageId() == Api::LiveTransactions::GetUnspentOutputReply;
-        int size = (m_utxos.size() - validCount) * 21;
+        int size = (m_utxos.size() - validCount) + validCount * 20;
         if (isVerbose) {
             // since I can't assume the max-size of the output-script, I need to actually fetch them here.
             for (auto unspent : m_utxos) {

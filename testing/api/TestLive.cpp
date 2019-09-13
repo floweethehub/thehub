@@ -29,8 +29,8 @@ void TestApiLive::testBasic()
     QCOMPARE((int) con.size(), 1);
 
     Message m = waitForReply(0, Message(Api::APIService, Api::Meta::Version), Api::Meta::VersionReply);
-    QCOMPARE((int) m.serviceId(), (int) Api::APIService);
-    QCOMPARE((int) m.messageId(), (int) Api::Meta::VersionReply);
+    QCOMPARE(m.serviceId(), (int) Api::APIService);
+    QCOMPARE(m.messageId(), (int) Api::Meta::VersionReply);
     Streaming::MessageParser parser(m.body());
     while (parser.next() == Streaming::FoundTag) {
         if (parser.tag() == Api::GenericByteData) {
@@ -68,7 +68,7 @@ void TestApiLive::testSendTx()
     waitForReply(0, Message(Api::APIService, Api::Meta::Version), Api::Meta::VersionReply);
     auto messages = m_hubs[0].messages;
     QCOMPARE((int) messages.size(), 101);
-    for (int i = 0; i < 100; ++i) {
+    for (size_t i = 0; i < 100; ++i) {
         // Streaming::MessageParser::debugMessage(messages[i]);
         QCOMPARE(messages[i].messageId(), (int) Api::Meta::CommandFailed);
         QCOMPARE(messages[i].serviceId(), (int) Api::APIService);
@@ -106,8 +106,8 @@ void TestApiLive::testUtxo()
     builder.add(Api::LiveTransactions::OutIndex, 0);
     Message request = builder.message(Api::LiveTransactionService, Api::LiveTransactions::IsUnspent);
     m = waitForReply(0, request, Api::LiveTransactions::IsUnspentReply);
-    QCOMPARE(m.messageId(), (int) Api::LiveTransactions::IsUnspentReply);
     QCOMPARE(m.serviceId(), (int) Api::LiveTransactionService);
+    QCOMPARE(m.messageId(), (int) Api::LiveTransactions::IsUnspentReply);
 
     parser = Streaming::MessageParser(m.body());
     int index = 0;
@@ -153,7 +153,7 @@ void TestApiLive::testUtxo()
     request.setMessageId(Api::LiveTransactions::GetUnspentOutput);
     con[0].send(request);
     m = waitForReply(0, request, Api::LiveTransactions::GetUnspentOutputReply);
-    index = 0, index2 = 0;
+    index = index2 = 0;
     parser = Streaming::MessageParser(m.body());
     seenBlockHeight = false;
     seenOffsetInBlock = false;
@@ -206,6 +206,24 @@ void TestApiLive::testUtxo()
     QCOMPARE(seenBlockHeight, true);
     QCOMPARE(seenOffsetInBlock, true);
 
+
+    // also check fetch using blockheight / offset instead of txid
+    builder.add(Api::LiveTransactions::BlockHeight, 2);
+    builder.add(Api::LiveTransactions::OffsetInBlock, 81);
+    builder.add(Api::LiveTransactions::OutIndex, 0);
+    request = builder.message(Api::LiveTransactionService, Api::LiveTransactions::IsUnspent);
+    m = waitForReply(0, request, Api::LiveTransactions::IsUnspentReply);
+    Streaming::MessageParser::debugMessage(m);
+    QCOMPARE(m.serviceId(), (int) Api::LiveTransactionService);
+    QCOMPARE(m.messageId(), (int) Api::LiveTransactions::IsUnspentReply);
+
+    parser = Streaming::MessageParser(m.body());
+    while (parser.next() == Streaming::FoundTag) {
+        if (parser.tag() == Api::LiveTransactions::UnspentState) {
+            QCOMPARE(parser.isBool(), true);
+            QCOMPARE(parser.boolData(), true);
+        }
+    }
 }
 
 Streaming::ConstBuffer TestApiLive::generate100(int nodeId)
