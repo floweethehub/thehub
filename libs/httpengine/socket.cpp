@@ -50,14 +50,14 @@ const QString ErrorTemplate =
 
 SocketPrivate::SocketPrivate(Socket *httpSocket, QTcpSocket *tcpSocket)
     : QObject(httpSocket),
-      q(httpSocket),
       socket(tcpSocket),
       readState(ReadHeaders),
       requestDataRead(0),
       requestDataTotal(-1),
       writeState(WriteNone),
       responseStatusCode(200),
-      responseStatusReason(statusReason(200))
+      responseStatusReason(statusReason(200)),
+      q(httpSocket)
 {
     socket->setParent(this);
 
