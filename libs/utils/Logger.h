@@ -103,6 +103,8 @@ enum Sections {
     MonitorService,
     BlockNotifactionService,
 
+    SearchEngine = 2800,
+
     DB = 3000,
     Coindb,
 

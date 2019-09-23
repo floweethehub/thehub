@@ -23,6 +23,7 @@ include_directories(${LIBAPPUTILS_INCLUDES} ${CMAKE_BINARY_DIR}/include)
 
 add_library(flowee_apputils STATIC
     FloweeServiceApplication.cpp
+    Blockchain.cpp
 )
 
 add_dependencies(flowee_apputils flowee_networkmanager)

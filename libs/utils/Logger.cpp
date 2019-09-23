@@ -73,6 +73,7 @@ Log::Manager::Manager()
     d->sectionNames.emplace(Log::NWM, "NWM");
     d->sectionNames.emplace(Log::Tor, "Tor");
     d->sectionNames.emplace(Log::ApiServer, "ApiServer");
+    d->sectionNames.emplace(Log::SearchEngine, "Search");
     d->sectionNames.emplace(Log::RPC, "RPC");
     d->sectionNames.emplace(Log::HTTP, "HTTP");
     d->sectionNames.emplace(Log::ZMQ, "ZMQ");
