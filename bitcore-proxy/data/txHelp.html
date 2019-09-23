@@ -1,0 +1,35 @@
+<!DOCTYPE html>
+<html lang="en-us">
+<head>
+<meta charset="utf-8">
+<title>Tx help -- Flowee WebCore-Proxy</title>
+<meta property="og:description" content="WebCore API backed by Flowee"/>
+</head>
+<body>
+<p>Your request generated an error:</p>
+
+<pre><b>%ERROR%</b></pre>
+
+<p>Here is the API of the 'tx' method you seem to want to use;</p>
+
+<h3>Get Transactions by blockHeight</h3>
+
+<code>GET `/api/BCH/mainnet/tx?blockHeight=12`</code>
+
+<h3>Get Transactions by blockHash</h3>
+<code>GET `/api/BCH/mainnet/tx?blockHash=000000006a625f06636b8bb6ac7b960a8d03705d1ace08b1a19da3fdcc99ddbd`</code>
+
+<h3>Get Transaction by txid</h3>
+<code>GET `/api/BCH/mainnet/tx/:txid`</code>
+
+<h3>Get Authhead</h3>
+<code>GET `/BCH/mainnet/tx/:txid/authhead`</code>
+
+<h3>Get Coins</h3>
+<code>GET `/BCH/mainnet/tx/:txid/coins`</code>
+
+<p>
+TxId example; <code>9b0fc92260312ce44e74ef369f5c66bbb85848f2eddd5a7a1cde251e54ccfdd5</code>
+</p>
+</body>
+</html>

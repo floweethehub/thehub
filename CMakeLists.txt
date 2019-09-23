@@ -286,6 +286,8 @@ set(LIBNETWORKMANAGER_INCLUDES ${LIBUTILS_INCLUDES} ${CMAKE_SOURCE_DIR}/libs/net
 set(LIBAPPUTILS_INCLUDES ${LIBNETWORKMANAGER_INCLUDES} ${CMAKE_SOURCE_DIR}/libs/apputils)
 set(LIBUTXO_INCLUDES ${LIBUTILS_INCLUDES} ${CMAKE_SOURCE_DIR}/libs/utxo)
 set(LIBCONSOLE_INCLUDES ${LIBUTILS_INCLUDES} ${CMAKE_SOURCE_DIR}/libs/console)
+set(LIBCONSOLE_INCLUDES ${LIBUTILS_INCLUDES} ${CMAKE_SOURCE_DIR}/libs/console)
+set(LIBHTTPENGINE_INCLUDES ${CMAKE_SOURCE_DIR}/libs/httpengine ${CMAKE_BINARY_DIR}/libs/httpengine)
 
 
 # these two should only ever be used by the hub hub-qt and the unit tests.
@@ -309,4 +311,5 @@ if (${Qt5Core_FOUND})
     add_subdirectory(indexer)
     add_subdirectory(pos)
     add_subdirectory(unspentdb)
+    add_subdirectory(bitcore-proxy)
 endif ()
