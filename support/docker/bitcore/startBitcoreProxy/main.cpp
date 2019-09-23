@@ -23,12 +23,17 @@
 
 #include <unistd.h>
 #include <signal.h>
+#include <ifaddrs.h>
+#ifndef _GNU_SOURCE
+# define _GNU_SOURCE     /* To get defns of NI_MAXHOST */
+#endif
+#include <netdb.h>
+
 /*
    Interprets env vars;
     FLOWEE_HUB=host:port
     FLOWEE_INDEXER=host:port
 
-    // future;
     FLOWEE_HUBS=host:port
     FLOWEE_INDEXERS=host:port
 
@@ -142,6 +147,28 @@ int main(int x, char**y) {
 
     QStringList args;
     args << "--conf" << confDir.absolutePath() + "/bitcore-proxy.conf";
+
+    // the http server can only listen on one interface and defaults to localhost.
+    // We should listen on the public interface instead in order to make standard (bridge) docker
+    // networking work and allow port forwarding which won't work when binding on localhost.
+
+    struct ifaddrs *ifaddr;
+    if (getifaddrs(&ifaddr) != -1) {
+        for (struct ifaddrs *ifa = ifaddr; ifa; ifa = ifa->ifa_next) {
+            if (ifa->ifa_addr == nullptr)
+                continue;
+            int family = ifa->ifa_addr->sa_family;
+            if (family != AF_INET || ifa->ifa_addr->sa_data[2] == 127)
+                continue;
+            char host[NI_MAXHOST];
+            if (getnameinfo(ifa->ifa_addr, sizeof(struct sockaddr_in), host, NI_MAXHOST, nullptr, 0, NI_NUMERICHOST) == 0) {
+                args << QString("--bind") << QString(host);
+                break;
+            }
+            freeifaddrs(ifaddr);
+        }
+    }
+
     bcp->setReadChannel(QProcess::StandardOutput);
     bcp->start(QLatin1String("/usr/bin/bitcore-proxy"), args, QIODevice::ReadOnly);
     bcp->waitForReadyRead(20000);
