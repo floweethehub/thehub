@@ -408,11 +408,7 @@ void Indexer::onFindAddressRequest(const Message &message)
                 builder.add(Api::Indexer::Separator, true);
             }
 
-            Message reply = builder.message(Api::IndexerService, Api::Indexer::FindAddressReply);
-            const int requestId = message.headerInt(Api::RequestId);
-            if (requestId != -1)
-                reply.setHeaderInt(Api::RequestId, requestId);
-            con.send(reply);
+            con.send(builder.reply(message));
             return; // just one request per message
         }
     }
