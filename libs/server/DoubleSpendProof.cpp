@@ -72,7 +72,7 @@ namespace {
 
     class DSPSignatureChecker : public BaseSignatureChecker {
     public:
-        DSPSignatureChecker(const DoubleSpendProof *proof, const DoubleSpendProof::Spender &spender, uint64_t amount)
+        DSPSignatureChecker(const DoubleSpendProof *proof, const DoubleSpendProof::Spender &spender, int64_t amount)
             : m_proof(proof),
               m_spender(spender),
               m_amount(amount)
@@ -110,7 +110,7 @@ namespace {
 
         const DoubleSpendProof *m_proof;
         const DoubleSpendProof::Spender &m_spender;
-        const uint64_t m_amount;
+        const int64_t m_amount;
     };
 }
 

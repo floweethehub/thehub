@@ -111,7 +111,7 @@ Tx::Output Tx::nextOutput(Tx::Iterator &iter)
     auto content = iter.tag();
     while (content != Tx::End) {
         if (content == Tx::OutputValue) {
-            answer.outputValue = iter.longData();
+            answer.outputValue = static_cast<int64_t>(iter.longData());
             content = iter.next();
             if (content != Tx::OutputScript)
                 throw std::runtime_error("Malformed transaction");
@@ -131,7 +131,7 @@ Tx::Output Tx::output(int index) const
     auto content = iter.next(Tx::OutputValue);
     while (content != Tx::End) {
         if (index-- == 0) {
-            answer.outputValue = iter.longData();
+            answer.outputValue = static_cast<int64_t>(iter.longData());
             content = iter.next();
             if (content != Tx::OutputScript)
                 throw std::runtime_error("Malformed transaction");
