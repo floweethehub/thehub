@@ -20,6 +20,20 @@
 #include <cassert>
 #include <cstdint>
 
+Streaming::ConstBuffer Streaming::ConstBuffer::create(const char *start, size_t size)
+{
+    auto buf = std::shared_ptr<char>(new char[size], std::default_delete<char[]>());
+    memcpy(buf.get(), start, size);
+    return Streaming::ConstBuffer(buf, buf.get(), buf.get() + size);
+}
+
+Streaming::ConstBuffer Streaming::ConstBuffer::create(const std::vector<unsigned char> &vector)
+{
+    auto buf = std::shared_ptr<char>(new char[vector.size()], std::default_delete<char[]>());
+    memcpy(buf.get(), &vector[0], vector.size());
+    return Streaming::ConstBuffer(buf, buf.get(), buf.get() + vector.size());
+}
+
 Streaming::ConstBuffer::ConstBuffer()
     : m_buffer(nullptr),
     m_start(nullptr),

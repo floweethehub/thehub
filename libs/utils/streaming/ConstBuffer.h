@@ -33,6 +33,9 @@ namespace Streaming
 class ConstBuffer
 {
 public:
+    static ConstBuffer create(const char *start, size_t size);
+    static ConstBuffer create(const std::vector<unsigned char> &vector);
+
     /// creates an invalid buffer
     ConstBuffer();
 
