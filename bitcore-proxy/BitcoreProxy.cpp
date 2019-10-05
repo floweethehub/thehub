@@ -29,6 +29,7 @@
 #include <QJsonArray>
 #include <QFile>
 #include <QTimer>
+#include <base58.h>
 
 #include <primitives/FastTransaction.h>
 #include <primitives/pubkey.h>
@@ -40,7 +41,6 @@ static QString ripeToAddress(const std::vector<quint8> &in, CashAddress::Address
 {
     return QString::fromStdString(CashAddress::encodeCashAddr("bitcoincash", { type, in })).mid(12);
 }
-
 
 Streaming::ConstBuffer hexStringToBuffer(const QString &hash)
 {
@@ -87,7 +87,6 @@ QString uint256ToString(const Streaming::ConstBuffer &buf)
     }
     return answer;
 }
-
 
 QJsonObject toJson(const Blockchain::Transaction &tx, const QJsonObject &templateMap) {
     QJsonObject answer;
@@ -227,6 +226,8 @@ void BitcoreProxy::onIncomingConnection(HttpEngine::WebRequest *request_)
                         << "\t" << socket->headers().value("User-Agent").data();
 
     try {
+        request->map().insert("network", rs.network);
+        request->map().insert("chain", rs.chain);
         if (rs.request == "tx") {
             requestTransactionInfo(rs, request);
         } else if (rs.request == "address") {
@@ -367,14 +368,57 @@ void BitcoreProxy::requestTransactionInfo(const RequestString &rs, BitcoreWebReq
         job.type = Blockchain::FetchBlockHeader;
         request->jobs.push_back(job);
     }
-
-    request->map().insert("network", rs.network);
-    request->map().insert("chain", rs.chain);
 }
 
 void BitcoreProxy::requestAddressInfo(const RequestString &rs, BitcoreWebRequest *request)
 {
- // TODO
+    if (rs.post.isEmpty())
+        throw UserInputException("Missing address", "addressHelp.html");
+    auto args = rs.post.split("/");
+    Q_ASSERT(!args.isEmpty());
+
+    if (args.size() > 1) {
+        if (args.at(1) == "txs")
+            request->answerType = BitcoreWebRequest::AddressTxs;
+        else if (args.at(1) == "balance")
+            request->answerType = BitcoreWebRequest::AddressBalance;
+    }
+    else {
+        auto map = request->socket()->queryString();
+        QString unspent = map.value("unspent").toLower();
+        if (unspent == "yes" || unspent == "true")
+            request->answerType = BitcoreWebRequest::AddressUnspentOutputs;
+    }
+    if (request->answerType == BitcoreWebRequest::Unset)
+        throw UserInputException("Unknown request", "addressHelp.html");
+
+    Blockchain::Job job;
+    CashAddress::Content c = CashAddress::decodeCashAddrContent(args.first().toStdString(), "bitcoincash");
+    // TODO what about p2sh?
+    if (c.type == CashAddress::PUBKEY_TYPE && c.hash.size() == 20) { // 20 bytes because rip160 is 20 bytes
+        Streaming::BufferPool pool(20);
+        memcpy(pool.begin(), c.hash.data(), 20);
+        job.data = pool.commit(20);
+    }
+    else { // try to fall back to legacy address encoding (btc compatible)
+        CBase58Data old;
+        if (old.SetString(args.first().toStdString())) {
+            if (old.isMainnetPkh()/* || old.isMainnetSh()*/) {
+                // 20 bytes because rip160 is 20 bytes
+                Streaming::BufferPool pool(20);
+                memcpy(pool.begin(), old.data().data(), 20);
+                job.data = pool.commit(20);
+                c.hash = old.data();
+            }
+        }
+    }
+
+    if (job.data.isEmpty())
+        throw UserInputException("Address could not be parsed", "addressHelp.html");
+
+    job.type = Blockchain::LookupByAddress;
+    request->jobs.push_back(job);
+    request->map().insert("address", ripeToAddress(c.hash, CashAddress::PUBKEY_TYPE));
 }
 
 void BitcoreProxy::requestBlockInfo(const RequestString &rs, BitcoreWebRequest *request)
@@ -440,46 +484,66 @@ void BitcoreWebRequest::finished(int unfinishedJobs)
     // TODO maybe remember unfinishedJobs being non-zero so we can deal with not found items
 }
 
-void BitcoreWebRequest::transactionAdded(int /*jobId*/, const Blockchain::Transaction &transaction)
+void BitcoreWebRequest::transactionAdded(const Blockchain::Transaction &transaction)
 {
-    if (answerType == TxForTxIdCoins && !transaction.fullTxData.isEmpty()) {
+    if ((answerType == TxForTxIdCoins
+         || answerType == AddressTxs)
+            && !transaction.fullTxData.isEmpty()) {
+
+        auto txRef = txRefs.find(std::make_pair(transaction.blockHeight, transaction.offsetInBlock));
+
         Tx tx(transaction.fullTxData);
+        if (answerType == TxForTxIdCoins) { // insert all outputs with 'spent' placeholders into txRefs to be updated later
+            assert(txRef == txRefs.end());
+            int outIndex = 0;
+            std::map<int, std::pair<int, int>> outputs;
+            Tx::Iterator iter(tx);
+            while (iter.next() != Tx::End) {
+                if (iter.tag() == Tx::OutputValue)
+                    outputs.insert(std::make_pair(outIndex++, std::make_pair(-2, 0)));
+            }
+            txRefs.insert(std::make_pair(std::make_pair(transaction.blockHeight, transaction.offsetInBlock), outputs));
+        }
+
         int outputIndex = 0;
         Tx::Iterator iter(tx);
         while (iter.next() != Tx::End) {
-            if (!transaction.isCoinbase() && iter.tag() == Tx::PrevTxHash) {
+            if (!transaction.isCoinbase() && iter.tag() == Tx::PrevTxHash && answerType == TxForTxIdCoins) {
                 logDebug() << "Finding prev output, location of txid:" << iter.uint256Data();
                 // I want to know what the block height was of this input.
+                // this is needed by TxFoTxIdCoins
                 Blockchain::Job job;
                 job.data = iter.byteData();
                 job.type = Blockchain::LookupTxById;
-
-                if (answerType == TxForTxIdCoins) {
-                    logDebug() << "additionally, fetch the outputs of that TX";
-                    job.nextJobId = jobs.size() + 1;
-                    jobs.push_back(job);
-                    job = Blockchain::Job();
-                    job.type = Blockchain::FetchTx;
-                    job.transactionFilters = Blockchain::IncludeOutputs;
-                }
+                logDebug() << "additionally, fetch the outputs of that TX";
+                job.nextJobId = jobs.size() + 1;
+                jobs.push_back(job);
+                job = Blockchain::Job();
+                job.type = Blockchain::FetchTx;
+                job.transactionFilters = Blockchain::IncludeOutputs;
                 jobs.push_back(job);
             }
             else if (iter.tag() == Tx::OutputValue) {
-                logDebug() << "Finding spent tx";
                 // I want to know if it was spent, and if so, at what height
-                Blockchain::Job job;
-                job.data = transaction.txid;
-                assert(job.data.size() == 32);
-                job.intData = outputIndex++;
-                job.type = Blockchain::LookupSpentTx;
-                if (answerType == TxForTxIdCoins) {
+                // this is needed by TxFoTxIdCoins and AddressTxs
+                if (answerType == TxForTxIdCoins
+                        // for AddressTxs we only generate new jobs for the outputs we found in the FindAddress lookup
+                        || (answerType == AddressTxs && txRef != txRefs.end()
+                            && txRef->second.find(outputIndex) != txRef->second.end())) {
+                    logDebug() << "Finding spent tx" << uint256ToString(transaction.txid);
+                    Blockchain::Job job;
+                    job.data = transaction.txid;
+                    assert(job.data.size() == 32);
+                    job.intData = outputIndex;
+                    job.type = Blockchain::LookupSpentTx;
                     job.nextJobId = jobs.size() + 1;
                     jobs.push_back(job);
                     job = Blockchain::Job();
                     job.type = Blockchain::FetchTx;
                     job.transactionFilters = Blockchain::IncludeTxId;
+                    jobs.push_back(job);
                 }
-                jobs.push_back(job);
+                outputIndex++;
             }
         }
     }
@@ -502,11 +566,77 @@ void BitcoreWebRequest::spentOutputResolved(int jobId, int blockHeight, int offs
         return;
     assert(jobId >= 0);
     assert(static_cast<int>(jobs.size()) > jobId);
-    const int outIndex = jobs.at(static_cast<size_t>(jobId)).intData;
+    // Job request is data = txid. intData = outIndex
+    Blockchain::Job &job = jobs.at(static_cast<size_t>(jobId));
+    const int outIndex = job.intData;
+    assert(job.data.size() == 32);
+    auto iter = transactionMap.find(uint256(job.data.begin()));
+    if (iter == transactionMap.end())
+        return;
+
+    assert(iter->second >= 0);
+    assert(iter->second < answer.size());
+    Blockchain::Transaction &transaction = answer.at(iter->second);
+
     assert(outIndex >= 0);
-    spentMap.insert(std::make_pair(outIndex, std::make_pair(blockHeight, offsetInBlock)));
-    logDebug() << "output spent resolved" << outIndex
-               << "->" << blockHeight << offsetInBlock;
+    auto txIter = txRefs.find(std::make_pair(transaction.blockHeight, transaction.offsetInBlock));
+    assert (txIter != txRefs.end());
+    auto row = txIter->second.find(outIndex);
+    assert(row != txIter->second.end());
+    row->second.first = blockHeight; // update placeholder inserted in addressUsedInOutput
+    row->second.second = offsetInBlock;
+    logDebug() << "output spent resolved" << outIndex << "->" << blockHeight << offsetInBlock;
+}
+
+void BitcoreWebRequest::addressUsedInOutput(int blockHeight, int offsetInBlock, int outIndex)
+{
+    logDebug() << "address found " << blockHeight << offsetInBlock << outIndex;
+    Q_ASSERT(blockHeight > 0);
+    Q_ASSERT(offsetInBlock > 0);
+
+    auto iter = txRefs.find(std::make_pair(blockHeight, offsetInBlock));
+    if (iter != txRefs.end()) {
+        // only fetch a tx once
+        // but we do insert the outIndex
+        iter->second.insert(std::make_pair(outIndex, std::make_pair(-2, 0)));
+        return;
+    }
+    else { // insert outindex
+        std::map<int, std::pair<int, int>> output;
+        output.insert(std::make_pair(outIndex, std::make_pair(-2, 0)));
+        txRefs.insert(std::make_pair(std::make_pair(blockHeight, offsetInBlock), std::move(output)));
+    }
+
+    switch (answerType) {
+    case AddressTxs: {
+        // fetch the transaction like its a normal fetch
+        Blockchain::Job job;
+        job.type = Blockchain::FetchTx;
+        job.intData = blockHeight;
+        job.intData2 = offsetInBlock;
+        job.transactionFilters = Blockchain::IncludeFullTransactionData;
+
+        // we want to fetch the highest blockHeight ones first
+        auto insertBeforeIter = --jobs.end();
+        while (insertBeforeIter != jobs.begin()) {
+            logDebug() << insertBeforeIter->type << insertBeforeIter->intData << insertBeforeIter->intData2;
+            if (insertBeforeIter->type != Blockchain::FetchTx)
+                break;
+            if (insertBeforeIter->intData > blockHeight)
+                break;
+            --insertBeforeIter;
+        }
+        jobs.insert(++insertBeforeIter, job);
+        break;
+    }
+    case AddressUnspentOutputs:
+        break;
+    case AddressBalance:
+        break;
+    default:
+        assert(false); // nobody else should get this.
+        break;
+    }
 }
 
 void BitcoreWebRequest::addDefaults(QJsonObject &node)
@@ -555,9 +685,12 @@ void BitcoreWebRequest::threadSafeFinished()
             uint256 hash = tx.createHash();
             QString myHash = uint256ToString(hash);
             Tx::Iterator iter(tx);
+            assert(txRefs.size() == 1);
+            auto txRef = txRefs.begin();
             QJsonArray inputs, outputs;
             QJsonObject cur;
             uint256 prevTx;
+            int outIndex = 0;
             while (iter.next() != Tx::End) {
                 if (!transaction.isCoinbase()) {
                     if (iter.tag() == Tx::PrevTxHash) {
@@ -600,20 +733,16 @@ void BitcoreWebRequest::threadSafeFinished()
                     cur.insert("mintIndex", outputs.size());
                     cur.insert("mintTxid", myHash);
 
-                    auto bhIter = spentMap.find(outputs.size());
-                    int height = -2;
-                    QString spentTxId;
-                    if (bhIter != spentMap.end()) {
-                        height = bhIter->second.first;
-                        for (const Blockchain::Transaction &t : answer) {
-                            if (t.blockHeight == height && t.offsetInBlock == bhIter->second.second) {
-                                spentTxId = uint256ToString(t.txid);
-                                break;
-                            }
+                    auto out = txRef->second.find(outIndex++);
+                    assert(out != txRef->second.end());
+                    cur.insert("spentHeight", out->second.first);
+                    cur.insert("spentTxid", QString());
+                    for (const Blockchain::Transaction &t : answer) {
+                        if (t.blockHeight == out->second.first && t.offsetInBlock == out->second.second) {
+                            cur.insert("spentTxid", uint256ToString(t.txid));
+                            break;
                         }
                     }
-                    cur.insert("spentHeight", height);
-                    cur.insert("spentTxid", spentTxId);
                 } else if (iter.tag() == Tx::OutputScript) {
                     parseScriptAndAddress(cur, iter.byteData());
                     addDefaults(cur);
@@ -626,6 +755,57 @@ void BitcoreWebRequest::threadSafeFinished()
         }
         socket()->writeJson(QJsonDocument(root), s_JsonFormat);
 
+        break;
+    }
+    case AddressTxs: {
+        QJsonArray root;
+        QString script;
+        for (auto tx : answer) {
+            assert(tx.jobId >= 0);
+            Blockchain::Job &job = jobs[tx.jobId];
+            auto refs = txRefs.find(std::make_pair(tx.blockHeight, tx.offsetInBlock));
+            if (refs == txRefs.end()) // not one of main transactions
+                continue;
+
+            const QString txid = uint256ToString(tx.txid);
+            Tx fullTx(tx.fullTxData);
+            auto out = refs->second.end(); // reverse foreach
+            out--;
+            while (true) {
+                logFatal() << "--- blockheight:" << tx.blockHeight << tx.offsetInBlock;
+                // outputIndex is 'first' and who spent it is 'second' (a pair)
+                QJsonObject o;
+                o.insert("coinbase", tx.offsetInBlock > 0 && tx.offsetInBlock < 90);
+                o.insert("mintHeight", tx.blockHeight);
+                o.insert("address", map().value("address"));
+                o.insert("mintTxid", txid);
+                o.insert("mintIndex", out->first);
+                o.insert("confirmations", -1); // not sure why this is -1 in Bitcore.
+
+                auto outData = fullTx.output(out->first);
+                o.insert("value", static_cast<qint64>(outData.outputValue));
+                if (script.isEmpty())  // stays the same for this entire call
+                    script = QString::fromLatin1(QByteArray(outData.outputScript.begin(), outData.outputScript.size()).toHex());
+                o.insert("script", script);
+
+                o.insert("spentHeight", out->second.first);
+                o.insert("spentTxid", QString());
+                for (const Blockchain::Transaction &t : answer) {
+                    if (t.blockHeight == out->second.first && t.offsetInBlock == out->second.second) {
+                        o.insert("spentTxid", uint256ToString(t.txid));
+                        break;
+                    }
+                }
+
+                addDefaults(o);
+                root.append(o);
+
+                if (out == refs->second.begin())
+                    break;
+                --out;
+            }
+        }
+        socket()->writeJson(QJsonDocument(root), s_JsonFormat);
         break;
     }
     default:

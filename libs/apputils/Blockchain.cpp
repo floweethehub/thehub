@@ -26,9 +26,10 @@
 
 namespace {
 
-Blockchain::Transaction fillTx(Streaming::MessageParser &parser, const Blockchain::Job &job)
+Blockchain::Transaction fillTx(Streaming::MessageParser &parser, const Blockchain::Job &job, int jobId)
 {
     Blockchain::Transaction tx;
+    tx.jobId = jobId;
     tx.blockHeight = job.intData;
     tx.offsetInBlock = job.intData2;
     tx.txid = job.data;
@@ -247,7 +248,7 @@ void Blockchain::SearchEnginePrivate::hubSentMessage(const Message &message)
     logFatal(Log::SearchEngine);
     const int id = message.headerInt(SearchRequestId);
     if (id > 0) {
-        logDebug(Log::SearchEngine) << "Received hub message for search-request-id:" << id;
+        logDebug(Log::SearchEngine) << "Received hub message for job-id:" << id;
         QMutexLocker locker(&lock);
         auto searcher = searchers.find(id);
         if (searcher != searchers.end()) {
@@ -383,8 +384,10 @@ void Blockchain::SearchPolicy::parseMessageFromHub(Search *request, const Messag
     Streaming::MessageParser parser(message);
     if (message.serviceId() == Api::BlockChainService) {
         if (message.messageId() == Api::BlockChain::GetTransactionReply) {
-            request->answer.push_back(fillTx(parser, job));
-            request->transactionAdded(jobId, request->answer.back());
+            request->answer.push_back(fillTx(parser, job, jobId));
+            if (!request->answer.back().txid.isEmpty())
+                request->transactionMap.insert(std::make_pair(uint256(request->answer.back().txid.begin()), request->answer.size() - 1));
+            request->transactionAdded(request->answer.back());
         }
         else if (message.messageId() == Api::BlockChain::GetBlockHeaderReply) {
             BlockHeader header;
@@ -419,7 +422,7 @@ void Blockchain::SearchPolicy::parseMessageFromHub(Search *request, const Messag
                 parser.peekNext(&more);
                 if (!more)
                     break;
-                request->answer.push_back(fillTx(parser, job));
+                request->answer.push_back(fillTx(parser, job, jobId));
             }
         }
         else {
@@ -461,6 +464,20 @@ void Blockchain::SearchPolicy::parseMessageFromIndexer(Search *request, const Me
             request->txIdResolved(jobId, height, offsetInBlock);
         else
             request->spentOutputResolved(jobId, height, offsetInBlock);
+    }
+    else if (message.messageId() == Api::Indexer::FindAddressReply) {
+        int blockHeight = -1, offsetInBlock = 0, outIndex = -1;
+        while (parser.next() == Streaming::FoundTag) {
+            if (parser.tag() == Api::Indexer::BlockHeight)
+                blockHeight = parser.intData();
+            else if (parser.tag() == Api::Indexer::OffsetInBlock)
+                offsetInBlock = parser.intData();
+            else if (parser.tag() == Api::Indexer::OutIndex) {
+                outIndex = parser.intData();
+                // TODO process.
+                request->addressUsedInOutput(blockHeight, offsetInBlock, outIndex);
+            }
+        }
     } else {
         logDebug(Log::SearchEngine) << "Unknown message from Indexer";
     }

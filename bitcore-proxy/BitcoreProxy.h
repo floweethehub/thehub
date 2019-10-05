@@ -20,8 +20,9 @@
 
 #include <Blockchain.h>
 #include <QJsonObject>
-#include <boost/unordered/unordered_map.hpp>
 #include <httpengine/server.h>
+
+#include <boost/unordered_map.hpp>
 
 class BitCoreWebRequest;
 
@@ -36,6 +37,17 @@ struct RequestString
     QString network;
     QString request;
     QString post;
+};
+
+struct TxRef {
+    TxRef(int blockHeight, int offsetInBlock)
+        : blockHeight(blockHeight),
+          offsetInBlock(offsetInBlock)
+    {
+    }
+    int blockHeight = 0, offsetInBlock = 0;
+
+    QMap<int, QPair<int, int> > spentOutputs; // output-index to blockHeight, offset pair
 };
 
 class BitcoreWebRequest : public HttpEngine::WebRequest, public Blockchain::Search
@@ -61,9 +73,10 @@ public:
 
     // Blockchain::Search interface
     void finished(int unfinishedJobs) override;
-    void transactionAdded(int jobId, const Blockchain::Transaction &transaction) override;
+    void transactionAdded(const Blockchain::Transaction &transaction) override;
     void txIdResolved(int jobId, int blockHeight, int offsetInBlock) override;
     void spentOutputResolved(int jobId, int blockHeight, int offsetInBlock) override;
+    void addressUsedInOutput(int blockHeight, int offsetInBlock, int outIndex) override;
 
     QJsonObject m_map;
 
@@ -75,7 +88,11 @@ private:
     void addDefaults(QJsonObject &node);
 
     boost::unordered_map<uint256, int, HashShortener> blockHeights;
-    std::map<int, std::pair<int, int> > spentMap;
+
+    // remembers the transactions we looked up and the outpoints we were interested in and who spent those.
+    // key: pair of blockHeight to offsetInBlock (aka transaction)
+    // value: map of outindex to a pair indicating the spending transaction
+    std::map<std::pair<int,int>, std::map<int, std::pair<int, int>> > txRefs;
 };
 
 class BitcoreProxy : public Blockchain::SearchEngine

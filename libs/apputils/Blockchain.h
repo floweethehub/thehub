@@ -26,6 +26,8 @@
 #include <uint256.h>
 #include <Message.h>
 
+#include <boost/unordered_map.hpp>
+
 #include <vector>
 #include <deque>
 
@@ -93,6 +95,7 @@ struct Transaction
 {
     int blockHeight = -1;
     int offsetInBlock = 0;
+    int jobId = -1; // jobId that was processed to create this object
 
     bool isCoinbase() const {
         return blockHeight > 0 && blockHeight < 100;
@@ -130,8 +133,7 @@ public:
 
     virtual void finished(int unfinishedJobs) { Q_UNUSED(unfinishedJobs) }
     virtual void dataAdded(const Message &message) { Q_UNUSED(message) }
-    virtual void transactionAdded(int jobId, const Transaction &transaction) {
-        Q_UNUSED(jobId)
+    virtual void transactionAdded(const Transaction &transaction) {
         Q_UNUSED(transaction)
     }
     virtual void txIdResolved(int jobId, int blockHeight, int offsetInBlock) {
@@ -139,10 +141,19 @@ public:
         Q_UNUSED(blockHeight)
         Q_UNUSED(offsetInBlock)
     }
+    /**
+     * The job \a jobId returned and the indexer returned the height+offset.
+     */
     virtual void spentOutputResolved(int jobId, int blockHeight, int offsetInBlock) {
         Q_UNUSED(jobId)
         Q_UNUSED(blockHeight)
         Q_UNUSED(offsetInBlock)
+    }
+    virtual void addressUsedInOutput(int blockHeight, int offsetInBlock, int outIndex) {
+        Q_UNUSED(blockHeight)
+        Q_UNUSED(offsetInBlock)
+        Q_UNUSED(outIndex)
+
     }
 
     // used by the engine to ID the request, set and used only by the engine.
@@ -152,7 +163,8 @@ public:
     std::deque<Job> jobs;
 
     // results
-    std::list<Transaction> answer;
+    boost::unordered_map<uint256, int, HashShortener> transactionMap;
+    std::deque<Transaction> answer;
     std::map<int, BlockHeader> blockHeaders;
     int64_t answerAmount = -1;
 
