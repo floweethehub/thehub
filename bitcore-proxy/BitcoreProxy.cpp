@@ -772,7 +772,6 @@ void BitcoreWebRequest::threadSafeFinished()
             auto out = refs->second.end(); // reverse foreach
             out--;
             while (true) {
-                logFatal() << "--- blockheight:" << tx.blockHeight << tx.offsetInBlock;
                 // outputIndex is 'first' and who spent it is 'second' (a pair)
                 QJsonObject o;
                 o.insert("coinbase", tx.offsetInBlock > 0 && tx.offsetInBlock < 90);
