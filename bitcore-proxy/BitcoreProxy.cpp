@@ -113,7 +113,7 @@ QJsonObject toJson(const Blockchain::Transaction &tx, const QJsonObject &templat
             else  if (iter.tag() == Tx::PrevTxHash)
                 inputCount++;
         }
-        // obj.insert("locktime", (qint64) (lockTimeFound ? lockTime: -1)); // TODO not sure what this means
+        answer.insert("locktime", -1); // TODO not sure what this means
         answer.insert("inputCount", inputCount);
         answer.insert("outputCount", outputCount);
         // obj.insert("fee", -1); // this one is tricky...
