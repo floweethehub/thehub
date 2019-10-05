@@ -198,7 +198,7 @@ std::vector<AddressIndexer::TxData> AddressIndexer::find(const uint160 &address)
         return answer;
 
     QSqlQuery query(m_selectDb);
-    const QString select = QString("select DISTINCT(offset_in_block, block_height, out_index) "
+    const QString select = QString("select DISTINCT offset_in_block, block_height, out_index "
                                   "FROM AddressUsage%1 "
                                   "WHERE address_row=:row").arg(result.db, 2, 10, QChar('_'));
     query.prepare(select);
@@ -215,7 +215,7 @@ std::vector<AddressIndexer::TxData> AddressIndexer::find(const uint160 &address)
         TxData txData;
         txData.offsetInBlock = query.value(0).toInt();
         txData.blockHeight = query.value(1).toInt();
-        txData.outputIndex = (short) query.value(2).toInt();
+        txData.outputIndex = static_cast<short>(query.value(2).toInt());
         answer.push_back(txData);
     }
     return answer;
