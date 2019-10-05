@@ -173,7 +173,7 @@ public:
         int dataFile = -1; // unused here, but useful for the UnspentOutputDatabase
     };
     struct Output {
-        CScript outputScript;
+        Streaming::ConstBuffer outputScript;
         int64_t outputValue = -1;
     };
 

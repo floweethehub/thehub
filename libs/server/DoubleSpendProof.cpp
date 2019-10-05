@@ -207,12 +207,12 @@ DoubleSpendProof::Validity DoubleSpendProof::validate(const CTxMemPool &mempool,
         return Invalid;
 
     // Get the previous output we are spending.
-    uint64_t amount;
+    int64_t amount;
     CScript prevOutScript;
     Tx prevTx;
     if (mempool.lookup(m_prevTxId, prevTx)) {
         auto output = prevTx.output(m_prevOutIndex);
-        if (output.outputValue < 0 || output.outputScript.empty())
+        if (output.outputValue < 0 || output.outputScript.isEmpty())
             return Invalid;
         amount = output.outputValue;
         prevOutScript = output.outputScript;

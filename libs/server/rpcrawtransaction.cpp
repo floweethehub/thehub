@@ -665,7 +665,7 @@ UniValue signrawtransaction(const UniValue& params, bool fHelp)
                 throw JSONRPCError(RPC_DESERIALIZATION_ERROR, "amount must be a positive number");
 
             std::vector<unsigned char> pkData(ParseHexO(prevOut, "scriptPubKey"));
-            output.outputScript = CScript(pkData.begin(), pkData.end());
+            output.outputScript = Streaming::ConstBuffer::create(pkData);
 
             inputMap.insert(std::make_pair(input, output));
 
@@ -685,7 +685,8 @@ UniValue signrawtransaction(const UniValue& params, bool fHelp)
 
             // if redeemScript given and not using the local wallet (private keys
             // given), add redeemScript to the tempKeystore so it can be signed:
-            if (fGivenKeys && output.outputScript.IsPayToScriptHash()) {
+            CScript outScript = output.outputScript;
+            if (fGivenKeys && outScript.IsPayToScriptHash()) {
                 RPCTypeCheckObj(prevOut, boost::assign::map_list_of("txid", UniValue::VSTR)("vout", UniValue::VNUM)("scriptPubKey", UniValue::VSTR)("redeemScript",UniValue::VSTR));
                 UniValue v = find_value(prevOut, "redeemScript");
                 if (!v.isNull()) {
