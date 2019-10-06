@@ -75,6 +75,9 @@ void TestApi::finishedRequest()
         TestAddressOutputs::startRequest(this, m_network);
         break;
     case 6:
+        TestAddressBalance::startRequest(this, m_network);
+        break;
+    case 7:
         QCoreApplication::quit();
     }
 
@@ -622,4 +625,24 @@ void TestAddressOutputs::checkDocument(const QJsonDocument &doc)
     check(in, "spentHeight", -2);
     check(in, "script", "76a914f73acad809960ebe012964383b184f5c94a3f3ba88ac");
     check(in, "value", (qint64) 5000000000);
+}
+
+void TestAddressBalance::startRequest(TestApi *parent, QNetworkAccessManager &manager)
+{
+    QString addressTxs("http://%1:%2/api/BCH/mainnet/address/1PYELM7jXHy5HhatbXGXfRpGrgMMxmpobu/balance");
+    auto reply = manager.get(QNetworkRequest(addressTxs.arg(parent->hostname()).arg(parent->port())));
+    auto o = new TestAddressBalance(reply);
+    connect (o, SIGNAL(requestDone()), parent, SLOT(finishedRequest()));
+}
+
+void TestAddressBalance::checkDocument(const QJsonDocument &doc)
+{
+    if (doc.isArray()) {
+        error("Root should be an object, not an array");
+        return;
+    }
+    auto object = doc.object();
+    check(object, "confirmed", (qint64) 5000112213);
+    check(object, "unconfirmed", (qint64) 0);
+    check(object, "balance", (qint64) 5000112213);
 }

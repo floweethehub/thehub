@@ -618,13 +618,12 @@ void BitcoreWebRequest::addressUsedInOutput(int blockHeight, int offsetInBlock, 
         job.intData2 = offsetInBlock;
         job.transactionFilters = Blockchain::IncludeFullTransactionData;
         break;
+    case AddressBalance:
     case AddressUnspentOutputs:
         job.type = Blockchain::FetchUTXOUnspent;
         job.intData = blockHeight;
         job.intData2 = offsetInBlock;
         job.intData3 = outIndex;
-        break;
-    case AddressBalance:
         break;
     default:
         assert(false); // nobody else should get this.
@@ -647,7 +646,7 @@ void BitcoreWebRequest::addressUsedInOutput(int blockHeight, int offsetInBlock, 
 
 void BitcoreWebRequest::utxoLookup(int blockHeight, int offsetInBlock, bool unspent)
 {
-    if (unspent && answerType == AddressUnspentOutputs) {
+    if (unspent && (answerType == AddressUnspentOutputs || answerType == AddressBalance)) {
         // TODO avoid requesting duplicate transactions.
         logDebug() << "UTXO finished lookup:" << blockHeight << offsetInBlock << unspent;
 
@@ -656,7 +655,7 @@ void BitcoreWebRequest::utxoLookup(int blockHeight, int offsetInBlock, bool unsp
         job.type = Blockchain::FetchTx;
         job.intData = blockHeight;
         job.intData2 = offsetInBlock;
-        job.transactionFilters = Blockchain::IncludeFullTransactionData;
+        job.transactionFilters = answerType == AddressBalance ? Blockchain::IncludeOutputs : Blockchain::IncludeFullTransactionData;
         jobs.push_back(job);
     }
 }
@@ -785,7 +784,6 @@ void BitcoreWebRequest::threadSafeFinished()
         QString script;
         for (auto tx : answer) {
             assert(tx.jobId >= 0);
-            Blockchain::Job &job = jobs[tx.jobId];
             auto refs = txRefs.find(std::make_pair(tx.blockHeight, tx.offsetInBlock));
             if (refs == txRefs.end()) // not one of main transactions
                 continue;
@@ -821,6 +819,25 @@ void BitcoreWebRequest::threadSafeFinished()
                 root.append(o);
             }
         }
+        socket()->writeJson(QJsonDocument(root), s_JsonFormat);
+        break;
+    }
+    case AddressBalance: {
+        qint64 balance = 0;
+        for (auto tx : answer) {
+            logDebug() << tx.outputs.size();
+            auto refs = txRefs.find(std::make_pair(tx.blockHeight, tx.offsetInBlock));
+            assert (refs != txRefs.end());
+            for (auto out : tx.outputs) {
+                if (refs->second.find(out.index) != refs->second.end()) {
+                    balance += out.amount;
+                }
+            }
+        }
+        QJsonObject root;
+        root["confirmed"] = balance;
+        root["balance"] = balance;
+        root["unconfirmed"] =  0;
         socket()->writeJson(QJsonDocument(root), s_JsonFormat);
         break;
     }

@@ -182,7 +182,17 @@ protected:
     void checkDocument(const QJsonDocument &doc) override;
 };
 
-// TODO get balance for an address
+class TestAddressBalance : public AbstractTestCall
+{
+    Q_OBJECT
+public:
+    static void startRequest(TestApi *parent, QNetworkAccessManager &manager);
+
+protected:
+    TestAddressBalance(QNetworkReply *parent) : AbstractTestCall(parent) {}
+
+    void checkDocument(const QJsonDocument &doc) override;
+};
 
 // TODO get block by blockhash
 
