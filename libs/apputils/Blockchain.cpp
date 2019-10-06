@@ -245,7 +245,6 @@ void Blockchain::SearchEnginePrivate::hubDisconnected(const EndPoint &ep)
 
 void Blockchain::SearchEnginePrivate::hubSentMessage(const Message &message)
 {
-    logFatal(Log::SearchEngine);
     const int id = message.headerInt(SearchRequestId);
     if (id > 0) {
         logDebug(Log::SearchEngine) << "Received hub message for job-id:" << id;
@@ -429,6 +428,26 @@ void Blockchain::SearchPolicy::parseMessageFromHub(Search *request, const Messag
             logDebug(Log::SearchEngine) << "Unknown message from Hub";
         }
     }
+    else if (message.serviceId() == Api::LiveTransactionService) {
+        if (message.messageId() == Api::LiveTransactions::IsUnspentReply) {
+            int blockHeight = -1, offsetInBlock = 0;
+            bool unspent = false;
+            while (parser.next() == Streaming::FoundTag) {
+                if (parser.tag() == Api::LiveTransactions::BlockHeight)
+                    blockHeight = parser.intData();
+                else if (parser.tag() == Api::LiveTransactions::OffsetInBlock)
+                    offsetInBlock = parser.intData();
+                else if (parser.tag() == Api::LiveTransactions::UnspentState)
+                    unspent = parser.boolData();
+                else if (parser.tag() == Api::LiveTransactions::Separator) {
+                    request->utxoLookup(blockHeight, offsetInBlock, unspent);
+                    blockHeight = -1;
+                }
+            }
+            if (blockHeight > 0)
+                request->utxoLookup(blockHeight, offsetInBlock, unspent);
+        }
+    }
     else {
         logDebug(Log::SearchEngine) << "Unknown message from Hub";
     }
@@ -500,6 +519,34 @@ void Blockchain::SearchPolicy::processRequests(Blockchain::Search *request)
         }
         try {
         switch (job.type) {
+        case Blockchain::Unset:
+            throw std::runtime_error("Invalid job definition");
+        case Blockchain::FetchUTXOUnspent:
+        case Blockchain::FetchUTXODetails: {
+            if (job.data.size() != 32 && (job.intData <= 0 || job.intData2 <= 0))
+                throw std::runtime_error("Invalid job definition");
+
+            pool->reserve(60);
+            Streaming::MessageBuilder builder(*pool, Streaming::HeaderAndBody);
+            builder.add(Network::ServiceId, Api::LiveTransactionService);
+            builder.add(Network::MessageId, (job.type == Blockchain::FetchUTXODetails)
+                        ? Api::LiveTransactions::GetUnspentOutput : Api::LiveTransactions::IsUnspent);
+            builder.add(SearchRequestId, request->requestId);
+            builder.add(JobRequestId, i);
+            builder.add(Network::HeaderEnd, true);
+            // now decide if I send blockheight/offset or txid
+            if (job.data.size() == 32) {
+                builder.add(Api::TxId, job.data);
+                builder.add(Api::LiveTransactions::OutIndex, job.intData);
+            } else {
+                builder.add(Api::BlockHeight, job.intData);
+                builder.add(Api::OffsetInBlock, job.intData2);
+                builder.add(Api::LiveTransactions::OutIndex, job.intData3);
+            }
+            job.started = true;
+            sendMessage(request, builder.message(), TheHub);
+            break;
+        }
         case Blockchain::LookupTxById: {
             if (job.data.size() != 32)
                 throw std::runtime_error("Invalid job definition");

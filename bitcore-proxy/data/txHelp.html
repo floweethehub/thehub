@@ -6,30 +6,33 @@
 <meta property="og:description" content="WebCore API backed by Flowee"/>
 </head>
 <body>
-<p>Your request generated an error:</p>
 
-<pre><b>%ERROR%</b></pre>
+<p><pre><b>%ERROR%</b></pre></p>
 
-<p>Here is the API of the 'tx' method you seem to want to use;</p>
+<p>What follows is an exhaustive description of the different types of '<b>tx</b>' requests you can pose to this server:</p>
 
 <h3>Get Transactions by blockHeight</h3>
 
-<code>GET `/api/BCH/mainnet/tx?blockHeight=12`</code>
+<p><code>GET `/api/BCH/mainnet/tx?blockHeight=12`</code>
+(<a href="/api/BCH/mainnet/tx?blockHeight=12" target="_other">example</a>)</p>
+
 
 <h3>Get Transactions by blockHash</h3>
-<code>GET `/api/BCH/mainnet/tx?blockHash=000000006a625f06636b8bb6ac7b960a8d03705d1ace08b1a19da3fdcc99ddbd`</code>
+<p><code>GET `/api/BCH/mainnet/tx?blockHash=:blockhash`</code>
+(<a href="/api/BCH/mainnet/tx?blockHash=000000006a625f06636b8bb6ac7b960a8d03705d1ace08b1a19da3fdcc99ddbd" target="_other">example</a>)</p>
 
 <h3>Get Transaction by txid</h3>
-<code>GET `/api/BCH/mainnet/tx/:txid`</code>
+<p><code>GET `/api/BCH/mainnet/tx/:txid`</code>
+(<a href="/api/BCH/mainnet/tx/9b0fc92260312ce44e74ef369f5c66bbb85848f2eddd5a7a1cde251e54ccfdd5" target="_other">example</a>)</p>
 
 <h3>Get Authhead</h3>
-<code>GET `/BCH/mainnet/tx/:txid/authhead`</code>
+<p><code>GET `/BCH/mainnet/tx/:txid/authhead`</code>
+(<a href="/api/BCH/mainnet/tx/9b0fc92260312ce44e74ef369f5c66bbb85848f2eddd5a7a1cde251e54ccfdd5/authhead" target="_other">unsupported</a>)</p>
 
-<h3>Get Coins</h3>
-<code>GET `/BCH/mainnet/tx/:txid/coins`</code>
+<h3>Get detailed data about a transaction, including inputs and outputs</h3>
+<p><code>GET `/BCH/mainnet/tx/:txid/coins`</code>
+(<a href="/api/BCH/mainnet/tx/3b96bb7e197ef276b85131afd4a09c059cc368133a26ca04ebffb0ab4f75c8b8/coins" target="_other">unspent coinbase</a>,
+<a href="/api/BCH/mainnet/tx/dedabaa2b1e6e5fff513bf0a2aeebccf2b650617ff540e4baa27ff3588692acc/coins" target="_other">example2</a>)</p>
 
-<p>
-TxId example; <code>9b0fc92260312ce44e74ef369f5c66bbb85848f2eddd5a7a1cde251e54ccfdd5</code>
-</p>
 </body>
 </html>

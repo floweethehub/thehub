@@ -1,0 +1,30 @@
+<!DOCTYPE html>
+<html lang="en-us">
+<head>
+<meta charset="utf-8">
+<title>Address help -- Flowee WebCore-Proxy</title>
+<meta property="og:description" content="WebCore API backed by Flowee"/>
+</head>
+<body>
+<p><pre><b>%ERROR%</b></pre></p>
+
+<p>What follows is an exhaustive description of the different types of '<b>address</b>' requests you can pose to this server:</p>
+
+<h3>Get all outputs depositing money into an address</h3>
+
+<p><code>GET `/api/BCH/mainnet/address/:address/txs`</code>
+(<a href="/api/BCH/mainnet/address/1PYELM7jXHy5HhatbXGXfRpGrgMMxmpobu/txs" target="_other">example</a>)</p>
+
+<p>Notice that address can be of type 'bitcoincash', but should not have the preceding 'bitcoincash:' identifier. Legacy type addresses are supported.</p>
+
+<h3>Get all outputs for an address still unspent</h3>
+<p><code>GET `/api/BCH/mainnet/address/:address/?unspent`</code>
+(<a href="/api/BCH/mainnet/address/1PYELM7jXHy5HhatbXGXfRpGrgMMxmpobu/?unspent" target="_other">example</a>)</p>
+
+<h3>Get the balance of an address</h3>
+
+<p><code>GET `/api/BCH/mainnet/address/:address/balance`</code>
+(<a href="/api/BCH/mainnet/address/1PYELM7jXHy5HhatbXGXfRpGrgMMxmpobu/balance" target="_other">example</a>)</p>
+
+</body>
+</html>

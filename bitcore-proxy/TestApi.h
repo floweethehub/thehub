@@ -170,9 +170,17 @@ protected:
     void checkDocument(const QJsonDocument &doc) override;
 };
 
-// TODO get address transactions
+class TestAddressOutputs : public AbstractTestCall
+{
+    Q_OBJECT
+public:
+    static void startRequest(TestApi *parent, QNetworkAccessManager &manager);
 
-// TODO get transaction outputs by address
+protected:
+    TestAddressOutputs(QNetworkReply *parent) : AbstractTestCall(parent) {}
+
+    void checkDocument(const QJsonDocument &doc) override;
+};
 
 // TODO get balance for an address
 

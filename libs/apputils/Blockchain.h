@@ -41,21 +41,24 @@ enum Service {
 };
 
 enum JobType {
+    Unset,
     LookupTxById,
     LookupByAddress,
     LookupSpentTx,
 
     FetchTx = 16,
     FetchBlockHeader,
-    FetchBlockOfTx
+    FetchBlockOfTx,
+    FetchUTXOUnspent,
+    FetchUTXODetails
 };
 
 struct Job {
-    JobType type;
+    JobType type = Unset;
     bool started = false, finished = false;
     int nextJobId = -1, nextJobId2 = -1;
     uint32_t transactionFilters = 1; ///< see TransactionFilter enum
-    int intData = 0, intData2 = 0;
+    int intData = 0, intData2 = 0, intData3 = 0;
     Streaming::ConstBuffer data;
 };
 
@@ -154,6 +157,11 @@ public:
         Q_UNUSED(offsetInBlock)
         Q_UNUSED(outIndex)
 
+    }
+    virtual void utxoLookup(int blockHeight, int offsetInBlock, bool unspent) {
+        Q_UNUSED(blockHeight)
+        Q_UNUSED(offsetInBlock)
+        Q_UNUSED(unspent)
     }
 
     // used by the engine to ID the request, set and used only by the engine.
