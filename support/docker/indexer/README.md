@@ -63,7 +63,7 @@ example:
         driver=postgres,hostname=172.17.0.10,db=flowee,username=flowee_indexer,password=SECRET
 
 * FLOWEE_HUB *The hostname or IP and optionally port to connect to the Hub
-  (see [hub](../hub/README.md) container*
+  (see [hub](../hub/README.md) container*)
 
 * FLOWEE_LOGLEVEL *allows you to change the log-level. Recognized options
   are info, quiet or silent*
