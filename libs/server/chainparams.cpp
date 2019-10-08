@@ -163,6 +163,7 @@ public:
         consensus.hf201805Height = 530356;
         consensus.hf201811Height = 556767;
         consensus.hf201905Height = 582680;
+        consensus.hf201911Time = 1573819200;
 
         checkpointData = CCheckpointData {
             boost::assign::map_list_of
@@ -270,6 +271,7 @@ public:
         consensus.hf201805Height = 1267994;
         consensus.hf201811Height = 1267997;
         consensus.hf201905Height = 1303885;
+        consensus.hf201911Time = 1573819200;
 
         checkpointData = CCheckpointData {
             boost::assign::map_list_of
@@ -350,6 +352,7 @@ public:
         consensus.hf201805Height = 1;
         consensus.hf201811Height = 9999999; // avoid doing stupid stuff like 100 bytes min tx size
         consensus.hf201905Height = 1;
+        consensus.hf201911Time = 1573819200;
 
         checkpointData = CCheckpointData {
             boost::assign::map_list_of

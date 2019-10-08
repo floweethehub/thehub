@@ -956,7 +956,8 @@ ValidationFlags::ValidationFlags()
     hf201708Active(false),
     hf201805Active(false),
     hf201811Active(false),
-    hf201905Active(false)
+    hf201905Active(false),
+    hf201911Active(false)
 {
 }
 
@@ -984,6 +985,8 @@ uint32_t ValidationFlags::scriptValidationFlags(bool requireStandard) const
             flags |= SCRIPT_ALLOW_SEGWIT_RECOVERY;
         flags |= SCRIPT_ENABLE_SCHNORR;
     }
+    if (hf201911Active)
+        flags |= SCRIPT_VERIFY_MINIMALDATA;
     return flags;
 }
 
@@ -1057,6 +1060,8 @@ void ValidationFlags::updateForBlock(CBlockIndex *index, const uint256 &blkHash)
         hf201811Active = true;
     if (!hf201905Active && index->nHeight >= chainparams.GetConsensus().hf201905Height)
         hf201905Active = true;
+    if (hf201905Active && !hf201911Active && index->GetMedianTimePast() >= chainparams.GetConsensus().hf201911Time)
+        hf201911Active = true;
 }
 
 /* TODO Expire orphans.

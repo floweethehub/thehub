@@ -79,6 +79,7 @@ struct Params {
     int hf201805Height;
     int hf201811Height;
     int hf201905Height;
+    int64_t hf201911Time;
 };
 } // namespace Consensus
 
