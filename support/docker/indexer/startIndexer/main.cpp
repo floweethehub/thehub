@@ -146,10 +146,8 @@ int main(int x, char**y) {
             out << "\nALL quiet\n";
         else if (logLevel.toLower() == "silent")
             out << "\nALL silent\n";
-        else if (logLevel.toLower() == "debug")
-            out << "\nALL debug\n";
-        else
-            qWarning() << "Unrecognized loglevel";
+        else if (!logLevel.isEmpty())
+            qWarning() << "FLOWEE_LOGLEVEL not understood. Options are 'info', 'quiet' or 'silent'";
         logsFile.close();
     }
 
