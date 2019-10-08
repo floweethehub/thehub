@@ -86,6 +86,7 @@ private slots:
     void script_IsPushOnly_on_invalid_scripts();
     void script_GetScriptAsm();
     void minimize_big_endian_test();
+    void minimalPush();
 };
 
 #endif

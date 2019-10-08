@@ -413,29 +413,6 @@ bool static CheckPubKeyEncoding(const valtype &vchSig, unsigned int flags, Scrip
     return true;
 }
 
-bool static CheckMinimalPush(const valtype& data, opcodetype opcode) {
-    if (data.size() == 0) {
-        // Could have used OP_0.
-        return opcode == OP_0;
-    } else if (data.size() == 1 && data[0] >= 1 && data[0] <= 16) {
-        // Could have used OP_1 .. OP_16.
-        return opcode == OP_1 + (data[0] - 1);
-    } else if (data.size() == 1 && data[0] == 0x81) {
-        // Could have used OP_1NEGATE.
-        return opcode == OP_1NEGATE;
-    } else if (data.size() <= 75) {
-        // Could have used a direct push (opcode indicating number of bytes pushed + those bytes).
-        return opcode == data.size();
-    } else if (data.size() <= 255) {
-        // Could have used OP_PUSHDATA.
-        return opcode == OP_PUSHDATA1;
-    } else if (data.size() <= 65535) {
-        // Could have used OP_PUSHDATA2.
-        return opcode == OP_PUSHDATA2;
-    }
-    return true;
-}
-
 bool EvalScript(std::vector<std::vector<unsigned char> >& stack, const CScript& script, unsigned int flags, const BaseSignatureChecker& checker, ScriptError* serror)
 {
     static const CScriptNum bnZero(0);
@@ -485,7 +462,7 @@ bool EvalScript(std::vector<std::vector<unsigned char> >& stack, const CScript& 
                 opcode == OP_RSHIFT)
                 return set_error(serror, SCRIPT_ERR_DISABLED_OPCODE); // Disabled opcodes.
 
-            if (fExec && 0 <= opcode && opcode <= OP_PUSHDATA4) {
+            if (fExec && opcode <= OP_PUSHDATA4) {
                 if (fRequireMinimal && !CheckMinimalPush(vchPushValue, opcode)) {
                     return set_error(serror, SCRIPT_ERR_MINIMALDATA);
                 }

@@ -203,6 +203,9 @@ enum opcodetype
 
 const char* GetOpName(opcodetype opcode);
 
+/// Returns true if the passed code is legal with respect to minimal push by definition.
+bool CheckMinimalPush(const std::vector<uint8_t> &data, opcodetype opcode);
+
 class scriptnum_error : public std::runtime_error
 {
 public:

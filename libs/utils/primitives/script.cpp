@@ -175,6 +175,29 @@ const char* GetOpName(opcodetype opcode)
     }
 }
 
+bool CheckMinimalPush(const std::vector<uint8_t> &data, opcodetype opcode)
+{
+    // Excludes OP_1NEGATE, OP_1-16 since they are by definition minimal.
+
+    if (opcode <= OP_0 || opcode > OP_PUSHDATA4)
+        // Anything outside of this range has nothing to do with data push
+        return true;
+    if (data.size() == 0) // Should use OP_0.
+        return opcode == OP_0;
+    if (data.size() == 1 && data[0] >= 1 && data[0] <= 16) // Should use OP_1 .. OP_16.
+        return false;
+    if (data.size() == 1 && data[0] == 0x81) // Should use OP_1NEGATE.
+        return false;
+    if (data.size() <= 75)
+        // Should use a direct push (opcode indicating number of bytes pushed + those bytes).
+        return opcode == data.size();
+    if (data.size() <= 255) // Should use OP_PUSHDATA.
+        return opcode == OP_PUSHDATA1;
+    if (data.size() <= 65535) // Should use OP_PUSHDATA2.
+        return opcode == OP_PUSHDATA2;
+    return true;
+}
+
 unsigned int CScript::GetSigOpCount(bool fAccurate) const
 {
     unsigned int n = 0;
@@ -511,7 +534,7 @@ bool Script::solver(const CScript &scriptPubKey, Script::TxnOutType &typeRet, st
             }
             else if (opcode2 == OP_SMALLINTEGER) {   // Single-byte small integer pushed onto vSolutions
                 if (opcode1 == OP_0 || (opcode1 >= OP_1 && opcode1 <= OP_16)) {
-                    char n = (char)CScript::DecodeOP_N(opcode1);
+                    unsigned char n = static_cast<unsigned char>(CScript::DecodeOP_N(opcode1));
                     vSolutionsRet.push_back(std::vector<unsigned char>(1, n));
                 }
                 else
