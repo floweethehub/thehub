@@ -23,6 +23,9 @@ set(CMAKE_AUTORCC ON)
 # set the default log section (for logDebug() with no args) to the bitcore-proxy value
 add_definitions(-DLOG_DEFAULT_SECTION=9100)
 
+# enable this to get a per-request timing printed in the log.
+add_definitions(-DBENCH)
+
 include_directories(${LIBAPPUTILS_INCLUDES} ${LIBHTTPENGINE_INCLUDES} ${CMAKE_BINARY_DIR}/include)
 
 add_executable(bitcore-proxy

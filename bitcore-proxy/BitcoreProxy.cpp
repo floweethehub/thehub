@@ -465,7 +465,19 @@ QString RequestString::anonPath() const
 
 BitcoreWebRequest::BitcoreWebRequest(qintptr socketDescriptor, std::function<void (HttpEngine::WebRequest *)> &handler)
     : HttpEngine::WebRequest(socketDescriptor, handler)
+#ifdef BENCH
+    , startTime(QDateTime::currentDateTime())
+#endif
 {
+}
+
+BitcoreWebRequest::~BitcoreWebRequest()
+{
+#ifdef BENCH
+    RequestString rs(socket()->path());
+    logInfo().nospace() << "BENCH\t" << socket()->peerAddress().toString() << "\t" << rs.anonPath()
+                        << "\t" << startTime.msecsTo(QDateTime::currentDateTime()) << "ms";
+#endif
 }
 
 QJsonObject &BitcoreWebRequest::map()

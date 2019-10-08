@@ -55,6 +55,7 @@ class BitcoreWebRequest : public HttpEngine::WebRequest, public Blockchain::Sear
     Q_OBJECT
 public:
     BitcoreWebRequest(qintptr socketDescriptor, std::function<void(HttpEngine::WebRequest*)> &handler);
+    ~BitcoreWebRequest() override;
 
     enum {
         Unset,
@@ -94,6 +95,10 @@ private:
     // key: pair of blockHeight to offsetInBlock (aka transaction)
     // value: map of outindex to a pair indicating the spending transaction
     std::map<std::pair<int,int>, std::map<int, std::pair<int, int>> > txRefs;
+
+#ifdef BENCH
+    QDateTime startTime;
+#endif
 };
 
 class BitcoreProxy : public Blockchain::SearchEngine
