@@ -219,7 +219,6 @@ private:
     /** Memory only. */
     uint256 hash;
     void UpdateHash();
-    std::vector<char> txData;
 
 public:
     // sorting helper method.
