@@ -192,6 +192,8 @@ public:
     void pushOutputPay2Address(const CKeyID &address);
     // void pushOutputPay2Address(const std::string &address);
 
+    void pushOutputScript(const CScript &script);
+
     /// delete an output based on index. Updates current output index.
     void deleteOutput(int index);
 

@@ -127,7 +127,14 @@ void TransactionBuilder::pushOutputPay2Address(const CKeyID &address)
     std::vector<unsigned char> data(address.begin(), address.end());
     outScript << data;
     outScript << OP_EQUALVERIFY << OP_CHECKSIG;
-    m_transaction.vout[m_curOutput].scriptPubKey = outScript;
+    pushOutputScript(outScript);
+}
+
+void TransactionBuilder::pushOutputScript(const CScript &script)
+{
+    assert(m_curOutput >= 0);
+    assert(static_cast<size_t>(m_curOutput) < m_transaction.vout.size());
+    m_transaction.vout[static_cast<size_t>(m_curOutput)].scriptPubKey = script;
 }
 
 void TransactionBuilder::deleteOutput(int index)
