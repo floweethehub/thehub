@@ -529,3 +529,9 @@ bool Script::solver(const CScript &scriptPubKey, Script::TxnOutType &typeRet, st
     typeRet = TX_NONSTANDARD;
     return false;
 }
+
+
+CReserveScript::~CReserveScript()
+{
+
+}
