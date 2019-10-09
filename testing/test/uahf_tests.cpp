@@ -27,48 +27,6 @@
 
 BOOST_FIXTURE_TEST_SUITE(UAHF, TestingSetup)
 
-BOOST_AUTO_TEST_CASE(Test_isCommitment) {
-    std::vector<unsigned char> data{};
-
-    // Empty commitment.
-    auto s = CScript() << OP_RETURN << data;
-    BOOST_CHECK(s.isCommitment(data));
-
-    // Commitment to a value of the wrong size.
-    data.push_back(42);
-    BOOST_CHECK(!s.isCommitment(data));
-
-    // Not a commitment.
-    s = CScript() << data;
-    BOOST_CHECK(!s.isCommitment(data));
-
-    // Non empty commitment.
-    s = CScript() << OP_RETURN << data;
-    BOOST_CHECK(s.isCommitment(data));
-
-    // Commitment to the wrong value.
-    data[0] = 0x42;
-    BOOST_CHECK(!s.isCommitment(data));
-
-    // Commitment to a larger value.
-    std::string str = "Bitcoin: A peer-to-peer Electronic Cash System";
-    data = std::vector<unsigned char>(str.begin(), str.end());
-    BOOST_CHECK(!s.isCommitment(data));
-
-    s = CScript() << OP_RETURN << data;
-    BOOST_CHECK(s.isCommitment(data));
-
-    // 64 bytes commitment, still valid.
-    data.resize(64);
-    s = CScript() << OP_RETURN << data;
-    BOOST_CHECK(s.isCommitment(data));
-
-    // Commitment is too large.
-    data.push_back(23);
-    s = CScript() << OP_RETURN << data;
-    BOOST_CHECK(!s.isCommitment(data));
-}
-
 BOOST_AUTO_TEST_CASE(Test_transactionAcceptance)
 {
     // Generate a 101-block chain:
