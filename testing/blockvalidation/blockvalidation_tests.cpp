@@ -422,4 +422,43 @@ void TestBlockValidation::rollback()
     }
 }
 
+void TestBlockValidation::minimalPush()
+{
+    auto priv = bv->priv().lock(); // enable minimalPush being a consensus rule
+    priv->tipFlags.hf201911Active = true;
+
+    CKey myKey;
+    // create a chain of 101 blocks.
+    std::vector<FastBlock> blocks = bv->appendChain(110, myKey, MockBlockValidation::FullOutScript);
+    assert(blocks.size() == 110);
+
+    FastBlock block1 = blocks.at(1);
+    block1.findTransactions();
+    CTransaction root = block1.transactions().at(0).createOldTransaction();
+
+    CScript scriptPubKey = CScript() << OP_1;
+    TransactionBuilder builder;
+    builder.appendInput(root.GetHash(), 0);
+    builder.pushInputSignature(myKey, root.vout[0].scriptPubKey, root.vout[0].nValue);
+    builder.appendOutput(20 * COIN);
+    builder.pushOutputScript(scriptPubKey);
+    CMutableTransaction tx = builder.createTransaction().createOldTransaction();
+    // at this point the tx is perfectly Ok and should pass.
+    // Lets change the input script to violate the minimal push and see if the system detects this.
+    CScript inputScript = tx.vin[0].scriptSig;
+    QByteArray byteArray(reinterpret_cast<char*>(&inputScript[0]), inputScript.size());
+    byteArray.insert(0, OP_PUSHDATA1);
+    tx.vin[0].scriptSig.assign(byteArray.begin(), byteArray.end());
+
+    // mine block with this adjusted transaction to find out if its rejected by consensus rules.
+    std::vector<CTransaction> txs;
+    txs.push_back(tx);
+
+    FastBlock block = bv->createBlock(bv->blockchain()->Tip(),  scriptPubKey, txs);
+    auto future = bv->addBlock(block, Validation::SaveGoodToDisk).start();
+    future.waitUntilFinished();
+    QCOMPARE(future.error(), std::string("non-mandatory-script-verify-flag (Data push larger than necessary)"));
+    QCOMPARE(bv->blockchain()->Height(), 110);
+}
+
 QTEST_MAIN(TestBlockValidation)

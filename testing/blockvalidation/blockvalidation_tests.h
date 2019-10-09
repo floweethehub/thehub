@@ -34,6 +34,7 @@ private slots:
     void duplicateInput();
     void CTOR();
     void rollback();
+    void minimalPush();
 
 private:
     FastBlock createHeader(const FastBlock &full) const;
