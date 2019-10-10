@@ -469,7 +469,7 @@ UniValue getblocktemplate(const UniValue& params, bool fHelp)
         }
 
         // Release the wallet and main lock while waiting
-        LEAVE_CRITICAL_SECTION(cs_main);
+        LEAVE_CRITICAL_SECTION(cs_main)
         {
             checktxtime = boost::get_system_time() + boost::posix_time::minutes(1);
 
@@ -485,7 +485,7 @@ UniValue getblocktemplate(const UniValue& params, bool fHelp)
                 }
             }
         }
-        ENTER_CRITICAL_SECTION(cs_main);
+        ENTER_CRITICAL_SECTION(cs_main)
 
         if (!IsRPCRunning())
             throw JSONRPCError(RPC_CLIENT_NOT_CONNECTED, "Shutting down");
@@ -516,11 +516,11 @@ UniValue getblocktemplate(const UniValue& params, bool fHelp)
         Mining mining;
         CScript scriptDummy = CScript() << OP_TRUE;
         mining.SetCoinbase(scriptDummy);
-        LEAVE_CRITICAL_SECTION(cs_main);
+        LEAVE_CRITICAL_SECTION(cs_main)
         pblocktemplate = mining.CreateNewBlock(*Application::instance()->validation());
         if (!pblocktemplate)
             throw JSONRPCError(RPC_OUT_OF_MEMORY, "Out of memory");
-        ENTER_CRITICAL_SECTION(cs_main);
+        ENTER_CRITICAL_SECTION(cs_main)
 
         // Need to update only after we know CreateNewBlock succeeded
         pindexPrev = pindexPrevNew;
