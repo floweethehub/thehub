@@ -21,6 +21,7 @@
 
 #include "script.h"
 
+#include "pubkey.h"
 #include "tinyformat.h"
 #include "utilstrencodings.h"
 
@@ -489,7 +490,7 @@ bool Script::solver(const CScript &scriptPubKey, Script::TxnOutType &typeRet, st
 
             // Template matching opcodes:
             if (opcode2 == OP_PUBKEYS) {
-                while (vch1.size() >= 33 && vch1.size() <= 65) {
+                while (CPubKey::isValidSize(vch1)) {
                     vSolutionsRet.push_back(vch1);
                     if (!script1.GetOp(pc1, opcode1, vch1))
                         break;
@@ -501,7 +502,7 @@ bool Script::solver(const CScript &scriptPubKey, Script::TxnOutType &typeRet, st
             }
 
             if (opcode2 == OP_PUBKEY) {
-                if (vch1.size() < 33 || vch1.size() > 65)
+                if (!CPubKey::isValidSize(vch1))
                     break;
                 vSolutionsRet.push_back(vch1);
             }

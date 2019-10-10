@@ -51,34 +51,27 @@ typedef uint256 ChainCode;
 /** An encapsulated public key. */
 class CPubKey
 {
-private:
-
-    /**
-     * Just store the serialized data.
-     * Its length can very cheaply be computed from the first byte.
-     */
-    unsigned char vch[65];
-
-    //! Compute the length of a pubkey with a given first byte.
-    unsigned int static GetLen(unsigned char chHeader)
-    {
-        if (chHeader == 2 || chHeader == 3)
-            return 33;
-        if (chHeader == 4 || chHeader == 6 || chHeader == 7)
-            return 65;
-        return 0;
-    }
-
-    //! Set this key data to be invalid
-    void Invalidate()
-    {
-        vch[0] = 0xFF;
-    }
-
 public:
+    /**
+     * secp256k1:
+     */
+    static constexpr unsigned int PUBLIC_KEY_SIZE = 65;
+    static constexpr unsigned int COMPRESSED_PUBLIC_KEY_SIZE = 33;
+    static constexpr unsigned int SIGNATURE_SIZE = 72;
+    static constexpr unsigned int COMPACT_SIGNATURE_SIZE = 65;
+    /**
+     * see www.keylength.com
+     * script supports up to 75 for single byte push
+     */
+    static_assert(PUBLIC_KEY_SIZE >= COMPRESSED_PUBLIC_KEY_SIZE,
+                  "COMPRESSED_PUBLIC_KEY_SIZE is larger than PUBLIC_KEY_SIZE");
+
+    static bool isValidSize(const std::vector<uint8_t> &vch) {
+        return vch.size() > 0 && GetLen(vch[0]) == vch.size();
+    }
+
     //! Construct an invalid public key.
-    CPubKey()
-    {
+    CPubKey() {
         Invalidate();
     }
 
@@ -211,6 +204,27 @@ public:
 
     //! Derive BIP32 child pubkey.
     bool Derive(CPubKey& pubkeyChild, ChainCode &ccChild, unsigned int nChild, const ChainCode& cc) const;
+
+private:
+    /**
+     * Just store the serialized data.
+     * Its length can very cheaply be computed from the first byte.
+     */
+    unsigned char vch[65];
+
+    //! Compute the length of a pubkey with a given first byte.
+    static unsigned int GetLen(unsigned char chHeader) {
+        if (chHeader == 2 || chHeader == 3)
+            return 33;
+        if (chHeader == 4 || chHeader == 6 || chHeader == 7)
+            return 65;
+        return 0;
+    }
+
+    //! Set this key data to be invalid
+    inline void Invalidate() {
+        vch[0] = 0xFF;
+    }
 };
 
 struct CExtPubKey {
