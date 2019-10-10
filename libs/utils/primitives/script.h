@@ -564,14 +564,6 @@ public:
         while (GetOp(pc, opcode));
         return nFound;
     }
-    int Find(opcodetype op) const {
-        int nFound = 0;
-        opcodetype opcode;
-        for (const_iterator pc = begin(); pc != end() && GetOp(pc, opcode);)
-            if (opcode == op)
-                ++nFound;
-        return nFound;
-    }
 
     /**
      * Pre-version-0.6, Bitcoin always counted CHECKMULTISIGs
