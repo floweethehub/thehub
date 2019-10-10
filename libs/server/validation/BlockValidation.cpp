@@ -985,8 +985,10 @@ uint32_t ValidationFlags::scriptValidationFlags(bool requireStandard) const
             flags |= SCRIPT_ALLOW_SEGWIT_RECOVERY;
         flags |= SCRIPT_ENABLE_SCHNORR;
     }
-    if (hf201911Active)
+    if (hf201911Active) {
         flags |= SCRIPT_VERIFY_MINIMALDATA;
+        flags |= SCRIPT_ENABLE_SCHNORR_MULTISIG;
+    }
     return flags;
 }
 

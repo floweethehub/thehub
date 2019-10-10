@@ -85,6 +85,10 @@ typedef enum ScriptError_t
     /* Schnorr */
     SCRIPT_ERR_SIG_BADLENGTH,
 
+    // multi-sig bit-counts
+    SCRIPT_ERR_INVALID_BIT_COUNT,
+    SCRIPT_ERR_INVALID_BIT_RANGE,
+    SCRIPT_ERR_INVALID_BITFIELD_SIZE,
 
     SCRIPT_ERR_ERROR_COUNT
 } ScriptError;

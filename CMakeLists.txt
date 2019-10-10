@@ -213,6 +213,9 @@ else () # set to zero instead of empty
     set (HAVE_DECL_STRNLEN 0)
 endif ()
 
+include(CheckBuiltinExists)
+check_builtin_exist(__builtin_popcount HAVE_DECL___BUILTIN_POPCOUNT)
+
 set (WORDS_BIGENDIAN ${CMAKE_WORDS_BIGENDIAN})
 include (TestBigEndian)
 test_big_endian(CMAKE_WORDS_BIGENDIAN)

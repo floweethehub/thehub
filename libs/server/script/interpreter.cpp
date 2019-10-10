@@ -6,6 +6,7 @@
  * Copyright (C) 2018 Jason B. Cox <contact@jasonbcox.com>
  * Copyright (C) 2018 Awemany <awemany@protonmail.com>
  * Copyright (C) 2018 Amaury Séchet <deadalnix@gmail.com>
+ * Copyright (C) 2019 Mark Lundeberg
  *
  * This program is free software: you can redistribute it and/or modify
  * it under the terms of the GNU General Public License as published by
@@ -30,12 +31,32 @@
 #include <primitives/pubkey.h>
 #include <primitives/script.h>
 #include "uint256.h"
+#include <cstdint>
 
 #include <boost/atomic.hpp>
 
 typedef std::vector<unsigned char> valtype;
 
 namespace {
+
+uint32_t countBits(uint32_t v)
+{
+#if HAVE_DECL___BUILTIN_POPCOUNT
+    return __builtin_popcount(v);
+#else
+    /**
+     * Computes the number of bits set in each group of 8bits then uses a
+     * multiplication to sum all of them in the 8 most significant bits and
+     * return these.
+     * More detailed explanation can be found at
+     * https://www.playingwithpointers.com/blog/swar.html
+     */
+    v = v - ((v >> 1) & 0x55555555);
+    v = (v & 0x33333333) + ((v >> 2) & 0x33333333);
+    return (((v + (v >> 4)) & 0xF0F0F0F) * 0x1010101) >> 24;
+#endif
+}
+
 
 inline bool set_success(ScriptError* ret)
 {
@@ -288,10 +309,12 @@ enum CheckType {
     NoCheckSigHash = 0,
     CheckSigHash = 1,
     ECDSAOnly = 2,
+    SchnorrOnly = 4,
 
     CheckDataSigChecks = NoCheckSigHash,
     TransactionCheckSigChecks = CheckSigHash,
-    MultiSigChecks = CheckSigHash | ECDSAOnly
+    MultiSigChecksECDSA = CheckSigHash | ECDSAOnly,
+    MultiSigChecksSchnorr = CheckSigHash | SchnorrOnly
 };
 
 bool static IsLowDERSignature(const valtype &vchSig, ScriptError *serror, const CheckType type)
@@ -315,6 +338,9 @@ static bool CheckSignatureEncoding(const std::vector<unsigned char> &vchSig, uns
         if (type & ECDSAOnly)
             return set_error(serror, SCRIPT_ERR_SIG_BADLENGTH);
         return true;
+    }
+    else if (type & SchnorrOnly) {
+        return set_error(serror, SCRIPT_ERR_SIG_BADLENGTH);
     }
 
     if (vchSig.size() == 0)
@@ -345,6 +371,28 @@ static bool CheckSignatureEncoding(const std::vector<unsigned char> &vchSig, uns
     else if ((type & CheckSigHash) && ((flags & SCRIPT_VERIFY_STRICTENC) != 0) && !IsDefinedHashtypeSignature(vchSig)) {
         return set_error(serror, SCRIPT_ERR_SIG_HASHTYPE);
     }
+    return true;
+}
+
+bool decodeBitfield(const std::vector<uint8_t> &vch, int size, uint32_t &bitfield, ScriptError *serror)
+{
+    if (size > 32 || size < 0)
+        return set_error(serror, SCRIPT_ERR_INVALID_BITFIELD_SIZE);
+
+    const int bitfield_size = (size + 7) / 8;
+    if (vch.size() != static_cast<size_t>(bitfield_size))
+        return set_error(serror, SCRIPT_ERR_INVALID_BITFIELD_SIZE);
+
+    bitfield = 0;
+    for (int i = 0; i < bitfield_size; i++) {
+        // Decode the bitfield as little endian.
+        bitfield |= uint32_t(vch[size_t(i)]) << (8 * i);
+    }
+
+    const uint32_t mask = static_cast<uint32_t>((uint64_t(1) << size) - 1);
+    if ((bitfield & mask) != bitfield)
+        return set_error(serror, SCRIPT_ERR_INVALID_BIT_RANGE);
+
     return true;
 }
 
@@ -1113,103 +1161,161 @@ bool EvalScript(std::vector<std::vector<unsigned char> >& stack, const CScript& 
                 case OP_CHECKMULTISIG:
                 case OP_CHECKMULTISIGVERIFY:
                 {
-                    // ([sig ...] num_of_signatures [pubkey ...] num_of_pubkeys -- bool)
-
-                    int i = 1;
-                    if ((int)stack.size() < i)
+                    // ([dummy] [sig ...] num_of_signatures [pubkey ...] num_of_pubkeys -- bool)
+                    const int idxKeyCount = 1;
+                    if (stack.size() < idxKeyCount)
                         return set_error(serror, SCRIPT_ERR_INVALID_STACK_OPERATION);
-
-                    int nKeysCount = CScriptNum(stacktop(-i), fRequireMinimal).getint();
+                    const int nKeysCount = CScriptNum(stacktop(-idxKeyCount), fRequireMinimal).getint();
                     if (nKeysCount < 0 || nKeysCount > MAX_PUBKEYS_PER_MULTISIG)
                         return set_error(serror, SCRIPT_ERR_PUBKEY_COUNT);
                     nOpCount += nKeysCount;
                     if (nOpCount > MAX_OPS_PER_SCRIPT)
                         return set_error(serror, SCRIPT_ERR_OP_COUNT);
-                    int ikey = ++i;
-                    // ikey2 is the position of last non-signature item in the stack. Top stack item = 1.
-                    // With SCRIPT_VERIFY_NULLFAIL, this is used for cleanup if operation fails.
-                    int ikey2 = nKeysCount + 2;
-                    i += nKeysCount;
-                    if ((int)stack.size() < i)
-                        return set_error(serror, SCRIPT_ERR_INVALID_STACK_OPERATION);
 
-                    int nSigsCount = CScriptNum(stacktop(-i), fRequireMinimal).getint();
+                    // stack depth of the top pubkey
+                    const int idxTopKey = idxKeyCount + 1;
+
+                    // stack depth of nSigsCount
+                    const int idxSigCount = idxTopKey + nKeysCount;
+                    if (static_cast<int>(stack.size()) < idxSigCount)
+                        return set_error(serror, SCRIPT_ERR_INVALID_STACK_OPERATION);
+                    const int nSigsCount = CScriptNum(stacktop(-idxSigCount), fRequireMinimal).getint();
                     if (nSigsCount < 0 || nSigsCount > nKeysCount)
                         return set_error(serror, SCRIPT_ERR_SIG_COUNT);
-                    int isig = ++i;
-                    i += nSigsCount;
-                    if ((int)stack.size() < i)
+
+                    // stack depth of the top signature
+                    const int idxTopSig = idxSigCount + 1;
+
+                    // stack depth of the dummy element
+                    const int idxDummy = idxTopSig + nSigsCount;
+                    if (static_cast<int>(stack.size()) < idxDummy)
                         return set_error(serror, SCRIPT_ERR_INVALID_STACK_OPERATION);
 
                     // Subset of script starting at the most recent codeseparator
                     CScript scriptCode(pbegincodehash, pend);
 
-                    // Drop the signatures, since there's no way for a signature to sign itself
-                    for (int k = 0; k < nSigsCount; k++) {
-                        valtype &vchSig = stacktop(-isig - k);
-                        CleanupScriptCode(scriptCode, vchSig, flags);
-                    }
-
+                    // Assuming success is usually a bad idea, but the schnorr path can only succeed.
                     bool fSuccess = true;
-                    while (fSuccess && nSigsCount > 0)
-                    {
-                        valtype& vchSig    = stacktop(-isig);
-                        valtype& vchPubKey = stacktop(-ikey);
 
-                        // Note how this makes the exact order of pubkey/signature evaluation
-                        // distinguishable by CHECKMULTISIG NOT if the STRICTENC flag is set.
-                        // See the script_(in)valid tests for details.
-                        if (!CheckSignatureEncoding(vchSig, flags, serror, MultiSigChecks) || !CheckPubKeyEncoding(vchPubKey, flags, serror)) {
-                            // serror is set
-                            return false;
+                    if ((flags & SCRIPT_ENABLE_SCHNORR_MULTISIG) && stacktop(-idxDummy).size() != 0) {
+                        // SCHNORR MULTISIG
+                        static_assert(MAX_PUBKEYS_PER_MULTISIG < 32, "Schnorr multisig checkbits implementation assumes < 32 pubkeys.");
+                        uint32_t checkBits = 0;
+
+                        // Dummy element is to be interpreted as a bitfield that represent which pubkeys should be checked.
+                        valtype &vchDummy = stacktop(-idxDummy);
+                        if (!decodeBitfield(vchDummy, nKeysCount, checkBits, serror))
+                            return false; // serror is set
+
+                        // The bitfield doesn't set the right number of signatures.
+                        if (countBits(checkBits) != uint32_t(nSigsCount))
+                            return set_error(serror, SCRIPT_ERR_INVALID_BIT_COUNT);
+
+                        const int idxBottomKey = idxTopKey + nKeysCount - 1;
+                        const int idxBottomSig = idxTopSig + nSigsCount - 1;
+
+                        int iKey = 0;
+                        for (int iSig = 0; iSig < nSigsCount; iSig++, iKey++) {
+                            if ((checkBits >> iKey) == 0) {
+                                // This is a sanity check and should be unrecheable.
+                                return set_error(serror, SCRIPT_ERR_INVALID_BIT_RANGE);
+                            }
+                            // Find the next suitable key.
+                            while (((checkBits >> iKey) & 0x01) == 0) {
+                                iKey++;
+                            }
+
+                            if (iKey >= nKeysCount) {
+                                // This is a sanity check and should be unrecheable.
+                                return set_error(serror, SCRIPT_ERR_PUBKEY_COUNT);
+                            }
+
+                            // Check the signature.
+                            valtype &vchSig = stacktop(-idxBottomSig + iSig);
+                            valtype &vchPubKey = stacktop(-idxBottomKey + iKey);
+
+                            // Note that only pubkeys associated with a signature are checked for validity.
+                            if (!CheckSignatureEncoding(vchSig, flags, serror, MultiSigChecksSchnorr) || !CheckPubKeyEncoding(vchPubKey, flags, serror)) {
+                                // serror is set
+                                return false;
+                            }
+
+                            // Check signature
+                            if (!checker.CheckSig(vchSig, vchPubKey, scriptCode, flags)) {
+                                // This can fail if the signature is empty, which also is a NULLFAIL error as the
+                                // bitfield should have been null in this situation.
+                                return set_error(serror, SCRIPT_ERR_SIG_NULLFAIL);
+                            }
                         }
 
-                        // Check signature
-                        bool fOk = checker.CheckSig(vchSig, vchPubKey, scriptCode, flags);
-
-                        if (fOk) {
-                            isig++;
-                            nSigsCount--;
+                        if ((checkBits >> iKey) != 0) {
+                            // This is a sanity check and should be unrecheable.
+                            return set_error( serror, SCRIPT_ERR_INVALID_BIT_COUNT);
                         }
-                        ikey++;
-                        nKeysCount--;
+                    }
+                    else {
+                        // LEGACY MULTISIG (ECDSA / NULL)
+                        // A bug causes CHECKMULTISIG to consume one extra argument whose contents were not checked in any way.
+                        //
+                        // Unfortunately this is a potential source of mutability, so optionally verify it is exactly equal to zero.
+                        if ((flags & SCRIPT_VERIFY_NULLDUMMY) && stacktop(-idxDummy).size())
+                            return set_error(serror, SCRIPT_ERR_SIG_NULLDUMMY);
 
-                        // If there are more signatures left than keys left,
-                        // then too many signatures have failed. Exit early,
-                        // without checking any further signatures.
-                        if (nSigsCount > nKeysCount)
-                            fSuccess = false;
+                        // Remove signature for pre-fork scripts
+                        for (int k = 0; k < nSigsCount; k++) {
+                            valtype &vchSig = stacktop(-idxTopSig - k);
+                            CleanupScriptCode(scriptCode, vchSig, flags);
+                        }
+
+                        int nSigsRemaining = nSigsCount;
+                        int nKeysRemaining = nKeysCount;
+                        while (fSuccess && nSigsRemaining > 0) {
+                            valtype &vchSig = stacktop(-idxTopSig - (nSigsCount - nSigsRemaining));
+                            valtype &vchPubKey = stacktop(-idxTopKey - (nKeysCount - nKeysRemaining));
+
+                            // Note how this makes the exact order of pubkey/signature evaluation
+                            // distinguishable by CHECKMULTISIG NOT if the STRICTENC flag is set.
+                            // See the script_(in)valid tests for details.
+                            if (!CheckSignatureEncoding(vchSig, flags, serror, MultiSigChecksECDSA) || !CheckPubKeyEncoding(vchPubKey, flags, serror)) {
+                                // serror is set
+                                return false;
+                            }
+
+                            // Check signature
+                            bool fOk = checker.CheckSig(vchSig, vchPubKey, scriptCode, flags);
+
+                            if (fOk)
+                                nSigsRemaining--;
+                            nKeysRemaining--;
+
+                            // If there are more signatures left than keys
+                            // left, then too many signatures have failed.
+                            // Exit early, without checking any further
+                            // signatures.
+                            if (nSigsRemaining > nKeysRemaining)
+                                fSuccess = false;
+                        }
                     }
 
-                    // Clean up stack of actual arguments
-                    while (i-- > 1) {
-                        // If the operation failed, we require that all signatures must be empty vector
-                        if (!fSuccess && (flags & SCRIPT_VERIFY_NULLFAIL) && !ikey2 && stacktop(-1).size())
-                            return set_error(serror, SCRIPT_ERR_SIG_NULLFAIL);
-                        if (ikey2 > 0)
-                            ikey2--;
+                    // If the operation failed, we require that all
+                    // signatures must be empty vector
+                    if (!fSuccess && (flags & SCRIPT_VERIFY_NULLFAIL)) {
+                        for (int i = 0; i < nSigsCount; i++) {
+                            if (stacktop(-idxTopSig - i).size())
+                                return set_error(serror, SCRIPT_ERR_SIG_NULLFAIL);
+                        }
+                    }
+
+                    // Clean up stack of all arguments
+                    for (int i = 0; i < idxDummy; i++) {
                         popstack(stack);
                     }
 
-                    // A bug causes CHECKMULTISIG to consume one extra argument
-                    // whose contents were not checked in any way.
-                    //
-                    // Unfortunately this is a potential source of mutability,
-                    // so optionally verify it is exactly equal to zero prior
-                    // to removing it from the stack.
-                    if (stack.size() < 1)
-                        return set_error(serror, SCRIPT_ERR_INVALID_STACK_OPERATION);
-                    if ((flags & SCRIPT_VERIFY_NULLDUMMY) && stacktop(-1).size())
-                        return set_error(serror, SCRIPT_ERR_SIG_NULLDUMMY);
-                    popstack(stack);
-
                     stack.push_back(fSuccess ? vchTrue : vchFalse);
-
-                    if (opcode == OP_CHECKMULTISIGVERIFY)
-                    {
+                    if (opcode == OP_CHECKMULTISIGVERIFY) {
                         if (fSuccess)
                             popstack(stack);
-                        else
+                         else
                             return set_error(serror, SCRIPT_ERR_CHECKMULTISIGVERIFY);
                     }
                 }

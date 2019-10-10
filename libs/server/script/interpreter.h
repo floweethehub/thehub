@@ -110,9 +110,11 @@ enum
     SCRIPT_ENABLE_CHECKDATASIG = (1U << 17),
 
     SCRIPT_ENABLE_SCHNORR = (1U << 18),
+    
+    SCRIPT_ENABLE_SCHNORR_MULTISIG = (1U << 19),
 
     // Allows the miner to appropriate coins sent to p2sh segwit addresses
-    SCRIPT_ALLOW_SEGWIT_RECOVERY = (1U << 19),
+    SCRIPT_ALLOW_SEGWIT_RECOVERY = (1U << 20),
 };
 
 bool CheckTransactionSignatureEncoding(const std::vector<unsigned char> &vchSig, unsigned int flags, ScriptError* serror);

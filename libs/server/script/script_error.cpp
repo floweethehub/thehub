@@ -105,6 +105,12 @@ const char* ScriptErrorString(const ScriptError serror)
             return "Signature must use SIGHASH_FORKID";
         case SCRIPT_ERR_SIG_BADLENGTH:
             return "Signature cannot be 65 bytes in CHECKMULTISIG";
+        case SCRIPT_ERR_INVALID_BIT_COUNT:
+            return "Invalid number of bits set in OP_CHECKMULTISIG";
+        case SCRIPT_ERR_INVALID_BIT_RANGE:
+            return "Bitfield's bit out of the expected range";
+        case SCRIPT_ERR_INVALID_BITFIELD_SIZE:
+            return "Bitfield of unexpected size error";
         case SCRIPT_ERR_UNKNOWN_ERROR:
         case SCRIPT_ERR_ERROR_COUNT:
         default: break;
