@@ -623,7 +623,7 @@ void Mining::GenerateBitcoins(bool fGenerate, int nThreads, const CChainParams& 
     miningInstance->SetCoinbase(ScriptForCoinbase(coinbase));
     miningInstance->m_minerThreads = new boost::thread_group();
     for (int i = 0; i < nThreads; i++)
-        miningInstance->m_minerThreads->create_thread(boost::bind(&BitcoinMiner, boost::cref(chainparams)));
+        miningInstance->m_minerThreads->create_thread(std::bind(&BitcoinMiner, boost::cref(chainparams)));
 }
 
 Mining* Mining::s_instance = 0;

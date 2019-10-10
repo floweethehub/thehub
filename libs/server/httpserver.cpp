@@ -457,10 +457,10 @@ void StartHTTPServer()
     logInfo(Log::HTTP) << "Starting HTTP server";
     int rpcThreads = std::max((long)GetArg("-rpcthreads", Settings::DefaultHttpThreads), 1L);
     logInfo(Log::HTTP) << "starting" << rpcThreads << "worker threads";
-    threadHTTP = boost::thread(boost::bind(&ThreadHTTP, eventBase, eventHTTP));
+    threadHTTP = boost::thread(std::bind(&ThreadHTTP, eventBase, eventHTTP));
 
     for (int i = 0; i < rpcThreads; i++)
-        boost::thread(boost::bind(&HTTPWorkQueueRun, workQueue));
+        boost::thread(std::bind(&HTTPWorkQueueRun, workQueue));
 }
 
 void InterruptHTTPServer()
@@ -617,7 +617,7 @@ void HTTPRequest::WriteReply(int nStatus, const std::string& strReply)
     assert(evb);
     evbuffer_add(evb, strReply.data(), strReply.size());
     HTTPEvent* ev = new HTTPEvent(eventBase, true,
-        boost::bind(evhttp_send_reply, req, nStatus, (const char*)NULL, (struct evbuffer *)NULL));
+        std::bind(evhttp_send_reply, req, nStatus, (const char*)NULL, (struct evbuffer *)NULL));
     ev->trigger(0);
     replySent = true;
     req = 0; // transferred back to main thread
