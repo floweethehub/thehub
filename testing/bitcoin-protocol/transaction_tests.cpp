@@ -110,7 +110,7 @@ void TransactionTests::tx_valid()
         std::string strTest = test.write();
         if (test[0].isArray()) {
             if (test.size() != 3 || !test[1].isStr() || !test[2].isStr() || test[1].get_str().empty() || test[2].get_str().empty()) {
-                qWarning(strTest.c_str());
+                logCritical() << strTest;
                 QFAIL("Bad test");
                 continue;
             }
@@ -149,9 +149,12 @@ void TransactionTests::tx_valid()
 
                 CAmount amount = 0;
                 unsigned int verify_flags = parseScriptFlags(test[2].get_str());
-                QVERIFY(VerifyScript(tx.vin[i].scriptSig, mapprevOutScriptPubKeys[tx.vin[i].prevout],
-                        verify_flags, TransactionSignatureChecker(&tx, i, amount), &err));
+                const bool ok = VerifyScript(tx.vin[i].scriptSig, mapprevOutScriptPubKeys[tx.vin[i].prevout],
+                        verify_flags, TransactionSignatureChecker(&tx, i, amount), &err);
+                if (!ok)
+                    logDebug() << strTest;
                 QCOMPARE(ScriptErrorString(err), "No error");
+                QVERIFY(ok);
             }
         }
     }

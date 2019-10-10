@@ -79,7 +79,7 @@ namespace {
         {
         }
 
-        bool CheckSig(const std::vector<uint8_t> &vchSigIn, const std::vector<uint8_t> &vchPubKey, const CScript &scriptCode, uint32_t flags) const {
+        bool CheckSig(const std::vector<uint8_t> &vchSigIn, const std::vector<uint8_t> &vchPubKey, const CScript &scriptCode, uint32_t flags) const override {
             CPubKey pubkey(vchPubKey);
             if (!pubkey.IsValid())
                 return false;
@@ -101,10 +101,10 @@ namespace {
                 return pubkey.verifySchnorr(sighash, vchSig);
             return pubkey.verifyECDSA(sighash, vchSig);
         }
-        bool CheckLockTime(const CScriptNum&) const {
+        bool CheckLockTime(const CScriptNum&) const override {
             return true;
         }
-        bool CheckSequence(const CScriptNum&) const {
+        bool CheckSequence(const CScriptNum&) const override {
             return true;
         }
 
