@@ -862,6 +862,7 @@ void ValidationEnginePrivate::findMoreJobs()
             onResultFlags |= Validation::SaveGoodToDisk;
         std::shared_ptr<BlockValidationState> state = std::make_shared<BlockValidationState>(me, FastBlock(), onResultFlags);
         state->m_blockIndex = index;
+        state->flags = tipFlags;
         state->m_blockPos = index->GetBlockPos();
         try {
             state->load();
@@ -947,7 +948,7 @@ bool ValidationEnginePrivate::disconnectTip(const FastBlock &tip, CBlockIndex *i
 
 ValidationFlags::ValidationFlags()
     : strictPayToScriptHash(false),
-    enforceBIP30(false),
+    enforceBIP34(false),
     enableValidation(true),
     scriptVerifyDerSig(false),
     scriptVerifyLockTimeVerify(false),
@@ -992,77 +993,49 @@ uint32_t ValidationFlags::scriptValidationFlags(bool requireStandard) const
     return flags;
 }
 
-void ValidationFlags::updateForBlock(CBlockIndex *index, const uint256 &blkHash)
+void ValidationFlags::updateForBlock(CBlockIndex *index)
 {
     if (index->pprev == nullptr) // skip for genesis block
         return;
 
     // BIP16 didn't become active until Apr 1 2012
     const int64_t BIP16SwitchTime = 1333238400;
-    strictPayToScriptHash = (index->nTime >= BIP16SwitchTime);
+    if (!strictPayToScriptHash && index->nTime >= BIP16SwitchTime)
+         strictPayToScriptHash = true; // mainnet: activates on block 173805
 
+    const auto &consensus = Params().GetConsensus();
+    if (!enforceBIP34 && index->nHeight >= consensus.BIP34Height && consensus.BIP34Height > 0)
+        enforceBIP34 = true;
 
-    // Do not allow blocks that contain transactions which 'overwrite' older transactions,
-    // unless those are already completely spent.
-    // If such overwrites are allowed, coinbases and transactions depending upon those
-    // can be duplicated to remove the ability to spend the first instance -- even after
-    // being sent to another address.
-    // See BIP30 and http://r6.ca/blog/20120206T005236Z.html for more information.
-    // This logic is not necessary for memory pool transactions, as AcceptToMemoryPool
-    // already refuses previously-known transaction ids entirely.
-    // This rule was originally applied to all blocks with a timestamp after March 15, 2012, 0:00 UTC.
-    // Now that the whole chain is irreversibly beyond that time it is applied to all blocks except the
-    // two in the chain that violate it. This prevents exploiting the issue against nodes during their
-    // initial block download.
-    enforceBIP30 =
-            !((index->nHeight==91842 && blkHash == uint256S("0x00000000000a4d0a398161ffc163c503763b1f4360639393e0e4c8e300e0caec"))
-              || (index->nHeight==91880 && blkHash == uint256S("0x00000000000743f190a18c5577a3c2d2a1f610ae9601ac046a38084ccb7cd721")));
-
-    const auto chainparams = Params();
-
-    // Once BIP34 activated it was not possible to create new duplicate coinbases and thus other than starting
-    // with the 2 existing duplicate coinbase pairs, not possible to create overwriting txs.  But by the
-    // time BIP34 activated, in each of the existing pairs the duplicate coinbase had overwritten the first
-    // before the first had been spent.  Since those coinbases are sufficiently buried its no longer possible to create further
-    // duplicate transactions descending from the known pairs either.
-    // If we're on the known chain at height greater than where BIP34 activated, we can save the db accesses needed for the BIP30 check.
-    CBlockIndex *pindexBIP34height = index->pprev->GetAncestor(chainparams.GetConsensus().BIP34Height);
-    //Only continue to enforce if we're below BIP34 activation height or the block hash at that height doesn't correspond.
-    enforceBIP30 = enforceBIP30 && (!pindexBIP34height || !(pindexBIP34height->GetBlockHash() == chainparams.GetConsensus().BIP34Hash));
-
-    // Start enforcing the DERSIG (BIP66) rules, for block.nVersion=3 blocks,
-    // when 75% of the network has upgraded:
-    if (scriptVerifyDerSig
-            || (index->nVersion >= 3
-                && IsSuperMajority(3, index->pprev, chainparams.GetConsensus().nMajorityEnforceBlockUpgrade, chainparams.GetConsensus())))
+    // Start enforcing the DERSIG (BIP66) rules
+    // Originally this was for block.nVersion=3 blocks, when 75% of the network has upgraded
+    // now we just hardcode the height
+    if (!scriptVerifyDerSig && index->nHeight >= consensus.BIP66Height)
         scriptVerifyDerSig = true;
 
-    // Start enforcing CHECKLOCKTIMEVERIFY, (BIP65) for block.nVersion=4
-    // blocks, when 75% of the network has upgraded:
-    if (scriptVerifyLockTimeVerify
-            || (index->nVersion >= 4
-                && IsSuperMajority(4, index->pprev, chainparams.GetConsensus().nMajorityEnforceBlockUpgrade, chainparams.GetConsensus())))
+    // Start enforcing CHECKLOCKTIMEVERIFY (BIP65)
+    // Originally this was for block.nVersion=4 blocks, when 75% of the network has upgraded
+    // now we just hardcode the height
+    if (!scriptVerifyLockTimeVerify && index->nHeight >= consensus.BIP65Height)
         scriptVerifyLockTimeVerify = true;
 
-    if (scriptVerifySequenceVerify == false) {
-        LOCK(cs_main); // for versionBitsState :(
-        // Start enforcing BIP68 (sequence locks) and BIP112 (CHECKSEQUENCEVERIFY) using versionbits logic.
-        nLocktimeVerifySequence = 0;
-        if (VersionBitsState(index->pprev, chainparams.GetConsensus(), Consensus::DEPLOYMENT_CSV, versionbitscache) == THRESHOLD_ACTIVE) {
-            scriptVerifySequenceVerify = true;
-            nLocktimeVerifySequence = true;
-        }
+    // Start enforcing BIP68 (sequence locks) and BIP112 (CHECKSEQUENCEVERIFY)
+    // This was originally using versionbits logic (bip9).
+    // now we just hardcode the height
+    if (!scriptVerifySequenceVerify && index->nHeight >= consensus.BIP68Height) {
+        scriptVerifySequenceVerify = true;
+        nLocktimeVerifySequence = true;
     }
 
-    if (!hf201708Active && index->nHeight >= chainparams.GetConsensus().hf201708Height)
+    if (!hf201708Active && index->nHeight >= consensus.hf201708Height)
         hf201708Active = true;
-    if (!hf201805Active && index->nHeight >= chainparams.GetConsensus().hf201805Height)
+    if (!hf201805Active && index->nHeight >= consensus.hf201805Height)
         hf201805Active = true;
-    if (!hf201811Active && index->nHeight >= chainparams.GetConsensus().hf201811Height)
+    if (!hf201811Active && index->nHeight >= consensus.hf201811Height)
         hf201811Active = true;
-    if (!hf201905Active && index->nHeight >= chainparams.GetConsensus().hf201905Height)
+    if (!hf201905Active && index->nHeight >= consensus.hf201905Height)
         hf201905Active = true;
-    if (hf201905Active && !hf201911Active && index->GetMedianTimePast() >= chainparams.GetConsensus().hf201911Time)
+    if (hf201905Active && !hf201911Active && index->GetMedianTimePast() >= consensus.hf201911Time)
         hf201911Active = true;
 }
 
@@ -1077,7 +1050,7 @@ void ValidationFlags::updateForBlock(CBlockIndex *index, const uint256 &blkHash)
 BlockValidationState::BlockValidationState(const std::weak_ptr<ValidationEnginePrivate> &parent, const FastBlock &block, uint32_t onResultFlags, int originatingNodeId)
     : m_block(block),
       m_blockIndex(nullptr),
-      m_onResultFlags(onResultFlags),
+      m_onResultFlags(static_cast<uint8_t>(onResultFlags)),
       m_originatingNodeId(originatingNodeId),
       m_txChunkLeftToStart(-1),
       m_txChunkLeftToFinish(-1),
@@ -1086,6 +1059,7 @@ BlockValidationState::BlockValidationState(const std::weak_ptr<ValidationEngineP
       m_sigOpsCounted(0),
       m_parent(parent)
 {
+    assert(onResultFlags < 0x100);
 }
 
 BlockValidationState::~BlockValidationState()
@@ -1125,7 +1099,9 @@ void BlockValidationState::load()
 
 void BlockValidationState::blockFailed(int punishment, const std::string &error, Validation::RejectCodes code, bool corruptionPossible)
 {
-    this->punishment = punishment;
+    assert(punishment < 0x100);
+    assert(punishment >= 0);
+    this->punishment = static_cast<uint8_t>(punishment);
     this->error = error;
     errorCode = code;
     isCorruptionPossible = corruptionPossible;
@@ -1232,12 +1208,12 @@ void BlockValidationState::checks1NoContext()
                 throw Exception("bad-blk-length");
             }
 
-            const std::uint32_t blockSizeAcceptLimit = Policy::blockSizeAcceptLimit();
-            const std::uint32_t blockSize = m_block.size();
-            if (block.vtx.size() > blockSizeAcceptLimit || blockSize > blockSizeAcceptLimit) {
-                const float punishment = (blockSize - blockSizeAcceptLimit) / (float) blockSizeAcceptLimit;
+            const std::int32_t blockSizeAcceptLimit = Policy::blockSizeAcceptLimit();
+            const std::int32_t blockSize = m_block.size();
+            if (blockSize > blockSizeAcceptLimit) {
+                const float punishment = (blockSize - blockSizeAcceptLimit) / float(blockSizeAcceptLimit);
                 logCritical(Log::BlockValidation) << "Block too large" << blockSize << ">" << blockSizeAcceptLimit;
-                throw Exception("bad-blk-length", Validation::RejectExceedsLimit, 10 * punishment + 0.5);
+                throw Exception("bad-blk-length", Validation::RejectExceedsLimit, int(10 * punishment + 0.5f));
             }
 
             // All potential-corruption validation must be done before we do any
@@ -1303,30 +1279,19 @@ void BlockValidationState::checks2HaveParentHeaders()
             // Check timestamp against prev
             if (block.GetBlockTime() <= m_blockIndex->pprev->GetMedianTimePast())
                 throw Exception("time-too-old");
-
-            // Reject block.nVersion=1 blocks when 95% (75% on testnet) of the network has upgraded:
-            if (block.nVersion < 2 && IsSuperMajority(2, m_blockIndex->pprev, consensusParams.nMajorityRejectBlockOutdated, consensusParams))
-                throw Exception("bad-version", Validation::RejectObsolete);
-
-            // Reject block.nVersion=2 blocks when 95% (75% on testnet) of the network has upgraded:
-            if (block.nVersion < 3 && IsSuperMajority(3, m_blockIndex->pprev, consensusParams.nMajorityRejectBlockOutdated, consensusParams))
-                throw Exception("bad-version", Validation::RejectObsolete);
-
-            // Reject block.nVersion=3 blocks when 95% (75% on testnet) of the network has upgraded:
-            if (block.nVersion < 4 && IsSuperMajority(4, m_blockIndex->pprev, consensusParams.nMajorityRejectBlockOutdated, consensusParams))
+            if (block.nVersion < 4 && flags.scriptVerifyLockTimeVerify) // reject incorrect block version.
                 throw Exception("bad-version", Validation::RejectObsolete);
         }
 
-        {
-            CValidationState state;
-            LOCK(cs_main);
-            if (!ContextualCheckBlock(block, state, m_blockIndex->pprev))
-                throw Exception(state.GetRejectReason());
+        // Check that all transactions are finalized
+        const int64_t nLockTimeCutoff = flags.scriptVerifySequenceVerify ? m_blockIndex->pprev->GetMedianTimePast() : block.GetBlockTime();
+        for (const CTransaction& tx : block.vtx) {
+            if (!IsFinalTx(tx, m_blockIndex->nHeight, nLockTimeCutoff))
+                throw Exception("bad-txns-nonfinal");
         }
 
         // Enforce rule that the coinbase starts with serialized block height
-        const int bip34Height = Params().GetConsensus().BIP34Height;
-        if (bip34Height > 0 && m_blockIndex->nHeight >= bip34Height) {
+        if (flags.enforceBIP34) {
             CScript expect = CScript() << m_blockIndex->nHeight;
             if (block.vtx[0].vin[0].scriptSig.size() < expect.size()
                     || !std::equal(expect.begin(), expect.end(), block.vtx[0].vin[0].scriptSig.begin()))
@@ -1364,7 +1329,7 @@ void BlockValidationState::checks2HaveParentHeaders()
         return;
     }
 
-    flags.updateForBlock(m_blockIndex, m_block.createHash());
+    flags.updateForBlock(m_blockIndex);
 #ifdef ENABLE_BENCHMARKS
     int64_t end = GetTimeMicros();
 #endif
@@ -1555,7 +1520,7 @@ void BlockValidationState::checkSignaturesChunk()
                                     while (output-- >= 0) {
                                         prevTxIter.next(Tx::OutputValue);
                                     }
-                                    prevOut.amount = prevTxIter.longData();
+                                    prevOut.amount = static_cast<int64_t>(prevTxIter.longData());
                                     prevTxIter.next();
                                     assert(prevTxIter.tag() == Tx::OutputScript);
                                     prevOut.outputScript = prevTxIter.byteData();
@@ -1644,7 +1609,6 @@ void BlockValidationState::checkSignaturesChunk()
                 DEBUGBV << "add outputs from TX " << txIndex;
                 // Find the outputs added to the unspentOutputDB
                 int outputCount = 0;
-                const int offsetInBlock = static_cast<int>(tx.offsetInBlock(m_block));
                 auto content = txIter.tag();
                 while (content != Tx::End) {
                     if (content == Tx::OutputValue) {

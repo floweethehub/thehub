@@ -109,7 +109,6 @@ set (TEST_SOURCES
     uahf_tests.cpp
     univalue_tests.cpp
     util_tests.cpp
-    versionbits_tests.cpp
 )
 
 if (enable_wallet)

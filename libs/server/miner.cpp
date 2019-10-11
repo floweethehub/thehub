@@ -60,6 +60,9 @@
 # include <boost/algorithm/hex.hpp>
 #endif
 
+/** What bits to set in version for versionbits blocks */
+static const int32_t VERSIONBITS_TOP_BITS = 0x20000000UL;
+
 //////////////////////////////////////////////////////////////////////////////
 //
 // BitcoinMiner
@@ -179,7 +182,7 @@ CBlockTemplate* Mining::CreateNewBlock(Validation::Engine &validationEngine) con
         const int nHeight = pindexPrev->nHeight + 1;
         const int64_t nMedianTimePast = pindexPrev->GetMedianTimePast();
 
-        pblock->nVersion = ComputeBlockVersion(pindexPrev, Params().GetConsensus());
+        pblock->nVersion = VERSIONBITS_TOP_BITS;
         // -regtest only: allow overriding block.nVersion with
         // -blockversion=N to test forking scenarios
         if (Params().MineBlocksOnDemand())

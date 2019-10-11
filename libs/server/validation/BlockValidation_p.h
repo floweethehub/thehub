@@ -48,7 +48,7 @@
 struct ValidationFlags {
     ValidationFlags();
     bool strictPayToScriptHash;
-    bool enforceBIP30;
+    bool enforceBIP34;
     bool enableValidation;
     bool scriptVerifyDerSig;
     bool scriptVerifyLockTimeVerify;
@@ -63,7 +63,7 @@ struct ValidationFlags {
     uint32_t scriptValidationFlags(bool requireStandard) const;
 
     /// based on the assumption that the index is after this Flags object, update it based on chain properties
-    void updateForBlock(CBlockIndex *index, const uint256 &blkHash);
+    void updateForBlock(CBlockIndex *index);
 };
 
 // implemented in TxValidation.cpp

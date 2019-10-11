@@ -29,7 +29,6 @@
 #include "net.h"
 #include "script/script_error.h"
 #include "sync.h"
-#include "versionbits.h"
 
 #include <algorithm>
 #include <exception>
@@ -105,7 +104,6 @@ extern bool fRequireStandard;
 extern unsigned int nBytesPerSigOp;
 extern bool fCheckpointsEnabled;
 extern CFeeRate minRelayTxFee;
-extern VersionBitsCache versionbitscache;
 
 // Xpress Validation: begin section
 /**
@@ -174,7 +172,6 @@ bool IsInitialBlockDownload();
  */
 std::string GetWarnings(const std::string& strFor);
 /** Find the best known block, and make it the tip of the block chain */
-bool ActivateBestChain(CValidationState& state, const CChainParams& chainparams, const CBlock* pblock = NULL);
 CAmount GetBlockSubsidy(int nHeight, const Consensus::Params& consensusParams);
 
 bool MarkBlockAsReceived(const uint256& hash);
@@ -196,9 +193,6 @@ bool UndoWriteToDisk(const CBlockUndo& blockundo, CDiskBlockPos& pos, const uint
 bool AcceptToMemoryPool(CTxMemPool& pool, CValidationState &state, const CTransaction &tx, bool fLimitFree,
                         bool* pfMissingInputs, bool fOverrideMempoolLimit=false, bool fRejectAbsurdFee=false);
 void AlertNotify(const std::string& strMessage, bool fThread);
-
-/** Get the BIP9 state for a given deployment at the current tip. */
-ThresholdState VersionBitsTipState(const Consensus::Params& params, Consensus::DeploymentPos pos);
 
 struct CNodeStateStats {
     int nMisbehavior;
@@ -317,9 +311,6 @@ bool ReadBlockFromDisk(CBlock& block, const CBlockIndex* pindex, const Consensus
 /** Context-independent validity checks */
 bool CheckBlockHeader(const CBlockHeader& block, CValidationState& state, bool fCheckPOW = true);
 
-/** Context-dependent validity checks */
-bool ContextualCheckBlock(const CBlock& block, CValidationState& state, CBlockIndex *pindexPrev);
-
 /** Check a block is completely valid from start to finish (only works on top of our current best block, with cs_main held) */
 bool TestBlockValidity(CValidationState& state, const CChainParams& chainparams, const CBlock& block, CBlockIndex* pindexPrev, bool fCheckPOW = true, bool fCheckMerkleRoot = true);
 
@@ -383,11 +374,6 @@ extern UnspentOutputDatabase *g_utxo;
 
 void LimitMempoolSize(CTxMemPool& pool, size_t limit, unsigned long age);
 
-/**
- * Determine what nVersion a new block should use.
- */
-int32_t ComputeBlockVersion(const CBlockIndex* pindexPrev, const Consensus::Params& params);
-
 /** Reject codes greater or equal to this can be returned by AcceptToMemPool
  * for transactions, to signal internal conditions. They cannot and should not
  * be sent over the P2P network.
@@ -417,11 +403,5 @@ bool FlushStateToDisk(CValidationState &state, FlushStateMode mode);
 
 void CheckForkWarningConditions();
 void CheckForkWarningConditionsOnNewFork(CBlockIndex* pindexNewForkTip);
-
-/**
- * Returns true if there are nRequired or more blocks of minVersion or above
- * in the last Consensus::Params::nMajorityWindow blocks, starting at pstart and going backwards.
- */
-bool IsSuperMajority(int minVersion, const CBlockIndex* pstart, unsigned nRequired, const Consensus::Params& consensusParams);
 
 #endif

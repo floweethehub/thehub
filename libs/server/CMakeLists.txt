@@ -73,7 +73,6 @@ set (FLOWEE_SERVER_FILES
     validation/ValidationException.cpp
     validation/ValidationSettings.cpp
     validation/VerifyDB.cpp
-    versionbits.cpp
 )
 
 if (enable_wallet)

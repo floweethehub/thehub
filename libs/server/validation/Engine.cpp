@@ -164,7 +164,7 @@ void Validation::Engine::setBlockchain(CChain *chain)
     d->tip = chain->Tip();
 
     if (chain->Height() > 1)
-        d->tipFlags.updateForBlock(chain->Tip(), chain->Tip()->GetBlockHash());
+        d->tipFlags.updateForBlock(chain->Tip());
 }
 
 bool Validation::Engine::isRecentlyRejectedTransaction(const uint256 &txHash) const
