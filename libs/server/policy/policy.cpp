@@ -2,6 +2,7 @@
  * This file is part of the Flowee project
  * Copyright (C) 2009-2010 Satoshi Nakamoto
  * Copyright (C) 2009-2015 The Bitcoin developers
+ * Copyright (C) 2019 Tom Zander <tomz@freedommail.ch>
  *
  * This program is free software: you can redistribute it and/or modify
  * it under the terms of the GNU General Public License as published by
@@ -17,8 +18,6 @@
  * along with this program.  If not, see <http://www.gnu.org/licenses/>.
  */
 
-// NOTE: This file is intended to be customised by the end user, and includes only local node policy logic
-
 #include "policy/policy.h"
 
 #include <SettingsDefaults.h>
@@ -32,6 +31,7 @@
 #include <UnspentOutputData.h>
 
 #include <cmath>
+#include <algorithm>
 
     /**
      * Check transaction inputs to mitigate two
@@ -85,7 +85,7 @@ bool IsStandardTx(const CTransaction& tx, std::string& reason)
     // almost as much to process as they cost the sender in fees, because
     // computing signature hashes is O(ninputs*txsize). Limiting transactions
     // to MAX_STANDARD_TX_SIZE mitigates CPU exhaustion attacks.
-    unsigned int sz = tx.GetSerializeSize(SER_NETWORK, CTransaction::CURRENT_VERSION);
+    size_t sz = tx.GetSerializeSize(SER_NETWORK, CTransaction::CURRENT_VERSION);
     if (sz >= MAX_STANDARD_TX_SIZE) {
         reason = "tx-size";
         return false;
@@ -161,7 +161,7 @@ bool Policy::isInputStandard(const CScript &outputScript, const CScript &inputSc
 
 int32_t Policy::blockSizeAcceptLimit()
 {
-    int limit = -1;
+    int64_t limit = -1;
     auto userlimit = mapArgs.find("-blocksizeacceptlimit");
     if (userlimit == mapArgs.end()) {
         limit = GetArg("-blocksizeacceptlimitbytes", -1);
@@ -174,15 +174,15 @@ int32_t Policy::blockSizeAcceptLimit()
         if (limitInMB <= 0) {
             LogPrintf("Failed to understand blocksizeacceptlimit: '%s'\n", userlimit->second.c_str());
         } else {
-            limit = static_cast<int32_t>(round(limitInMB * 1000000));
+            limit = static_cast<int64_t>(round(limitInMB * 1000000));
             limit -= (limit % 100000); // only one digit behind the dot was allowed
         }
     }
     if (limit <= 0)
         limit = Settings::DefaultBlockAcceptSize;
     if (limit < 1000000)
-        LogPrintf("BlockSize set to extremely low value (%d bytes), this may cause failures.\n", limit);
-    return limit;
+        logCritical(Log::Bitcoin).nospace() << "BlockSize set to extremely low value (" << limit << " bytes), this may cause failures.";
+    return static_cast<int>(std::min(int64_t(INT_MAX), limit));
 }
 
 uint32_t Policy::blockSigOpAcceptLimit(int32_t nBlockSize)
