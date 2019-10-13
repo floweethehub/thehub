@@ -48,6 +48,7 @@ endforeach ()
 add_executable(test_protocol
     bip32_tests.cpp
     checkdatasig_tests.cpp
+    multisig_tests.cpp
     pow_tests.cpp
     uint256_tests.cpp
     script_P2SH_tests.cpp

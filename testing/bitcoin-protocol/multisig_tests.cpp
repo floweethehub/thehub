@@ -1,6 +1,7 @@
 /*
  * This file is part of the Flowee project
  * Copyright (C) 2011-2013 The Bitcoin Core developers
+ * Copyright (C) 2019 Tom Zander <tomz@freedommail.ch>
  *
  * This program is free software: you can redistribute it and/or modify
  * it under the terms of the GNU General Public License as published by
@@ -16,40 +17,39 @@
  * along with this program.  If not, see <http://www.gnu.org/licenses/>.
  */
 
+#include "multisig_tests.h"
+
+#include <primitives/transaction.h>
 #include "keystore.h"
 #include "policy/policy.h"
-#include "script/sign.h"
-#include "test/test_bitcoin.h"
+#include <script/sign.h>
 
 #ifdef ENABLE_WALLET
-#include "wallet/wallet_ismine.h"
+# include "wallet/wallet_ismine.h"
 #endif
 
-#include <boost/foreach.hpp>
-#include <boost/test/unit_test.hpp>
+#include <vector>
 
 typedef std::vector<unsigned char> valtype;
 
-BOOST_FIXTURE_TEST_SUITE(multisig_tests, BasicTestingSetup)
 
-CScript
-sign_multisig(CScript scriptPubKey, std::vector<CKey> keys, CTransaction transaction, int whichIn)
+CScript sign_multisig(CScript scriptPubKey, std::vector<CKey> keys, const CTransaction &transaction, int whichIn)
 {
     uint256 hash = SignatureHash(scriptPubKey, transaction, whichIn, 0, SIGHASH_ALL);
 
     CScript result;
     result << OP_0; // CHECKMULTISIG bug workaround
-    BOOST_FOREACH(const CKey &key, keys)
-    {
+    for (const CKey &key : keys) {
         std::vector<unsigned char> vchSig;
-        BOOST_CHECK(key.Sign(hash, vchSig));
+        const bool rc = key.Sign(hash, vchSig);
+        assert(rc);
         vchSig.push_back((unsigned char)SIGHASH_ALL);
         result << vchSig;
     }
     return result;
 }
 
-BOOST_AUTO_TEST_CASE(multisig_verify)
+void MultiSigTests::multisig_verify()
 {
     unsigned int flags = SCRIPT_VERIFY_P2SH | SCRIPT_VERIFY_STRICTENC;
 
@@ -75,8 +75,7 @@ BOOST_AUTO_TEST_CASE(multisig_verify)
     txFrom.vout[2].scriptPubKey = escrow;
 
     CMutableTransaction txTo[3]; // Spending transaction
-    for (int i = 0; i < 3; i++)
-    {
+    for (int i = 0; i < 3; i++) {
         txTo[i].vin.resize(1);
         txTo[i].vout.resize(1);
         txTo[i].vin[0].prevout.n = i;
@@ -91,43 +90,41 @@ BOOST_AUTO_TEST_CASE(multisig_verify)
     keys.assign(1,key[0]);
     keys.push_back(key[1]);
     s = sign_multisig(a_and_b, keys, txTo[0], 0);
-    BOOST_CHECK(VerifyScript(s, a_and_b, flags, MutableTransactionSignatureChecker(&txTo[0], 0, amount), &err));
-    BOOST_CHECK_MESSAGE(err == SCRIPT_ERR_OK, ScriptErrorString(err));
+    QVERIFY(VerifyScript(s, a_and_b, flags, MutableTransactionSignatureChecker(&txTo[0], 0, amount), &err));
+    QVERIFY2(err == SCRIPT_ERR_OK, ScriptErrorString(err));
 
-    for (int i = 0; i < 4; i++)
-    {
+    for (int i = 0; i < 4; i++) {
         keys.assign(1,key[i]);
         s = sign_multisig(a_and_b, keys, txTo[0], 0);
-        BOOST_CHECK_MESSAGE(!VerifyScript(s, a_and_b, flags, MutableTransactionSignatureChecker(&txTo[0], 0, amount), &err), strprintf("a&b 1: %d", i));
-        BOOST_CHECK_MESSAGE(err == SCRIPT_ERR_INVALID_STACK_OPERATION, ScriptErrorString(err));
+        QVERIFY2(!VerifyScript(s, a_and_b, flags, MutableTransactionSignatureChecker(&txTo[0], 0, amount), &err), strprintf("a&b 1: %d", i).c_str());
+        QVERIFY2(err == SCRIPT_ERR_INVALID_STACK_OPERATION, ScriptErrorString(err));
 
         keys.assign(1,key[1]);
         keys.push_back(key[i]);
         s = sign_multisig(a_and_b, keys, txTo[0], 0);
-        BOOST_CHECK_MESSAGE(!VerifyScript(s, a_and_b, flags, MutableTransactionSignatureChecker(&txTo[0], 0, amount), &err), strprintf("a&b 2: %d", i));
-        BOOST_CHECK_MESSAGE(err == SCRIPT_ERR_EVAL_FALSE, ScriptErrorString(err));
+        QVERIFY2(!VerifyScript(s, a_and_b, flags, MutableTransactionSignatureChecker(&txTo[0], 0, amount), &err), strprintf("a&b 2: %d", i).c_str());
+        QVERIFY2(err == SCRIPT_ERR_EVAL_FALSE, ScriptErrorString(err));
     }
 
     // Test a OR b:
-    for (int i = 0; i < 4; i++)
-    {
+    for (int i = 0; i < 4; i++) {
         keys.assign(1,key[i]);
         s = sign_multisig(a_or_b, keys, txTo[1], 0);
         if (i == 0 || i == 1)
         {
-            BOOST_CHECK_MESSAGE(VerifyScript(s, a_or_b, flags, MutableTransactionSignatureChecker(&txTo[1], 0, amount), &err), strprintf("a|b: %d", i));
-            BOOST_CHECK_MESSAGE(err == SCRIPT_ERR_OK, ScriptErrorString(err));
+            QVERIFY2(VerifyScript(s, a_or_b, flags, MutableTransactionSignatureChecker(&txTo[1], 0, amount), &err), strprintf("a|b: %d", i).c_str());
+            QVERIFY2(err == SCRIPT_ERR_OK, ScriptErrorString(err));
         }
         else
         {
-            BOOST_CHECK_MESSAGE(!VerifyScript(s, a_or_b, flags, MutableTransactionSignatureChecker(&txTo[1], 0, amount), &err), strprintf("a|b: %d", i));
-            BOOST_CHECK_MESSAGE(err == SCRIPT_ERR_EVAL_FALSE, ScriptErrorString(err));
+            QVERIFY2(!VerifyScript(s, a_or_b, flags, MutableTransactionSignatureChecker(&txTo[1], 0, amount), &err), strprintf("a|b: %d", i).c_str());
+            QVERIFY2(err == SCRIPT_ERR_EVAL_FALSE, ScriptErrorString(err));
         }
     }
     s.clear();
     s << OP_0 << OP_1;
-    BOOST_CHECK(!VerifyScript(s, a_or_b, flags, MutableTransactionSignatureChecker(&txTo[1], 0, amount), &err));
-    BOOST_CHECK_MESSAGE(err == SCRIPT_ERR_SIG_DER, ScriptErrorString(err));
+    QVERIFY(!VerifyScript(s, a_or_b, flags, MutableTransactionSignatureChecker(&txTo[1], 0, amount), &err));
+    QVERIFY2(err == SCRIPT_ERR_SIG_DER, ScriptErrorString(err));
 
 
     for (int i = 0; i < 4; i++)
@@ -138,18 +135,17 @@ BOOST_AUTO_TEST_CASE(multisig_verify)
             s = sign_multisig(escrow, keys, txTo[2], 0);
             if (i < j && i < 3 && j < 3)
             {
-                BOOST_CHECK_MESSAGE(VerifyScript(s, escrow, flags, MutableTransactionSignatureChecker(&txTo[2], 0, amount), &err), strprintf("escrow 1: %d %d", i, j));
-                BOOST_CHECK_MESSAGE(err == SCRIPT_ERR_OK, ScriptErrorString(err));
+                QVERIFY2(VerifyScript(s, escrow, flags, MutableTransactionSignatureChecker(&txTo[2], 0, amount), &err), strprintf("escrow 1: %d %d", i, j).c_str());
+                QVERIFY2(err == SCRIPT_ERR_OK, ScriptErrorString(err));
             }
-            else
-            {
-                BOOST_CHECK_MESSAGE(!VerifyScript(s, escrow, flags, MutableTransactionSignatureChecker(&txTo[2], 0, amount), &err), strprintf("escrow 2: %d %d", i, j));
-                BOOST_CHECK_MESSAGE(err == SCRIPT_ERR_EVAL_FALSE, ScriptErrorString(err));
+            else {
+                QVERIFY2(!VerifyScript(s, escrow, flags, MutableTransactionSignatureChecker(&txTo[2], 0, amount), &err), strprintf("escrow 2: %d %d", i, j).c_str());
+                QVERIFY2(err == SCRIPT_ERR_EVAL_FALSE, ScriptErrorString(err));
             }
         }
 }
 
-BOOST_AUTO_TEST_CASE(multisig_IsStandard)
+void MultiSigTests::multisig_IsStandard()
 {
     CKey key[4];
     for (int i = 0; i < 4; i++)
@@ -159,19 +155,19 @@ BOOST_AUTO_TEST_CASE(multisig_IsStandard)
 
     CScript a_and_b;
     a_and_b << OP_2 << ToByteVector(key[0].GetPubKey()) << ToByteVector(key[1].GetPubKey()) << OP_2 << OP_CHECKMULTISIG;
-    BOOST_CHECK(::IsStandard(a_and_b, whichType));
+    QVERIFY(::IsStandard(a_and_b, whichType));
 
     CScript a_or_b;
     a_or_b  << OP_1 << ToByteVector(key[0].GetPubKey()) << ToByteVector(key[1].GetPubKey()) << OP_2 << OP_CHECKMULTISIG;
-    BOOST_CHECK(::IsStandard(a_or_b, whichType));
+    QVERIFY(::IsStandard(a_or_b, whichType));
 
     CScript escrow;
     escrow << OP_2 << ToByteVector(key[0].GetPubKey()) << ToByteVector(key[1].GetPubKey()) << ToByteVector(key[2].GetPubKey()) << OP_3 << OP_CHECKMULTISIG;
-    BOOST_CHECK(::IsStandard(escrow, whichType));
+    QVERIFY(::IsStandard(escrow, whichType));
 
     CScript one_of_four;
     one_of_four << OP_1 << ToByteVector(key[0].GetPubKey()) << ToByteVector(key[1].GetPubKey()) << ToByteVector(key[2].GetPubKey()) << ToByteVector(key[3].GetPubKey()) << OP_4 << OP_CHECKMULTISIG;
-    BOOST_CHECK(!::IsStandard(one_of_four, whichType));
+    QVERIFY(!::IsStandard(one_of_four, whichType));
 
     CScript malformed[6];
     malformed[0] << OP_3 << ToByteVector(key[0].GetPubKey()) << ToByteVector(key[1].GetPubKey()) << OP_2 << OP_CHECKMULTISIG;
@@ -182,10 +178,10 @@ BOOST_AUTO_TEST_CASE(multisig_IsStandard)
     malformed[5] << OP_1 << ToByteVector(key[0].GetPubKey()) << ToByteVector(key[1].GetPubKey());
 
     for (int i = 0; i < 6; i++)
-        BOOST_CHECK(!::IsStandard(malformed[i], whichType));
+        QVERIFY(!::IsStandard(malformed[i], whichType));
 }
 
-BOOST_AUTO_TEST_CASE(multisig_Solver1)
+void MultiSigTests::multisig_Solver1()
 {
     // Tests Solver() that returns lists of keys that are
     // required to satisfy a ScriptPubKey
@@ -200,8 +196,7 @@ BOOST_AUTO_TEST_CASE(multisig_Solver1)
     CBasicKeyStore keystore, emptykeystore, partialkeystore;
     CKey key[3];
     CTxDestination keyaddr[3];
-    for (int i = 0; i < 3; i++)
-    {
+    for (int i = 0; i < 3; i++) {
         key[i].MakeNewKey(true);
         keystore.AddKey(key[i]);
         keyaddr[i] = key[i].GetPubKey().GetID();
@@ -213,14 +208,14 @@ BOOST_AUTO_TEST_CASE(multisig_Solver1)
         Script::TxnOutType whichType;
         CScript s;
         s << ToByteVector(key[0].GetPubKey()) << OP_CHECKSIG;
-        BOOST_CHECK(Script::solver(s, whichType, solutions));
-        BOOST_CHECK(solutions.size() == 1);
+        QVERIFY(Script::solver(s, whichType, solutions));
+        QVERIFY(solutions.size() == 1);
         CTxDestination addr;
-        BOOST_CHECK(ExtractDestination(s, addr));
-        BOOST_CHECK(addr == keyaddr[0]);
+        QVERIFY(ExtractDestination(s, addr));
+        QVERIFY(addr == keyaddr[0]);
 #ifdef ENABLE_WALLET
-        BOOST_CHECK(IsMine(keystore, s));
-        BOOST_CHECK(!IsMine(emptykeystore, s));
+        QVERIFY(IsMine(keystore, s));
+        QVERIFY(!IsMine(emptykeystore, s));
 #endif
     }
     {
@@ -228,14 +223,14 @@ BOOST_AUTO_TEST_CASE(multisig_Solver1)
         Script::TxnOutType whichType;
         CScript s;
         s << OP_DUP << OP_HASH160 << ToByteVector(key[0].GetPubKey().GetID()) << OP_EQUALVERIFY << OP_CHECKSIG;
-        BOOST_CHECK(Script::solver(s, whichType, solutions));
-        BOOST_CHECK(solutions.size() == 1);
+        QVERIFY(Script::solver(s, whichType, solutions));
+        QVERIFY(solutions.size() == 1);
         CTxDestination addr;
-        BOOST_CHECK(ExtractDestination(s, addr));
-        BOOST_CHECK(addr == keyaddr[0]);
+        QVERIFY(ExtractDestination(s, addr));
+        QVERIFY(addr == keyaddr[0]);
 #ifdef ENABLE_WALLET
-        BOOST_CHECK(IsMine(keystore, s));
-        BOOST_CHECK(!IsMine(emptykeystore, s));
+        QVERIFY(IsMine(keystore, s));
+        QVERIFY(!IsMine(emptykeystore, s));
 #endif
     }
     {
@@ -243,14 +238,14 @@ BOOST_AUTO_TEST_CASE(multisig_Solver1)
         Script::TxnOutType whichType;
         CScript s;
         s << OP_2 << ToByteVector(key[0].GetPubKey()) << ToByteVector(key[1].GetPubKey()) << OP_2 << OP_CHECKMULTISIG;
-        BOOST_CHECK(Script::solver(s, whichType, solutions));
-        BOOST_CHECK_EQUAL(solutions.size(), 4U);
+        QVERIFY(Script::solver(s, whichType, solutions));
+        QCOMPARE(solutions.size(), 4U);
         CTxDestination addr;
-        BOOST_CHECK(!ExtractDestination(s, addr));
+        QVERIFY(!ExtractDestination(s, addr));
 #ifdef ENABLE_WALLET
-        BOOST_CHECK(IsMine(keystore, s));
-        BOOST_CHECK(!IsMine(emptykeystore, s));
-        BOOST_CHECK(!IsMine(partialkeystore, s));
+        QVERIFY(IsMine(keystore, s));
+        QVERIFY(!IsMine(emptykeystore, s));
+        QVERIFY(!IsMine(partialkeystore, s));
 #endif
     }
     {
@@ -258,18 +253,18 @@ BOOST_AUTO_TEST_CASE(multisig_Solver1)
         Script::TxnOutType whichType;
         CScript s;
         s << OP_1 << ToByteVector(key[0].GetPubKey()) << ToByteVector(key[1].GetPubKey()) << OP_2 << OP_CHECKMULTISIG;
-        BOOST_CHECK(Script::solver(s, whichType, solutions));
-        BOOST_CHECK_EQUAL(solutions.size(), 4U);
+        QVERIFY(Script::solver(s, whichType, solutions));
+        QCOMPARE(solutions.size(), 4U);
         std::vector<CTxDestination> addrs;
         int nRequired;
-        BOOST_CHECK(ExtractDestinations(s, whichType, addrs, nRequired));
-        BOOST_CHECK(addrs[0] == keyaddr[0]);
-        BOOST_CHECK(addrs[1] == keyaddr[1]);
-        BOOST_CHECK(nRequired == 1);
+        QVERIFY(ExtractDestinations(s, whichType, addrs, nRequired));
+        QVERIFY(addrs[0] == keyaddr[0]);
+        QVERIFY(addrs[1] == keyaddr[1]);
+        QVERIFY(nRequired == 1);
 #ifdef ENABLE_WALLET
-        BOOST_CHECK(IsMine(keystore, s));
-        BOOST_CHECK(!IsMine(emptykeystore, s));
-        BOOST_CHECK(!IsMine(partialkeystore, s));
+        QVERIFY(IsMine(keystore, s));
+        QVERIFY(!IsMine(emptykeystore, s));
+        QVERIFY(!IsMine(partialkeystore, s));
 #endif
     }
     {
@@ -277,18 +272,17 @@ BOOST_AUTO_TEST_CASE(multisig_Solver1)
         Script::TxnOutType whichType;
         CScript s;
         s << OP_2 << ToByteVector(key[0].GetPubKey()) << ToByteVector(key[1].GetPubKey()) << ToByteVector(key[2].GetPubKey()) << OP_3 << OP_CHECKMULTISIG;
-        BOOST_CHECK(Script::solver(s, whichType, solutions));
-        BOOST_CHECK(solutions.size() == 5);
+        QVERIFY(Script::solver(s, whichType, solutions));
+        QVERIFY(solutions.size() == 5);
     }
 }
 
-BOOST_AUTO_TEST_CASE(multisig_Sign)
+void MultiSigTests::multisig_Sign()
 {
     // Test SignSignature() (and therefore the version of Solver() that signs transactions)
     CBasicKeyStore keystore;
     CKey key[4];
-    for (int i = 0; i < 4; i++)
-    {
+    for (int i = 0; i < 4; i++) {
         key[i].MakeNewKey(true);
         keystore.AddKey(key[i]);
     }
@@ -309,8 +303,7 @@ BOOST_AUTO_TEST_CASE(multisig_Sign)
     txFrom.vout[2].scriptPubKey = escrow;
 
     CMutableTransaction txTo[3]; // Spending transaction
-    for (int i = 0; i < 3; i++)
-    {
+    for (int i = 0; i < 3; i++) {
         txTo[i].vin.resize(1);
         txTo[i].vout.resize(1);
         txTo[i].vin[0].prevout.n = i;
@@ -318,11 +311,7 @@ BOOST_AUTO_TEST_CASE(multisig_Sign)
         txTo[i].vout[0].nValue = 1;
     }
 
-    for (int i = 0; i < 3; i++)
-    {
-        BOOST_CHECK_MESSAGE(SignSignature(keystore, txFrom, txTo[i], 0), strprintf("SignSignature %d", i));
+    for (int i = 0; i < 3; i++) {
+        QVERIFY2(SignSignature(keystore, txFrom, txTo[i], 0), strprintf("SignSignature %d", i).c_str());
     }
 }
-
-
-BOOST_AUTO_TEST_SUITE_END()

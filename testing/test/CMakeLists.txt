@@ -93,7 +93,6 @@ set (TEST_SOURCES
     mempool_tests.cpp
     merkle_tests.cpp
     miner_tests.cpp
-    multisig_tests.cpp
     netbase_tests.cpp
     pmt_tests.cpp
     rpc_tests.cpp

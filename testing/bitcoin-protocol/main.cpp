@@ -24,8 +24,9 @@
 #include "scriptnum_tests.h"
 #include "transaction_tests.h"
 #include "DoubleSpendProofTest.h"
+#include "multisig_tests.h"
 
-int main(int x, char **y)
+int main(int, char **)
 {
     int rc = 0;
     {
@@ -62,6 +63,10 @@ int main(int x, char **y)
     }
     if (!rc) {
         DoubleSpendProofTest test;
+        rc = QTest::qExec(&test);
+    }
+    if (!rc) {
+        MultiSigTests test;
         rc = QTest::qExec(&test);
     }
     return rc;
