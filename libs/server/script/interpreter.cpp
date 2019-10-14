@@ -39,7 +39,7 @@ typedef std::vector<unsigned char> valtype;
 
 namespace {
 
-uint32_t countBits(uint32_t v)
+int32_t countBits(uint32_t v)
 {
 #if HAVE_DECL___BUILTIN_POPCOUNT
     return __builtin_popcount(v);
@@ -374,6 +374,7 @@ static bool CheckSignatureEncoding(const std::vector<unsigned char> &vchSig, uns
     return true;
 }
 
+/// copy bitfields from bytearray to \a bitfield, and do sanity checks.
 bool decodeBitfield(const std::vector<uint8_t> &vch, int size, uint32_t &bitfield, ScriptError *serror)
 {
     if (size > 32 || size < 0)
@@ -1202,22 +1203,25 @@ bool EvalScript(std::vector<std::vector<unsigned char> >& stack, const CScript& 
                         static_assert(MAX_PUBKEYS_PER_MULTISIG < 32, "Schnorr multisig checkbits implementation assumes < 32 pubkeys.");
                         uint32_t checkBits = 0;
 
-                        // Dummy element is to be interpreted as a bitfield that represent which pubkeys should be checked.
+                        // Dummy push is interpreted as a bitfield that represent which pubkeys should be checked.
+                        // lets check and copy it into the checkBits 32 bits, much easier to use than a bytearray
                         valtype &vchDummy = stacktop(-idxDummy);
                         if (!decodeBitfield(vchDummy, nKeysCount, checkBits, serror))
                             return false; // serror is set
 
-                        // The bitfield doesn't set the right number of signatures.
-                        if (countBits(checkBits) != uint32_t(nSigsCount))
+                        // The required number of signatures (from the output) has to be exactly the amount of bits set.
+                        if (countBits(checkBits) != nSigsCount)
                             return set_error(serror, SCRIPT_ERR_INVALID_BIT_COUNT);
 
                         const int idxBottomKey = idxTopKey + nKeysCount - 1;
                         const int idxBottomSig = idxTopSig + nSigsCount - 1;
 
+                        // There typically are less signatures than keys. We know how many
+                        // keys to skip based on the bits being 0 in checkBits
                         int iKey = 0;
                         for (int iSig = 0; iSig < nSigsCount; iSig++, iKey++) {
-                            if ((checkBits >> iKey) == 0) {
-                                // This is a sanity check and should be unrecheable.
+                            if ((checkBits >> iKey) == 0) { // no more bits set?
+                                // This is a sanity check and should be unreacheable.
                                 return set_error(serror, SCRIPT_ERR_INVALID_BIT_RANGE);
                             }
                             // Find the next suitable key.
@@ -1226,7 +1230,7 @@ bool EvalScript(std::vector<std::vector<unsigned char> >& stack, const CScript& 
                             }
 
                             if (iKey >= nKeysCount) {
-                                // This is a sanity check and should be unrecheable.
+                                // This is a sanity check and should be unreacheable.
                                 return set_error(serror, SCRIPT_ERR_PUBKEY_COUNT);
                             }
 
@@ -1242,8 +1246,8 @@ bool EvalScript(std::vector<std::vector<unsigned char> >& stack, const CScript& 
 
                             // Check signature
                             if (!checker.CheckSig(vchSig, vchPubKey, scriptCode, flags)) {
-                                // This can fail if the signature is empty, which also is a NULLFAIL error as the
-                                // bitfield should have been null in this situation.
+                                // This would fail if the signature is empty, which also is a NULLFAIL error as the
+                                // bitfield should have had a false
                                 return set_error(serror, SCRIPT_ERR_SIG_NULLFAIL);
                             }
                         }
