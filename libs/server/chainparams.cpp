@@ -217,7 +217,10 @@ public:
 
         vFixedSeeds.clear();
         vSeeds.clear();
+        vSeeds.push_back(CDNSSeedData("ABC", "testnet-seed.bitcoinabc.org"));
         vSeeds.push_back(CDNSSeedData("bitcoinforks.org", "testnet-seed-abc.bitcoinforks.org"));
+        vSeeds.push_back(CDNSSeedData("bitprim", "testnet-seed.bitprim.org"));
+        vSeeds.push_back(CDNSSeedData("Amaury", "testnet-seed.deadalnix.me"));
 
         base58Prefixes[PUBKEY_ADDRESS] = std::vector<unsigned char>(1,111);
         base58Prefixes[SCRIPT_ADDRESS] = std::vector<unsigned char>(1,196);
@@ -238,17 +241,18 @@ public:
         consensus.hf201805Height = 1267994;
         consensus.hf201811Height = 1267997;
         consensus.hf201905Height = 1303885;
-        consensus.hf201911Time = 1573819200;
+        consensus.hf201911Time = 1570082400;
 
         checkpointData = CCheckpointData {
             boost::assign::map_list_of
             (546, uint256S("000000002a936ca763904c3c35fce2f3556c559c0214345d31b1bcebf76acb70"))
-            (227352, uint256S("0x000000008afc18b89bf27a2412cc158a3364d07252dc8f93581404d3d217026e"))
-            (581885, uint256S("0000000023b3a96d3484e5abb3755c413e7d41500f8e2a5c3f0dd01299cd8ef8"))
-            (1012786, uint256S("0x000000000000038b4ff601f65433b54c72a7c0df7746102452623d3808ebba98"))
-            (1012786, uint256S("0x000000000000038b4ff601f65433b54c72a7c0df7746102452623d3808ebba98"))
-            (1155876, uint256S("0x00000000000e38fef93ed9582a7df43815d5c2ba9fd37ef70c9a0ea4a285b8f5"))
+            (1155875, uint256S("00000000f17c850672894b9a75b63a1e72830bbd5f4" "c8889b5c1a80e7faef138"))
+            (1188697, uint256S("0000000000170ed0918077bde7b4d36cc4c91be69fa" "09211f748240dabe047fb"))
+            (1233070, uint256S("0000000000000253c6201a2076663cfe4722e4c75f537552cc4ce989d15f7cd5"))
+            (1267997, uint256S("00000000000002773f8970352e4a3368a1ce6ef91eb606b64389b36fdbf1bd56"))
             (1303885, uint256S("00000000000000479138892ef0e4fa478ccc938fb94df862ef5bde7e8dee23d3"))
+                // Test
+            (1331690, uint256S("00000000566f3f20c1d6b0970b7c53bc2db993b0ec6439cee846fe42be0e2284"))
             ,
             1522608381, // * UNIX timestamp of last checkpoint block
             15052068,    // * total number of transactions between genesis and last checkpoint
