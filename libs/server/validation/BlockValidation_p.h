@@ -224,7 +224,7 @@ public:
 
     void handleFailedBlock(const std::shared_ptr<BlockValidationState> &state);
 
-    void fatal(const char *error);
+    [[noreturn]] void fatal(const char *error);
 
     enum ProcessingType {
         CheckingHeader,
@@ -238,7 +238,7 @@ public:
     void findMoreJobs();
 
     inline int blocksInFlightLimit() {
-        return ((int) boost::thread::hardware_concurrency());
+        return (int(boost::thread::hardware_concurrency()));
     }
 
     bool disconnectTip(const FastBlock &tip, CBlockIndex *index, bool *userClean = nullptr, bool *error = nullptr);
