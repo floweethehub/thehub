@@ -19,33 +19,32 @@
  */
 
 #include "main.h"
-
-#include "Application.h"
-#include "SettingsDefaults.h"
 #include "addrman.h"
-#include "Application.h"
 #include "chainparams.h"
-#include "checkpoints.h"
 #include "consensus/consensus.h"
-#include "consensus/merkle.h"
+#include "merkleblock.h"
 #include "consensus/validation.h"
 #include "DoubleSpendProof.h"
 #include "DoubleSpendProofStorage.h"
-#include "hash.h"
+#include "UiInterface.h"
 #include "init.h"
-#include "serverutil.h"
-#include "merkleblock.h"
-#include "policy/policy.h"
 #include "script/sigcache.h"
-#include "thinblock.h"
+#include "serverutil.h"
+#include "timedata.h"
 #include "txmempool.h"
 #include "txorphancache.h"
-#include "UiInterface.h"
-#include "undo.h"
-#include "utilmoneystr.h"
+#include "thinblock.h"
+#include "validation/Engine.h"
+
+#include <Application.h>
+#include <SettingsDefaults.h>
+#include <Logger.h>
+#include "checkpoints.h"
+#include <util.h>
+#include <utils/hash.h>
+#include <utiltime.h>
 #include "validationinterface.h"
-#include "primitives/FastBlock.h"
-#include <validation/Engine.h>
+#include <primitives/FastBlock.h>
 #include <utxo/UnspentOutputDatabase.h>
 #include <BlocksDB.h>
 
@@ -2089,11 +2088,6 @@ bool static ProcessMessage(CNode* pfrom, std::string strCommand, CDataStream& vR
             SendExpeditedBlock(thinBlock, 0, pfrom);
 
         CInv inv(MSG_BLOCK, thinBlock.header.GetHash());
-#ifdef LOG_XTHINBLOCKS
-        int nSizeThinBlock = ::GetSerializeSize(thinBlock, SER_NETWORK, PROTOCOL_VERSION);
-        LogPrint("thin", "Received thinblock %s from peer %s (%d). Size %d bytes.\n", inv.hash.ToString(), pfrom->addrName.c_str(), pfrom->id, nSizeThinBlock);
-#endif
-
         bool fAlreadyHave = false;
         // An expedited block or re-requested xthin can arrive and beat the original thin block request/response
         if (!pfrom->mapThinBlocksInFlight.count(inv.hash)) {
@@ -2156,20 +2150,6 @@ bool static ProcessMessage(CNode* pfrom, std::string strCommand, CDataStream& vR
             // We have all the transactions now that are in this block: try to reassemble and process.
             pfrom->thinBlockWaitingForTxns = -1;
             pfrom->AddInventoryKnown(inv);
-
-#ifdef LOG_XTHINBLOCKS
-            // for compression statistics, we have to add up the size of xthinblock and the re-requested thinBlockTx.
-            int nSizeThinBlockTx = ::GetSerializeSize(thinBlockTx, SER_NETWORK, PROTOCOL_VERSION);
-            int blockSize = pfrom->thinBlock.GetSerializeSize(SER_NETWORK, CBlock::CURRENT_VERSION);
-            LogPrint("thin", "Reassembled thin block for %s (%d bytes). Message was %d bytes (thinblock) and %d bytes (re-requested tx), compression ratio %3.2f\n",
-                     pfrom->thinBlock.GetHash().ToString(),
-                     blockSize,
-                     pfrom->nSizeThinBlock,
-                     nSizeThinBlockTx,
-                     ((float) blockSize) / ( (float) pfrom->nSizeThinBlock + (float) nSizeThinBlockTx )
-                     );
-#endif
-
             // For correctness sake, assume all came from the orphans cache
             std::vector<uint256> orphans;
             orphans.reserve(pfrom->thinBlock.vtx.size());
