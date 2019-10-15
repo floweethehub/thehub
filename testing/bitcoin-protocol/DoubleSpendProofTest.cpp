@@ -76,7 +76,7 @@ void DoubleSpendProofTest::basic()
     QCOMPARE(s1.txVersion, (uint32_t) 1);
     QCOMPARE(s1.outSequence, (uint32_t) 0xFFFFFFFF);
     QVERIFY(s1.pushData.size() == 1);
-    QVERIFY(s1.pushData.front().size() > 70);
+    QVERIFY(s1.pushData.front().size() >= 70);
     QCOMPARE(s1.pushData.front().back(), (uint8_t) 65);
     QVERIFY(!s1.hashOutputs.IsNull());
     QVERIFY(!s1.hashSequence.IsNull());
@@ -87,7 +87,7 @@ void DoubleSpendProofTest::basic()
     QCOMPARE(s2.txVersion, (uint32_t) 1);
     QCOMPARE(s2.outSequence, (uint32_t) 0xFFFFFFFF);
     QVERIFY(s2.pushData.size() == 1);
-    QVERIFY(s2.pushData.front().size() > 70);
+    QVERIFY(s2.pushData.front().size() >= 70);
     QCOMPARE(s2.pushData.front().back(), (uint8_t) 65);
     QVERIFY(!s2.hashOutputs.IsNull());
     QVERIFY(!s2.hashSequence.IsNull());
