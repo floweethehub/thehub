@@ -320,7 +320,7 @@ void AddressIndexer::commitAllData()
     QTime time;
     time.start();
     int rowsInserted = 0;
-    logInfo() << "AddressDB sending data to SQL DB";
+    logCritical() << "AddressDB sending data to SQL DB";
     // create tables outside of transaction
     for (size_t db = 0; db < m_uncommittedData.size(); ++db) {
         const std::deque<Entry> &list = m_uncommittedData.at(db);
@@ -389,6 +389,7 @@ void AddressIndexer::commitAllData()
     }
 
     m_insertDb.commit();
+    logCritical().nospace() << "AddressDB: SQL-DB took " << time.elapsed() << "ms to insert " << rowsInserted << " rows";
 
     if (m_topOfChain == FlushRequested) { // only ever run this code once per DB
         logCritical() << "Reached top of chain, creating indexes on our tables";
@@ -403,6 +404,4 @@ void AddressIndexer::commitAllData()
         query.exec("drop table IBD");
         m_topOfChain = InitialSyncFinished;
     }
-
-    logInfo().nospace() << "AddressDB: SQL-DB took " << time.elapsed() << "ms to insert " << rowsInserted << " rows";
 }
