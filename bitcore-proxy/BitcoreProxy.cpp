@@ -42,6 +42,11 @@ static QString ripeToAddress(const std::vector<quint8> &in, CashAddress::Address
     return QString::fromStdString(CashAddress::encodeCashAddr("bitcoincash", { type, in })).mid(12);
 }
 
+static QString addressAsString(const CashAddress::Content &c)
+{
+    return QString::fromStdString(CashAddress::encodeCashAddr("bitcoincash", c)).mid(12);
+}
+
 Streaming::ConstBuffer hexStringToBuffer(const QString &hash)
 {
     assert(hash.size() == 64);
@@ -150,8 +155,12 @@ void parseScriptAndAddress(QJsonObject &object, const Streaming::ConstBuffer &sc
     std::vector<std::vector<unsigned char> > vSolutions;
     Script::TxnOutType whichType;
     bool recognizedTx = Script::solver(scriptPubKey, whichType, vSolutions);
-    if (recognizedTx && (whichType == Script::TX_PUBKEY || whichType == Script::TX_PUBKEYHASH)) {
-        if (whichType == Script::TX_PUBKEYHASH) {
+    if (recognizedTx && (whichType == Script::TX_PUBKEY
+                         || whichType == Script::TX_PUBKEYHASH || whichType == Script::TX_SCRIPTHASH)) {
+        if (whichType == Script::TX_SCRIPTHASH) {
+            Q_ASSERT(vSolutions[0].size() == 20);
+            object.insert("address", ripeToAddress(vSolutions[0], CashAddress::SCRIPT_TYPE));
+        } else if (whichType == Script::TX_PUBKEYHASH) {
             Q_ASSERT(vSolutions[0].size() == 20);
             object.insert("address", ripeToAddress(vSolutions[0], CashAddress::PUBKEY_TYPE));
         } else if (whichType == Script::TX_PUBKEY) {
@@ -392,33 +401,30 @@ void BitcoreProxy::requestAddressInfo(const RequestString &rs, BitcoreWebRequest
     if (request->answerType == BitcoreWebRequest::Unset)
         throw UserInputException("Unknown request", "addressHelp.html");
 
-    Blockchain::Job job;
     CashAddress::Content c = CashAddress::decodeCashAddrContent(args.first().toStdString(), "bitcoincash");
-    // TODO what about p2sh?
-    if (c.type == CashAddress::PUBKEY_TYPE && c.hash.size() == 20) { // 20 bytes because rip160 is 20 bytes
-        Streaming::BufferPool pool(20);
-        memcpy(pool.begin(), c.hash.data(), 20);
-        job.data = pool.commit(20);
-    }
-    else { // try to fall back to legacy address encoding (btc compatible)
+    bool ok = !c.hash.empty();
+    if (!ok) { // try to fall back to legacy address encoding (btc compatible)
         CBase58Data old;
         if (old.SetString(args.first().toStdString())) {
-            if (old.isMainnetPkh()/* || old.isMainnetSh()*/) {
-                // 20 bytes because rip160 is 20 bytes
-                Streaming::BufferPool pool(20);
-                memcpy(pool.begin(), old.data().data(), 20);
-                job.data = pool.commit(20);
-                c.hash = old.data();
-            }
+            c.hash = old.data();
+            ok = true;
+            if (old.isMainnetPkh())
+                c.type = CashAddress::PUBKEY_TYPE;
+            else if (old.isMainnetSh())
+                c.type = CashAddress::SCRIPT_TYPE;
+            else
+                ok = false;
         }
     }
-
+    Blockchain::Job job;
+    if (ok)
+        job.data = CashAddress::createHashedOutputScript(c);
     if (job.data.isEmpty())
         throw UserInputException("Address could not be parsed", "addressHelp.html");
 
     job.type = Blockchain::LookupByAddress;
     request->jobs.push_back(job);
-    request->map().insert("address", ripeToAddress(c.hash, CashAddress::PUBKEY_TYPE));
+    request->map().insert("address", addressAsString(c));
 }
 
 void BitcoreProxy::requestBlockInfo(const RequestString &rs, BitcoreWebRequest *request)

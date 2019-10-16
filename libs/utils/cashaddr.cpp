@@ -22,6 +22,7 @@
 
 #include <boost/variant/static_visitor.hpp>
 
+#include <sha256.h>
 #include <stdexcept>
 #include <tuple>
 
@@ -439,4 +440,31 @@ std::vector<uint8_t> packCashAddrContent(const Content &content)
     return PackAddrData(content.hash, content.type);
 }
 
-} // namespace cashaddr
+Streaming::ConstBuffer createHashedOutputScript(const Content &content)
+{
+    if (content.hash.empty())
+        return Streaming::ConstBuffer();
+    CSHA256 hasher;
+    static const uint8_t P2PKHPrefix[3] = { 0x76, 0xA9, 20}; // OP_DUP OP_HASH160, 20-byte-push
+    static const uint8_t P2SHPrefix[2] = { 0xA9, 20}; //  OP_HASH160, 20-byte-push
+    static const uint8_t P2PKHPostfix[2] = { 0x88, 0xAC }; // OP_EQUALVERIFY OP_CHECKSIG
+    static const uint8_t P2SHPostfix[1] = { 0x87 }; // OP_EQUAL
+    assert(content.type == SCRIPT_TYPE || content.type == PUBKEY_TYPE);
+    if (content.type == PUBKEY_TYPE)
+        hasher.Write(P2PKHPrefix, 3);
+    else if (content.type == SCRIPT_TYPE)
+        hasher.Write(P2SHPrefix, 3);
+    else
+        throw std::runtime_error("Invalid input");
+    hasher.Write(content.hash.data(), 20);
+    if (content.type == PUBKEY_TYPE)
+        hasher.Write(P2PKHPostfix, 2);
+    else if (content.type == SCRIPT_TYPE)
+        hasher.Write(P2SHPostfix, 3);
+
+    char hash[32];
+    hasher.Finalize(hash);
+    return Streaming::ConstBuffer::create(hash, 32);
+}
+
+} // namespace CashAddress

@@ -19,6 +19,8 @@
 
 // Cashaddr is an address format based on bech32.
 
+#include <streaming/ConstBuffer.h>
+
 #include <cstdint>
 #include <string>
 #include <vector>
@@ -46,4 +48,13 @@ std::string encodeCashAddr(const std::string &prefix, const Content &content);
 Content decodeCashAddrContent(const std::string &addr, const std::string &prefix);
 std::vector<uint8_t> packCashAddrContent(const Content &content);
 
-} // namespace cashaddr
+/**
+ * create a default script for the type and has the output-script
+ * to get a unique ID for the entire out-script.
+ *
+ * \param content the previously parsed content.
+ * \return the sha256 hash
+ */
+Streaming::ConstBuffer createHashedOutputScript(const Content &content);
+
+} // namespace CashAddress
