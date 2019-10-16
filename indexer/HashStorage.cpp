@@ -27,34 +27,20 @@
 
 #include <boost/filesystem.hpp>
 
-#define WIDTH 20
+#define WIDTH 32
 
 namespace {
-QMap<int, int> createResortReversed(const QMap<int, int> &map)
-{
-    QMap<int, int> answer;
-    QMapIterator<int, int> iter(map);
-    while (iter.hasNext()) {
-        iter.next();
-        Q_ASSERT(!answer.contains(iter.value()));
-        answer.insert(iter.value(), iter.key());
-    }
-    return answer;
-}
-
 struct Pair {
-    Pair(const uint160 *h, int i) : hash(h), index(i) {}
-    const uint160 *hash;
+    Pair(const uint256 *h, int i) : hash(h), index(i) {}
+    const uint256 *hash;
     int index;
 };
 
 struct PairSorter {
-    PairSorter(const QHash<uint160, int> &orig) {
+    PairSorter(const boost::unordered_map<uint256, int, HashShortener> &orig) {
         pairs.reserve(orig.size());
-        QHashIterator<uint160, int> iter(orig);
-        while (iter.hasNext()) {
-            iter.next();
-            pairs.push_back(Pair(&iter.key(), iter.value()));
+        for (auto iter = orig.begin(); iter != orig.end(); ++iter) {
+            pairs.push_back(Pair(&iter->first, iter->second));
         }
     }
 
@@ -67,8 +53,8 @@ bool sortPairs(const Pair &a, const Pair &b) {
 
 struct PartHashTip {
     int partIndex;
-    const uint160 *key;
     int value;
+    const uint256 *key;
 };
 struct HashListPartProxy {
     const uchar *file;
@@ -94,7 +80,7 @@ struct HashCollector {
         HashListPartProxy &p = m_parts.at(partIndex);
         Q_ASSERT(p.pos < p.rows);
         const uchar *recordStart = (p.file + p.pos * (WIDTH + sizeof(int)));
-        tip.key = reinterpret_cast<const uint160*>(recordStart);
+        tip.key = reinterpret_cast<const uint256*>(recordStart);
         tip.value = *reinterpret_cast<const int*>(recordStart + WIDTH);
         ++p.pos;
 
@@ -157,7 +143,7 @@ private:
 
 }
 
-uint160 HashStoragePrivate::s_null = uint160();
+uint256 HashStoragePrivate::s_null = uint256();
 
 // -----------------------------------------------------------------
 
@@ -217,7 +203,7 @@ int HashStorage::databaseCount() const
     return d->dbs.length();
 }
 
-HashIndexPoint HashStorage::append(const uint160 &hash)
+HashIndexPoint HashStorage::append(const uint256 &hash)
 {
     QList<HashList*> dbs(d->dbs);
     Q_ASSERT(!dbs.isEmpty());
@@ -231,7 +217,7 @@ HashIndexPoint HashStorage::append(const uint160 &hash)
     return HashIndexPoint(dbs.size() - 1, index);
 }
 
-const uint160 &HashStorage::find(HashIndexPoint point) const
+const uint256 &HashStorage::find(HashIndexPoint point) const
 {
     Q_ASSERT(point.db >= 0);
     Q_ASSERT(point.row >= 0);
@@ -241,7 +227,7 @@ const uint160 &HashStorage::find(HashIndexPoint point) const
     return dbs.at(point.db)->at(point.row);
 }
 
-HashIndexPoint HashStorage::lookup(const uint160 &hash) const
+HashIndexPoint HashStorage::lookup(const uint256 &hash) const
 {
     QList<HashList*> dbs(d->dbs);
     Q_ASSERT(!dbs.isEmpty());
@@ -291,10 +277,10 @@ HashList::HashList(const QString &dbBase)
         if (!m_log->open(QIODevice::ReadWrite))
             throw std::runtime_error("HashList: failed to open log file");
         while(true) {
-            uint160 item;
+            uint256 item;
             auto byteCount = m_log->read(reinterpret_cast<char*>(item.begin()), WIDTH);
             if (byteCount == WIDTH) {
-                m_cacheMap.insert(item, m_nextId++);
+                m_cacheMap.insert(std::make_pair(item, m_nextId++));
             } else if (byteCount == 0) {
                 break;
             }
@@ -322,34 +308,34 @@ HashList::~HashList()
 
 HashList *HashList::createEmpty(const QString &dbBase, int index)
 {
-    QString name("/data-%1");
+    QString name("/hashlist-%1");
     HashList *answer = new HashList(dbBase + name.arg(index, 3, 10, QChar('0')));
     return answer;
 }
 
-int HashList::append(const uint160 &hash)
+int HashList::append(const uint256 &hash)
 {
     QMutexLocker lock(&m_mutex);
     const int id = m_nextId++;
-    m_cacheMap.insert(hash, id);
+    m_cacheMap.insert(std::make_pair(hash, id));
     Q_ASSERT(m_log);
     m_log->write(reinterpret_cast<const char*>(hash.begin()), WIDTH);
 
     return id;
 }
 
-int HashList::lookup(const uint160 &hash) const
+int HashList::lookup(const uint256 &hash) const
 {
     QMutexLocker lock(&m_mutex);
     auto item = m_cacheMap.find(hash);
     if (item != m_cacheMap.end())
-        return item.value();
+        return item->second;
 
     int pos = 0;
     int endpos = m_sortedFile.size() / (WIDTH + sizeof(int)) - 1;
     while (pos <= endpos) {
         int m = (pos + endpos) / 2;
-        uint160 *item = (uint160*)(m_sorted + m * (WIDTH + sizeof(int)));
+        uint256 *item = (uint256*)(m_sorted + m * (WIDTH + sizeof(int)));
         const int comp = item->Compare(hash);
         if (comp < 0)
             pos = m + 1;
@@ -365,7 +351,7 @@ int HashList::lookup(const uint160 &hash) const
         endpos = part->sortedFile.size() / (WIDTH + sizeof(int)) - 1;
         while (pos <= endpos) {
             int m = (pos + endpos) / 2;
-            uint160 *item = (uint160*)(part->sorted + m * (WIDTH + sizeof(int)));
+            uint256 *item = (uint256*)(part->sorted + m * (WIDTH + sizeof(int)));
             const int comp = item->Compare(hash);
             if (comp < 0)
                 pos = m + 1;
@@ -379,24 +365,24 @@ int HashList::lookup(const uint160 &hash) const
     return -1;
 }
 
-const uint160 &HashList::at(int index) const
+const uint256 &HashList::at(int index) const
 {
     Q_ASSERT(index >= 0);
     QMutexLocker lock(&m_mutex);
     if (m_reverseLookup) {
-        if (m_reverseLookupFile.size() / sizeof(int) < index)
+        if (m_reverseLookupFile.size() / qint64(sizeof(int)) < qint64(index))
             throw std::runtime_error("row out of bounds");
 
         // map index to row
         int row = *reinterpret_cast<int*>(m_reverseLookup + index * sizeof(int));
-        const uint160 *dummy = reinterpret_cast<uint160*>(m_sorted + row * (WIDTH + sizeof(int)));
+        const uint256 *dummy = reinterpret_cast<uint256*>(m_sorted + row * (WIDTH + sizeof(int)));
         return *dummy;
     }
 
     // also check the dirty cache. Do this at end as this is a slow lookup
-    QHashIterator<uint160, int> iter(m_cacheMap);
-    if (iter.findNext(index)) {
-        return iter.key();
+    for (auto iter = m_cacheMap.begin(); iter != m_cacheMap.end(); ++iter) {
+        if (iter->second == index)
+            return iter->first;
     }
     return HashStoragePrivate::s_null;
 }
@@ -449,9 +435,9 @@ void HashList::writeInfoFile() const
 
 void HashList::finalize()
 {
-    if (!m_cacheMap.isEmpty())
+    if (!m_cacheMap.empty())
         stabilize();
-    Q_ASSERT(m_cacheMap.isEmpty());
+    Q_ASSERT(m_cacheMap.empty());
     Q_ASSERT(!m_sortedFile.exists());
     Q_ASSERT(!m_sorted);
     Q_ASSERT(!m_reverseLookup);
@@ -476,7 +462,7 @@ void HashList::finalize()
     m_parts.clear();
     m_log->close();
     bool ok = m_log->remove();
-    Q_ASSERT(ok); Q_UNUSED(ok);
+    Q_ASSERT(ok); Q_UNUSED(ok)
     delete m_log;
     m_log = nullptr;
     m_sortedFile.close();
@@ -500,7 +486,7 @@ HashStoragePrivate::HashStoragePrivate(const boost::filesystem::path &basedir_)
 {
     boost::filesystem::create_directories(basedir_);
     int index = 1;
-    const QString fileBase = QString("%1/data-%2").arg(basedir);
+    const QString fileBase = QString("%1/hashlist-%2").arg(basedir);
     while (true) {
         QString dbFilename = fileBase.arg(index, 3, 10, QChar('0'));
         QFileInfo dbInfo(dbFilename + ".db");
@@ -523,4 +509,3 @@ HashStoragePrivate::~HashStoragePrivate()
     qDeleteAll(dbs);
     dbs.clear();
 }
-

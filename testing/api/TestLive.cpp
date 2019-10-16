@@ -232,14 +232,14 @@ Streaming::ConstBuffer TestApiLive::generate100(int nodeId)
     Streaming::MessageParser parser(m.body());
     Streaming::ConstBuffer address;
     while (parser.next() == Streaming::FoundTag) {
-        if (parser.tag() == Api::Util::BitcoinAddress) {
+        if (parser.tag() == Api::Util::BitcoinP2PKHAddress) {
             address = parser.bytesDataBuffer();
             break;
         }
     }
 
     Streaming::MessageBuilder builder(Streaming::NoHeader);
-    builder.add(Api::RegTest::BitcoinAddress, address);
+    builder.add(Api::RegTest::BitcoinP2PKHAddress, address);
     builder.add(Api::RegTest::Amount, 101);
     m = waitForReply(nodeId, builder.message(Api::RegTestService, Api::RegTest::GenerateBlock), Api::RegTest::GenerateBlockReply);
     Q_ASSERT(m.serviceId() == Api::RegTestService);

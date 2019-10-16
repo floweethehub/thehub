@@ -254,7 +254,7 @@ void PaymentDataProvider::onIncomingMessage(const Message &message)
         QString pub;
         QString priv;
         while (parser.next() == Streaming::FoundTag) {
-            if (parser.tag() == Api::Util::BitcoinAddress) {
+            if (parser.tag() == Api::Util::BitcoinP2PKHAddress) {
                 pub = QString::fromUtf8(parser.stringData().data());
             }
             else if (parser.tag() == Api::Util::PrivateKey) {

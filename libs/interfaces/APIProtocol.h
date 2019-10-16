@@ -48,13 +48,15 @@ enum ApiTags {
     // various common tags
     Separator = 0,
     GenericByteData,
-    BitcoinAddress, ///< If a bytearray then we expect the raw 160 bit hash.
+    BitcoinP2PKHAddress, ///< A bytearray: the raw 160 bit hash.
     PrivateKey,
     TxId,
     BlockHash,
     Amount,
     BlockHeight,
     OffsetInBlock,
+    BitcoinScriptHashed, ///< a (single) sha256 hash of a script (typically output) used as a unique ID for the payment 'address'.
+
     RequestId = 11 ///< Use only in headers.
 };
 
@@ -71,7 +73,8 @@ enum MessageIds {
 enum Tags {
     Separator = Api::Separator,
     GenericByteData = Api::GenericByteData,
-    FailedReason,
+
+    FailedReason = 20,
     FailedCommandServiceId,
     FailedCommandId,
 };
@@ -96,9 +99,10 @@ enum MessageIds {
 enum Tags {
     Separator = Api::Separator,
     GenericByteData = Api::GenericByteData,
-    BitcoinAddress = Api::BitcoinAddress,
+    BitcoinP2PKHAddress = Api::BitcoinP2PKHAddress,
     PrivateKey = Api::PrivateKey,
-    ScriptPubKey,
+
+    ScriptPubKey = 20,
     IsValid,
 };
 }
@@ -140,16 +144,13 @@ enum MessageIds {
 enum Tags {
     Separator = Api::Separator,
     GenericByteData = Api::GenericByteData,
-    BitcoinAddress = Api::BitcoinAddress, // Unused at this time.
-    PrivateKey = Api::PrivateKey,     // string TODO stop bieng a string // TODO do we really use this??
     TxId = Api::TxId,   // bytearray
-
-    Transaction,
     Amount = Api::Amount,  // value in satoshis
     BlockHeight = Api::BlockHeight,
     OffsetInBlock = Api::OffsetInBlock,
 
-    OutIndex = 10,
+    Transaction = 20,
+    OutIndex,
     UnspentState, // bool
     OutputScript
 };
@@ -179,22 +180,30 @@ enum MessageIds {
 
 // BlockChain-tags
 enum Tags {
+    // GetBlockReply  / GetTransactionReply tags
     Separator = Api::Separator,
     GenericByteData = Api::GenericByteData,
-    Tx_Out_Address = Api::BitcoinAddress,
-    PrivateKey,
     TxId = Api::TxId,
     BlockHash = Api::BlockHash,
     Tx_Out_Amount = Api::Amount,
     BlockHeight = Api::BlockHeight,
-
-    // GetBlockReply  / GetTransactionReply tags
+    Tx_Out_Address = Api::BitcoinP2PKHAddress, ///< a ripe160 based P2PKH address.
     Tx_OffsetInBlock = Api::OffsetInBlock,
-    Tx_IN_TxId,
+    Tx_Out_ScriptHash = Api::BitcoinScriptHashed, ///< A sha256 over the contents of the script-out.
+
+    Tx_IN_TxId = 20,
     Tx_IN_OutIndex,
     Tx_InputScript,
     Tx_OutputScript,
     Tx_Out_Index,
+
+    // GetBlockVerbose-tags
+    Confirmations = 40,
+    MerkleRoot,
+    Nonce,      //int
+    Bits,       // integer
+    PrevBlockHash,
+    NextBlockHash,
 
     // GetBlock-Request-tags
     // GetBlock can filter a block to only return transactions that match a bitcoin-address filter
@@ -211,8 +220,9 @@ enum Tags {
     Include_OutputScripts,  ///< bool. Return full output Scripts.
     Include_Outputs,        ///< bool. Return all parts of outputs, overriding the previous 2 options.
     Include_OutputAddresses,///< bool. If the output is a p2pkh, return the hash160 of the address paid to.
+    Include_OutputScriptHash,///< bool. Include Tx_Out_ScriptHash
 
-    Verbose,    // bool
+    Verbose = 70,// bool
     Size,       // int
     Version,    // int
     Time,       // in seconds since epoch
@@ -220,22 +230,12 @@ enum Tags {
     MedianTime, // in seconds since epoch
     ChainWork,  // a sha256
 
-    Chain,
+    Chain = 80,
     Blocks,
     Headers,
     BestBlockHash,
     VerificationProgress,
-    FilterOutputIndex,  ///< integer to limit transaction fetching to outputs
-    XXXBip9ForkId, // unused
-    XXXBip9ForkStatus, // unused
-
-    // GetBlockVerbose-tags
-    Confirmations,
-    MerkleRoot,
-    Nonce,      //int
-    Bits,       // integer
-    PrevBlockHash,
-    NextBlockHash
+    FilterOutputIndex  ///< integer to limit transaction fetching to outputs
 };
 
 }
@@ -277,8 +277,7 @@ enum MessageIds {
 enum Tags {
     Separator = Api::Separator,
     GenericByteData = Api::GenericByteData,
-    BitcoinAddress = Api::BitcoinAddress, // Unused at this time.
-    // skipped 2 numbers here.
+    BitcoinP2PKHAddress = Api::BitcoinP2PKHAddress,
     BlockHash = Api::BlockHash,
     Amount = Api::Amount
 };
@@ -307,8 +306,7 @@ enum MessageIds {
 
 enum Tags {
     GenericByteData = Api::GenericByteData,
-    /// A string representing an address.
-    BitcoinAddress = Api::BitcoinAddress, // Unused at this time.
+    BitcoinAddress = Api::BitcoinP2PKHAddress,
     /// A bytearray for a full sha256 txid
     TxId = Api::TxId,
     /// An unsigned 64 bit number for the amount of satshi you received
@@ -316,8 +314,9 @@ enum Tags {
     BlockHeight = Api::BlockHeight,
     /// If a transaction is added in a block, this is the offset-in-block
     OffsetInBlock = Api::OffsetInBlock,
+
     /// A string giving a human (or, at least, developer) readable error message
-    ErrorMessage,
+    ErrorMessage = 20,
 
     /// positive-number. the amount of addresses found in the subscribe/unsubscribe message
     Result
@@ -351,12 +350,13 @@ enum MessageIds {
 
 enum Tags {
     Separator = Api::Separator,
-    BitcoinAddress = Api::BitcoinAddress,
+    BitcoinP2PKHAddress = Api::BitcoinP2PKHAddress,
     TxId = Api::TxId,
     BlockHeight = Api::BlockHeight,
     OffsetInBlock = Api::OffsetInBlock,
-    OutIndex,
+    BitcoinScriptHashed = Api::BitcoinScriptHashed,
 
+    OutIndex = 20,
     AddressIndexer,
     TxIdIndexer,
     SpentOutputIndexer

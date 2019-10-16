@@ -50,11 +50,11 @@ public:
 
     /// Append the hash and return its unique point.
     /// Please note behaviour is not defined if the same hash is appended twice.
-    HashIndexPoint append(const uint160 &hash);
+    HashIndexPoint append(const uint256 &hash);
     /// Find in the collection the hash by point. This is an expensive operation!
-    const uint160 &find(HashIndexPoint point) const;
+    const uint256 &find(HashIndexPoint point) const;
     /// return the point given to the hash.
-    HashIndexPoint lookup(const uint160 &hash) const;
+    HashIndexPoint lookup(const uint256 &hash) const;
 
     /// Flush all caches and make lookup on-disk only
     void finalize();

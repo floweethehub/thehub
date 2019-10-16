@@ -74,7 +74,7 @@ private:
 private:
     QTimer m_pollingTimer;
     Streaming::BufferPool m_pool;
-    Streaming::BufferPool m_poolAddressAnswers;
+    Streaming::BufferPool m_poolAddressAnswers; // FIXME use thread local instead
 
     boost::filesystem::path m_basedir;
     TxIndexer *m_txdb = nullptr;

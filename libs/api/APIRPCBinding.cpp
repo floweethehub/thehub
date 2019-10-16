@@ -243,7 +243,7 @@ struct TransactionSerializationOptions
                 builder.add(Api::BlockChain::Tx_Out_Amount, iter.longData());
             }
             else if (type == Tx::OutputScript) {
-                if ((returnOutputs || returnOutputScripts || returnOutputAddresses)
+                if ((returnOutputs || returnOutputScripts || returnOutputAddresses || returnOutputScriptHashed)
                         && (filterOutputs.empty() || filterOutputs.find(outIndex) != filterOutputs.end())) {
                     if (!returnOutputs && !returnOutputAmounts) // if not added before in OutputValue
                         builder.add(Api::BlockChain::Tx_Out_Index, outIndex);
@@ -267,6 +267,13 @@ struct TransactionSerializationOptions
                             }
                         }
                     }
+                    if (returnOutputScriptHashed) {
+                        CSHA256 sha;
+                        sha.Write(iter.byteData().begin(), iter.dataLength());
+                        char buf[32];
+                        sha.Finalize(buf);
+                        builder.addByteArray(Api::BlockChain::Tx_Out_ScriptHash, buf, 32);
+                    }
                 }
                 outIndex++;
             }
@@ -278,7 +285,7 @@ struct TransactionSerializationOptions
     // return true only if serialize would actually export anything
     bool shouldRun() const {
         const bool partialTxData = returnInputs || returnOutputs || returnOutputAmounts
-                || returnOutputScripts || returnOutputAddresses;
+                || returnOutputScripts || returnOutputAddresses || returnOutputScriptHashed;
         return partialTxData;
     }
     bool returnInputs = false;
@@ -286,6 +293,7 @@ struct TransactionSerializationOptions
     bool returnOutputAmounts = false;
     bool returnOutputScripts = false;
     bool returnOutputAddresses = false;
+    bool returnOutputScriptHashed = false;
     std::set<int> filterOutputs;
 };
 
@@ -350,6 +358,8 @@ public:
                 opt.returnOutputScripts = parser.boolData();
             } else if (parser.tag() == Api::BlockChain::Include_OutputAddresses) {
                 opt.returnOutputAddresses = parser.boolData();
+            } else if (parser.tag() == Api::BlockChain::Include_OutputScriptHash) {
+                opt.returnOutputScriptHashed = parser.boolData();
             }
         }
         if (fullTxData) // if explicitly asked.
@@ -434,15 +444,16 @@ public:
 
         int bytesPerOutput = 5;
         if (opt.returnOutputAmounts || opt.returnOutputs) bytesPerOutput += 10;
-        if (opt.returnOutputAddresses || opt.returnOutputs) bytesPerOutput += 23;
+        if (opt.returnOutputAddresses) bytesPerOutput += 23;
+        if (opt.returnOutputScriptHashed) bytesPerOutput += 35;
 
-        int total = 45 + m_transactions.size() * bytesPerTx;
+        int total = 45 + int(m_transactions.size()) * bytesPerTx;
         if (m_fullTxData) total += size;
         if (opt.returnOutputs || opt.returnOutputScripts)
             total += matchedOutputScriptSizes;
         if (opt.returnInputs)
             total += matchedInputsSize;
-        if (opt.returnOutputs || opt.returnOutputAddresses || opt.returnOutputAmounts)
+        if (opt.returnOutputs || opt.returnOutputAddresses || opt.returnOutputAmounts | opt.returnOutputScriptHashed)
             total += matchedOutputs * bytesPerOutput;
 
         logDebug(Log::ApiServer) << "GetBlock calculated to need at most" << total << "bytes";
@@ -550,7 +561,7 @@ public:
         key.MakeNewKey();
         assert(key.IsCompressed());
         const CKeyID pkh = key.GetPubKey().GetID();
-        builder.addByteArray(Api::Util::BitcoinAddress, pkh.begin(), pkh.size());
+        builder.addByteArray(Api::Util::BitcoinP2PKHAddress, pkh.begin(), pkh.size());
         builder.addByteArray(Api::Util::PrivateKey, key.begin(), key.size());
     }
 };
@@ -563,7 +574,7 @@ public:
         const UniValue &isValid = find_value(result, "isvalid");
         builder.add(Api::Util::IsValid, isValid.getBool());
         const UniValue &address = find_value(result, "address");
-        builder.add(Api::Util::BitcoinAddress, address.get_str());
+        builder.add(Api::Util::BitcoinP2PKHAddress, address.get_str()); // FIXME this is wrong, we should return a ripe160 address instead.
         const UniValue &scriptPubKey = find_value(result, "scriptPubKey");
         std::vector<char> bytearray;
         boost::algorithm::unhex(scriptPubKey.get_str(), back_inserter(bytearray));
@@ -573,7 +584,8 @@ public:
     virtual void createRequest(const Message &message, UniValue &output) {
         Streaming::MessageParser parser(message.body());
         while (parser.next() == Streaming::FoundTag) {
-            if (parser.tag() == Api::Util::BitcoinAddress) {
+            if (parser.tag() == Api::Util::BitcoinP2PKHAddress) {
+                 // FIXME bitcoin address is always ripe160, so this fails.
                 output.push_back(std::make_pair("param 1", UniValue(UniValue::VSTR, parser.stringData())));
                 return;
             }
@@ -592,7 +604,7 @@ public:
         while (parser.next() == Streaming::FoundTag) {
             if (parser.tag() == Api::RegTest::Amount)
                 amount = parser.intData();
-            else if (parser.tag() == Api::RegTest::BitcoinAddress)
+            else if (parser.tag() == Api::RegTest::BitcoinP2PKHAddress)
                 outAddress = parser.unsignedBytesData();
         }
         if (amount <= 0 || amount > 150)
@@ -652,6 +664,8 @@ public:
                 opt.returnOutputAmounts = parser.boolData();
             } else if (parser.tag() == Api::BlockChain::Include_OutputScripts) {
                 opt.returnOutputScripts = parser.boolData();
+            } else if (parser.tag() == Api::BlockChain::Include_OutputScriptHash) {
+                opt.returnOutputScriptHashed = parser.boolData();
             } else if (parser.tag() == Api::BlockChain::Include_OutputAddresses) {
                 opt.returnOutputAddresses = parser.boolData();
             } else if (parser.tag() == Api::BlockChain::FilterOutputIndex) {

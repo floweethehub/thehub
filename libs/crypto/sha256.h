@@ -1,6 +1,7 @@
 /*
  * This file is part of the Flowee project
  * Copyright (C) 2014 The Bitcoin Core developers
+ * Copyright (C) 2019 Tom Zander <tomz@freedommail.ch>
  *
  * This program is free software: you can redistribute it and/or modify
  * it under the terms of the GNU General Public License as published by
@@ -20,6 +21,7 @@
 #define FLOWEE_CRYPTO_SHA256_H
 
 #include <cstdint>
+#include <cassert>
 #include <string>
 
 /** A hasher class for SHA-256. */
@@ -34,8 +36,15 @@ public:
     static const size_t OUTPUT_SIZE = 32;
 
     CSHA256();
+    inline CSHA256& Write(const char* data, int len) {
+        assert(len >= 0);
+        return Write(reinterpret_cast<const unsigned char*>(data), size_t(len));
+    }
     CSHA256& Write(const unsigned char* data, size_t len);
-    void Finalize(unsigned char hash[OUTPUT_SIZE]);
+    inline void Finalize(char *hash) {
+        return Finalize(reinterpret_cast<unsigned char*>(hash));
+    }
+    void Finalize(unsigned char *hash);
     CSHA256& Reset();
 };
 

@@ -19,6 +19,7 @@
 #include "TestBlockchain.h"
 
 #include <Message.h>
+#include <sha256.h>
 #include <utilstrencodings.h>
 
 #include <streaming/BufferPool.h>
@@ -104,13 +105,13 @@ void TestApiBlockchain::testGetTransaction()
     m = waitForReply(0, builder.message(Api::BlockChainService, Api::BlockChain::GetTransaction), Api::BlockChain::GetTransactionReply);
     p = Streaming::MessageParser(m.body());
     p.next();
-    QCOMPARE(p.tag(), (uint32_t) 9);
+    QCOMPARE(p.tag(), (uint32_t) 20);
     QCOMPARE(p.uint256Data(), uint256S("0x5256291727342b4cbd0d09bb09c745f4054d40618d19d2c037c9143d9e7399a4"));
     p.next();
-    QCOMPARE(p.tag(), (uint32_t) 10);
+    QCOMPARE(p.tag(), (uint32_t) 21);
     QCOMPARE(p.intData(), 0);
     p.next();
-    QCOMPARE(p.tag(), (uint32_t) 11);
+    QCOMPARE(p.tag(), (uint32_t) 22);
     QCOMPARE(p.dataLength(), 107);
     QCOMPARE(p.next(), Streaming::EndOfDocument);
 
@@ -142,4 +143,90 @@ void TestApiBlockchain::testGetTransaction()
     QCOMPARE(p.tag(), (uint32_t) Api::Amount);
     QCOMPARE(p.longData(), (uint64_t) 249999850);
     QCOMPARE(p.next(), Streaming::EndOfDocument);
+}
+
+void TestApiBlockchain::testGetScript()
+{
+    startHubs();
+    feedDefaultBlocksToHub(0);
+
+    Streaming::BufferPool pool;
+    Streaming::MessageBuilder builder(pool);
+    builder.add(Api::BlockChain::BlockHeight, 112);
+    builder.add(Api::BlockChain::Tx_OffsetInBlock, 1019);
+    // Include_Outputs only gets the unmodified, actual data from the outputs.
+    // This currently means the Amount and the Script, and the index
+    // Nothing else should be sent
+    builder.add(Api::BlockChain::Include_Outputs, true);
+
+    auto m = waitForReply(0, builder.message(Api::BlockChainService, Api::BlockChain::GetTransaction), Api::BlockChain::GetTransactionReply);
+    QCOMPARE(m.serviceId(), (int) Api::BlockChainService);
+    Streaming::MessageParser p(m.body());
+    QList<Streaming::ConstBuffer> scripts;
+    while (p.next() == Streaming::FoundTag) {
+        const auto tag = p.tag();
+        QVERIFY(tag == Api::BlockChain::Tx_OutputScript
+                || tag == Api::BlockChain::Tx_Out_Amount
+                || tag == Api::BlockChain::Tx_Out_Index);
+        if (tag == Api::BlockChain::Tx_OutputScript) // remember for a next test
+            scripts.append(p.bytesDataBuffer());
+    }
+
+    builder.add(Api::BlockChain::BlockHeight, 112);
+    builder.add(Api::BlockChain::Tx_OffsetInBlock, 1019);
+    // Include_OutputsAddressHash hashes the output script (once) and includes the hash.
+    // This can be used as a unique ID instead of addresses, of which there are too many types.
+    builder.add(Api::BlockChain::Include_OutputScriptHash, true);
+    m = waitForReply(0, builder.message(Api::BlockChainService, Api::BlockChain::GetTransaction), Api::BlockChain::GetTransactionReply);
+    QCOMPARE(m.serviceId(), (int) Api::BlockChainService);
+
+    p = Streaming::MessageParser(m.body());
+    int index = -1;
+    while (p.next() == Streaming::FoundTag) {
+        const auto tag = p.tag();
+        QVERIFY(tag == Api::BlockChain::Tx_Out_ScriptHash
+                || tag == Api::BlockChain::Tx_Out_Index);
+        if (tag == Api::BlockChain::Tx_Out_Index) {
+            QVERIFY(index == -1);
+            QVERIFY(p.isInt());
+            index = p.intData();
+            QVERIFY(index >= 0);
+            QVERIFY(index < scripts.size());
+        }
+        if (tag == Api::BlockChain::Tx_Out_ScriptHash) {
+            QVERIFY(p.isByteArray());
+            QCOMPARE(p.dataLength(), 32);
+            QVERIFY(index >= 0);
+            QVERIFY(index < scripts.size());
+
+            CSHA256 hasher;
+            const auto script = scripts.at(index);
+            hasher.Write(script.begin(), script.size());
+            char buf[32];
+            hasher.Finalize(buf);
+            QVERIFY(memcmp(buf, p.bytesDataBuffer().begin(), 32) == 0);
+            if (index == 5) // lets at least hardcode one comparison. Another test should catch that, but wth
+                QVERIFY(p.uint256Data() == uint256S("8CE6447F1046F208F00B68EDF06F3EE974395F795ABAF60732CB6B2B500D53FE"));
+
+            index = -1;
+        }
+    }
+
+    builder.add(Api::BlockChain::BlockHeight, 112);
+    builder.add(Api::BlockChain::Tx_OffsetInBlock, 1019);
+    // Include_OutputAddresses interprets the output script and returns something if it is a P2PKH address.
+    builder.add(Api::BlockChain::Include_OutputAddresses, true);
+    m = waitForReply(0, builder.message(Api::BlockChainService, Api::BlockChain::GetTransaction), Api::BlockChain::GetTransactionReply);
+    QCOMPARE(m.serviceId(), (int) Api::BlockChainService);
+
+    p = Streaming::MessageParser(m.body());
+    while (p.next() == Streaming::FoundTag) {
+        const auto tag = p.tag();
+        QVERIFY(tag ==Api::BlockChain::Tx_Out_Address
+                || tag == Api::BlockChain::Tx_Out_Index);
+        if (tag == Api::BlockChain::Tx_Out_Address) {
+            QVERIFY(p.isByteArray());
+            QCOMPARE(p.dataLength(), 20);
+        }
+    }
 }

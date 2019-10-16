@@ -26,6 +26,7 @@ class TestApiBlockchain : public BlackBoxTest
 private slots:
     void testChainInfo();
     void testGetTransaction();
+    void testGetScript();
 };
 
 #endif

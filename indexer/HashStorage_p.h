@@ -37,7 +37,7 @@
 #include <qmap.h>
 #include <qmutex.h>
 
-inline uint32_t qHash(const uint160 &key, uint32_t seed) {
+inline uint32_t qHash(const uint256 &key, uint32_t seed) {
     return *reinterpret_cast<const uint32_t*>(key.begin() + (seed % 5));
 }
 
@@ -48,8 +48,8 @@ public:
     ~HashListPart();
     void openFiles();
     void closeFiles();
-    int find(const uint160 &hash) const;
-    const uint160 &at(int index) const;
+    int find(const uint256 &hash) const;
+    const uint256 &at(int index) const;
 
     uchar *sorted = nullptr;
     QFile sortedFile;
@@ -64,9 +64,9 @@ public:
     ~HashList();
     static HashList *createEmpty(const QString &dbBase, int index);
 
-    int append(const uint160 &hash);
-    int lookup(const uint160 &hash) const;
-    const uint160 &at(int index) const;
+    int append(const uint256 &hash);
+    int lookup(const uint256 &hash) const;
+    const uint256 &at(int index) const;
     void writeInfoFile() const;
 
     // write the m_cache to disk (sorted) and start a new one.
@@ -86,7 +86,7 @@ public:
 
     // the unsorted part
     QFile *m_log = nullptr;
-    QHash<uint160, int> m_cacheMap;
+    boost::unordered_map<uint256, int, HashShortener> m_cacheMap;
 
     int m_nextId = 0;
     mutable QMutex m_mutex;
@@ -101,7 +101,7 @@ public:
     QList<HashList*> dbs;
     const QString basedir;
 
-    static uint160 s_null;
+    static uint256 s_null;
 };
 
 #endif

@@ -161,13 +161,12 @@ void AddressIndexer::blockFinished(int blockheight, const uint256 &)
     }
 }
 
-void AddressIndexer::insert(const Streaming::ConstBuffer &addressId, int outputIndex, int blockHeight, int offsetInBlock)
+void AddressIndexer::insert(const Streaming::ConstBuffer &outScriptHashed, int outputIndex, int blockHeight, int offsetInBlock)
 {
-    // an address is a hash160
-    Q_ASSERT(addressId.size() == 20);
+    Q_ASSERT(outScriptHashed.size() == 32); // a sha256
     Q_ASSERT(QThread::currentThread() == this);
 
-    const uint160 *address = reinterpret_cast<const uint160*>(addressId.begin());
+    const uint256 *address = reinterpret_cast<const uint256*>(outScriptHashed.begin());
     auto result = m_addresses.lookup(*address);
     if (result.db == -1)
         result = m_addresses.append(*address);
@@ -190,7 +189,7 @@ void AddressIndexer::reachedTopOfChain()
     m_flushRequested = 1;
 }
 
-std::vector<AddressIndexer::TxData> AddressIndexer::find(const uint160 &address) const
+std::vector<AddressIndexer::TxData> AddressIndexer::find(const uint256 &address) const
 {
     std::vector<TxData> answer;
     auto result = m_addresses.lookup(address);
@@ -295,8 +294,8 @@ void AddressIndexer::run()
                 txOffsetInBlock = parser.intData();
             } else if (parser.tag() == Api::BlockChain::Tx_Out_Index) {
                 outputIndex = parser.intData();
-            } else if (parser.tag() == Api::BlockChain::Tx_Out_Address) {
-                assert(parser.dataLength() == 20);
+            } else if (parser.tag() == Api::BlockChain::Tx_Out_ScriptHash) {
+                assert(parser.dataLength() == 32);
                 assert(outputIndex >= 0);
                 assert(blockHeight > 0);
                 assert(txOffsetInBlock > 0);

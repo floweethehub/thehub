@@ -48,7 +48,7 @@ void IndexerClient::resolve(const QString &lookup)
     if (old.SetString(lookup.toStdString())) {
         if (old.isMainnetPkh() || old.isMainnetSh()) {
             Streaming::MessageBuilder builder(Streaming::NoHeader, 40);
-            builder.addByteArray(Api::Indexer::BitcoinAddress, old.data().data(), 20);
+            builder.addByteArray(Api::Indexer::BitcoinP2PKHAddress, old.data().data(), 20);
             m_indexConnection.send(builder.message(Api::IndexerService,
                                                    Api::Indexer::FindAddress));
         }
@@ -57,7 +57,7 @@ void IndexerClient::resolve(const QString &lookup)
     CashAddress::Content c = CashAddress::decodeCashAddrContent(lookup.toStdString(), "bitcoincash");
     if (c.type == CashAddress::PUBKEY_TYPE && c.hash.size() == 20) {
         Streaming::MessageBuilder builder(Streaming::NoHeader, 40);
-        builder.addByteArray(Api::Indexer::BitcoinAddress, c.hash.data(), 20);
+        builder.addByteArray(Api::Indexer::BitcoinP2PKHAddress, c.hash.data(), 20);
         m_indexConnection.send(builder.message(Api::IndexerService,
                                                Api::Indexer::FindAddress));
     }

@@ -564,7 +564,7 @@ void Blockchain::SearchPolicy::processRequests(Blockchain::Search *request)
             break;
         }
         case Blockchain::LookupByAddress: {
-            if (job.data.size() != 20) // expect a rip160 here
+            if (job.data.size() != 20) // expect a ripe160 here
                 throw std::runtime_error("Invalid job definition");
             logDebug(Log::SearchEngine) << "starting lookup (address)" << i;
             pool->reserve(40);
@@ -574,7 +574,7 @@ void Blockchain::SearchPolicy::processRequests(Blockchain::Search *request)
             builder.add(SearchRequestId, request->requestId);
             builder.add(JobRequestId, i);
             builder.add(Network::HeaderEnd, true);
-            builder.add(Api::Indexer::BitcoinAddress, job.data);
+            builder.add(Api::Indexer::BitcoinP2PKHAddress, job.data);
             job.started = true;
             sendMessage(request, builder.message(), IndexerAddressDb);
             break;

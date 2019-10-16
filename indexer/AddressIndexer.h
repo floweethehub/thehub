@@ -44,7 +44,7 @@ public:
 
     int blockheight();
     void blockFinished(int blockheight, const uint256 &blockId);
-    void insert(const Streaming::ConstBuffer &addressId, int outputIndex, int blockHeight, int offsetInBlock);
+    void insert(const Streaming::ConstBuffer &outScriptHashed, int outputIndex, int blockHeight, int offsetInBlock);
 
     void reachedTopOfChain();
 
@@ -54,7 +54,7 @@ public:
         short outputIndex = -1;
     };
 
-    std::vector<TxData> find(const uint160 &address) const;
+    std::vector<TxData> find(const uint256 &address) const;
 
     void run() override;
 

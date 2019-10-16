@@ -498,7 +498,7 @@ void TxVulcano::generate(int blockCount)
     int pkId = m_wallet.firstEmptyPubKey();
     assert(pkId >= 0);
     const CKeyID id = m_wallet.publicKey(pkId).GetID();
-    builder.addByteArray(Api::RegTest::BitcoinAddress, id.begin(), id.size());
+    builder.addByteArray(Api::RegTest::BitcoinP2PKHAddress, id.begin(), id.size());
     builder.add(Api::RegTest::Amount, blockCount);
     auto log = logCritical() << "  Sending generate";
     if (m_blockSizeLeft >= 1000)

@@ -21,6 +21,7 @@
 #include "SpentOuputIndexer.h"
 
 #include <Logger.h>
+#include <cashaddr.h>
 #include <streaming/MessageBuilder.h>
 #include <streaming/MessageParser.h>
 #include <APIProtocol.h>
@@ -66,6 +67,20 @@ private:
     int m_wantedHeight = 0;
 };
 
+void buildAddressSearchReply(Streaming::MessageBuilder &builder, const std::vector<AddressIndexer::TxData> &data)
+{
+    int bh = -1, oib = -1;
+    for (auto item : data) {
+        if (item.blockHeight != bh) // avoid repeating oneself (makes the message smaller).
+            builder.add(Api::Indexer::BlockHeight, item.blockHeight);
+        bh = item.blockHeight;
+        if (item.offsetInBlock != oib)
+            builder.add(Api::Indexer::OffsetInBlock, item.offsetInBlock);
+        oib = item.offsetInBlock;
+        builder.add(Api::Indexer::OutIndex, item.outputIndex);
+        builder.add(Api::Indexer::Separator, true);
+    }
+}
 }
 
 
@@ -367,8 +382,7 @@ void Indexer::checkBlockArrived()
     if (m_lastRequestedBlock != 0 && QDateTime::currentMSecsSinceEpoch() - m_timeLastRequest > 20000) {
         logDebug() << "repeating block request";
         // Hub never sent the block to us :(
-        m_lastRequestedBlock = 0;
-        requestBlock();
+        requestBlock(m_lastRequestedBlock);
     }
 }
 
@@ -386,28 +400,40 @@ void Indexer::onFindAddressRequest(const Message &message)
 
     Streaming::MessageParser parser(message);
     while (parser.next() == Streaming::FoundTag) {
-        if (parser.tag() == Api::Indexer::BitcoinAddress) {
+        if (parser.tag() == Api::Indexer::BitcoinScriptHashed) {
+            if (parser.dataLength() != 32) {
+                con.disconnect();
+                return;
+            }
+            const uint256 *a = reinterpret_cast<const uint256*>(parser.bytesDataBuffer().begin());
+            logDebug() << "FindAddress on hash:" << *a;
+            auto data = m_addressdb->find(*a);
+
+            m_poolAddressAnswers.reserve(data.size() * 30);
+            Streaming::MessageBuilder builder(m_poolAddressAnswers);
+            buildAddressSearchReply(builder, data);
+            con.send(builder.reply(message));
+            return; // just one request per message
+        }
+        if (parser.tag() == Api::Indexer::BitcoinP2PKHAddress) {
             if (parser.dataLength() != 20) {
                 con.disconnect();
                 return;
             }
-            const uint160 *a = reinterpret_cast<const uint160*>(parser.bytesDataBuffer().begin());
-            logDebug() << "FindAddress on address:" << *a;
-            auto data = m_addressdb->find(*a);
+            logDebug() << "FindAddress on address" << parser.uint256Data();
+            static const uint8_t prefix[3] = { 0x76, 0xA9, 20}; // OP_DUP OP_HASH160, 20-byte-push
+            static const uint8_t postfix[2] = { 0x88, 0xAC }; // OP_EQUALVERIFY OP_CHECKSIG
+            CSHA256 sha;
+            sha.Write(prefix, 2);
+            sha.Write(reinterpret_cast<const uint8_t*>(parser.bytesDataBuffer().begin()), 20);
+            sha.Write(postfix, 2);
+            uint256 hash;
+            sha.Finalize(reinterpret_cast<unsigned char*>(&hash));
+            logDebug() << "          + on hash:" << hash;
+            auto data = m_addressdb->find(hash);
             m_poolAddressAnswers.reserve(data.size() * 30);
             Streaming::MessageBuilder builder(m_poolAddressAnswers);
-            int bh = -1, oib = -1;
-            for (auto item : data) {
-                if (item.blockHeight != bh) // avoid repeating oneself (makes the message smaller).
-                    builder.add(Api::Indexer::BlockHeight, item.blockHeight);
-                bh = item.blockHeight;
-                if (item.offsetInBlock != oib)
-                    builder.add(Api::Indexer::OffsetInBlock, item.offsetInBlock);
-                oib = item.offsetInBlock;
-                builder.add(Api::Indexer::OutIndex, item.outputIndex);
-                builder.add(Api::Indexer::Separator, true);
-            }
-
+            buildAddressSearchReply(builder, data);
             con.send(builder.reply(message));
             return; // just one request per message
         }
@@ -441,18 +467,13 @@ void Indexer::requestBlock(int newBlockHeight)
         if (h != -1)
             blockHeight = std::min(h, blockHeight);
     }
-    if (newBlockHeight > 0) {
-        if (blockHeight == 9999999)
+    if (blockHeight == 9999999) {
+        if (newBlockHeight == m_lastRequestedBlock && m_lastRequestedBlock > 0)
+            // we restart or timeout and someone requests the m_lastRequested one again.
             blockHeight = newBlockHeight;
-        else if (newBlockHeight < blockHeight)
-            // this means the hub reconnected and we need to re-request our block
-            blockHeight = newBlockHeight;
-        else if (blockHeight != newBlockHeight)
-            // this means a new block just became available.
-            return; // we are not ready for it yet
+        else // no valid block to get.
+            return;
     }
-    else if (blockHeight == 9999999)
-        return;
 
     // Unset requests now we acted on them.
     for (size_t i = 0; i < s_requestedHeights.size(); ++i) {
@@ -467,7 +488,7 @@ void Indexer::requestBlock(int newBlockHeight)
     if (m_txdb)
         builder.add(Api::BlockChain::Include_TxId, true);
     if (m_addressdb)
-        builder.add(Api::BlockChain::Include_OutputAddresses, true);
+        builder.add(Api::BlockChain::Include_OutputScriptHash, true);
     if (m_spentOutputDb)
         builder.add(Api::BlockChain::Include_Inputs, true);
     builder.add(Api::BlockChain::Include_OffsetInBlock, true);
