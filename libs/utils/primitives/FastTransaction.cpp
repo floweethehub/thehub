@@ -1,6 +1,6 @@
 /*
  * This file is part of the Flowee project
- * Copyright (C) 2017-2018 Tom Zander <tomz@freedommail.ch>
+ * Copyright (C) 2017-2019 Tom Zander <tomz@freedommail.ch>
  *
  * This program is free software: you can redistribute it and/or modify
  * it under the terms of the GNU General Public License as published by
@@ -345,6 +345,14 @@ uint256 Tx::Iterator::uint256Data() const
     assert (d->m_currentTokenEnd - d->m_currentTokenStart >= 32);
     uint256 answer(d->m_currentTokenStart);
     return answer;
+}
+
+void Tx::Iterator::hashByteData(uint256 &output) const
+{
+    CSHA256 hasher;
+    hasher.Write(d->m_currentTokenStart, dataLength());
+    uint256 buf;
+    hasher.Finalize(output.begin());
 }
 
 bool operator==(const Tx::Input &a, const Tx::Input &b)

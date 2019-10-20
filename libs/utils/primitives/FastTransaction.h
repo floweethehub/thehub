@@ -1,6 +1,6 @@
 /*
  * This file is part of the Flowee project
- * Copyright (C) 2017-2018 Tom Zander <tomz@freedommail.ch>
+ * Copyright (C) 2017-2019 Tom Zander <tomz@freedommail.ch>
  *
  * This program is free software: you can redistribute it and/or modify
  * it under the terms of the GNU General Public License as published by
@@ -161,6 +161,13 @@ public:
         uint64_t longData() const;
         /// Return the value of the current tag as a 256-bit unsigned 'int'
         uint256 uint256Data() const;
+        /// (Single) hash the current byte-data with the sha256 algo and return the result.
+        void hashByteData(uint256 &output) const;
+        inline uint256 hashedByteData() const {
+            uint256 b;
+            hashByteData(b);
+            return b;
+        }
 
         void operator=(const Iterator &other) = delete;
     private:

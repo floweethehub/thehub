@@ -34,7 +34,7 @@ class AddressMonitorService : public ValidationInterface, public NetworkService
 {
 public:
     AddressMonitorService();
-    ~AddressMonitorService();
+    ~AddressMonitorService() override;
 
     // the hub pushed a transaction into its mempool
     void SyncTx(const Tx &tx) override;
@@ -51,7 +51,7 @@ public:
 protected:
     class RemoteWithKeys : public Remote {
     public:
-        std::set<CKeyID> keys;
+        std::set<uint256> hashes;
     };
 
     // NetworkService interface
@@ -62,20 +62,20 @@ protected:
 private:
     struct Match {
         std::deque<uint64_t> amounts;
-        std::deque<CKeyID> keys;
+        std::deque<uint256> hashes;
     };
 
     bool match(Tx::Iterator &iter, const std::deque<NetworkService::Remote *> &remotes, std::map<int, Match> &matchingRemotes) const;
 
     void updateBools();
     /// Callback for just subscribed addresses to find if there is a hit in the mempool.
-    void findTxInMempool(int connectionId, const CKeyID &keyId);
+    void findTxInMempool(int connectionId, const uint256 &hash);
 
     std::mutex m_poolMutex;
     Streaming::BufferPool m_pool;
 
     // true if any remote added a watch
-    bool m_findP2PKH = false;
+    bool m_findByHash = false;
 
     CTxMemPool *m_mempool = nullptr;
 };

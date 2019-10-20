@@ -24,7 +24,6 @@
 #include <streaming/MessageBuilder.h>
 #include <streaming/MessageParser.h>
 #include <primitives/FastTransaction.h>
-#include <cashaddr.h>
 #include <base58.h>
 
 
@@ -79,16 +78,14 @@ void NetworkPaymentProcessor::onIncomingMessage(const Message &message)
     }
     else if (message.messageId() == Api::AddressMonitor::TransactionFound) {
         Streaming::ConstBuffer txid;
-        QString address;
         uint64_t amount = 0;
         auto type = parser.next();
         int offsetInBlock = 0, blockheight = 0;
         while (type == Streaming::FoundTag) {
             if (parser.tag() == Api::AddressMonitor::TxId) {
                 txid = parser.bytesDataBuffer();
-            } else if (parser.tag() == Api::AddressMonitor::BitcoinAddress) {
+            } else if (parser.tag() == Api::AddressMonitor::BitcoinScriptHashed) {
                 assert(parser.isByteArray());
-                address = QString::fromStdString(CashAddress::encode("bitcoincash:", parser.unsignedBytesData()));
             } else if (parser.tag() == Api::AddressMonitor::Amount) {
                 amount = parser.longData();
             } else if (parser.tag() == Api::AddressMonitor::OffsetInBlock) {
@@ -99,12 +96,12 @@ void NetworkPaymentProcessor::onIncomingMessage(const Message &message)
             type = parser.next();
         }
         if (blockheight > 0) {
-            logCritical(Log::POS) << "Hub mined a transation paying us." << address
+            logCritical(Log::POS) << "Hub mined a transation paying us."
                                   << "Block:" << blockheight << "offset:"
                                   << offsetInBlock << "Amount (sat):" << amount;
         } else if (txid.size() == 32) {
             uint256 hash(txid.begin());
-            logCritical(Log::POS) << "Hub recived (mempool) a transaction transation paying us." << address
+            logCritical(Log::POS) << "Hub recived (mempool) a transaction transation paying us."
                                   << "txid:" << hash << "Amount (sat):" << amount;
 
         } else {
@@ -113,7 +110,7 @@ void NetworkPaymentProcessor::onIncomingMessage(const Message &message)
         }
     }
     else if (message.messageId() == Api::AddressMonitor::DoubleSpendFound) {
-        QString address;
+        QString scriptHash;
         uint64_t amount = 0;
         Streaming::ConstBuffer txid, duplicateTx;
         auto type = parser.next();
@@ -124,42 +121,44 @@ void NetworkPaymentProcessor::onIncomingMessage(const Message &message)
             } else if (parser.tag() == Api::AddressMonitor::GenericByteData) {
                 assert(parser.isByteArray());
                 duplicateTx = parser.bytesDataBuffer();
-            } else if (parser.tag() == Api::AddressMonitor::BitcoinAddress) {
+            } else if (parser.tag() == Api::AddressMonitor::BitcoinScriptHashed) {
                 assert(parser.isByteArray());
-                address = QString::fromStdString(CashAddress::encode("bitcoincash:", parser.unsignedBytesData()));
+                QByteArray bytes(parser.bytesDataBuffer().begin(), parser.dataLength());
+                scriptHash = QString::fromLatin1(bytes.toHex());
             } else if (parser.tag() == Api::AddressMonitor::Amount) {
                 amount = parser.longData();
             }
             type = parser.next();
         }
         Tx tx(duplicateTx);
-        logCritical(Log::POS) << "WARN: double spend detected on one of our monitored addresses:" << address
+        logCritical(Log::POS) << "WARN: double spend detected on one of our monitored addresses:" << scriptHash
                               << "amount:" << amount << "tx:" << tx.createHash();
     }
 }
 
 void NetworkPaymentProcessor::addListenAddress(const QString &address)
 {
-    CBase58Data old; // legacy address encoding
-    if (old.SetString(address.toStdString()) && old.isMainnetPkh() || old.isMainnetSh()) {
-        m_listenAddresses.append(old.data());
-    } else {
-        CashAddress::Content c = CashAddress::decodeCashAddrContent(address.toStdString(), "bitcoincash");
-        if (c.type == CashAddress::PUBKEY_TYPE && c.hash.size() == 20) {
-            m_listenAddresses.append(c.hash);
-        }
-        else {
-            logCritical() << "Address could not be parsed";
-            return;
+    CashAddress::Content c = CashAddress::decodeCashAddrContent(address.toStdString(), "bitcoincash");
+    if (c.type != CashAddress::PUBKEY_TYPE && c.type != CashAddress::SCRIPT_TYPE) {
+        CBase58Data old; // legacy address encoding
+        if (old.SetString(address.toStdString())) {
+            c.hash = old.data();
+            if (old.isMainnetPkh()) {
+                c.type= CashAddress::PUBKEY_TYPE;
+            } else if (old.isMainnetSh()) {
+                c.type= CashAddress::SCRIPT_TYPE;
+            } else {
+                logCritical() << "Address could not be parsed";
+                return;
+            }
         }
     }
+    m_listenAddresses.append(c);
 
     if (m_connection.isConnected()) {
-        m_pool.reserve(100);
+        m_pool.reserve(40);
         Streaming::MessageBuilder builder(m_pool);
-        assert(!m_listenAddresses.isEmpty());
-        assert(m_listenAddresses.last().size() == 20);
-        builder.addByteArray(Api::AddressMonitor::BitcoinAddress, m_listenAddresses.last().data(), 20);
+        builder.add(Api::AddressMonitor::BitcoinScriptHashed, CashAddress::createHashedOutputScript(c));
         m_connection.send(builder.message(Api::AddressMonitorService, Api::AddressMonitor::Subscribe));
     }
 }
@@ -170,10 +169,9 @@ void NetworkPaymentProcessor::connectionEstablished(const EndPoint&)
     m_connection.send(Message(Api::APIService, Api::Meta::Version));
     // Subscribe to the service.
     for (auto address : m_listenAddresses) {
-        m_pool.reserve(100);
+        m_pool.reserve(40);
         Streaming::MessageBuilder builder(m_pool);
-        assert(address.size() == 20);
-        builder.addByteArray(Api::AddressMonitor::BitcoinAddress, address.data(), 20);
+        builder.add(Api::AddressMonitor::BitcoinScriptHashed, CashAddress::createHashedOutputScript(address));
         m_connection.send(builder.message(Api::AddressMonitorService, Api::AddressMonitor::Subscribe));
     }
 }

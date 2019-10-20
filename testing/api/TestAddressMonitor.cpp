@@ -23,6 +23,7 @@
 
 #include <DoubleSpendProof.h>
 #include <uint256.h>
+#include <cashaddr.h>
 
 #include <primitives/FastTransaction.h>
 
@@ -33,16 +34,12 @@ void TestAddressMonitor::testBasic()
     Streaming::BufferPool pool;
     pool.reserve(50);
     Streaming::MessageBuilder builder(pool);
-    uint160 address;
-    address.SetHex("0x460451D9A29C2E625D783C4EF7070A66EBC69CEC");
-    builder.add(Api::AddressMonitor::BitcoinAddress, address);
-    address.SetHex("0x6956C39898BDA7B1315ED15461283A9DF4AB770D");
-    builder.add(Api::AddressMonitor::BitcoinAddress, address);
+
+    builder.add(Api::AddressMonitor::BitcoinScriptHashed, uint256S("7cbd398b58e489e13100f2f7b0d56f5abc83a2381f9a841434a12447cc7a3b14"));
+    builder.add(Api::AddressMonitor::BitcoinScriptHashed, uint256S("00a7a0e144e7050ef5622b098faf19026631401fa46e68a93fe5e5630b94dcea"));
     auto m = waitForReply(0, builder.message(Api::AddressMonitorService,
                                           Api::AddressMonitor::Subscribe), Api::AddressMonitor::SubscribeReply);
     QVERIFY(m.messageId() == Api::AddressMonitor::SubscribeReply);
-
-    Streaming::MessageParser::debugMessage(m);
 
     feedDefaultBlocksToHub(0);
 
@@ -59,10 +56,10 @@ void TestAddressMonitor::testBasic()
             Streaming::MessageParser p(message.body());
             QCOMPARE(p.next(), Streaming::FoundTag);
             while (true) {
-                if (p.tag() == Api::AddressMonitor::BitcoinAddress) {
+                if (p.tag() == Api::AddressMonitor::BitcoinScriptHashed) {
                     seenAddress++;
                     QCOMPARE(p.isByteArray(), true);
-                    QCOMPARE(p.dataLength(), 20);
+                    QCOMPARE(p.dataLength(), 32);
                 }
                 else if (p.tag() == Api::AddressMonitor::Amount) {
                     seenAmount = true;
@@ -119,12 +116,9 @@ void TestAddressMonitor::testDoubleSpendProof()
             Streaming::BufferPool pool;
             pool.reserve(50);
             Streaming::MessageBuilder builder(pool);
-            uint160 address1;
-            address1.SetHex("2a6bfbe42790e346a0990e16d9a97ad56a263884");
-            builder.add(Api::AddressMonitor::BitcoinAddress, address1);
-            uint160 address2;
-            address2.SetHex("226db9f47b0302a14b3bee10a892808bbfb249a4");
-            builder.add(Api::AddressMonitor::BitcoinAddress, address2);
+            // this is a hash of the full script of a p2pkh output script (see CashAddress::createHashedOutputScript())
+            builder.add(Api::AddressMonitor::BitcoinScriptHashed, uint256S("7c3cb6eb855660b775bbe66e1c245beb405000cc1c5374771a474051685b6e33"));
+            builder.add(Api::AddressMonitor::BitcoinScriptHashed, uint256S("f324a872150702b3ba647c5fc39a5c8d36519b2d1430109321a89112102f3ec8"));
             auto subscribeMessage = builder.message(Api::AddressMonitorService, Api::AddressMonitor::Subscribe);
             network->connection(ep).send(subscribeMessage);
         }
@@ -142,7 +136,7 @@ void TestAddressMonitor::testDoubleSpendProof()
 
     Streaming::BufferPool pool;
     // two transactions that both spend the first output of the first (non-coinbase) tx on block 115
-    // The spend TO the amove addresses.
+    // The spend TO the above addresses.
     pool.writeHex("0x01000000010b9d14b709aa59bd594edca17db2951c6660ebc8daa31ceae233a5550314f158000000006b483045022100b34a120e69bc933ae16c10db0f565cb2da1b80a9695a51707e8a80c9aa5c22bf02206c390cb328763ab9ab2d45f874d308af2837d6d8cfc618af76744b9eeb69c3934121022708a547a1d14ba6df79ec0f4216eeec65808cf0a32f09ad1cf730b44e8e14a6ffffffff01faa7be00000000001976a9148438266ad57aa9d9160e99a046e39027e4fb6b2a88ac00000000");
     Tx tx1(pool.commit());
 
@@ -184,7 +178,7 @@ void TestAddressMonitor::testDoubleSpendProof()
     con[1].send(builder.message(Api::LiveTransactionService, Api::LiveTransactions::SendTransaction));
 
 
-    // from hub 1 I should have received an old fashioned double spend. THe one with TX.
+    // from hub 1 I should have received an old fashioned double spend. The one with TX.
     QTRY_VERIFY(m_hubs[1].m_foundMessage.load() != nullptr);
     m = *m_hubs[1].m_foundMessage.load();
     QCOMPARE(m.serviceId(), (int) Api::AddressMonitorService);
@@ -192,11 +186,11 @@ void TestAddressMonitor::testDoubleSpendProof()
 
     Streaming::MessageParser p(m);
     p.next();
-    QCOMPARE(p.tag(), (uint32_t) Api::AddressMonitor::BitcoinAddress);
-    QCOMPARE(p.dataLength(), 20);
+    QCOMPARE(p.tag(), (uint32_t) Api::AddressMonitor::BitcoinScriptHashed);
+    QCOMPARE(p.dataLength(), 32);
     p.next();
-    QCOMPARE(p.tag(), (uint32_t) Api::AddressMonitor::BitcoinAddress);
-    QCOMPARE(p.dataLength(), 20);
+    QCOMPARE(p.tag(), (uint32_t) Api::AddressMonitor::BitcoinScriptHashed);
+    QCOMPARE(p.dataLength(), 32);
     p.next();
     QCOMPARE(p.tag(), (uint32_t) Api::AddressMonitor::Amount);
     QCOMPARE(p.longData(), (uint64_t) 12494842);
@@ -217,8 +211,8 @@ void TestAddressMonitor::testDoubleSpendProof()
 
     p = Streaming::MessageParser(m);
     p.next();
-    QCOMPARE(p.tag(), (uint32_t) Api::AddressMonitor::BitcoinAddress);
-    QCOMPARE(p.dataLength(), 20);
+    QCOMPARE(p.tag(), (uint32_t) Api::AddressMonitor::BitcoinScriptHashed);
+    QCOMPARE(p.dataLength(), 32);
     p.next();
     QCOMPARE(p.tag(), (uint32_t) Api::AddressMonitor::Amount);
     QCOMPARE(p.longData(), (uint64_t) 12494842);

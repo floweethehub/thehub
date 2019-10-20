@@ -306,7 +306,6 @@ enum MessageIds {
 
 enum Tags {
     GenericByteData = Api::GenericByteData,
-    BitcoinAddress = Api::BitcoinP2PKHAddress,
     /// A bytearray for a full sha256 txid
     TxId = Api::TxId,
     /// An unsigned 64 bit number for the amount of satshi you received
@@ -314,6 +313,7 @@ enum Tags {
     BlockHeight = Api::BlockHeight,
     /// If a transaction is added in a block, this is the offset-in-block
     OffsetInBlock = Api::OffsetInBlock,
+    BitcoinScriptHashed = Api::BitcoinScriptHashed,
 
     /// A string giving a human (or, at least, developer) readable error message
     ErrorMessage = 20,

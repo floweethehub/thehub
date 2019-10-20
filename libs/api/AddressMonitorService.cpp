@@ -56,14 +56,14 @@ void AddressMonitorService::SyncTx(const Tx &tx)
     for (auto i = matches.begin(); i != matches.end(); ++i) {
         Match &match = i->second;
         std::lock_guard<std::mutex> guard(m_poolMutex);
-        m_pool.reserve(match.keys.size() * 24 + match.amounts.size() * 10 + 40);
+        m_pool.reserve(match.hashes.size() * 35 + match.amounts.size() * 10 + 40);
         Streaming::MessageBuilder builder(m_pool);
-        for (auto key : match.keys)
-            builder.add(Api::AddressMonitor::BitcoinAddress, key);
+        for (auto hash : match.hashes)
+            builder.add(Api::AddressMonitor::BitcoinScriptHashed, hash);
         for (auto amount : match.amounts)
             builder.add(Api::AddressMonitor::Amount, amount);
         builder.add(Api::AddressMonitor::TxId, tx.createHash());
-        logDebug(Log::MonitorService) << "Remote" << i->first << "gets" << match.keys.size() << "tx notification(s)";
+        logDebug(Log::MonitorService) << "Remote" << i->first << "gets" << match.hashes.size() << "tx notification(s)";
         rem[i->first]->connection.send(builder.message(Api::AddressMonitorService, Api::AddressMonitor::TransactionFound));
     }
 }
@@ -78,29 +78,19 @@ bool AddressMonitorService::match(Tx::Iterator &iter, const std::deque<NetworkSe
 
     uint64_t amount = 0;
     while (type != Tx::End) {
-        if (type == Tx::OutputValue)
+        if (type == Tx::OutputValue) {
             amount = iter.longData();
+        }
         else if (type == Tx::OutputScript) {
-            CScript scriptPubKey(iter.byteData());
-
-            std::vector<std::vector<unsigned char> > vSolutions;
-            Script::TxnOutType whichType;
-            bool recognizedTx = Script::solver(scriptPubKey, whichType, vSolutions);
-            if (recognizedTx && whichType != Script::TX_NULL_DATA) {
-                if (m_findP2PKH && (whichType == Script::TX_PUBKEY || whichType == Script::TX_PUBKEYHASH)) {
-                    CKeyID keyID;
-                    if (whichType == Script::TX_PUBKEY)
-                        keyID = CPubKey(vSolutions[0]).GetID();
-                    else if (whichType == Script::TX_PUBKEYHASH)
-                        keyID = CKeyID(uint160(vSolutions[0]));
-                    for (size_t i = 0; i < remotes.size(); ++i) {
-                        RemoteWithKeys *rwk = static_cast<RemoteWithKeys*>(remotes.at(i));
-                        if (rwk->keys.find(keyID) != rwk->keys.end()) {
-                            Match &m = matchingRemotes[i];
-                            m.amounts.push_back(amount);
-                            m.keys.push_back(keyID);
-                        }
-                    }
+            uint256 hashedOutScript;
+            iter.hashByteData(hashedOutScript);
+            for (size_t i = 0; i < remotes.size(); ++i) {
+                assert(i < INT_MAX);
+                RemoteWithKeys *rwk = static_cast<RemoteWithKeys*>(remotes.at(i));
+                if (rwk->hashes.find(hashedOutScript) != rwk->hashes.end()) {
+                    Match &m = matchingRemotes[static_cast<int>(i)];
+                    m.amounts.push_back(amount);
+                    m.hashes.push_back(hashedOutScript);
                 }
             }
         }
@@ -121,15 +111,15 @@ void AddressMonitorService::SyncAllTransactionsInBlock(const FastBlock &block, C
         for (auto i = matches.begin(); i != matches.end(); ++i) {
             Match &match = i->second;
             std::lock_guard<std::mutex> guard(m_poolMutex);
-            m_pool.reserve(match.keys.size() * 24 + match.amounts.size() * 10 + 20);
+            m_pool.reserve(match.hashes.size() * 35 + match.amounts.size() * 10 + 20);
             Streaming::MessageBuilder builder(m_pool);
-            for (auto key : match.keys)
-                builder.add(Api::AddressMonitor::BitcoinAddress, key);
+            for (auto hash : match.hashes)
+                builder.add(Api::AddressMonitor::BitcoinScriptHashed, hash);
             for (auto amount : match.amounts)
                 builder.add(Api::AddressMonitor::Amount, amount);
             builder.add(Api::AddressMonitor::OffsetInBlock, static_cast<uint64_t>(iter.prevTx().offsetInBlock(block)));
             builder.add(Api::AddressMonitor::BlockHeight, index->nHeight);
-            logDebug(Log::MonitorService) << "Remote" << i->first << "gets" << match.keys.size() << "tx notification(s) from block";
+            logDebug(Log::MonitorService) << "Remote" << i->first << "gets" << match.hashes.size() << "tx notification(s) from block";
             rem[i->first]->connection.send(builder.message(Api::AddressMonitorService, Api::AddressMonitor::TransactionFound));
         }
     }
@@ -151,10 +141,10 @@ void AddressMonitorService::DoubleSpendFound(const Tx &first, const Tx &duplicat
     for (auto i = matches.begin(); i != matches.end(); ++i) {
         Match &match = i->second;
         std::lock_guard<std::mutex> guard(m_poolMutex);
-        m_pool.reserve(match.keys.size() * 24 + match.amounts.size() * 10 + 30 + duplicate.size());
+        m_pool.reserve(match.hashes.size() * 35 + match.amounts.size() * 10 + 30 + duplicate.size());
         Streaming::MessageBuilder builder(m_pool);
-        for (auto key : match.keys)
-            builder.add(Api::AddressMonitor::BitcoinAddress, key);
+        for (auto hash : match.hashes)
+            builder.add(Api::AddressMonitor::BitcoinScriptHashed, hash);
         for (auto amount : match.amounts)
             builder.add(Api::AddressMonitor::Amount, amount);
         builder.add(Api::AddressMonitor::TxId, first.createHash());
@@ -179,10 +169,10 @@ void AddressMonitorService::DoubleSpendFound(const Tx &txInMempool, const Double
     for (auto i = matches.begin(); i != matches.end(); ++i) {
         Match &match = i->second;
         std::lock_guard<std::mutex> guard(m_poolMutex);
-        m_pool.reserve(match.keys.size() * 24 + match.amounts.size() * 10 + 35 + serializedProof.size());
+        m_pool.reserve(match.hashes.size() * 35 + match.amounts.size() * 10 + 35 + serializedProof.size());
         Streaming::MessageBuilder builder(m_pool);
-        for (auto key : match.keys)
-            builder.add(Api::AddressMonitor::BitcoinAddress, key);
+        for (auto hash : match.hashes)
+            builder.add(Api::AddressMonitor::BitcoinScriptHashed, hash);
         for (auto amount : match.amounts)
             builder.add(Api::AddressMonitor::Amount, amount);
         builder.add(Api::AddressMonitor::TxId, txInMempool.createHash());
@@ -203,32 +193,32 @@ void AddressMonitorService::onIncomingMessage(Remote *remote_, const Message &me
         std::string error;
         int done = 0;
         while (parser.next() == Streaming::FoundTag) {
-            if (parser.tag() == Api::AddressMonitor::BitcoinAddress) {
-                ++done;
-                if (parser.isByteArray() && parser.dataLength() == 20) {
-                    CKeyID id(parser.bytesDataBuffer().begin());
+            if (parser.tag() == Api::AddressMonitor::BitcoinScriptHashed) {
+                if (parser.isByteArray() && parser.dataLength() == 32) {
+                    uint256 hash = parser.uint256Data();
 
+                    ++done;
                     if (message.messageId() == Api::AddressMonitor::Subscribe) {
-                        remote->keys.insert(id);
+                        remote->hashes.insert(hash);
                         remote->connection.postOnStrand(std::bind(&AddressMonitorService::findTxInMempool,
-                                                                  this, remote->connection.connectionId(), id));
+                                                                  this, remote->connection.connectionId(), hash));
                     } else {
-                        remote->keys.erase(id);
+                        remote->hashes.erase(hash);
                     }
                 }
                 else {
-                    error = "address has to be a bytearray of 20 bytes";
+                    error = "BitcoinScriptHashed has to be a sha256 (bytearray of 32 bytes)";
                 }
             }
         }
         if (!done)
-            error = "Missing required field BitcoinAddress (2)";
+            error = "Missing required field BitcoinScriptHashed (2)";
 
         remote->pool.reserve(10 + error.size());
         Streaming::MessageBuilder builder(remote->pool);
         builder.add(Api::AddressMonitor::Result, done);
         if (message.messageId() == Api::AddressMonitor::Subscribe)
-            logInfo(Log::MonitorService) << "Remote" << ep.connectionId << "registered" << done << "new address(es)";
+            logInfo(Log::MonitorService) << "Remote" << ep.connectionId << "registered" << done << "new script-hashes(es)";
         if (!error.empty())
             builder.add(Api::AddressMonitor::ErrorMessage, error);
         remote->connection.send(builder.reply(message));
@@ -239,16 +229,14 @@ void AddressMonitorService::onIncomingMessage(Remote *remote_, const Message &me
 
 void AddressMonitorService::updateBools()
 {
-    // ok, the first usage is a point-of-sale, I see no need to use P2SH or multisig, so we only actually
-    // monitor P2PKH types for now... Boring, I know.
-    m_findP2PKH = false;
+    m_findByHash = false;
     for (auto remote : remotes()) {
         RemoteWithKeys *rwk = static_cast<RemoteWithKeys*>(remote);
-        m_findP2PKH = m_findP2PKH || !rwk->keys.empty();
+        m_findByHash = m_findByHash || !rwk->hashes.empty();
     }
 }
 
-void AddressMonitorService::findTxInMempool(int connectionId, const CKeyID &keyId)
+void AddressMonitorService::findTxInMempool(int connectionId, const uint256 &hash)
 {
     if (m_mempool == nullptr)
         return;
@@ -271,7 +259,7 @@ void AddressMonitorService::findTxInMempool(int connectionId, const CKeyID &keyI
                     logDebug(Log::MonitorService) << " + Sending to peers tx from mempool!";
                     m_pool.reserve(75);
                     Streaming::MessageBuilder builder(m_pool);
-                    builder.add(Api::AddressMonitor::BitcoinAddress, CBitcoinAddress(keyId).ToString());
+                    builder.add(Api::AddressMonitor::BitcoinScriptHashed, hash);
                     builder.add(Api::AddressMonitor::TxId, txIter.prevTx().createHash());
                     builder.add(Api::AddressMonitor::Amount, matchedAmounts);
                     Message message = builder.message(Api::AddressMonitorService, Api::AddressMonitor::TransactionFound);
@@ -279,22 +267,13 @@ void AddressMonitorService::findTxInMempool(int connectionId, const CKeyID &keyI
                 }
                 break;
             }
-            if (type == Tx::OutputValue)
+            if (type == Tx::OutputValue) {
                 curAmount = txIter.longData();
+            }
             else if (type == Tx::OutputScript) {
-                CScript scriptPubKey(txIter.byteData());
-                std::vector<std::vector<unsigned char> > vSolutions;
-                Script::TxnOutType whichType;
-                bool recognizedTx = Script::solver(scriptPubKey, whichType, vSolutions);
-                if (recognizedTx && whichType != Script::TX_NULL_DATA) {
-                    if (whichType == Script::TX_PUBKEY || whichType == Script::TX_PUBKEYHASH) {
-                        if ((whichType == Script::TX_PUBKEY && keyId == CPubKey(vSolutions[0]).GetID())
-                                || (whichType == Script::TX_PUBKEYHASH && keyId == CKeyID(uint160(vSolutions[0])))) {
-
-                            match = true;
-                            matchedAmounts += curAmount;
-                        }
-                    }
+                if (txIter.hashedByteData() == hash) {
+                    match = true;
+                    matchedAmounts += curAmount;
                 }
             }
             type = txIter.next();

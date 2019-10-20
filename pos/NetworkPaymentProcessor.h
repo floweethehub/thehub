@@ -18,6 +18,7 @@
 
 #include <NetworkService.h>
 #include <NetworkConnection.h>
+#include <cashaddr.h>
 #include <streaming/BufferPool.h>
 
 #include <QObject>
@@ -36,5 +37,5 @@ private:
 
     Streaming::BufferPool m_pool;
     NetworkConnection m_connection;
-    QList<std::vector<uint8_t>> m_listenAddresses;
+    QList<CashAddress::Content> m_listenAddresses;
 };
