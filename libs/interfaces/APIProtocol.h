@@ -209,8 +209,9 @@ enum Tags {
     // GetBlock can filter a block to only return transactions that match a bitcoin-address filter
     // (list of addresses).
     ReuseAddressFilter = 50, ///< A getBlock call resuses a previously created address filter. bool
-    SetFilterAddress,        ///< Followed with one bytearray address. Clears and sets one address in filter.
-    AddFilterAddress,        ///< Add one bytearray address.
+    SetFilterScriptHash,        ///< Followed with one bytearray script-hash. Clears entire filter and and sets one script-hash in filter.
+    AddFilterScriptHash,        ///< Add one bytearray script-hash.
+
     // for each individual transaction you can select how they should be returned.
     Include_TxId,           ///< bool.
     Include_OffsetInBlock,  ///< bool.

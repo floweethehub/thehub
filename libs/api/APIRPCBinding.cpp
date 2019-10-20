@@ -303,7 +303,7 @@ public:
     class BlockSessionData : public Api::SessionData
     {
     public:
-        std::set<CKeyID> keys; // keys to filter on
+        std::set<uint256> hashes; // script-hashes to filter on
     };
 
     GetBlock() : DirectParser(Api::BlockChain::GetBlockReply) {}
@@ -317,7 +317,7 @@ public:
             *data = session;
         }
 
-        bool filterOnKeys = false;
+        bool filterOnScriptHashes = false;
         bool requestOk = false;
         bool fullTxData = false;
         while (parser.next() == Streaming::FoundTag) {
@@ -331,15 +331,15 @@ public:
                 index = chainActive[parser.intData()];
                 requestOk = true;
             } else if (parser.tag() == Api::BlockChain::ReuseAddressFilter) {
-                filterOnKeys = parser.boolData();
-            } else if (parser.tag() == Api::BlockChain::SetFilterAddress
-                       ||  parser.tag() == Api::BlockChain::AddFilterAddress) {
-                if (parser.dataLength() != 20)
-                    throw Api::ParserException("GetBlock: filter-address should be a 20bytes bytearray");
-                if (parser.tag() == Api::BlockChain::SetFilterAddress)
-                    session->keys.clear();
-                session->keys.insert(CKeyID(uint160(parser.unsignedBytesData())));
-                filterOnKeys = true;
+                filterOnScriptHashes = parser.boolData();
+            } else if (parser.tag() == Api::BlockChain::SetFilterScriptHash
+                       ||  parser.tag() == Api::BlockChain::AddFilterScriptHash) {
+                if (parser.dataLength() != 32)
+                    throw Api::ParserException("GetBlock: filter-script-hash should be a 32-bytes bytearray");
+                if (parser.tag() == Api::BlockChain::SetFilterScriptHash)
+                    session->hashes.clear();
+                session->hashes.insert(parser.uint256Data());
+                filterOnScriptHashes = true;
             } else if (parser.tag() == Api::BlockChain::FullTransactionData) {
                 fullTxData = parser.boolData();
                 if (!fullTxData)
@@ -380,7 +380,7 @@ public:
 
         Tx::Iterator iter(m_block);
         auto type = iter.next();
-        bool oneEnd = false, txMatched = !filterOnKeys;
+        bool oneEnd = false, txMatched = !filterOnScriptHashes;
         int size = 0, matchedOutputs = 0, matchedInputsSize = 0;
         int txOutputCount = 0, txInputSize = 0, txOutputScriptSizes = 0;
         int matchedOutputScriptSizes = 0;
@@ -395,7 +395,7 @@ public:
                     matchedOutputs += txOutputCount;
                     matchedOutputScriptSizes += txOutputScriptSizes;
                     m_transactions.push_back(std::make_pair(prevTx.offsetInBlock(m_block), prevTx.size()));
-                    txMatched = !filterOnKeys;
+                    txMatched = !filterOnScriptHashes;
                 }
                 oneEnd = true;
 
@@ -417,22 +417,8 @@ public:
             }
             else if (type == Tx::OutputScript) {
                 txOutputScriptSizes += iter.dataLength() + 4;
-                if (!txMatched) {
-                    CScript scriptPubKey(iter.byteData());
-
-                    std::vector<std::vector<unsigned char> > vSolutions;
-                    Script::TxnOutType whichType;
-                    bool recognizedTx = Script::solver(scriptPubKey, whichType, vSolutions);
-                    if (recognizedTx && (whichType == Script::TX_PUBKEY || whichType == Script::TX_PUBKEYHASH)) {
-                        CKeyID keyID;
-                        if (whichType == Script::TX_PUBKEYHASH)
-                            keyID = CKeyID(uint160(vSolutions[0]));
-                        else if (whichType == Script::TX_PUBKEY)
-                            keyID = CPubKey(vSolutions[0]).GetID();
-                        if (session->keys.find(keyID) != session->keys.end())
-                            txMatched = true;
-                    }
-                }
+                if (!txMatched && session->hashes.find(iter.hashedByteData()) != session->hashes.end())
+                    txMatched = true;
             }
             type = iter.next();
         }

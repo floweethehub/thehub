@@ -230,3 +230,55 @@ void TestApiBlockchain::testGetScript()
         }
     }
 }
+
+void TestApiBlockchain::testFilterOnScriptHash()
+{
+    startHubs();
+    feedDefaultBlocksToHub(0);
+
+    Streaming::BufferPool pool;
+    Streaming::MessageBuilder builder(pool);
+    builder.add(Api::BlockChain::BlockHeight, 115);
+    builder.add(Api::BlockChain::AddFilterScriptHash, uint256S("1111111111111111111111111111111111111111111111111111111111111111"));
+    builder.add(Api::BlockChain::FullTransactionData, false);
+
+    auto m = waitForReply(0, builder.message(Api::BlockChainService,
+                                          Api::BlockChain::GetBlock), Api::BlockChain::GetBlockReply);
+
+    // make sure that we return only transactions matching. Even if nothing matches
+    Streaming::MessageParser p(m.body());
+    QCOMPARE(p.next(), Streaming::FoundTag);
+    QCOMPARE(p.tag(), (uint32_t) Api::BlockChain::BlockHeight);
+    QCOMPARE(p.intData(), 115);
+    QCOMPARE(p.next(), Streaming::FoundTag);
+    QCOMPARE(p.tag(), (uint32_t) Api::BlockChain::BlockHash);
+    QCOMPARE(p.dataLength(), 32);
+    QCOMPARE(p.next(), Streaming::EndOfDocument);
+
+    // now use a filter that hits approx 80% of the transactions.
+    builder.add(Api::BlockChain::BlockHeight, 115);
+    builder.add(Api::BlockChain::SetFilterScriptHash, uint256S("00a7a0e144e7050ef5622b098faf19026631401fa46e68a93fe5e5630b94dcea"));
+    builder.add(Api::BlockChain::FullTransactionData, false);
+
+    m = waitForReply(0, builder.message(Api::BlockChainService,
+                                          Api::BlockChain::GetBlock), Api::BlockChain::GetBlockReply);
+
+    p = Streaming::MessageParser(m.body());
+    QCOMPARE(p.next(), Streaming::FoundTag);
+    QCOMPARE(p.tag(), (uint32_t) Api::BlockChain::BlockHeight);
+    QCOMPARE(p.intData(), 115);
+    QCOMPARE(p.next(), Streaming::FoundTag);
+    QCOMPARE(p.tag(), (uint32_t) Api::BlockChain::BlockHash);
+    QCOMPARE(p.dataLength(), 32);
+    // not the coinbase.
+    std::deque<int> positions = {181, 1018, 1855, 2692, 3529, 4366, 5203, 6040, 6877, 7714, 8551,
+                                 9388, 10225, 11063, 11901, 12739, 13577, 14415, 15253, 16091, 16929};
+    for (int pos : positions) {
+        QCOMPARE(p.next(), Streaming::FoundTag);
+        QCOMPARE(p.tag(), (uint32_t) Api::BlockChain::Tx_OffsetInBlock);
+        QCOMPARE(p.intData(), pos);
+        QCOMPARE(p.next(), Streaming::FoundTag);
+        QCOMPARE(p.tag(), (uint32_t) Api::BlockChain::Separator);
+    }
+    QCOMPARE(p.next(), Streaming::EndOfDocument);
+}

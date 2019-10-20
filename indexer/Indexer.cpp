@@ -420,11 +420,11 @@ void Indexer::onFindAddressRequest(const Message &message)
                 con.disconnect();
                 return;
             }
-            logDebug() << "FindAddress on address" << parser.uint256Data();
+            logDebug() << "FindAddress on address" << parser.bytesDataBuffer();
             static const uint8_t prefix[3] = { 0x76, 0xA9, 20}; // OP_DUP OP_HASH160, 20-byte-push
             static const uint8_t postfix[2] = { 0x88, 0xAC }; // OP_EQUALVERIFY OP_CHECKSIG
             CSHA256 sha;
-            sha.Write(prefix, 2);
+            sha.Write(prefix, 3);
             sha.Write(reinterpret_cast<const uint8_t*>(parser.bytesDataBuffer().begin()), 20);
             sha.Write(postfix, 2);
             uint256 hash;

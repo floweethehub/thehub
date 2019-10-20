@@ -32,6 +32,7 @@
 
 #define MIN_FEE 1000
 
+#include <cashaddr.h>
 #include <qtimer.h>
 
 TxVulcano::TxVulcano(boost::asio::io_service &ioService)
@@ -467,8 +468,9 @@ void TxVulcano::buildGetBlockRequest(Streaming::MessageBuilder &builder, bool &f
     if (first) {
         for (auto i : m_wallet.publicKeys()) {
             const CKeyID id = m_wallet.publicKey(i).GetID();
-            builder.addByteArray(first ? Api::BlockChain::SetFilterAddress : Api::BlockChain::AddFilterAddress,
-                        id.begin(), id.size());
+            CashAddress::Content c { CashAddress::PUBKEY_TYPE, std::vector<uint8_t>(id.begin(), id.end()) };
+            builder.add(first ? Api::BlockChain::SetFilterScriptHash : Api::BlockChain::AddFilterScriptHash,
+                        CashAddress::createHashedOutputScript(c));
             first = false;
         }
     } else {

@@ -27,6 +27,7 @@ private slots:
     void testChainInfo();
     void testGetTransaction();
     void testGetScript();
+    void testFilterOnScriptHash(); // for address filtering
 };
 
 #endif

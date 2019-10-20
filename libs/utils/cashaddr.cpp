@@ -453,14 +453,14 @@ Streaming::ConstBuffer createHashedOutputScript(const Content &content)
     if (content.type == PUBKEY_TYPE)
         hasher.Write(P2PKHPrefix, 3);
     else if (content.type == SCRIPT_TYPE)
-        hasher.Write(P2SHPrefix, 3);
+        hasher.Write(P2SHPrefix, 2);
     else
         throw std::runtime_error("Invalid input");
     hasher.Write(content.hash.data(), 20);
     if (content.type == PUBKEY_TYPE)
         hasher.Write(P2PKHPostfix, 2);
     else if (content.type == SCRIPT_TYPE)
-        hasher.Write(P2SHPostfix, 3);
+        hasher.Write(P2SHPostfix, 1);
 
     char hash[32];
     hasher.Finalize(hash);
