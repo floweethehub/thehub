@@ -532,6 +532,10 @@ void Indexer::hubSentMessage(const Message &message)
             while (parser.next() == Streaming::FoundTag) {
                 if (parser.tag() == Api::Meta::GenericByteData) {
                     logCritical() << "Server is at version" << parser.stringData();
+                    if (parser.stringData().compare("Flowee:1 (2019-9.1)") < 0) {
+                        logFatal() << "  Hub server is too old";
+                        m_network.punishNode(message.remote, 1000); // instant disconnect.
+                    }
                 }
             }
         }

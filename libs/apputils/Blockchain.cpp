@@ -258,18 +258,21 @@ void Blockchain::SearchEnginePrivate::hubSentMessage(const Message &message)
         return;
     }
     if (message.serviceId() == Api::APIService && message.messageId() == Api::Meta::VersionReply) {
+        Streaming::MessageParser parser(message);
+        while (parser.next() == Streaming::FoundTag) {
+            if (parser.tag() == Api::GenericByteData) {
+                logInfo(Log::SearchEngine) << "  Upstream hub connected" << parser.stringData();
+                if (parser.stringData().compare("Flowee:1 (2019-9.1)") < 0) {
+                    logFatal() << "  Hub is too old, not using";
+                    return;
+                }
+                break;
+            }
+        }
         // find connection in connections and set flag that this is a known hub
         for (auto iter = connections.begin(); iter != connections.end(); ++iter) {
             if (iter->con.connectionId() == message.remote) {
                 iter->services.insert(TheHub);
-                break;
-            }
-        }
-
-        Streaming::MessageParser parser(message);
-        while (parser.next() == Streaming::FoundTag) {
-            if (parser.tag() == Api::GenericByteData) {
-                logInfo(Log::SearchEngine) << "  Upstream hub" << parser.stringData();
                 break;
             }
         }
