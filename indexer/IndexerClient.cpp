@@ -44,28 +44,36 @@ void IndexerClient::resolve(const QString &lookup)
                                                Api::Indexer::FindTransaction));
     }
 
+    CashAddress::Content c;
     CBase58Data old; // legacy address encoding
     if (old.SetString(lookup.toStdString())) {
-        if (old.isMainnetPkh() || old.isMainnetSh()) {
+        if (old.isMainnetPkh()) {
             Streaming::MessageBuilder builder(Streaming::NoHeader, 40);
             builder.addByteArray(Api::Indexer::BitcoinP2PKHAddress, old.data().data(), 20);
             m_indexConnection.send(builder.message(Api::IndexerService,
                                                    Api::Indexer::FindAddress));
+        } else if (old.isMainnetSh()) {
+            c.type = CashAddress::SCRIPT_TYPE;
+            c.hash = old.data();
+        } else {
+            logCritical() << "Argument type not understood.";
+            return;
         }
     }
+    else {
+        c = CashAddress::decodeCashAddrContent(lookup.toStdString(), "bitcoincash");
+    }
 
-    CashAddress::Content c = CashAddress::decodeCashAddrContent(lookup.toStdString(), "bitcoincash");
-    if (c.type == CashAddress::PUBKEY_TYPE && c.hash.size() == 20) {
+    if (c.hash.size() == 20) {
         Streaming::MessageBuilder builder(Streaming::NoHeader, 40);
-        builder.addByteArray(Api::Indexer::BitcoinP2PKHAddress, c.hash.data(), 20);
-        m_indexConnection.send(builder.message(Api::IndexerService,
-                                               Api::Indexer::FindAddress));
+        builder.add(Api::Indexer::BitcoinScriptHashed, CashAddress::createHashedOutputScript(c));
+        m_indexConnection.send(builder.message(Api::IndexerService, Api::Indexer::FindAddress));
     }
 }
 
 void IndexerClient::tryConnectIndexer(const EndPoint &ep)
 {
-    m_indexConnection = std::move(m_network.connection(ep));
+    m_indexConnection = m_network.connection(ep);
     if (!m_indexConnection.isValid())
         throw std::runtime_error("Invalid Endpoint, can't create connection");
 #ifndef NDEBUG
@@ -75,9 +83,10 @@ void IndexerClient::tryConnectIndexer(const EndPoint &ep)
     m_indexConnection.setOnIncomingMessage(std::bind(&IndexerClient::onIncomingIndexerMessage, this, std::placeholders::_1));
     m_indexConnection.connect();
 }
+
 void IndexerClient::tryConnectHub(const EndPoint &ep)
 {
-    m_hubConnection = std::move(m_network.connection(ep));
+    m_hubConnection = m_network.connection(ep);
     if (!m_hubConnection.isValid())
         throw std::runtime_error("Invalid Endpoint, can't create connection");
 #ifndef NDEBUG
