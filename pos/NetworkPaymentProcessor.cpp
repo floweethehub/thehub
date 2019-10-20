@@ -139,7 +139,7 @@ void NetworkPaymentProcessor::onIncomingMessage(const Message &message)
 void NetworkPaymentProcessor::addListenAddress(const QString &address)
 {
     CashAddress::Content c = CashAddress::decodeCashAddrContent(address.toStdString(), "bitcoincash");
-    if (c.type != CashAddress::PUBKEY_TYPE && c.type != CashAddress::SCRIPT_TYPE) {
+    if (c.hash.empty()) {
         CBase58Data old; // legacy address encoding
         if (old.SetString(address.toStdString())) {
             c.hash = old.data();
