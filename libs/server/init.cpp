@@ -83,6 +83,7 @@
 #include <boost/interprocess/sync/file_lock.hpp>
 #include <boost/thread.hpp>
 #include <openssl/crypto.h>
+#include <boost/date_time/posix_time/posix_time.hpp>
 
 
 #if ENABLE_ZMQ
@@ -543,6 +544,10 @@ bool AppInit2(boost::thread_group& threadGroup, CScheduler& scheduler)
     if (setProcDEPPol != NULL) setProcDEPPol(PROCESS_DEP_ENABLE);
 #endif
 
+#ifdef USE_UNSAFE_RANDOM
+    /* Intializes random number generator in case the operator wanted non-safe random */
+    srand(unsigned(boost::posix_time::microsec_clock::local_time().time_of_day().total_microseconds()));
+#endif
 
     if (!SetupNetworking())
         return InitError("Initializing networking failed");
