@@ -190,7 +190,7 @@ void IndexerClient::onIncomingIndexerMessage(const Message &message)
                     }
                 }
             }
-            if (!m_hubConnection.isValid())
+            if (!m_hubConnection.isValid() || (blockHeight == -1))
                 QCoreApplication::quit();
             m_txIdsRequested = usageId;
         }
