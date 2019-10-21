@@ -197,22 +197,14 @@ enum Tags {
     Tx_OutputScript,
     Tx_Out_Index,
 
-    // GetBlockVerbose-tags
-    Confirmations = 40,
-    MerkleRoot,
-    Nonce,      //int
-    Bits,       // integer
-    PrevBlockHash,
-    NextBlockHash,
-
     // GetBlock-Request-tags
     // GetBlock can filter a block to only return transactions that match a bitcoin-address filter
     // (list of addresses).
-    ReuseAddressFilter = 50, ///< A getBlock call resuses a previously created address filter. bool
+    ReuseAddressFilter = 40, ///< A getBlock call resuses a previously created address filter. bool
     SetFilterScriptHash,        ///< Followed with one bytearray script-hash. Clears entire filter and and sets one script-hash in filter.
     AddFilterScriptHash,        ///< Add one bytearray script-hash.
 
-    // for each individual transaction you can select how they should be returned.
+    // for individual transaction you can select how they should be returned.
     Include_TxId,           ///< bool.
     Include_OffsetInBlock,  ///< bool.
     FullTransactionData,     ///< bool. When true, return full tx data even when interpeted data is sent.
@@ -222,21 +214,29 @@ enum Tags {
     Include_Outputs,        ///< bool. Return all parts of outputs, overriding the previous 2 options.
     Include_OutputAddresses,///< bool. If the output is a p2pkh, return the hash160 of the address paid to.
     Include_OutputScriptHash,///< bool. Include Tx_Out_ScriptHash
+    FilterOutputIndex,  // integer to limit transaction fetching to outputs
 
-    Verbose = 70,// bool
-    Size,       // int
-    Version,    // int
-    Time,       // in seconds since epoch
-    Difficulty, // double
-    MedianTime, // in seconds since epoch
-    ChainWork,  // a sha256
+    Verbose = 60,   // bool
+    Size,           // int
+    Version,        // int
+    Time,           // in seconds since epoch (int)
+    Difficulty,     // double
+    MedianTime,     // in seconds since epoch (int)
+    ChainWork,      // a sha256
+    Chain,          // string. "main", "testnet", "regtest"
+    Blocks,         // number of blocks (int)
+    Headers,        // number of headers (int)
+    BestBlockHash,  // sha256
+    VerificationProgress, // double
 
-    Chain = 80,
-    Blocks,
-    Headers,
-    BestBlockHash,
-    VerificationProgress,
-    FilterOutputIndex  ///< integer to limit transaction fetching to outputs
+    // GetBlockVerbose-tags
+    Confirmations,  // int
+    MerkleRoot,     // sha256
+    Nonce,          // int
+    Bits,           // int
+    PrevBlockHash,  // sha256
+    NextBlockHash  // sha256
+
 };
 
 }
@@ -292,8 +292,6 @@ enum MessageIds {
     SubscribeReply,
     /// Client sents a message to the hub to unsubscribe a BitcoinAddress
     Unsubscribe,
-    /// same as SubscribeReply
-    UnsubscribeReply,
     /**
      * When the Hub finds a match, it sends this message to the client.
      * We send BitcoinAddress, TransactionId, Amount and ConfirmationCount.
