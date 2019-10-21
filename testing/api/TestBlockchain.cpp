@@ -36,37 +36,37 @@ void TestApiBlockchain::testChainInfo()
     Streaming::MessageParser parser(m.body());
     bool seenTitle = false;
     while(parser.next() == Streaming::FoundTag) {
-        if (parser.tag() == 68) {
+        if (parser.tag() == 67) {
             seenTitle = true;
             QVERIFY(parser.isString());
             QCOMPARE(parser.stringData(), std::string("regtest"));
         }
-        else if (parser.tag() == 69) { // block-height
+        else if (parser.tag() == 68) { // block-height
             QVERIFY(parser.isInt());
             QCOMPARE(parser.intData(), 0);
         }
-        else if (parser.tag() == 70) { // header-height
+        else if (parser.tag() == 69) { // header-height
             QVERIFY(parser.isInt());
             QCOMPARE(parser.intData(), 0);
         }
-        else if (parser.tag() == 71) { // last blockhash
+        else if (parser.tag() == 70) { // last blockhash
             QVERIFY(parser.isByteArray());
             QCOMPARE(parser.dataLength(), 32);
             QByteArray parsedData(parser.bytesData().data(), 32);
             QCOMPARE(parsedData, QByteArray::fromHex("06226E46111A0B59CAAF126043EB5BBF28C34F3A5E332A1FC7B2B73CF188910F"));
         }
-        else if (parser.tag() == 65) { // difficulty
+        else if (parser.tag() == 64) { // difficulty
             QVERIFY(parser.isDouble());
         }
-        else if (parser.tag() == 66) { // time
+        else if (parser.tag() == 63) { // time
             QVERIFY(parser.isLong());
             QCOMPARE(parser.longData(), (uint64_t) 1296688602);
         }
-        else if (parser.tag() == 72) { // progress
+        else if (parser.tag() == 71) { // progress
             QVERIFY(parser.isDouble());
             QCOMPARE(parser.doubleData(), 1.);
         }
-        else if (parser.tag() == 67) { // chain work
+        else if (parser.tag() == 66) { // chain work
             QVERIFY(parser.isByteArray());
             QCOMPARE(parser.dataLength(), 32);
             QVERIFY(parser.uint256Data() == uint256S("0000000000000000000000000000000000000000000000000000000000000000"));
