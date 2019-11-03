@@ -321,3 +321,6 @@ if (${Qt5Core_FOUND})
         add_subdirectory(bitcore-proxy)
     endif ()
 endif ()
+
+# cmake install file
+install(FILES support/cmake/FloweeConfig.cmake DESTINATION lib/cmake/flowee/)
