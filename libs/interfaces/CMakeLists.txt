@@ -23,6 +23,9 @@ set (FLOWEE_INTERFACE_FILES
 add_library(flowee_interfaces STATIC
     ${FLOWEE_INTERFACE_FILES}
 )
+# allow usage in dlls
+set(CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS} -fPIC")
+
 install(FILES
     APIProtocol.h
     NetworkEnums.h

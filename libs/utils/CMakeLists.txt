@@ -57,6 +57,9 @@ add_library(flowee_utils STATIC
     WaitUntilFinishedHelper.cpp
 )
 
+# allow usage in dlls
+set(CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS} -fPIC")
+
 add_dependencies(flowee_utils univalue)
 add_dependencies(flowee_utils secp256k1)
 

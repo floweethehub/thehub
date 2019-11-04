@@ -25,6 +25,8 @@ add_library(flowee_apputils STATIC
     FloweeServiceApplication.cpp
     Blockchain.cpp
 )
+# allow usage in dlls
+set(CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS} -fPIC")
 
 add_dependencies(flowee_apputils flowee_networkmanager)
 

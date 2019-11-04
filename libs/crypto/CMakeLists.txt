@@ -60,6 +60,10 @@ if (${AVX2})
 endif()
 
 add_library(flowee_crypto STATIC ${FLOWEE_LIBRARY_SOURCES})
+
+# allow usage in dlls
+set(CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS} -fPIC")
+
 install(FILES ${CMAKE_CURRENT_BINARY_DIR}/libflowee_crypto.a DESTINATION lib)
 install(FILES
     common.h
