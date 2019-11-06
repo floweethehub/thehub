@@ -269,7 +269,7 @@ void TxValidationState::checkTransaction()
                     }
                     if (outputs - 1 < prevoutIndex) {
                         inputsMissing = true;
-                        throw Exception("missing-inputs", 0);
+                        throw Exception("missing-inputs", 1);
                     }
                     prevOut.amount = static_cast<CAmount>(iter.longData());
                     auto type = iter.next();
@@ -287,7 +287,7 @@ void TxValidationState::checkTransaction()
                     UnspentOutputData data(g_utxo->find(tx.vin[i].prevout.hash, static_cast<int>(tx.vin[i].prevout.n)));
                     if (!data.isValid()) {
                         inputsMissing = true;
-                        throw Exception("missing-inputs", 0);
+                        throw Exception("missing-inputs", 1);
                     }
                     prevOut.amount = data.outputValue();
                     prevOut.outputScript = data.outputScript();
