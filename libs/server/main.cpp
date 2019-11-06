@@ -1715,7 +1715,7 @@ bool static ProcessMessage(CNode* pfrom, std::string strCommand, CDataStream& vR
             fBlocksOnly = true;
 
         // Allow whitelisted peers to send data other than blocks in blocks only mode if whitelistrelay is true
-        if (pfrom->fWhitelisted && GetBoolArg("-whitelistrelay", Settings::DefaultWhitelistRelay))
+        else if (pfrom->fWhitelisted && GetBoolArg("-whitelistrelay", Settings::DefaultWhitelistRelay))
             fBlocksOnly = false;
 
         LOCK(cs_main);
