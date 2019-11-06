@@ -151,7 +151,7 @@ int AddressIndexer::blockheight()
     return m_height;
 }
 
-void AddressIndexer::blockFinished(int blockheight, const uint256 &)
+void AddressIndexer::blockFinished(int blockheight)
 {
     Q_ASSERT(blockheight > m_height);
     m_height = blockheight;
@@ -277,7 +277,6 @@ void AddressIndexer::run()
 
         int txOffsetInBlock = 0;
         int outputIndex = -1;
-        uint256 blockId;
         int blockHeight = -1;
 
         Streaming::MessageParser parser(message.body());
@@ -285,8 +284,6 @@ void AddressIndexer::run()
             if (parser.tag() == Api::BlockChain::BlockHeight) {
                 blockHeight = parser.intData();
                 Q_ASSERT(blockHeight == m_height + 1);
-            } else if (parser.tag() == Api::BlockChain::BlockHash) {
-                blockId = parser.uint256Data();
             } else if (parser.tag() == Api::BlockChain::Separator) {
                 txOffsetInBlock = 0;
                 outputIndex = -1;
@@ -303,8 +300,7 @@ void AddressIndexer::run()
             }
         }
         assert(blockHeight > 0);
-        assert(!blockId.IsNull());
-        blockFinished(blockHeight, blockId);
+        blockFinished(blockHeight);
     }
 }
 
