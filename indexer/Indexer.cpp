@@ -511,7 +511,7 @@ void Indexer::hubSentMessage(const Message &message)
                 if (parser.tag() == Api::BlockChain::BlockHeight) {
                     blockHeight = parser.intData();
                     logDebug() << "Hub sent us block" << blockHeight;
-                    if (blockHeight % 500 == 0 || m_timeLastLogLine + 90 > QDateTime::currentMSecsSinceEpoch()) {
+                    if ((blockHeight % 500) == 0 || m_timeLastLogLine + 90000 < QDateTime::currentMSecsSinceEpoch()) {
                         m_timeLastLogLine = QDateTime::currentMSecsSinceEpoch();
                         logCritical() << "Processing block" << blockHeight;
                     }
