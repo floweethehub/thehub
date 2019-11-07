@@ -231,7 +231,7 @@ HashIndexPoint HashStorage::lookup(const uint256 &hash) const
 {
     QList<HashList*> dbs(d->dbs);
     Q_ASSERT(!dbs.isEmpty());
-    for (int i = 0; i < dbs.length(); ++i) {
+    for (int i = dbs.length() - 1; i >= 0; --i) {
         int result = dbs.at(i)->lookup(hash);
         if (result >= 0) {
             return HashIndexPoint(i, result);
