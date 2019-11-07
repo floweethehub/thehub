@@ -231,7 +231,7 @@ void Blockchain::SearchEnginePrivate::findServices()
 
 void Blockchain::SearchEnginePrivate::hubConnected(const EndPoint &ep)
 {
-    logFatal(Log::SearchEngine);
+    logDebug(Log::SearchEngine);
     auto con = network.connection(ep);
     con.send(Message(Api::APIService, Api::Meta::Version));
     q->initializeHubConnection(con);
@@ -240,7 +240,7 @@ void Blockchain::SearchEnginePrivate::hubConnected(const EndPoint &ep)
 void Blockchain::SearchEnginePrivate::hubDisconnected(const EndPoint &ep)
 {
     // TODO unset flag in connections
-    logFatal(Log::SearchEngine);
+    logDebug(Log::SearchEngine);
 }
 
 void Blockchain::SearchEnginePrivate::hubSentMessage(const Message &message)
@@ -261,7 +261,7 @@ void Blockchain::SearchEnginePrivate::hubSentMessage(const Message &message)
         Streaming::MessageParser parser(message);
         while (parser.next() == Streaming::FoundTag) {
             if (parser.tag() == Api::GenericByteData) {
-                logInfo(Log::SearchEngine) << "  Upstream hub connected" << parser.stringData();
+                logCritical(Log::SearchEngine) << "  Upstream hub connected" << parser.stringData();
                 if (parser.stringData().compare("Flowee:1 (2019-9.1)") < 0) {
                     logFatal() << "  Hub is too old, not using";
                     return;
@@ -283,18 +283,17 @@ void Blockchain::SearchEnginePrivate::hubSentMessage(const Message &message)
 
 void Blockchain::SearchEnginePrivate::indexerConnected(const EndPoint &ep)
 {
-    // TODO
-    logFatal(Log::SearchEngine);
+    logDebug(Log::SearchEngine);
     auto con = network.connection(ep);
     con.send(Message(Api::IndexerService, Api::Indexer::GetAvailableIndexers));
 
     q->initializeIndexerConnection(con);
 }
 
-void Blockchain::SearchEnginePrivate::indexerDisconnected(const EndPoint &ep)
+void Blockchain::SearchEnginePrivate::indexerDisconnected(const EndPoint &)
 {
     // TODO unset flag in connections
-    logFatal(Log::SearchEngine);
+    logDebug(Log::SearchEngine);
 }
 
 void Blockchain::SearchEnginePrivate::indexerSentMessage(const Message &message)

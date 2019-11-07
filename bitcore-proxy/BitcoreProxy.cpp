@@ -231,7 +231,7 @@ void BitcoreProxy::onIncomingConnection(HttpEngine::WebRequest *request_)
         socket->close();
         return;
     }
-    logInfo().nospace() << "GET\t" << socket->peerAddress().toString() << "\t" << rs.anonPath()
+    logWarning().nospace() << "GET\t" << socket->peerAddress().toString() << "\t" << rs.anonPath()
                         << "\t" << socket->headers().value("User-Agent").data();
 
     try {
