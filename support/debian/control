@@ -4,6 +4,6 @@ Replaces:
 Architecture: amd64
 Description: Flowee Bitcoin Cash tools and servers.
 Maintainer: TomZ <tomz@freedommail.ch>
-Version: 2019.05
-Depends: debconf, adduser, ntp
+Version: 2019.09
+Depends: debconf, adduser
 
