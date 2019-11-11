@@ -3,6 +3,7 @@ Makefile
 *.a
 CMakeCache.txt
 CMakeFiles
+CMakeLists.txt.user
 
 include/
 lib/
