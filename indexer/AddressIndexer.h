@@ -43,7 +43,7 @@ public:
     void loadSetting(const QSettings &settings);
 
     int blockheight();
-    void blockFinished(int blockheight, const uint256 &blockId);
+    void blockFinished(int blockheight);
     void insert(const Streaming::ConstBuffer &outScriptHashed, int outputIndex, int blockHeight, int offsetInBlock);
 
     void reachedTopOfChain();

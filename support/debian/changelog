@@ -1,3 +1,9 @@
+floweethehub (2019.09.1-trusty1) trusty; urgency=medium
+
+  * Version 2019.09
+
+ -- Tom Z <tomz@freedommail.ch>  Mon, 11 Nov 2019 10:00:00 +0000
+
 floweethehub (0.1.1-trusty1) trusty; urgency=medium
 
   * Test "release"
