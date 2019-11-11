@@ -1,19 +1,14 @@
 #!/bin/sh -e
 
-# Source debconf library.
-. /usr/share/debconf/confmodule
-
 echo -n "Creating flowee user... "
-grep -E "^flowee:" /etc/group >/dev/null || groupadd flowee
-useradd -m -d /etc/flowee -g flowee -s /usr/bin/nologin flowee 2>/dev/null
+groupadd -fr flowee
+useradd -r -m -d /etc/flowee -g flowee -s /usr/sbin/nologin flowee 2>/dev/null
 echo "done"
 
 _datadir="/var/lib/flowee"
 
 if test ! -d "$_datadir"; then
-  mkdir -m 750 "$_chaindir"
+  mkdir -m 750 "$_datadir"
 fi
 mkdir -p -m 770 "/var/log/flowee"
-chown -R flowee:flowee "/var/log/flowee" "/var/lib/flowee" "/etc/flowee"
-
-#DEBHELPER#
+chown -R flowee:flowee "/var/log/flowee" "$_datadir" "/etc/flowee"
