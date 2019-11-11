@@ -234,7 +234,6 @@ void Blockchain::SearchEnginePrivate::hubConnected(const EndPoint &ep)
     logDebug(Log::SearchEngine);
     auto con = network.connection(ep);
     con.send(Message(Api::APIService, Api::Meta::Version));
-    q->initializeHubConnection(con);
 }
 
 void Blockchain::SearchEnginePrivate::hubDisconnected(const EndPoint &ep)
@@ -266,6 +265,7 @@ void Blockchain::SearchEnginePrivate::hubSentMessage(const Message &message)
                     logFatal() << "  Hub is too old, not using";
                     return;
                 }
+                q->initializeHubConnection(network.connection(network.endPoint(message.remote)), parser.stringData());
                 break;
             }
         }
@@ -287,7 +287,7 @@ void Blockchain::SearchEnginePrivate::indexerConnected(const EndPoint &ep)
     auto con = network.connection(ep);
     con.send(Message(Api::IndexerService, Api::Indexer::GetAvailableIndexers));
 
-    q->initializeIndexerConnection(con);
+    q->initializeIndexerConnection(std::move(con));
 }
 
 void Blockchain::SearchEnginePrivate::indexerDisconnected(const EndPoint &)

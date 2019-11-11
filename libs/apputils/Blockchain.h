@@ -209,8 +209,11 @@ public:
 
     virtual void parseConfig(const QString &confFile);
 
-    virtual void initializeHubConnection(NetworkConnection &connection) { Q_UNUSED(connection) }
-    virtual void initializeIndexerConnection(NetworkConnection &connection) { Q_UNUSED(connection) }
+    virtual void initializeHubConnection(NetworkConnection connection, const std::string &hubVersion) {
+        Q_UNUSED(connection)
+        Q_UNUSED(hubVersion)
+    }
+    virtual void initializeIndexerConnection(NetworkConnection connection) { Q_UNUSED(connection) }
     virtual void hubSentMessage(const Message &message) { Q_UNUSED(message) }
     virtual void indexerSentMessage(const Message &message) { Q_UNUSED(message) }
 

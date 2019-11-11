@@ -33,5 +33,6 @@ add_dependencies(flowee_apputils flowee_networkmanager)
 target_link_libraries(flowee_apputils Qt5::Core Qt5::Network flowee_networkmanager)
 install(FILES ${CMAKE_CURRENT_BINARY_DIR}/libflowee_apputils.a DESTINATION lib)
 install(FILES
+    Blockchain.h
     FloweeServiceApplication.h
 DESTINATION include/flowee)

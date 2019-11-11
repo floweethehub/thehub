@@ -306,7 +306,7 @@ void BitcoreProxy::parseConfig(const QString &confFile)
     conf.endGroup();
 }
 
-void BitcoreProxy::initializeHubConnection(NetworkConnection &con)
+void BitcoreProxy::initializeHubConnection(NetworkConnection con, const std::string &)
 {
     con.send(Message(Api::BlockChainService, Api::BlockChain::GetBlockCount));
     con.send(Message(Api::BlockNotificationService, Api::BlockNotification::Subscribe));

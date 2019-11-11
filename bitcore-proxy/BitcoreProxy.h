@@ -112,8 +112,7 @@ public:
 
     void parseConfig(const QString &confFile) override;
 
-
-    void initializeHubConnection(NetworkConnection &connection) override;
+    void initializeHubConnection(NetworkConnection connection, const std::string &hubVersion) override;
 
 private:
     void returnEnabledChains(HttpEngine::WebRequest *request) const;
