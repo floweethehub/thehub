@@ -115,9 +115,9 @@ int main(int argc, char **argv)
             }
         }
     }
-    handler.setConfigFile(confFile);
+    handler.setConfigFile(confFile.toStdString());
 
-    QObject::connect (&app, SIGNAL(reparseConfig()), &handler, SLOT(reparseConfig()));
+    QObject::connect (&app, SIGNAL(reparseConfig()), &handler, SLOT(onReparseConfig()));
 
     return app.exec();
 }

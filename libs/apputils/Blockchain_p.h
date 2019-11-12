@@ -20,17 +20,16 @@
 
 #include "Blockchain.h"
 
-#include <QString>
-#include <QMutex>
-#include <QThreadStorage>
-
 #include <APIProtocol.h>
 #include <NetworkManager.h>
 #include <WorkerThreads.h>
 #include <streaming/MessageBuilder.h>
 
+#include <boost/thread/tss.hpp>
+
 #include <deque>
 #include <map>
+#include <mutex>
 
 namespace Blockchain {
 
@@ -64,7 +63,7 @@ public:
     WorkerThreads workers;
     NetworkManager network;
 
-    QThreadStorage<Streaming::BufferPool*> pools;
+    boost::thread_specific_ptr<Streaming::BufferPool> pools;
 
     // TODO make thread-safe
     struct Connection {
@@ -73,11 +72,11 @@ public:
     };
     std::deque<Connection> connections;
 
-    QMutex lock;
+    std::mutex lock;
     std::map<int, Search*> searchers;
     int nextRequestId;
 
-    QString configFile;
+    std::string configFile;
 
     SearchEngine *q;
 

@@ -17,6 +17,7 @@
  */
 #include "BitcoreProxy.h"
 #include <httpengine/socket.h>
+#include <networkmanager/NetworkManager.h>
 
 #include <netbase.h>
 #include <uint256.h>
@@ -298,9 +299,9 @@ void BitcoreProxy::returnTemplatePath(HttpEngine::Socket *socket, const QString 
     socket->close();
 }
 
-void BitcoreProxy::parseConfig(const QString &confFile)
+void BitcoreProxy::parseConfig(const std::string &confFile)
 {
-    QSettings conf(confFile, QSettings::IniFormat);
+    QSettings conf(QString::fromStdString(confFile), QSettings::IniFormat);
     conf.beginGroup("json");
     s_JsonFormat = conf.value("compact", true).toBool() ? QJsonDocument::Compact : QJsonDocument::Indented;
     conf.endGroup();
@@ -310,6 +311,11 @@ void BitcoreProxy::initializeHubConnection(NetworkConnection con, const std::str
 {
     con.send(Message(Api::BlockChainService, Api::BlockChain::GetBlockCount));
     con.send(Message(Api::BlockNotificationService, Api::BlockNotification::Subscribe));
+}
+
+void BitcoreProxy::onReparseConfig()
+{
+    reparseConfig();
 }
 
 void BitcoreProxy::requestTransactionInfo(const RequestString &rs, BitcoreWebRequest *request)
@@ -439,9 +445,8 @@ void BitcoreProxy::returnFeeSuggestion(const RequestString &rs, BitcoreWebReques
 
 void BitcoreProxy::returnDailyTransactions(const RequestString &rs, BitcoreWebRequest *request)
 {
- // TODO
+    // TODO
 }
-
 
 
 // ------------------------------------------

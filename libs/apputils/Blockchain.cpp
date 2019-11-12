@@ -22,6 +22,11 @@
 #include <streaming/MessageParser.h>
 #include <primitives/FastTransaction.h>
 
+#include <boost/filesystem.hpp>
+#include <boost/program_options/detail/config_file.hpp>
+#include <boost/program_options/parsers.hpp>
+#include <boost/algorithm/string.hpp>
+
 namespace {
 
 Blockchain::Transaction fillTx(Streaming::MessageParser &parser, const Blockchain::Job &job, int jobId)
@@ -135,7 +140,7 @@ void Blockchain::SearchEngine::start(Blockchain::Search *request)
 {
     request->policy = d->txPolicy;
     {
-        QMutexLocker locker(&d->lock);
+        std::lock_guard<std::mutex> lock(d->lock);
         request->requestId = d->nextRequestId++;
         d->searchers.insert(std::make_pair(request->requestId, request));
     }
@@ -170,15 +175,15 @@ void Blockchain::SearchEngine::addHub(const EndPoint &ep)
     c.con.connect();
 }
 
-void Blockchain::SearchEngine::setConfigFile(const QString &configFile)
+void Blockchain::SearchEngine::setConfigFile(const std::string &configFile)
 {
     d->configFile = configFile;
     reparseConfig();
 }
 
-void Blockchain::SearchEngine::parseConfig(const QString &confFile)
+void Blockchain::SearchEngine::parseConfig(const std::string &confFile)
 {
-    Q_UNUSED(confFile)
+    // intentionally left empty
 }
 
 void Blockchain::SearchEngine::reparseConfig()
@@ -198,31 +203,45 @@ Blockchain::SearchEnginePrivate::SearchEnginePrivate(SearchEngine *q)
 void Blockchain::SearchEnginePrivate::findServices()
 {
     logInfo(Log::SearchEngine) << "parsing config" << configFile;
-    QSettings conf(configFile, QSettings::IniFormat);
-    conf.beginGroup("services");
+
+    boost::filesystem::ifstream streamConfig(configFile);
+    if (!streamConfig.good())
+        return; // No conf file is OK
+
+    std::set<std::string> setOptions;
+    setOptions.insert("*");
+
+    using namespace boost::program_options;
+
     EndPoint ep;
-    for (auto indexer : conf.value("indexer").toString().split(" ", QString::SkipEmptyParts)) {
-        // TODO write logic to remove connections no longer in the config file
-        indexer = indexer.trimmed();
-        try {
-            ep.announcePort = 1234;
-            SplitHostPort(indexer.toStdString(), ep.announcePort, ep.hostname);
-            if (!network.connection(ep, NetworkManager::OnlyExisting).isValid())
-                q->addIndexer(ep);
-        } catch (const std::exception &e) {
-            logCritical(Log::SearchEngine) << "Connecting to" << indexer << ep.announcePort << "failed with:" << e;
+    for (detail::config_file_iterator it(streamConfig, setOptions), end; it != end; ++it) {
+        if (it->string_key == "services.indexer" && !it->value.empty()) {
+            std::vector<std::string> indexers;
+            boost::split(indexers, it->value[0], boost::is_any_of(" \t;,"));
+            for (auto indexer : indexers) {
+                try {
+                    ep.announcePort = 1234;
+                    SplitHostPort(indexer, ep.announcePort, ep.hostname);
+                    if (!network.connection(ep, NetworkManager::OnlyExisting).isValid())
+                        q->addIndexer(ep);
+                } catch (const std::exception &e) {
+                    logCritical(Log::SearchEngine) << "Connecting to" << indexer << ep.announcePort << "failed with:" << e;
+                }
+            }
         }
-    }
-    for (auto hub : conf.value("hub").toString().split(" ", QString::SkipEmptyParts)) {
-        hub = hub.trimmed();
-        // TODO write logic to remove connections no longer in the config file
-        try {
-            ep.announcePort = 1235;
-            SplitHostPort(hub.toStdString(), ep.announcePort, ep.hostname);
-            if (!network.connection(ep, NetworkManager::OnlyExisting).isValid())
-                q->addHub(ep);
-        } catch (const std::exception &e) {
-            logCritical(Log::SearchEngine) << "Connecting to" << hub << ep.announcePort << "failed with:" << e;
+        else if (it->string_key == "services.hub" && !it->value.empty()) {
+            std::vector<std::string> hubs;
+            boost::split(hubs, it->value[0], boost::is_any_of(" \t;,"));
+            for (auto hub : hubs) {
+                try {
+                    ep.announcePort = 1235;
+                    SplitHostPort(hub, ep.announcePort, ep.hostname);
+                    if (!network.connection(ep, NetworkManager::OnlyExisting).isValid())
+                        q->addHub(ep);
+                } catch (const std::exception &e) {
+                    logCritical(Log::SearchEngine) << "Connecting to" << hub << ep.announcePort << "failed with:" << e;
+                }
+            }
         }
     }
 }
@@ -245,7 +264,7 @@ void Blockchain::SearchEnginePrivate::hubSentMessage(const Message &message)
     const int id = message.headerInt(SearchRequestId);
     if (id > 0) {
         logDebug(Log::SearchEngine) << "Received hub message for job-id:" << id;
-        QMutexLocker locker(&lock);
+        std::lock_guard<std::mutex> lock_(lock);
         auto searcher = searchers.find(id);
         if (searcher != searchers.end()) {
             assert(searcher->second->policy);
@@ -299,7 +318,7 @@ void Blockchain::SearchEnginePrivate::indexerSentMessage(const Message &message)
     logDebug(Log::SearchEngine);
     const int id = message.headerInt(SearchRequestId);
     if (id > 0) {
-        QMutexLocker locker(&lock);
+        std::lock_guard<std::mutex> lock_(lock);
         auto searcher = searchers.find(id);
         if (searcher != searchers.end()) {
             searcher->second->dataAdded(message);
@@ -356,7 +375,7 @@ void Blockchain::SearchEnginePrivate::sendMessage(const Message &message, Blockc
 
 void Blockchain::SearchEnginePrivate::searchFinished(Blockchain::Search *searcher)
 {
-    QMutexLocker locker(&lock);
+    std::lock_guard<std::mutex> lock_(lock);
     auto iter = searchers.find(searcher->requestId);
     if (iter != searchers.end())
         searchers.erase(iter);
@@ -364,9 +383,9 @@ void Blockchain::SearchEnginePrivate::searchFinished(Blockchain::Search *searche
 
 Streaming::BufferPool *Blockchain::SearchEnginePrivate::pool()
 {
-    if (!pools.hasLocalData())
-        pools.setLocalData(new Streaming::BufferPool(1E6));
-    return pools.localData();
+    if (!pools.get())
+        pools.reset(new Streaming::BufferPool(1E6));
+    return pools.get();
 }
 
 void Blockchain::SearchPolicy::parseMessageFromHub(Search *request, const Message &message)

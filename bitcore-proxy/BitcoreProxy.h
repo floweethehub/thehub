@@ -18,6 +18,7 @@
 #ifndef BITCOREPROXY_H
 #define BITCOREPROXY_H
 
+#include <QString>
 #include <Blockchain.h>
 #include <QJsonObject>
 #include <httpengine/server.h>
@@ -101,7 +102,7 @@ private:
 #endif
 };
 
-class BitcoreProxy : public Blockchain::SearchEngine
+class BitcoreProxy : public QObject, public Blockchain::SearchEngine
 {
     Q_OBJECT
 public:
@@ -110,9 +111,12 @@ public:
     // http engine callback
     void onIncomingConnection(HttpEngine::WebRequest *request);
 
-    void parseConfig(const QString &confFile) override;
+    void parseConfig(const std::string &confFile) override;
 
     void initializeHubConnection(NetworkConnection connection, const std::string &hubVersion) override;
+
+public slots:
+    void onReparseConfig();
 
 private:
     void returnEnabledChains(HttpEngine::WebRequest *request) const;
@@ -123,6 +127,9 @@ private:
     void requestBlockInfo(const RequestString &rs, BitcoreWebRequest *request);
     void returnFeeSuggestion(const RequestString &rs, BitcoreWebRequest *request);
     void returnDailyTransactions(const RequestString &rs, BitcoreWebRequest *request);
+
+private:
+    void findServices(const QString &configFile);
 };
 
 #endif

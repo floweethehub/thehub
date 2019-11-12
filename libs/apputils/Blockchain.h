@@ -18,9 +18,6 @@
 #ifndef BLOCKCHAIN_H
 #define BLOCKCHAIN_H
 
-#include <QString>
-#include <QSettings>
-
 #include <NetworkConnection.h>
 #include <NetworkEndPoint.h>
 #include <uint256.h>
@@ -134,35 +131,16 @@ public:
     Search() {}
     virtual ~Search();
 
-    virtual void finished(int unfinishedJobs) { Q_UNUSED(unfinishedJobs) }
-    virtual void dataAdded(const Message &message) { Q_UNUSED(message) }
-    virtual void transactionAdded(const Transaction &transaction) {
-        Q_UNUSED(transaction)
-    }
-    virtual void txIdResolved(int jobId, int blockHeight, int offsetInBlock) {
-        Q_UNUSED(jobId)
-        Q_UNUSED(blockHeight)
-        Q_UNUSED(offsetInBlock)
-    }
+    virtual void finished(int unfinishedJobs) {}
+    virtual void dataAdded(const Message &message) { }
+    virtual void transactionAdded(const Transaction &transaction) { }
+    virtual void txIdResolved(int jobId, int blockHeight, int offsetInBlock) { }
     /**
      * The job \a jobId returned and the indexer returned the height+offset.
      */
-    virtual void spentOutputResolved(int jobId, int blockHeight, int offsetInBlock) {
-        Q_UNUSED(jobId)
-        Q_UNUSED(blockHeight)
-        Q_UNUSED(offsetInBlock)
-    }
-    virtual void addressUsedInOutput(int blockHeight, int offsetInBlock, int outIndex) {
-        Q_UNUSED(blockHeight)
-        Q_UNUSED(offsetInBlock)
-        Q_UNUSED(outIndex)
-
-    }
-    virtual void utxoLookup(int blockHeight, int offsetInBlock, bool unspent) {
-        Q_UNUSED(blockHeight)
-        Q_UNUSED(offsetInBlock)
-        Q_UNUSED(unspent)
-    }
+    virtual void spentOutputResolved(int jobId, int blockHeight, int offsetInBlock) { }
+    virtual void addressUsedInOutput(int blockHeight, int offsetInBlock, int outIndex) { }
+    virtual void utxoLookup(int blockHeight, int offsetInBlock, bool unspent) { }
 
     // used by the engine to ID the request, set and used only by the engine.
     int requestId = -1;
@@ -180,9 +158,8 @@ public:
     SearchPolicy *policy = nullptr;
 };
 
-class SearchEngine : public QObject
+class SearchEngine
 {
-    Q_OBJECT
 public:
     SearchEngine();
     ~SearchEngine();
@@ -191,36 +168,20 @@ public:
     /// throws ServiceUnavailableException
     void start(Search *request);
 
-    /*
-     * probable want to subclass Search to provide a blocking API and have these
-     * methods return that.
-
-    Search* findTransaction(int blockHeight, int offsetInBlock, Search *state = nullptr);
-    Search* findTransaction(const uint256 &txid, Search *state = nullptr);
-
-    Search* findTransactions(const uint160 &address, Search *state = nullptr);
-    Search* findTransactions(const uint256 &txid, Search *state = nullptr);
-    */
-
     void addIndexer(const EndPoint &ep);
     void addHub(const EndPoint &ep);
 
-    void setConfigFile(const QString &configFile);
+    void setConfigFile(const std::string &configFile);
+    virtual void parseConfig(const std::string &confFile);
 
-    virtual void parseConfig(const QString &confFile);
-
-    virtual void initializeHubConnection(NetworkConnection connection, const std::string &hubVersion) {
-        Q_UNUSED(connection)
-        Q_UNUSED(hubVersion)
-    }
-    virtual void initializeIndexerConnection(NetworkConnection connection) { Q_UNUSED(connection) }
-    virtual void hubSentMessage(const Message &message) { Q_UNUSED(message) }
-    virtual void indexerSentMessage(const Message &message) { Q_UNUSED(message) }
-
-public slots:
-    void reparseConfig();
+    virtual void initializeHubConnection(NetworkConnection connection, const std::string &hubVersion) { }
+    virtual void initializeIndexerConnection(NetworkConnection connection) { }
+    virtual void hubSentMessage(const Message &message) { }
+    virtual void indexerSentMessage(const Message &message) { }
 
 protected:
+    void reparseConfig();
+
     SearchEnginePrivate *d;
 };
 
