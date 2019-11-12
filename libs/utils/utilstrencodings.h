@@ -179,4 +179,6 @@ bool ConvertBits(O &out, I it, I end) {
     return true;
 }
 
+void SplitHostPort(std::string in, uint16_t &portOut, std::string &hostOut);
+
 #endif

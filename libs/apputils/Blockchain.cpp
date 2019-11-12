@@ -17,11 +17,9 @@
  */
 #include "Blockchain_p.h"
 
+#include <utilstrencodings.h>
+#include <streaming/BufferPool.h>
 #include <streaming/MessageParser.h>
-
-#include <QMutex>
-#include <netbase.h>
-
 #include <primitives/FastTransaction.h>
 
 namespace {

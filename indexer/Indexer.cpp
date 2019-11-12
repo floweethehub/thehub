@@ -29,7 +29,7 @@
 #include <qsettings.h>
 #include <qdatetime.h>
 #include <primitives/pubkey.h>
-#include <netbase.h>
+#include <utilstrencodings.h>
 
 #include <qfile.h>
 #include <qcoreapplication.h>

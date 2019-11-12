@@ -19,7 +19,7 @@
 #include "IndexerClient.h"
 #include <FloweeServiceApplication.h>
 
-#include <netbase.h> // for SplitHostPort
+#include <utilstrencodings.h> // for SplitHostPort
 
 int main(int argc, char **argv)
 {

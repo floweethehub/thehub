@@ -26,6 +26,7 @@
 #include "rpcprotocol.h" // For HTTP status codes
 #include "sync.h"
 #include "UiInterface.h"
+#include <utils/utilstrencodings.h>
 
 #include <cstdio>
 #include <cstdlib>

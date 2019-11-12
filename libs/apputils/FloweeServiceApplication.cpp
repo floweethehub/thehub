@@ -23,7 +23,7 @@
 #include <signal.h>
 #include <algorithm>
 
-#include <netbase.h> // for SplitHostPort
+#include <utilstrencodings.h> // for SplitHostPort
 #include <clientversion.h>
 #include <qtextstream.h>
 #include <boost/asio.hpp>

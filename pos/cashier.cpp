@@ -22,7 +22,7 @@
 #include <Logger.h>
 #include <clientversion.h>
 #include <NetworkManager.h>
-#include <netbase.h>
+#include <utilstrencodings.h>
 
 #include <qguiapplication.h>
 #include <QCommandLineParser>

@@ -25,6 +25,7 @@
 #include "platformstyle.h"
 #include "bantablemodel.h"
 
+#include <utilstrencodings.h>
 #include "chainparams.h"
 #include "rpcserver.h"
 #include "rpcclient.h"

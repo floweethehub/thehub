@@ -223,7 +223,6 @@ public:
 
 CNetAddr::Network ParseNetwork(std::string net);
 std::string GetNetworkName(CNetAddr::Network net);
-void SplitHostPort(std::string in, uint16_t &portOut, std::string &hostOut);
 bool SetProxy(CNetAddr::Network net, const proxyType &addrProxy);
 bool GetProxy(CNetAddr::Network net, proxyType &proxyInfoOut);
 bool IsProxy(const CNetAddr &addr);
