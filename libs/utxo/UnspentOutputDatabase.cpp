@@ -21,8 +21,8 @@
 #include "UnspentOutputDatabase_p.h"
 #include <streaming/MessageBuilder.h>
 #include <streaming/MessageParser.h>
-#include <utils/util.h>
 #include <utils/hash.h>
+#include <utils/utiltime.h>
 
 #include <iostream>
 #include <fstream>

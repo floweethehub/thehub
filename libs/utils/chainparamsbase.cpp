@@ -18,11 +18,10 @@
  */
 
 #include "chainparamsbase.h"
-
 #include "tinyformat.h"
-#include "util.h"
 
 #include <cassert>
+#include <stdexcept>
 
 const std::string CBaseChainParams::MAIN = "main";
 const std::string CBaseChainParams::TESTNET = "test";
@@ -95,20 +94,6 @@ CBaseChainParams& BaseParams(const std::string& chain)
 void SelectBaseParams(const std::string& chain)
 {
     pCurrentBaseParams = &BaseParams(chain);
-}
-
-std::string ChainNameFromCommandLine()
-{
-    bool fRegTest = GetBoolArg("-regtest", false);
-    bool fTestNet = GetBoolArg("-testnet", false);
-
-    if (fTestNet && fRegTest)
-        throw std::runtime_error("Invalid combination of -regtest and/or -testnet.");
-    if (fRegTest)
-        return CBaseChainParams::REGTEST;
-    if (fTestNet)
-        return CBaseChainParams::TESTNET;
-    return CBaseChainParams::MAIN;
 }
 
 bool AreBaseParamsConfigured()

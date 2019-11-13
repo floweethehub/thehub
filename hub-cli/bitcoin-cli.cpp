@@ -21,6 +21,7 @@
 #include "chainparamsbase.h"
 #include "clientversion.h"
 #include "rpcclient.h"
+#include <server/util.h>
 #include "rpcprotocol.h"
 #include <serverutil.h>
 #include "utilstrencodings.h"

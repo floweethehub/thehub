@@ -21,7 +21,8 @@
 #include "chainparams.h"
 #include "clientversion.h"
 #include "rpcserver.h"
-#include "init.h"
+#include <init.h>
+#include <server/main.h>
 #include "noui.h"
 #include "scheduler.h"
 #include <serverutil.h>

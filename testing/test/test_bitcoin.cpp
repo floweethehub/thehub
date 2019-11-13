@@ -72,7 +72,7 @@ TestingSetup::TestingSetup(const std::string& chainName) : BasicTestingSetup(cha
     bitdb.MakeMock();
 #endif
     ClearDatadirCache();
-    pathTemp = GetTempPath() / strprintf("test_flowee_%lu_%i", (unsigned long)GetTime(), (int)(GetRand(100000)));
+    pathTemp = boost::filesystem::temp_directory_path() / strprintf("test_flowee_%lu_%i", (unsigned long)GetTime(), (int)(GetRand(100000)));
     boost::filesystem::create_directories(pathTemp / "regtest/blocks/index");
     boost::filesystem::create_directories(pathTemp / "blocks/index");
     mapArgs["-datadir"] = pathTemp.string();

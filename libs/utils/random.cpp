@@ -24,7 +24,6 @@
 #include "compat.h" // for Windows API
 #endif
 #include "serialize.h"        // for begin_ptr(vec)
-#include "util.h"             // for LogPrint()
 #include "utilstrencodings.h" // for GetTime()
 
 #include <limits>
@@ -106,7 +105,7 @@ void GetRandBytes(unsigned char* buf, int num)
     }
 #else
     if (RAND_bytes(buf, num) != 1) {
-        LogPrintf("%s: OpenSSL RAND_bytes() failed with error: %s\n", __func__, ERR_error_string(ERR_get_error(), NULL));
+        logCritical(Log::Bitcoin) << "OpenSSL RAND_bytes() failed with error:" <<  ERR_error_string(ERR_get_error(), nullptr);
         assert(false);
     }
 #endif

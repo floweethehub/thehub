@@ -24,6 +24,7 @@
 #include "bitcoingui.h"
 
 #include "chainparams.h"
+#include <server/util.h>
 #include "clientmodel.h"
 #include "guiconstants.h"
 #include "guiutil.h"

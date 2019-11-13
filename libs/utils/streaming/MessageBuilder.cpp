@@ -20,7 +20,6 @@
 #include "BufferPool.h"
 
 #include <cassert>
-#include <util.h>
 
 int Streaming::Private::serialize(char *data, uint64_t value)
 {
@@ -208,8 +207,9 @@ void Streaming::MessageBuilder::setMessageSize(int size)
     assert(m_messageType != NoHeader);
     assert(m_beforeHeader == false); // should not call this before adding any data.
     if (size > 0x7FFF)
-        LogPrintf("MessageBuilder::setMessageSize Warning. Size too big for 2 bytes (%d)\n", size);
+        logCritical(Log::Bitcoin) << "MessageBuilder::setMessageSize Warning. Size too big for 2 bytes:" << size;
     assert(size > 0);
+    assert(size <= 0x7FFF);
 
     uint32_t tmp = static_cast<uint32_t>(size);
     for (int i = 0; i < 2; ++i) {

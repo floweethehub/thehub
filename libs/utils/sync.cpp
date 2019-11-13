@@ -18,7 +18,6 @@
 
 #include "sync.h"
 
-#include "util.h"
 #include "utilstrencodings.h"
 
 #include <cstdio>

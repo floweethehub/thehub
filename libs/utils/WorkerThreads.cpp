@@ -17,7 +17,10 @@
  */
 #include "WorkerThreads.h"
 #include "Logger.h"
-#include "util.h"
+
+#if defined(HAVE_CONFIG_H)
+#include "config/flowee-config.h"
+#endif
 
 WorkerThreads::WorkerThreads()
 {
@@ -31,7 +34,10 @@ void WorkerThreads::startThreads()
     for (int i = boost::thread::hardware_concurrency() + 1; i > 0; --i) {
         auto ioservice(m_ioservice);
         m_threads.create_thread([ioservice] {
-            RenameThread("Worker-threads");
+#if defined(PR_SET_NAME)
+            // Only the first 15 characters are used (16 - NUL terminator)
+            ::prctl(PR_SET_NAME, "Worker-threads", 0, 0, 0);
+#endif
             while(true) {
                 try {
                     ioservice->run();

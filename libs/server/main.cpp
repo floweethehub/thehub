@@ -3112,6 +3112,7 @@ void MarkIndexUnsaved(CBlockIndex *index)
     setDirtyBlockIndex.insert(index);
 }
 
+
 class CMainCleanup
 {
 public:

@@ -22,8 +22,6 @@
 #include <boost/algorithm/hex.hpp>
 #include <cassert>
 
-#include <util.h>
-
 bool Streaming::Private::unserialize(const char *data, int dataSize, int &position, uint64_t &result)
 {
     assert(data);

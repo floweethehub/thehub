@@ -25,7 +25,7 @@
 
 void TestUtxo::init()
 {
-    m_testPath = GetTempPath() / strprintf("test_flowee_%lu", (unsigned long)GetTime());
+    m_testPath = boost::filesystem::temp_directory_path() / strprintf("test_flowee_%lu", (unsigned long)GetTime());
     boost::filesystem::remove_all(m_testPath);
 }
 

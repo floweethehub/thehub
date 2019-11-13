@@ -19,6 +19,7 @@ include_directories(${LIBSERVER_INCLUDES} ${CMAKE_CURRENT_SOURCE_DIR}/.. ${CMAKE
 set (FLOWEE_SERVER_FILES
     addrman.cpp
     Application.cpp
+    allowed_args.cpp
     arith_uint256.cpp
     BlocksDB.cpp
     bloom.cpp
@@ -41,6 +42,7 @@ set (FLOWEE_SERVER_FILES
     main.cpp
     merkleblock.cpp
     miner.cpp
+    netbase.cpp
     net.cpp
     noui.cpp
     policy/policy.cpp
@@ -48,6 +50,8 @@ set (FLOWEE_SERVER_FILES
     primitives/FastUndoBlock.cpp
     protocol.cpp
     rest.cpp
+    rpcclient.cpp
+    rpcprotocol.cpp
     rpcblockchain.cpp
     rpcmining.cpp
     rpcmisc.cpp
@@ -66,6 +70,7 @@ set (FLOWEE_SERVER_FILES
     torcontrol.cpp
     txmempool.cpp
     txorphancache.cpp
+    util.cpp
     UnspentOutputData.cpp
     validation/BlockValidation.cpp
     validation/Engine.cpp

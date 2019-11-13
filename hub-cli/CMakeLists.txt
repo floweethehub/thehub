@@ -17,11 +17,10 @@
 project (hub-cli)
 
 include_directories(. ${LIBS_INCLUDES})
-include_directories(${LIBSERVER_INCLUDES} ${LIBCONSOLE_INCLUDES} ${CMAKE_BINARY_DIR}/include)
+include_directories(${LIBSERVER_INCLUDES} ${CMAKE_BINARY_DIR}/include)
 
 set (CLI_LIBS
     flowee_server
-    flowee_console
     flowee_utils
     flowee_crypto
 

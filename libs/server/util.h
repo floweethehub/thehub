@@ -108,7 +108,6 @@ void ReadConfigFile(std::map<std::string, std::string>& mapSettingsRet, std::map
 #ifdef WIN32
 boost::filesystem::path GetSpecialFolderPath(int nFolder, bool fCreate = true);
 #endif
-boost::filesystem::path GetTempPath();
 
 inline bool IsSwitchChar(char c)
 {
@@ -167,5 +166,10 @@ bool SoftSetBoolArg(const std::string& strArg, bool fValue);
 void SetThreadPriority(int nPriority);
 void RenameThread(const char* name);
 
+/**
+ * Looks for -regtest, -testnet and returns the appropriate BIP70 chain name.
+ * @return CBaseChainParams::MAX_NETWORK_TYPES if an invalid combination is given. CBaseChainParams::MAIN by default.
+ */
+std::string ChainNameFromCommandLine();
 
 #endif

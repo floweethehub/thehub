@@ -18,7 +18,6 @@ include_directories(${LIBUTILS_INCLUDES} ${CMAKE_BINARY_DIR}/include)
 
 add_library(flowee_utils STATIC
     amount.cpp
-    allowed_args.cpp
     base58.cpp
     cashaddr.cpp
     chainparamsbase.cpp
@@ -30,9 +29,7 @@ add_library(flowee_utils STATIC
     LogChannels.cpp
     Logger.cpp
     Message.cpp
-    netbase.cpp
     random.cpp
-    rpcprotocol.cpp
     streaming/BufferPool.cpp
     streaming/ConstBuffer.cpp
     streaming/MessageBuilder.cpp
@@ -49,7 +46,6 @@ add_library(flowee_utils STATIC
     primitives/script.cpp
     primitives/transaction.cpp
     uint256.cpp
-    util.cpp
     utilmoneystr.cpp
     utilstrencodings.cpp
     utiltime.cpp
@@ -76,7 +72,6 @@ install(FILES
     compat.h
     serialize.h
     prevector.h
-    netbase.h
     uint256.h
     base58.h
     cashaddr.h

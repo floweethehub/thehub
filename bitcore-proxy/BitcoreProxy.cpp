@@ -19,7 +19,6 @@
 #include <httpengine/socket.h>
 #include <networkmanager/NetworkManager.h>
 
-#include <netbase.h>
 #include <uint256.h>
 #include <utilstrencodings.h>
 #include <cashaddr.h>
