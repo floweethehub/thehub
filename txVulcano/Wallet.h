@@ -40,6 +40,7 @@
 
 #include <primitives/key.h>
 #include <primitives/pubkey.h>
+#include <primitives/script.h>
 
 #include <primitives/FastTransaction.h>
 

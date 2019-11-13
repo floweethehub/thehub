@@ -43,6 +43,7 @@ add_library(flowee_utils STATIC
     primitives/FastTransaction.cpp
     primitives/key.cpp
     primitives/pubkey.cpp
+    primitives/pubkey_utils.cpp
     primitives/script.cpp
     primitives/transaction.cpp
     uint256.cpp

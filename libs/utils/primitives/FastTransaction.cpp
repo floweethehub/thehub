@@ -18,8 +18,7 @@
 #include "FastTransaction.h"
 #include "FastBlock.h"
 #include "TxIterator_p.h"
-#include "primitives/transaction.h"
-#include <streaming/BufferPool.h>
+#include "transaction.h"
 
 #include <compat/endian.h>
 

@@ -1,6 +1,7 @@
 /*
  * This file is part of the Flowee project
  * Copyright (c) 2009-2015 The Bitcoin Core developers
+ * Copyright (C) 2019 Tom Zander <tomz@freedommail.ch>
  *
  * This program is free software: you can redistribute it and/or modify
  * it under the terms of the GNU General Public License as published by
@@ -25,7 +26,7 @@
 namespace
 {
 /* Global secp256k1_context object used for verification. */
-secp256k1_context* secp256k1_context_verify = NULL;
+secp256k1_context* secp256k1_context_verify = nullptr;
 }
 
 /** This function is taken from the libsecp256k1 distribution and implements
@@ -239,6 +240,11 @@ bool CPubKey::IsFullyValid() const {
     return secp256k1_ec_pubkey_parse(secp256k1_context_verify, &pubkey, &(*this)[0], size());
 }
 
+bool CPubKey::IsCompressed() const
+{
+    return size() == 33;
+}
+
 bool CPubKey::Decompress() {
     if (!IsValid())
         return false;
@@ -274,6 +280,21 @@ bool CPubKey::Derive(CPubKey& pubkeyChild, ChainCode &ccChild, unsigned int nChi
     return true;
 }
 
+CKeyID CPubKey::GetID() const
+{
+    return CKeyID(Hash160(vch, vch + size()));
+}
+
+uint256 CPubKey::GetHash() const
+{
+    return Hash(vch, vch + size());
+}
+
+bool CPubKey::IsValid() const
+{
+    return size() > 0;
+}
+
 void CExtPubKey::Encode(unsigned char code[74]) const {
     code[0] = nDepth;
     memcpy(code+1, vchFingerprint, 4);
@@ -300,12 +321,12 @@ bool CExtPubKey::Derive(CExtPubKey &out, unsigned int nChild) const {
     return pubkey.Derive(out.pubkey, out.chaincode, nChild, chaincode);
 }
 
-/* static */ bool CPubKey::CheckLowS(const std::vector<unsigned char>& vchSig) {
+bool CPubKey::CheckLowS(const std::vector<unsigned char>& vchSig) {
     secp256k1_ecdsa_signature sig;
     if (!ecdsa_signature_parse_der_lax(secp256k1_context_verify, &sig, &vchSig[0], vchSig.size())) {
         return false;
     }
-    return (!secp256k1_ecdsa_signature_normalize(secp256k1_context_verify, NULL, &sig));
+    return (!secp256k1_ecdsa_signature_normalize(secp256k1_context_verify, nullptr, &sig));
 }
 
 /* static */ int ECCVerifyHandle::refcount = 0;
@@ -313,9 +334,9 @@ bool CExtPubKey::Derive(CExtPubKey &out, unsigned int nChild) const {
 ECCVerifyHandle::ECCVerifyHandle()
 {
     if (refcount == 0) {
-        assert(secp256k1_context_verify == NULL);
+        assert(secp256k1_context_verify == nullptr);
         secp256k1_context_verify = secp256k1_context_create(SECP256K1_CONTEXT_VERIFY);
-        assert(secp256k1_context_verify != NULL);
+        assert(secp256k1_context_verify != nullptr);
     }
     refcount++;
 }
@@ -324,8 +345,8 @@ ECCVerifyHandle::~ECCVerifyHandle()
 {
     refcount--;
     if (refcount == 0) {
-        assert(secp256k1_context_verify != NULL);
+        assert(secp256k1_context_verify != nullptr);
         secp256k1_context_destroy(secp256k1_context_verify);
-        secp256k1_context_verify = NULL;
+        secp256k1_context_verify = nullptr;
     }
 }

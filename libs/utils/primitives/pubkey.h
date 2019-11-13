@@ -2,6 +2,7 @@
  * This file is part of the Flowee project
  * Copyright (C) 2009-2010 Satoshi Nakamoto
  * Copyright (C) 2009-2015 The Bitcoin Core developers
+ * Copyright (C) 2019 Tom Zander <tomz@freedommail.ch>
  *
  * This program is free software: you can redistribute it and/or modify
  * it under the terms of the GNU General Public License as published by
@@ -20,6 +21,7 @@
 #ifndef FLOWEE_PUBKEY_H
 #define FLOWEE_PUBKEY_H
 
+#include "pubkey_utils.h"
 #include "hash.h"
 #include "serialize.h"
 #include "uint256.h"
@@ -66,10 +68,6 @@ public:
     static_assert(PUBLIC_KEY_SIZE >= COMPRESSED_PUBLIC_KEY_SIZE,
                   "COMPRESSED_PUBLIC_KEY_SIZE is larger than PUBLIC_KEY_SIZE");
 
-    static bool isValidSize(const std::vector<uint8_t> &vch) {
-        return vch.size() > 0 && GetLen(vch[0]) == vch.size();
-    }
-
     //! Construct an invalid public key.
     CPubKey() {
         Invalidate();
@@ -79,7 +77,7 @@ public:
     template <typename T>
     void Set(const T pbegin, const T pend)
     {
-        int len = pend == pbegin ? 0 : GetLen(pbegin[0]);
+        int len = pend == pbegin ? 0 : PubKey::keyLength(pbegin[0]);
         if (len && len == (pend - pbegin))
             memcpy(vch, (unsigned char*)&pbegin[0], len);
         else
@@ -100,42 +98,38 @@ public:
     }
 
     //! Simple read-only vector-like interface to the pubkey data.
-    unsigned int size() const { return GetLen(vch[0]); }
+    unsigned int size() const { return PubKey::keyLength(vch[0]); }
     const unsigned char* begin() const { return vch; }
     const unsigned char* end() const { return vch + size(); }
     const unsigned char& operator[](unsigned int pos) const { return vch[pos]; }
 
     //! Comparator implementation.
-    friend bool operator==(const CPubKey& a, const CPubKey& b)
-    {
-        return a.vch[0] == b.vch[0] &&
-               memcmp(a.vch, b.vch, a.size()) == 0;
+    friend bool operator==(const CPubKey& a, const CPubKey& b) {
+        return a.vch[0] == b.vch[0] && memcmp(a.vch, b.vch, a.size()) == 0;
     }
-    friend bool operator!=(const CPubKey& a, const CPubKey& b)
-    {
+
+    friend bool operator!=(const CPubKey& a, const CPubKey& b) {
         return !(a == b);
     }
-    friend bool operator<(const CPubKey& a, const CPubKey& b)
-    {
+
+    friend bool operator<(const CPubKey& a, const CPubKey& b) {
         return a.vch[0] < b.vch[0] ||
                (a.vch[0] == b.vch[0] && memcmp(a.vch, b.vch, a.size()) < 0);
     }
 
     //! Implement serialization, as if this was a byte vector.
-    unsigned int GetSerializeSize(int nType, int nVersion) const
-    {
+    unsigned int GetSerializeSize(int nType, int nVersion) const {
         return size() + 1;
     }
     template <typename Stream>
-    void Serialize(Stream& s, int nType, int nVersion) const
-    {
+    void Serialize(Stream& s, int nType, int nVersion) const {
         unsigned int len = size();
         ::WriteCompactSize(s, len);
         s.write((char*)vch, len);
     }
+
     template <typename Stream>
-    void Unserialize(Stream& s, int nType, int nVersion)
-    {
+    void Unserialize(Stream& s, int nType, int nVersion) {
         unsigned int len = ::ReadCompactSize(s);
         if (len <= 65) {
             s.read((char*)vch, len);
@@ -149,35 +143,23 @@ public:
     }
 
     //! Get the KeyID of this public key (hash of its serialization)
-    CKeyID GetID() const
-    {
-        return CKeyID(Hash160(vch, vch + size()));
-    }
+    CKeyID GetID() const;
 
     //! Get the 256-bit hash of this public key.
-    uint256 GetHash() const
-    {
-        return Hash(vch, vch + size());
-    }
+    uint256 GetHash() const;
 
     /*
      * Check syntactic correctness.
      * 
      * Note that this is consensus critical as CheckSig() calls it!
      */
-    bool IsValid() const
-    {
-        return size() > 0;
-    }
+    bool IsValid() const;
 
     //! fully validate whether this is a valid public key (more expensive than IsValid())
     bool IsFullyValid() const;
 
     //! Check whether this is a compressed public key.
-    bool IsCompressed() const
-    {
-        return size() == 33;
-    }
+    bool IsCompressed() const;
 
     /**
      * Verify a DER signature (~72 bytes).
@@ -211,15 +193,6 @@ private:
      * Its length can very cheaply be computed from the first byte.
      */
     unsigned char vch[65];
-
-    //! Compute the length of a pubkey with a given first byte.
-    static unsigned int GetLen(unsigned char chHeader) {
-        if (chHeader == 2 || chHeader == 3)
-            return 33;
-        if (chHeader == 4 || chHeader == 6 || chHeader == 7)
-            return 65;
-        return 0;
-    }
 
     //! Set this key data to be invalid
     inline void Invalidate() {

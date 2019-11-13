@@ -20,8 +20,8 @@
  */
 
 #include "script.h"
+#include "pubkey_utils.h"
 
-#include "pubkey.h"
 #include "tinyformat.h"
 #include "utilstrencodings.h"
 
@@ -490,7 +490,7 @@ bool Script::solver(const CScript &scriptPubKey, Script::TxnOutType &typeRet, st
 
             // Template matching opcodes:
             if (opcode2 == OP_PUBKEYS) {
-                while (CPubKey::isValidSize(vch1)) {
+                while (PubKey::isValidSize(vch1)) {
                     vSolutionsRet.push_back(vch1);
                     if (!script1.GetOp(pc1, opcode1, vch1))
                         break;
@@ -502,7 +502,7 @@ bool Script::solver(const CScript &scriptPubKey, Script::TxnOutType &typeRet, st
             }
 
             if (opcode2 == OP_PUBKEY) {
-                if (!CPubKey::isValidSize(vch1))
+                if (!PubKey::isValidSize(vch1))
                     break;
                 vSolutionsRet.push_back(vch1);
             }

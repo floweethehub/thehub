@@ -39,6 +39,7 @@ set (LIBS
     flowee_utils
     flowee_httpengine
 
+    ${SECP256K1_LIBRARY}
     ${Boost_LIBRARIES}
     Qt5::Core
     Qt5::Network

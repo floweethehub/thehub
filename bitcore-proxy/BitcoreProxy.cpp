@@ -18,10 +18,14 @@
 #include "BitcoreProxy.h"
 #include <httpengine/socket.h>
 #include <networkmanager/NetworkManager.h>
+#include <primitives/script.h>
+#include <primitives/FastTransaction.h>
+#include <primitives/pubkey.h>
 
 #include <uint256.h>
 #include <utilstrencodings.h>
 #include <cashaddr.h>
+#include <streaming/BufferPool.h>
 
 #include <QSettings>
 #include <QJsonDocument>
@@ -30,9 +34,6 @@
 #include <QFile>
 #include <QTimer>
 #include <base58.h>
-
-#include <primitives/FastTransaction.h>
-#include <primitives/pubkey.h>
 
 namespace {
 

@@ -20,10 +20,10 @@
 #include <cassert>
 #include <hash.h>
 #include <streaming/streams.h>
-
-#include <primitives/block.h>
-
 #include <streaming/BufferPool.h>
+
+#include "block.h"
+
 
 namespace
 {
