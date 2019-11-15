@@ -2,7 +2,7 @@
  * This file is part of the Flowee project
  * Copyright (c) 2009-2010 Satoshi Nakamoto
  * Copyright (c) 2009-2015 The Bitcoin Core developers
- * Copyright (C) 2017 Tom Zander <tomz@freedommail.ch>
+ * Copyright (C) 2017,2019 Tom Zander <tomz@freedommail.ch>
  *
  * This program is free software: you can redistribute it and/or modify
  * it under the terms of the GNU General Public License as published by
@@ -173,7 +173,10 @@ UniValue CallRPC(const std::string& strMethod, const UniValue& params)
 
         }
     } else {
-        strRPCUserColonPass = mapArgs["-rpcuser"] + ":" + mapArgs["-rpcpassword"];
+        std::string user = mapArgs["-rpcuser"];
+        if (user.empty())
+            user = "__cookie__";
+        strRPCUserColonPass = user + ":" + mapArgs["-rpcpassword"];
     }
 
     struct evkeyvalq *output_headers = evhttp_request_get_output_headers(req);
