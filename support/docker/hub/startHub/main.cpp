@@ -36,9 +36,10 @@
 static QProcess *hub = new QProcess();
 
 void HandleSignals(int) {
-qWarning() << "Docker: TERM received";
+    qWarning() << "Docker: TERM received";
     qint64 pid = hub->processId();
-    if (pid > 0) kill(pid, SIGTERM); // politely tell the Hub to terminate
+    if (pid > 0)
+        kill(pid, SIGTERM); // politely tell the Hub to terminate
 }
 
 int main(int x, char**y) {
@@ -124,8 +125,9 @@ int main(int x, char**y) {
                "apilisten=0.0.0.0\n"
                "min-thin-peers=0\n";
         out << net << "\n\n";
-        out << "# server=1 tells hub to accept JSON-RPC commands\n"
-               "server=1\n"
+        out << "# This tells hub to accept JSON-RPC commands, from anywhere, with password as stored in cookie\n"
+               "server=true\n"
+               "rpcallowip=127.0.0.0/0\n"
                "rpccookiefile=" + confDir2.absolutePath() + "/cookies/hub-rpc.cookie\n";
         configFile.close();
     }
