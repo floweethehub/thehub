@@ -1,6 +1,7 @@
 /*
  * This file is part of the Flowee project
  * Copyright (c) 2015 The Bitcoin Core developers
+ * Copyright (c) 2019 Tom Zander <tomz@freedommail.ch>
  *
  * This program is free software: you can redistribute it and/or modify
  * it under the terms of the GNU General Public License as published by
@@ -78,7 +79,7 @@ private:
 /* Pre-base64-encoded authentication token */
 static std::string strRPCUserColonPass;
 /* Stored RPC timer interface (for unregistration) */
-static HTTPRPCTimerInterface* httpRPCTimerInterface = 0;
+static HTTPRPCTimerInterface* httpRPCTimerInterface = nullptr;
 
 static void JSONErrorReply(HTTPRequest* req, const UniValue& objError, const UniValue& id)
 {
@@ -223,17 +224,36 @@ static bool HTTPReq_JSONRPC(HTTPRequest* req, const std::string &)
 
 static bool InitRPCAuthentication()
 {
-    if (mapArgs["-rpcpassword"] == "")
-    {
-        logCritical(Log::RPC) << "No rpcpassword set - using random cookie authentication";
-        if (!GenerateAuthCookie(&strRPCUserColonPass)) {
-            uiInterface.ThreadSafeMessageBox(
-                _("Error: A fatal internal error occurred, see hub.log for details"), // Same message as AbortNode
-                "", CClientUIInterface::MSG_ERROR);
-            return false;
-        }
-    } else {
+    if (!mapArgs["-rpcpassword"].empty()) {
         strRPCUserColonPass = mapArgs["-rpcuser"] + ":" + mapArgs["-rpcpassword"];
+    }
+    else {
+        boost::filesystem::path tokenFilePath = GetAuthCookieFile();
+        std::ifstream tokenFile;
+        tokenFile.open(tokenFilePath.string().c_str());
+        if (!tokenFile.is_open()) {
+            logCritical(Log::RPC) << "No rpcpassword set - using random cookie authentication";
+
+            unsigned char rand_pwd[32];
+            GetRandBytes(rand_pwd, 32);
+            // prefix with username for debugging / logging purposes.
+            strRPCUserColonPass = "__cookie__:" + EncodeBase64(&rand_pwd[0],32);
+
+            std::ofstream file;
+            file.open(tokenFilePath.string().c_str());
+            if (!file.is_open()) {
+                logFatal(Log::RPC) << "Unable to open cookie authentication file" << tokenFilePath.string() << "for writing";
+                return false;
+            }
+            file << strRPCUserColonPass;
+            file.close();
+            logCritical(Log::RPC) << "Generated RPC authentication cookie" << tokenFilePath.string();
+        }
+        else {
+            logCritical(Log::RPC) << "Reading RPC cookie" << tokenFilePath.string();
+            tokenFile >> strRPCUserColonPass;
+            tokenFile.close();
+        }
     }
     return true;
 }
@@ -259,6 +279,6 @@ void StopHTTPRPC()
         logCritical(Log::RPC) << "Stopping HTTP RPC server";
         RPCUnregisterTimerInterface(httpRPCTimerInterface);
         delete httpRPCTimerInterface;
-        httpRPCTimerInterface = 0;
+        httpRPCTimerInterface = nullptr;
     }
 }
