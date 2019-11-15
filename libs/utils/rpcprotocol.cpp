@@ -72,43 +72,15 @@ UniValue JSONRPCError(int code, const std::string& message)
     return error;
 }
 
-/** Username used when cookie authentication is in use (arbitrary, only for
- * recognizability in debugging/logging purposes)
- */
-static const std::string COOKIEAUTH_USER = "__cookie__";
 /** Default name for auth cookie file */
 static const std::string COOKIEAUTH_FILE = ".cookie";
 
 boost::filesystem::path GetAuthCookieFile()
 {
     boost::filesystem::path path(GetArg("-rpccookiefile", COOKIEAUTH_FILE));
-    if (!path.is_complete()) path = GetDataDir() / path;
+    if (!path.is_complete())
+        path = GetDataDir() / path;
     return path;
-}
-
-bool GenerateAuthCookie(std::string *cookie_out)
-{
-    unsigned char rand_pwd[32];
-    GetRandBytes(rand_pwd, 32);
-    std::string cookie = COOKIEAUTH_USER + ":" + EncodeBase64(&rand_pwd[0],32);
-
-    /**
-     * The umask determines what permissions are used to create this file.
-     */
-    std::ofstream file;
-    boost::filesystem::path filepath = GetAuthCookieFile();
-    file.open(filepath.string().c_str());
-    if (!file.is_open()) {
-        LogPrintf("Unable to open cookie authentication file %s for writing\n", filepath.string());
-        return false;
-    }
-    file << cookie;
-    file.close();
-    LogPrintf("Generated RPC authentication cookie %s\n", filepath.string());
-
-    if (cookie_out)
-        *cookie_out = cookie;
-    return true;
 }
 
 bool GetAuthCookie(boost::filesystem::path filepath, std::string *cookie_out)
