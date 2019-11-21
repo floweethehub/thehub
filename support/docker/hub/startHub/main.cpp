@@ -23,20 +23,27 @@
 
 #include <unistd.h>
 #include <signal.h>
+#include <QTime>
+#include <QDateTime>
 /*
    Interprets env vars;
-   FLOWEE_NETWORk:
+   FLOWEE_NETWORK:
       regtest or testnet
    FLOWEE_RPC_PASSWORD
       the password (cookie data) for the RPC access.
     FLOWEE_LOGLEVEL
         words like info, quiet or silent allowed
+    FLOWEE_HUB_REINDEX
+        if variable is present, we send a 'reindex' request to the hub, causing it to completely start a new block indexing (long!).
+        Notice that the hub remembers this accross restarts until the reindex is finished.
  */
 
 static QProcess *hub = new QProcess();
+static bool shutdownRequested = false;
 
 void HandleSignals(int) {
     qWarning() << "Docker: TERM received";
+    shutdownRequested = true;
     qint64 pid = hub->processId();
     if (pid > 0)
         kill(pid, SIGTERM); // politely tell the Hub to terminate
@@ -164,8 +171,8 @@ int main(int x, char**y) {
     sa.sa_handler = HandleSignals;
     sigemptyset(&sa.sa_mask);
     sa.sa_flags = 0;
-    sigaction(SIGTERM, &sa, NULL);
-    sigaction(SIGINT, &sa, NULL);
+    sigaction(SIGTERM, &sa, nullptr);
+    sigaction(SIGINT, &sa, nullptr);
 
     // Ignore SIGPIPE
     signal(SIGPIPE, SIG_IGN);
@@ -175,6 +182,8 @@ int main(int x, char**y) {
     if (getenv("FLOWEE_HUB_REINDEX"))
         args << "-reindex=true";
     hub->setReadChannel(QProcess::StandardOutput);
+    QTime startTime;
+    startTime.start();
     hub->start(QLatin1String("/usr/bin/hub"), args, QIODevice::ReadOnly);
     hub->waitForReadyRead(20000);
     if (hub->state() == QProcess::NotRunning) { // time out
@@ -188,12 +197,23 @@ int main(int x, char**y) {
         out << logData;
         logData = hub->readAllStandardOutput();
         out << logData;
-        if (hub->state() != QProcess::Running)
-            break;
+        if (hub->state() != QProcess::Running) {
+            if (!shutdownRequested && hub->exitCode() != 0) { // maybe it crashed and we want to auto-restart it.
+                const auto now = QDateTime::currentDateTimeUtc().toString();
+                out << now << " WARN: Hub exited with code " << hub->exitCode() << endl;
+                if (startTime.elapsed() > 120000) { // but not if it crashed too fast after restart.
+                    out << now << " WARN: StartHub attempts to restart hub." << endl;
+                    startTime.start();
+                    hub->start(QLatin1String("/usr/bin/hub"), args, QIODevice::ReadOnly);
+                }
+                else break;
+            }
+            else break;
+        }
         out.flush();
         hub->waitForReadyRead(20000);
     }
-    fflush(NULL);
+    fflush(nullptr);
     sync();
 
     return hub->exitCode();
