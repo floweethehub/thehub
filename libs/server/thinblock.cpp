@@ -188,7 +188,7 @@ bool CXThinBlock::process(CNode* pfrom)
         // We have all the transactions now that are in this block: try to reassemble and process.
         pfrom->thinBlockWaitingForTxns = -1;
         pfrom->AddInventoryKnown(GetInv());
-        CTxOrphanCache::instance()->EraseOrphans(orphansUsed);
+        CTxOrphanCache::instance()->eraseOrphans(orphansUsed);
         return true;
     }
     // This marks the end of the transactions we've received. If we get this and we have NOT been able to

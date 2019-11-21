@@ -411,8 +411,8 @@ void TxValidationState::checkTransaction()
             Application::instance()->ioService().post(std::bind(&TxValidationState::checkTransaction, state));
         }
 
-        CTxOrphanCache::instance()->EraseOrphans(scheduled);
-        CTxOrphanCache::instance()->EraseOrphansByTime();
+        CTxOrphanCache::instance()->eraseOrphans(scheduled);
+        CTxOrphanCache::instance()->eraseOrphansByTime();
 
         parent->strand.post(std::bind(&TxValidationState::sync, shared_from_this()));
     } catch (const Validation::DoubleSpendException &ex) {
@@ -434,8 +434,8 @@ void TxValidationState::checkTransaction()
                 return;
             CTxOrphanCache *cache = CTxOrphanCache::instance();
             // DoS prevention: do not allow CTxOrphanCache to grow unbounded
-            cache->AddOrphanTx(tx, m_originatingNodeId, m_validationFlags, m_originalInsertTime);
-            std::uint32_t nEvicted = cache->LimitOrphanTxSize();
+            cache->addOrphanTx(tx, m_originatingNodeId, m_validationFlags, m_originalInsertTime);
+            std::uint32_t nEvicted = cache->limitOrphanTxSize();
             if (nEvicted > 0)
                 logDebug(Log::TxValidation) << "mapOrphan overflow, removed" << nEvicted << "tx";
         }

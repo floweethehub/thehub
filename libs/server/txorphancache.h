@@ -33,11 +33,11 @@ public:
         uint64_t nEntryTime;
         uint32_t onResultFlags;
     };
-    bool AddOrphanTx(const CTransaction& tx, int peerId, uint32_t onResultFlags = 0, uint64_t originalEntryTime = 0);
+    bool addOrphanTx(const CTransaction& tx, int peerId, uint32_t onResultFlags = 0, uint64_t originalEntryTime = 0);
 
-    void EraseOrphansByTime();
+    void eraseOrphansByTime();
 
-    std::uint32_t LimitOrphanTxSize();
+    std::uint32_t limitOrphanTxSize();
 
     inline const std::map<uint256, COrphanTx> & mapOrphanTransactions() const {
         return m_mapOrphanTransactions;
@@ -53,7 +53,7 @@ public:
 
     std::vector<COrphanTx> fetchTransactionsByPrev(const uint256 &txid) const;
 
-    void EraseOrphans(const std::vector<uint256> &txIds);
+    void eraseOrphans(const std::vector<uint256> &txIds);
 
 protected:
     mutable CCriticalSection m_lock;
@@ -63,8 +63,8 @@ protected:
     static CTxOrphanCache *s_instance;
 
     // this one doesn't lock!
-    void EraseOrphanTx(uint256 hash);
-    uint32_t LimitOrphanTxSize(uint32_t nMaxOrphans);
+    void eraseOrphanTx(uint256 hash);
+    uint32_t limitOrphanTxSize(uint32_t nMaxOrphans);
 
 private:
     std::uint32_t m_limit;

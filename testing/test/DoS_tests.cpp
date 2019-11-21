@@ -55,7 +55,7 @@ public:
     }
 
    void LimitOrphanTxSizePublic(unsigned int max) {
-       LimitOrphanTxSize(max);
+       limitOrphanTxSize(max);
    }
 
     CTransaction RandomOrphan()
@@ -153,7 +153,7 @@ BOOST_AUTO_TEST_CASE(DoS_mapOrphans)
         tx.vout.resize(1);
         tx.vout[0].nValue = 1*CENT;
         tx.vout[0].scriptPubKey = GetScriptForDestination(key.GetPubKey().GetID());
-        cache.AddOrphanTx(tx, i);
+        cache.addOrphanTx(tx, i);
     }
 
     // ... and 50 that depend on other orphans:
@@ -170,7 +170,7 @@ BOOST_AUTO_TEST_CASE(DoS_mapOrphans)
         tx.vout[0].scriptPubKey = GetScriptForDestination(key.GetPubKey().GetID());
         SignSignature(keystore, txPrev, tx, 0);
 
-        cache.AddOrphanTx(tx, i);
+        cache.addOrphanTx(tx, i);
     }
 
     // This really-big orphan should be ignored:
@@ -195,7 +195,7 @@ BOOST_AUTO_TEST_CASE(DoS_mapOrphans)
             tx.vin[j].scriptSig = tx.vin[0].scriptSig;
 
         if (i == 0) {
-            BOOST_CHECK(cache.AddOrphanTx(tx, i));  // we keep orphans up to the configured memory limit to help xthin compression so this should succeed whereas it fails in other clients
+            BOOST_CHECK(cache.addOrphanTx(tx, i));  // we keep orphans up to the configured memory limit to help xthin compression so this should succeed whereas it fails in other clients
         }
     }
 
@@ -210,7 +210,7 @@ BOOST_AUTO_TEST_CASE(DoS_mapOrphans)
         BOOST_CHECK(cache.mapOrphanTransactionsByPrev().empty());
     }
 
-    // Test EraseOrphansByTime():
+    // Test eraseOrphansByTime():
     {
         int64_t nStartTime = GetTime();
         SetMockTime(nStartTime); // Overrides future calls to GetTime()
@@ -225,41 +225,41 @@ BOOST_AUTO_TEST_CASE(DoS_mapOrphans)
             tx.vout[0].nValue = 1*CENT;
             tx.vout[0].scriptPubKey = GetScriptForDestination(key.GetPubKey().GetID());
 
-            cache.AddOrphanTx(tx, i);
+            cache.addOrphanTx(tx, i);
         }
         BOOST_CHECK(cache.mapOrphanTransactions().size() == 50);
-        cache.EraseOrphansByTime();
+        cache.eraseOrphansByTime();
         BOOST_CHECK(cache.mapOrphanTransactions().size() == 50);
 
         // Advance the clock 1 minute
         SetMockTime(nStartTime+60);
-        cache.EraseOrphansByTime();
+        cache.eraseOrphansByTime();
         BOOST_CHECK(cache.mapOrphanTransactions().size() == 50);
 
         // Advance the clock 10 minutes
         SetMockTime(nStartTime+60*10);
-        cache.EraseOrphansByTime();
+        cache.eraseOrphansByTime();
         BOOST_CHECK(cache.mapOrphanTransactions().size() == 50);
 
         // Advance the clock 1 hour
         SetMockTime(nStartTime+60*60);
-        cache.EraseOrphansByTime();
+        cache.eraseOrphansByTime();
         BOOST_CHECK(cache.mapOrphanTransactions().size() == 50);
 
         // Advance the clock 72 hours
         SetMockTime(nStartTime+60*60*72);
-        cache.EraseOrphansByTime();
+        cache.eraseOrphansByTime();
         BOOST_CHECK(cache.mapOrphanTransactions().size() == 50);
 
         /** Test the boundary where orphans should get purged. **/
         // Advance the clock 72 hours and 4 minutes 59 seconds
         SetMockTime(nStartTime+60*60*72 + 299);
-        cache.EraseOrphansByTime();
+        cache.eraseOrphansByTime();
         BOOST_CHECK(cache.mapOrphanTransactions().size() == 50);
 
         // Advance the clock 72 hours and 5 minutes
         SetMockTime(nStartTime+60*60*72 + 300);
-        cache.EraseOrphansByTime();
+        cache.eraseOrphansByTime();
         BOOST_CHECK(cache.mapOrphanTransactions().size() == 0);
     }
 }

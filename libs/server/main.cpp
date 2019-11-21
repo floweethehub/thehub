@@ -2157,7 +2157,7 @@ bool static ProcessMessage(CNode* pfrom, std::string strCommand, CDataStream& vR
                 orphans.push_back(pfrom->thinBlock.vtx[i].GetHash());
             }
             HandleBlockMessage(pfrom, strCommand, pfrom->thinBlock, inv);
-            CTxOrphanCache::instance()->EraseOrphans(orphans);
+            CTxOrphanCache::instance()->eraseOrphans(orphans);
         }
         else {
             LogPrint("thin", "Failed to retrieve all transactions for block\n");
@@ -2272,7 +2272,7 @@ bool static ProcessMessage(CNode* pfrom, std::string strCommand, CDataStream& vR
         for (unsigned int i = 0; i < block.vtx.size(); i++) {
             orphans.push_back(block.vtx[i].GetHash());
         }
-        CTxOrphanCache::instance()->EraseOrphans(orphans);
+        CTxOrphanCache::instance()->eraseOrphans(orphans);
     }
 
 

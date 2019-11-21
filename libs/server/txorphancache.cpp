@@ -35,7 +35,7 @@ CTxOrphanCache* CTxOrphanCache::instance()
     return s_instance;
 }
 
-bool CTxOrphanCache::AddOrphanTx(const CTransaction& tx, NodeId peer, uint32_t onResultFlags, uint64_t originalEntryTime)
+bool CTxOrphanCache::addOrphanTx(const CTransaction& tx, NodeId peer, uint32_t onResultFlags, uint64_t originalEntryTime)
 {
     LOCK(m_lock);
 
@@ -73,7 +73,7 @@ bool CTxOrphanCache::AddOrphanTx(const CTransaction& tx, NodeId peer, uint32_t o
     return true;
 }
 
-void CTxOrphanCache::EraseOrphanTx(uint256 hash)
+void CTxOrphanCache::eraseOrphanTx(uint256 hash)
 {
     std::map<uint256, COrphanTx>::iterator it = m_mapOrphanTransactions.find(hash);
     if (it == m_mapOrphanTransactions.end())
@@ -89,7 +89,7 @@ void CTxOrphanCache::EraseOrphanTx(uint256 hash)
     m_mapOrphanTransactions.erase(it);
 }
 
-void CTxOrphanCache::EraseOrphansByTime()
+void CTxOrphanCache::eraseOrphansByTime()
 {
     LOCK(m_lock);
     static int64_t nLastOrphanCheck = GetTime();
@@ -105,7 +105,7 @@ void CTxOrphanCache::EraseOrphansByTime()
         int64_t nEntryTime = entry->second.nEntryTime;
         if (nEntryTime < nOrphanTxCutoffTime) {
             uint256 txHash = entry->second.tx.GetHash();
-            EraseOrphanTx(txHash);
+            eraseOrphanTx(txHash);
             logDebug(Log::Mempool) << "Erased old orphan tx" << txHash << "of age" << (GetTime() - nEntryTime) << "seconds";
         }
     }
@@ -113,7 +113,7 @@ void CTxOrphanCache::EraseOrphansByTime()
     nLastOrphanCheck = GetTime();
 }
 
-std::uint32_t CTxOrphanCache::LimitOrphanTxSize(std::uint32_t nMaxOrphans)
+std::uint32_t CTxOrphanCache::limitOrphanTxSize(std::uint32_t nMaxOrphans)
 {
     LOCK(m_lock);
     unsigned int nEvicted = 0;
@@ -123,15 +123,15 @@ std::uint32_t CTxOrphanCache::LimitOrphanTxSize(std::uint32_t nMaxOrphans)
         std::map<uint256, COrphanTx>::iterator it = m_mapOrphanTransactions.lower_bound(randomhash);
         if (it == m_mapOrphanTransactions.end())
             it = m_mapOrphanTransactions.begin();
-        EraseOrphanTx(it->first);
+        eraseOrphanTx(it->first);
         ++nEvicted;
     }
     return nEvicted;
 }
 
-uint32_t CTxOrphanCache::LimitOrphanTxSize()
+uint32_t CTxOrphanCache::limitOrphanTxSize()
 {
-    return LimitOrphanTxSize(m_limit);
+    return limitOrphanTxSize(m_limit);
 }
 
 void CTxOrphanCache::clear()
@@ -190,7 +190,7 @@ std::vector<CTxOrphanCache::COrphanTx> CTxOrphanCache::fetchTransactionsByPrev(c
     return answer;
 }
 
-void CTxOrphanCache::EraseOrphans(const std::vector<uint256> &txIds)
+void CTxOrphanCache::eraseOrphans(const std::vector<uint256> &txIds)
 {
     LOCK(m_lock);
     for (auto hashIter = txIds.begin(); hashIter != txIds.end(); ++hashIter) {
