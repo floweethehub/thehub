@@ -1936,8 +1936,10 @@ bool static ProcessMessage(CNode* pfrom, std::string strCommand, CDataStream& vR
             mapAlreadyAskedFor.erase(inv.hash);
         }
 
-        flApp->validation()->addTransaction(Tx::fromOldTransaction(tx),
-                Validation::ForwardGoodToPeers|Validation::PunishBadNode|Validation::RateLimitFreeTx, pfrom);
+        uint32_t opts = Validation::ForwardGoodToPeers;
+        if (!pfrom->fWhitelisted)
+            opts += Validation::PunishBadNode + Validation::RateLimitFreeTx;
+        flApp->validation()->addTransaction(Tx::fromOldTransaction(tx), opts, pfrom);
         CValidationState val;
         if (!FlushStateToDisk(val, FLUSH_STATE_PERIODIC))
             AbortNode(val.GetRejectReason().c_str());
