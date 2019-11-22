@@ -268,8 +268,7 @@ void TxValidationState::checkTransaction()
                             break;
                     }
                     if (outputs - 1 < prevoutIndex) {
-                        inputsMissing = true;
-                        throw Exception("missing-inputs", 1);
+                        throw Exception("missing-inputs", 10); // we have a tx it is trying to spend, but the input doesn't exist.
                     }
                     prevOut.amount = static_cast<CAmount>(iter.longData());
                     auto type = iter.next();
@@ -287,7 +286,8 @@ void TxValidationState::checkTransaction()
                     UnspentOutputData data(g_utxo->find(tx.vin[i].prevout.hash, static_cast<int>(tx.vin[i].prevout.n)));
                     if (!data.isValid()) {
                         inputsMissing = true;
-                        throw Exception("missing-inputs", 1);
+                        DEBUGTX << "The output we are trying to spend is unknown to us" << tx.vin[i].prevout.hash << "Me:" << txid;
+                        throw Exception("missing-inputs", 0);
                     }
                     prevOut.amount = data.outputValue();
                     prevOut.outputScript = data.outputScript();
