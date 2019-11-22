@@ -1421,9 +1421,10 @@ void static ProcessGetData(CNode* pfrom, const Consensus::Params& consensusParam
                     std::map<CInv, CDataStream>::iterator mi = mapRelay.find(inv);
                     if (mi != mapRelay.end()) {
                         pfrom->PushMessage(inv.GetCommand(), (*mi).second);
+                        pushed = true;
                     }
                 }
-                if (inv.type == MSG_TX) {
+                if (!pushed && inv.type == MSG_TX) {
                     CTransaction tx;
                     if (mempool.lookup(inv.hash, tx)) {
                         CDataStream ss(SER_NETWORK, PROTOCOL_VERSION);
