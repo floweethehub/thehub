@@ -443,7 +443,7 @@ bool Blocks::DB::appendHeader(CBlockIndex *block)
     }
 
     bool modifyingMainChain = false;
-    if (!found) { // we could not extend an existing find if part of existing one
+    if (!found) { // we could not extend an existing, find if part of existing header-chain
         bool modified = false;
         bool alreadyContains = false; // true if a secondairy chain already contains our new validPrev
         auto i = d->headerChainTips.begin();
