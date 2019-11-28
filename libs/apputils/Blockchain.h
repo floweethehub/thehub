@@ -131,15 +131,75 @@ public:
     Search() {}
     virtual ~Search();
 
+    /**
+     * @brief finished is called when no more jobs can be started.
+     * @param unfinishedJobs is the count of jobs that were defined but
+     * 			were not started due to missing information.
+     *
+     * A job is finished when we can't do anything more. In most cases that means
+     * it has finished all jobs and the results are available.
+     *
+     * Poorly set up job-queues may have jobs that can't be started due to missing
+     * data, we won't let those stop us from finishing and as such we can have
+     * a non-zero unfinishedJobs count.
+     */
     virtual void finished(int unfinishedJobs) {}
+
+    /**
+     * @brief dataAdded is called for every message received in response to jobs.
+     * @param message the original message from the remote.
+     */
     virtual void dataAdded(const Message &message) { }
+
+    /**
+     * @brief transactionAdded is called when a transaction was retrieved.
+     * @param transaction
+     *
+     * Many jobs end up fetching a transaction from remote, while you can wait
+     * until the entire job is finished, this callback allows you to parse the
+     * transaction and add more jobs to the search object.
+     */
     virtual void transactionAdded(const Transaction &transaction) { }
+
+    /**
+     * @brief txIdResolved is called when the Indexer resolved a txid.
+     * @param jobId the job-index that requested the lookup of the txid.
+     * @param blockHeight the resulting blockheight
+     * @param offsetInBlock the resulting offsetInBlock
+     */
     virtual void txIdResolved(int jobId, int blockHeight, int offsetInBlock) { }
+
     /**
      * The job \a jobId returned and the indexer returned the height+offset.
      */
+    /**
+     * @brief spentOutputResolved is called when the indexer resolved who spent an output.
+     * @param jobId the job-index that requested the lookup of the txid + out-index.
+     * @param blockHeight the resulting blockheight
+     * @param offsetInBlock the resulting offsetInBlock
+     */
     virtual void spentOutputResolved(int jobId, int blockHeight, int offsetInBlock) { }
+
+    /**
+     * @brief addressUsedInOutput is called to list transactions that pay to a certain address.
+     * @param blockHeight the resulting blockheight
+     * @param offsetInBlock the resulting offsetInBlock
+     * @param outIndex the resulting output-index
+     *
+     * A LookupByAddress type job will find all transaction-outputs that send money to a certain
+     * address. The resulting items are passed into this method.
+     */
     virtual void addressUsedInOutput(int blockHeight, int offsetInBlock, int outIndex) { }
+
+    /**
+     * @brief utxoLookup is called when a utxo lookup returns.
+     * @param blockHeight if valid, the blockheight. If the UTXO doesn't exist it is set to -1
+     * @param offsetInBlock the resulting offsetInBlock (or 0 if non-existing UTXO)
+     * @param unspent a bool stating that the UTXO is as of yet unspent.
+     *
+     * The UTXO is the database of not yet spent outputs. This is about confirmed (mined)
+     * transactions!
+     */
     virtual void utxoLookup(int blockHeight, int offsetInBlock, bool unspent) { }
 
     // used by the engine to ID the request, set and used only by the engine.
@@ -162,7 +222,7 @@ class SearchEngine
 {
 public:
     SearchEngine();
-    ~SearchEngine();
+    virtual ~SearchEngine();
 
     /// start processing a search
     /// throws ServiceUnavailableException

@@ -448,6 +448,8 @@ void Blockchain::SearchPolicy::parseMessageFromHub(Search *request, const Messag
         }
     }
     else if (message.serviceId() == Api::LiveTransactionService) {
+        // TODO also implement error reporting from the API module.
+        // things like "OffsetInBlock larger than block" get reported there.
         if (message.messageId() == Api::LiveTransactions::IsUnspentReply) {
             int blockHeight = -1, offsetInBlock = 0;
             bool unspent = false;
