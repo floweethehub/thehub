@@ -275,6 +275,7 @@ void AddressIndexer::run()
             logCritical() << "Waiting for SQL DB to come online.";
         }
     }
+    logCritical() << "Address DB connected. Starting at block-height:" << m_height << (m_topOfChain ? "" : "in initial-sync");
 
     assert(m_dataSource);
     while (!isInterruptionRequested()) {
