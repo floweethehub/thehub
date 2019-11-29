@@ -235,7 +235,7 @@ public:
     virtual void parseConfig(const std::string &confFile);
 
     virtual void initializeHubConnection(NetworkConnection connection, const std::string &hubVersion) { }
-    virtual void initializeIndexerConnection(NetworkConnection connection) { }
+    virtual void initializeIndexerConnection(NetworkConnection connection, const std::set<Service> &services) { }
     virtual void hubSentMessage(const Message &message) { }
     virtual void indexerSentMessage(const Message &message) { }
 

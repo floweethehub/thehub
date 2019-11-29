@@ -303,8 +303,6 @@ void Blockchain::SearchEnginePrivate::indexerConnected(const EndPoint &ep)
     logDebug(Log::SearchEngine);
     auto con = network.connection(ep);
     con.send(Message(Api::IndexerService, Api::Indexer::GetAvailableIndexers));
-
-    q->initializeIndexerConnection(std::move(con));
 }
 
 void Blockchain::SearchEnginePrivate::indexerDisconnected(const EndPoint &)
@@ -355,6 +353,15 @@ void Blockchain::SearchEnginePrivate::indexerSentMessage(const Message &message)
                 break;
             }
         }
+        std::set<Service> services;
+        if (hasAddress)
+            services.insert(IndexerAddressDb);
+        if (hasTxId)
+            services.insert(IndexerTxIdDb);
+        if (hasSpent)
+            services.insert(IndexerSpentDb);
+
+        q->initializeIndexerConnection(network.connection(network.endPoint(message.remote)), services);
         return;
     }
     q->indexerSentMessage(message);
@@ -498,8 +505,10 @@ void Blockchain::SearchPolicy::parseMessageFromIndexer(Search *request, const Me
             else if (parser.tag() == Api::OffsetInBlock)
                 offsetInBlock = parser.intData();
         }
-        updateJob(job.nextJobId, request, job.data, height, offsetInBlock);
-        updateJob(job.nextJobId2, request, job.data, height, offsetInBlock);
+        if (height != -1) { // only update jobs when we actually found the thing we were looking for.
+            updateJob(job.nextJobId, request, job.data, height, offsetInBlock);
+            updateJob(job.nextJobId2, request, job.data, height, offsetInBlock);
+        }
         if (message.messageId() == Api::Indexer::FindTransactionReply)
             request->txIdResolved(jobId, height, offsetInBlock);
         else
