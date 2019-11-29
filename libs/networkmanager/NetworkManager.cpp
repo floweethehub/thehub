@@ -330,7 +330,7 @@ void NetworkManagerConnection::onAddressResolveComplete(const boost::system::err
     if (m_isClosingDown)
         return;
     if (error) {
-        logWarning(Log::NWM) << "connect;" << error.message();
+        logWarning(Log::NWM).nospace() << "connect[" << m_remote.hostname << ":" << m_remote.announcePort << "] " << error.message();
         m_isConnecting = false;
         m_reconnectDelay.expires_from_now(boost::posix_time::seconds(45));
         m_reconnectDelay.async_wait(m_strand.wrap(std::bind(&NetworkManagerConnection::reconnectWithCheck,
@@ -352,7 +352,7 @@ void NetworkManagerConnection::onConnectComplete(const boost::system::error_code
         return;
     m_isConnecting = false;
     if (error) {
-        logInfo(Log::NWM) << "connect;" << error.message();
+        logInfo(Log::NWM).nospace() << "connect[" << m_remote.hostname << ":" << m_remote.announcePort << "] " << error.message();
         if (m_remote.peerPort != m_remote.announcePort) // incoming connection
             return;
         m_reconnectDelay.expires_from_now(boost::posix_time::seconds(reconnectTimeoutForStep(++m_reconnectStep)));
