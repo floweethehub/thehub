@@ -99,7 +99,7 @@ void AddressIndexer::loadSetting(const QSettings &settings)
         if (QSqlDatabase::drivers().contains(db)) {
             logFatal().nospace() << "Failed to open a databse (" << db << "), missing libs?";
         } else {
-            logFatal() << "The configured database is not known. Please select from this list:";
+            logFatal() << "The configured database is not known. Installed drivers are:";
             logFatal() << QSqlDatabase::drivers().toStdList();
         }
         logCritical() << "Error reported:" << m_insertDb.lastError().text();
@@ -109,7 +109,7 @@ void AddressIndexer::loadSetting(const QSettings &settings)
     m_spec = nullptr;
 
     m_selectDb = QSqlDatabase::addDatabase(db, "selectConnection");
-    logInfo().nospace() << "AddressIndexer database(" << db << ") "
+    logCritical().nospace() << "AddressIndexer database(" << db << ") "
                         << valueFromSettings(settings, "db_username")
                         << "@" << valueFromSettings(settings, "db_hostname")
                         << " DB: " << valueFromSettings(settings, "db_database");
@@ -128,26 +128,16 @@ void AddressIndexer::loadSetting(const QSettings &settings)
         m_selectDb.setDatabaseName(m_basedir + "/addresses.db");
     }
 
-    if (m_selectDb.isValid() && m_insertDb.open() && m_selectDb.open()) {
-        createTables();
-    } else {
+    if (!m_selectDb.isValid()) {
         logFatal() << "Failed opening the database-connection" << m_insertDb.lastError().text();
         throw std::runtime_error("Failed to open database connection");
     }
+
+
 }
 
 int AddressIndexer::blockheight()
 {
-    if (m_height == -1) {
-        QSqlQuery query(m_selectDb);
-        if (!query.exec("select blockheight from LastKnownState")) {
-            logFatal() << "Failed to select" << query.lastError().text();
-            QCoreApplication::exit(1);
-        }
-        query.next();
-        m_height = query.value(0).toInt();
-        m_topOfChain = m_spec->queryTableExists(query, "IBD") ? InInitialSync : InitialSyncFinished;
-    }
     return m_height;
 }
 
@@ -264,6 +254,28 @@ void AddressIndexer::createTables()
 
 void AddressIndexer::run()
 {
+    // wait for database to come online.
+    while (!isInterruptionRequested()) {
+        assert(m_selectDb.isValid());
+        if (m_insertDb.open() && m_selectDb.open()) {
+            createTables();
+
+            QSqlQuery query(m_selectDb);
+            if (!query.exec("select blockheight from LastKnownState")) {
+                logFatal() << "Failed to select blockHeight" << query.lastError().text();
+                QCoreApplication::exit(1);
+                return;
+            }
+            query.next();
+            m_height = query.value(0).toInt();
+            m_topOfChain = m_spec->queryTableExists(query, "IBD") ? InInitialSync : InitialSyncFinished;
+            break;
+        } else {
+            sleep(5);
+            logCritical() << "Waiting for SQL DB to come online.";
+        }
+    }
+
     assert(m_dataSource);
     while (!isInterruptionRequested()) {
         Message message = m_dataSource->nextBlock(blockheight() + 1, m_uncommittedData.empty() ? ULONG_MAX : 20000);
