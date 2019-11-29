@@ -256,6 +256,7 @@ NetworkManagerConnection::NetworkManagerConnection(const std::shared_ptr<Network
 {
     m_remote.ipAddress = m_socket.remote_endpoint().address();
     m_remote.announcePort = m_socket.remote_endpoint().port();
+    m_remote.hostname = m_remote.ipAddress.to_string();
     m_remote.peerPort = 0;
     m_remote.connectionId = connectionId;
 
@@ -318,7 +319,7 @@ void NetworkManagerConnection::connect_priv()
         if (m_remote.hostname.empty())
             m_remote.hostname = m_remote.ipAddress.to_string();
         boost::asio::ip::tcp::endpoint endpoint(m_remote.ipAddress, m_remote.announcePort);
-        m_socket = std::move(boost::asio::ip::tcp::socket(d->ioService));
+        m_socket = boost::asio::ip::tcp::socket(d->ioService);
         m_socket.async_connect(endpoint, m_strand.wrap(
            std::bind(&NetworkManagerConnection::onConnectComplete, shared_from_this(), std::placeholders::_1)));
     }
@@ -596,7 +597,7 @@ void NetworkManagerConnection::receivedSomeBytes(const boost::system::error_code
         if (m_firstPacket) {
             m_firstPacket = false;
             if (data.begin()[2] != 8) { // Positive integer (0) and Network::ServiceId (1 << 3)
-                logWarning(Log::NWM) << "receive; Data error from server - this is NOT an NWM server. Disconnecting";
+                logWarning(Log::NWM) << "receive; Data error from remote - this is NOT an NWM server. Disconnecting" << m_remote.hostname;
                 disconnect();
                 return;
             }

@@ -29,6 +29,7 @@
  */
 
 #include "NetworkEndPoint.h"
+#include "NetworkConnection.h"
 #include <Message.h>
 #include <streaming/BufferPool.h>
 
@@ -39,8 +40,8 @@
 #include <atomic>
 #include <interfaces/boost_compat.h>
 
-class NetworkConnection;
 class NetworkServiceBase;
+class NetworkManagerPrivate;
 
 using boost::asio::ip::tcp;
 
