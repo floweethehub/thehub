@@ -130,7 +130,7 @@ void IndexerClient::onIncomingHubMessage(const Message &message)
     }
 }
 
-void IndexerClient::indexerConnected(const EndPoint &ep)
+void IndexerClient::indexerConnected(const EndPoint &)
 {
     m_indexConnection.send(Message(Api::IndexerService, Api::Indexer::GetAvailableIndexers));
     logDebug() << "Indexer connection established";
@@ -201,6 +201,8 @@ void IndexerClient::onIncomingIndexerMessage(const Message &message)
                     logCritical() << "Info: remote indexer has Address Index";
                 else if (parser.tag() == Api::Indexer::TxIdIndexer)
                     logCritical() << "Info: remote indexer has TXID Index";
+                else if (parser.tag() == Api::Indexer::SpentOutputIndexer)
+                    logCritical() << "Info: remote indexer has SpentOutput Index";
             }
         } else
             Streaming::MessageParser::debugMessage(message);
