@@ -149,27 +149,28 @@ public:
 
         checkpointData = CCheckpointData {
             boost::assign::map_list_of
-            ( 11111, uint256S("0x0000000069e244f73d78e8fd29ba2fd2ed618bd6fa2ee92559f542fdb26e7c1d"))
-            ( 33333, uint256S("0x000000002dd5588a74784eaa7ab0507a18ad16a236e7b1ce69f00d7ddfb5d0a6"))
-            ( 74000, uint256S("0x0000000000573993a3c9e41ce34471c079dcf5f52a0e824a81e7f953b8661a20"))
-            (105000, uint256S("0x00000000000291ce28027faea320c8d2b054b2e0fe44a773f3eefb151d6bdc97"))
-            (134444, uint256S("0x00000000000005b12ffd4cd315cd34ffd4a594f430ac814c91184a0d42d2b0fe"))
-            (168000, uint256S("0x000000000000099e61ea72015e79632f216fe6cb33d7899acb35b75c8303b763"))
-            (193000, uint256S("0x000000000000059f452a5f7340de6682a977387c17010ff6e6c3bd83ca8b1317"))
-            (210000, uint256S("0x000000000000048b95347e83192f69cf0366076336c639f9b7228e9ba171342e"))
-            (216116, uint256S("0x00000000000001b4f4b433e81ee46494af945cf96014816a4e2370f11b23df4e"))
-            (225430, uint256S("0x00000000000001c108384350f74090433e7fcf79a606b8e797f065b130575932"))
-            (250000, uint256S("0x000000000000003887df1f29024b06fc2200b55f8af8f35453d7be294df2d214"))
-            (279000, uint256S("0x0000000000000001ae8c72a0b0c301f67e3afca10e819efa9041e458e9bd7e40"))
-            (295000, uint256S("0x00000000000000004d9b4ef50f0f9d686fd69db2e03af35a100370c64632a983"))
-            (478559, uint256S("0x000000000000000000651ef99cb9fcbe0dadde1d424bd9f15ff20136191a5eec"))
-            (556767, uint256S("0x0000000000000000004626ff6e3b936941d341c5932ece4357eeccac44e6d56c"))
-            (582680, uint256S("0x000000000000000001b4b8e36aec7d4f9671a47872cb9a74dc16ca398c7dcc18"))
+            ( 11111, uint256S("0000000069e244f73d78e8fd29ba2fd2ed618bd6fa2ee92559f542fdb26e7c1d"))
+            ( 33333, uint256S("000000002dd5588a74784eaa7ab0507a18ad16a236e7b1ce69f00d7ddfb5d0a6"))
+            ( 74000, uint256S("0000000000573993a3c9e41ce34471c079dcf5f52a0e824a81e7f953b8661a20"))
+            (105000, uint256S("00000000000291ce28027faea320c8d2b054b2e0fe44a773f3eefb151d6bdc97"))
+            (134444, uint256S("00000000000005b12ffd4cd315cd34ffd4a594f430ac814c91184a0d42d2b0fe"))
+            (168000, uint256S("000000000000099e61ea72015e79632f216fe6cb33d7899acb35b75c8303b763"))
+            (193000, uint256S("000000000000059f452a5f7340de6682a977387c17010ff6e6c3bd83ca8b1317"))
+            (210000, uint256S("000000000000048b95347e83192f69cf0366076336c639f9b7228e9ba171342e"))
+            (216116, uint256S("00000000000001b4f4b433e81ee46494af945cf96014816a4e2370f11b23df4e"))
+            (225430, uint256S("00000000000001c108384350f74090433e7fcf79a606b8e797f065b130575932"))
+            (250000, uint256S("000000000000003887df1f29024b06fc2200b55f8af8f35453d7be294df2d214"))
+            (279000, uint256S("0000000000000001ae8c72a0b0c301f67e3afca10e819efa9041e458e9bd7e40"))
+            (295000, uint256S("00000000000000004d9b4ef50f0f9d686fd69db2e03af35a100370c64632a983"))
+            (478559, uint256S("000000000000000000651ef99cb9fcbe0dadde1d424bd9f15ff20136191a5eec"))
+            (556767, uint256S("0000000000000000004626ff6e3b936941d341c5932ece4357eeccac44e6d56c"))
+            (582680, uint256S("000000000000000001b4b8e36aec7d4f9671a47872cb9a74dc16ca398c7dcc18"))
+            (609136, uint256S("000000000000000000b48bb207faac5ac655c313e41ac909322eaa694f5bc5b1"))
             ,
-            1557921600, // * UNIX timestamp of last checkpoint block
-            271632360,   // * total number of transactions between genesis and last checkpoint
-                        //   (the tx=... number in the processNewBlock hub.log lines)
-            100000.0     // * estimated number of transactions per day after checkpoint
+            1573825449, // * UNIX timestamp of last checkpoint block
+            281198294,  // * total number of transactions between genesis and last checkpoint
+                        //   (the tx=... number in the new best hub.log lines)
+            40000.0     // * estimated number of transactions per day after checkpoint
         };
     }
 };
@@ -241,7 +242,7 @@ public:
         consensus.hf201805Height = 1267994;
         consensus.hf201811Height = 1267997;
         consensus.hf201905Height = 1303885;
-        consensus.hf201911Time = 1570082400;
+        consensus.hf201911Time = 1573819200;
 
         checkpointData = CCheckpointData {
             boost::assign::map_list_of
@@ -251,15 +252,13 @@ public:
             (1233070, uint256S("0000000000000253c6201a2076663cfe4722e4c75f537552cc4ce989d15f7cd5"))
             (1267997, uint256S("00000000000002773f8970352e4a3368a1ce6ef91eb606b64389b36fdbf1bd56"))
             (1303885, uint256S("00000000000000479138892ef0e4fa478ccc938fb94df862ef5bde7e8dee23d3"))
-                // Test
-            (1331690, uint256S("00000000566f3f20c1d6b0970b7c53bc2db993b0ec6439cee846fe42be0e2284"))
+            (1341712, uint256S("00000000fffc44ea2e202bd905a9fbbb9491ef9e9d5a9eed4039079229afa35b"))
             ,
             1522608381, // * UNIX timestamp of last checkpoint block
             15052068,    // * total number of transactions between genesis and last checkpoint
                         //   (the tx=... number in the SetBestChain hub.log lines)
             300         // * estimated number of transactions per day after checkpoint
         };
-
     }
 };
 
@@ -314,9 +313,9 @@ public:
         consensus.hf201708Height = 0;
         consensus.hf201711Height = 0;
         consensus.hf201805Height = 1;
-        consensus.hf201811Height = 9999999; // avoid doing stupid stuff like 100 bytes min tx size
+        consensus.hf201811Height = 9999999; // avoid invalidating my unit-test chain
         consensus.hf201905Height = 1;
-        consensus.hf201911Time = 1573819200;
+        consensus.hf201911Time = 1;
 
         checkpointData = CCheckpointData {
             boost::assign::map_list_of
