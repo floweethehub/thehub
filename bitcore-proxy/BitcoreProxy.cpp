@@ -667,7 +667,7 @@ void BitcoreWebRequest::addressUsedInOutput(int blockHeight, int offsetInBlock, 
     }
 }
 
-void BitcoreWebRequest::utxoLookup(int blockHeight, int offsetInBlock, bool unspent)
+void BitcoreWebRequest::utxoLookup(int, int blockHeight, int offsetInBlock, int, bool unspent, int64_t, Streaming::ConstBuffer)
 {
     if (unspent && (answerType == AddressUnspentOutputs || answerType == AddressBalance)) {
         // TODO avoid requesting duplicate transactions.

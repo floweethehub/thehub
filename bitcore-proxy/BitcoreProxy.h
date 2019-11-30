@@ -79,7 +79,7 @@ public:
     void txIdResolved(int jobId, int blockHeight, int offsetInBlock) override;
     void spentOutputResolved(int jobId, int blockHeight, int offsetInBlock) override;
     void addressUsedInOutput(int blockHeight, int offsetInBlock, int outIndex) override;
-    void utxoLookup(int blockHeight, int offsetInBlock, bool unspent) override;
+    void utxoLookup(int jobId, int blockHeight, int offsetInBlock, int outIndex, bool unspent, int64_t amount, Streaming::ConstBuffer outputScript) override;
 
     QJsonObject m_map;
 

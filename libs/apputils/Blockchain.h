@@ -192,15 +192,29 @@ public:
     virtual void addressUsedInOutput(int blockHeight, int offsetInBlock, int outIndex) { }
 
     /**
-     * @brief utxoLookup is called when a utxo lookup returns.
-     * @param blockHeight if valid, the blockheight. If the UTXO doesn't exist it is set to -1
-     * @param offsetInBlock the resulting offsetInBlock (or 0 if non-existing UTXO)
-     * @param unspent a bool stating that the UTXO is as of yet unspent.
      *
      * The UTXO is the database of not yet spent outputs. This is about confirmed (mined)
      * transactions!
      */
-    virtual void utxoLookup(int blockHeight, int offsetInBlock, bool unspent) { }
+
+    /**
+     * @brief utxoLookup is called when a utxo lookup returns.
+     *
+     * The UTXO lookup-request is in most cases requested based on a blockheight, offsetinblock and outindex.
+     * In this call those 3 values are repeated, then followed with the result.
+     *
+     * In case of a request FetchUTXOUnspent, the only relevant value is \a unspent.
+     * In case of a request FetchUTXODetails the amount and outscript are also provided.
+     *
+     * @param jobId the originating JobId
+     * @param blockHeight Copy of height from the request.
+     * @param offsetInBlock Copy of offsetInBlock from the request.
+     * @param outIndex copy of the outIndex from the request.
+     * @param unspent a bool stating that the UTXO is as of yet unspent.
+     * @param amount if FetchUTXODetails was used, and unspent was true then the amount. Otherwise -1
+     * @param outputScript if FetchUTXODetails was used, and unspent was true then the script. Otherwise empty.
+     */
+    virtual void utxoLookup(int jobId, int blockHeight, int offsetInBlock, int outIndex, bool unspent, int64_t amount, Streaming::ConstBuffer outputScript) { }
 
     // used by the engine to ID the request, set and used only by the engine.
     int requestId = -1;

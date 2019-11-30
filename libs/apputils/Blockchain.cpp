@@ -458,22 +458,35 @@ void Blockchain::SearchPolicy::parseMessageFromHub(Search *request, const Messag
         // TODO also implement error reporting from the API module.
         // things like "OffsetInBlock larger than block" get reported there.
         if (message.messageId() == Api::LiveTransactions::IsUnspentReply) {
-            int blockHeight = -1, offsetInBlock = 0;
+            int blockHeight = -1;
+            int offsetInBlock = -1;
+            int outIndex = -1;
+            int64_t amount = -1;
+            Streaming::ConstBuffer outputScript;
             bool unspent = false;
             while (parser.next() == Streaming::FoundTag) {
-                if (parser.tag() == Api::LiveTransactions::BlockHeight)
+                switch (parser.tag()) {
+                case Api::LiveTransactions::BlockHeight:
                     blockHeight = parser.intData();
-                else if (parser.tag() == Api::LiveTransactions::OffsetInBlock)
+                    break;
+                case Api::LiveTransactions::OffsetInBlock:
                     offsetInBlock = parser.intData();
-                else if (parser.tag() == Api::LiveTransactions::UnspentState)
+                    break;
+                case Api::LiveTransactions::UnspentState:
                     unspent = parser.boolData();
-                else if (parser.tag() == Api::LiveTransactions::Separator) {
-                    request->utxoLookup(blockHeight, offsetInBlock, unspent);
-                    blockHeight = -1;
+                    break;
+                case Api::LiveTransactions::OutIndex:
+                    outIndex = parser.boolData();
+                    break;
+                case Api::LiveTransactions::Amount:
+                    amount = int64_t(parser.longData());
+                    break;
+                case Api::LiveTransactions::OutputScript:
+                    outputScript = parser.bytesDataBuffer();
+                    break;
                 }
             }
-            if (blockHeight > 0)
-                request->utxoLookup(blockHeight, offsetInBlock, unspent);
+            request->utxoLookup(jobId, blockHeight, offsetInBlock, outIndex, unspent, amount, outputScript);
         }
     }
     else {
