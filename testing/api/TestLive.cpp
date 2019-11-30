@@ -114,6 +114,7 @@ void TestApiLive::testUtxo()
     int index2 = 0;
     bool seenBlockHeight = false;
     bool seenOffsetInBlock = false;
+    bool seenOutIndex = false;
     while (parser.next() == Streaming::FoundTag) {
         if (parser.tag() == Api::LiveTransactions::UnspentState) {
             switch (index) {
@@ -141,6 +142,11 @@ void TestApiLive::testUtxo()
             QVERIFY(parser.isInt());
             QCOMPARE(parser.intData(), 81);
             seenOffsetInBlock = true;
+        } else if (parser.tag() == Api::LiveTransactions::OutIndex) {
+            QCOMPARE(index, 2);
+            QVERIFY(parser.isInt());
+            QCOMPARE(parser.intData(), 0);
+            seenOutIndex = true;
         } else {
             logFatal() << "tag that doesn't belong:" << parser.tag();
             QVERIFY(false);
@@ -149,6 +155,7 @@ void TestApiLive::testUtxo()
     QCOMPARE(index, 2);
     QCOMPARE(seenBlockHeight, true);
     QCOMPARE(seenOffsetInBlock, true);
+    QCOMPARE(seenOutIndex, true);
 
     request.setMessageId(Api::LiveTransactions::GetUnspentOutput);
     con[0].send(request);
@@ -157,6 +164,7 @@ void TestApiLive::testUtxo()
     parser = Streaming::MessageParser(m.body());
     seenBlockHeight = false;
     seenOffsetInBlock = false;
+    seenOutIndex = false;
     bool seenAmount = false;
     bool seenOutputScript = false;
     while (parser.next() == Streaming::FoundTag) {
@@ -182,6 +190,11 @@ void TestApiLive::testUtxo()
             QVERIFY(parser.isInt());
             QCOMPARE(parser.intData(), 81);
             seenOffsetInBlock = true;
+        } else if (parser.tag() == Api::LiveTransactions::OutIndex) {
+            QCOMPARE(index, 2);
+            QVERIFY(parser.isInt());
+            QCOMPARE(parser.intData(), 0);
+            seenOutIndex = true;
         } else if (parser.tag() == Api::LiveTransactions::Amount) {
             QCOMPARE(index, 2);
             QVERIFY(parser.isLong());
@@ -205,6 +218,7 @@ void TestApiLive::testUtxo()
     QCOMPARE(index, 2);
     QCOMPARE(seenBlockHeight, true);
     QCOMPARE(seenOffsetInBlock, true);
+    QCOMPARE(seenOutIndex, true);
 
 
     // also check fetch using blockheight / offset instead of txid

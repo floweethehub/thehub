@@ -813,6 +813,7 @@ public:
             if (isValid) {
                 builder.add(Api::LiveTransactions::BlockHeight, unspent.blockHeight());
                 builder.add(Api::LiveTransactions::OffsetInBlock, unspent.offsetInBlock());
+                builder.add(Api::LiveTransactions::OutIndex, unspent.outIndex());
                 if (verbose) {
                     UnspentOutputData uod(unspent);
                     builder.add(Api::LiveTransactions::Amount, (uint64_t) uod.outputValue());
