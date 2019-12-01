@@ -110,7 +110,7 @@ public:
 
     /**
      * @brief make the blocks-DB aware of a new header-only tip.
-     * Add the parially validated block to the blocks database and import all parent
+     * Add the partially validated block to the blocks database and import all parent
      * blocks at the same time.
      * This potentially updates the headerChain() and headerChainTips().
      * @param block the index to the block object.
