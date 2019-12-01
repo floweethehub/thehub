@@ -170,9 +170,6 @@ public:
     virtual void txIdResolved(int jobId, int blockHeight, int offsetInBlock) { }
 
     /**
-     * The job \a jobId returned and the indexer returned the height+offset.
-     */
-    /**
      * @brief spentOutputResolved is called when the indexer resolved who spent an output.
      * @param jobId the job-index that requested the lookup of the txid + out-index.
      * @param blockHeight the resulting blockheight
@@ -190,12 +187,6 @@ public:
      * address. The resulting items are passed into this method.
      */
     virtual void addressUsedInOutput(int blockHeight, int offsetInBlock, int outIndex) { }
-
-    /**
-     *
-     * The UTXO is the database of not yet spent outputs. This is about confirmed (mined)
-     * transactions!
-     */
 
     /**
      * @brief utxoLookup is called when a utxo lookup returns.
@@ -226,7 +217,6 @@ public:
     boost::unordered_map<uint256, int, HashShortener> transactionMap;
     std::deque<Transaction> answer;
     std::map<int, BlockHeader> blockHeaders;
-    int64_t answerAmount = -1;
 
     // set by the SearchEngine in SearchEngine::start()
     SearchPolicy *policy = nullptr;
