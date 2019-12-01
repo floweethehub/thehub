@@ -191,7 +191,7 @@ void ValidationEnginePrivate::blockHeaderValidated(std::shared_ptr<BlockValidati
     createBlockIndexFor(state);
     index = state->m_blockIndex;
     if (hasFailed || index->nStatus & BLOCK_FAILED_MASK) {
-        logInfo(Log::BlockValidation) << "Block" << hash << "rejected with error:" << state->error;
+        logInfo(Log::BlockValidation) << "Block" << index->nHeight << hash << "rejected with error:" << state->error;
         if (!state->m_checkValidityOnly && state->m_checkMerkleRoot) {
             handleFailedBlock(state);
             if (index)
@@ -719,13 +719,13 @@ void ValidationEnginePrivate::handleFailedBlock(const std::shared_ptr<BlockValid
             // transfer ownership so we can remember this failed block.
             index->phashBlock = Blocks::Index::insert(state->m_block.createHash(), index);
             state->m_ownsIndex = false;
-            MarkIndexUnsaved(index);
         }
+        MarkIndexUnsaved(index);
 
         auto currentHeaderTip = Blocks::DB::instance()->headerChain().Tip();
         const bool changed = Blocks::DB::instance()->appendHeader(index); // Processes that the block actually is invalid.
-        if (changed) {
-            auto tip = Blocks::DB::instance()->headerChain().Tip();
+        auto tip = Blocks::DB::instance()->headerChain().Tip();
+        if (changed && currentHeaderTip != tip) {
             logCritical(Log::BlockValidation).nospace() << "new best header=" << *tip->phashBlock << " height=" << tip->nHeight;
             logInfo(Log::BlockValidation) << "Header-reorg detected. Old-tip" << *currentHeaderTip->phashBlock << "@" << currentHeaderTip->nHeight;
             prepareChain();
@@ -781,6 +781,8 @@ void ValidationEnginePrivate::prepareChain()
     }
     mempool->removeForReorg(blockchain->Tip()->nHeight + 1, STANDARD_LOCKTIME_VERIFY_FLAGS);
 
+    if (revertedBlocks.size() > 3)
+        return;
     // Add transactions. Only after we have flushed our removal of transactions from the UTXO view.
     // Otherwise the mempool would object because they would be in conflict with themselves.
     Streaming::BufferPool pool;
