@@ -439,7 +439,7 @@ void TxValidationState::checkTransaction()
             if (nEvicted > 0)
                 logDebug(Log::TxValidation) << "mapOrphan overflow, removed" << nEvicted << "tx";
         }
-        logWarning(Log::TxValidation) << "Tx-Validation failed" << ex << "peer:" << m_originatingNodeId;
+        logInfo(Log::TxValidation) << "Tx-Validation failed" << ex << "peer:" << m_originatingNodeId;
 
         if (ex.punishment() > 0 && (m_validationFlags & Validation::PunishBadNode)) {
             assert(m_originatingNodeId >= 0);
