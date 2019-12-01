@@ -367,7 +367,7 @@ class CChain {
 private:
     std::vector<CBlockIndex*> m_chain;
     std::atomic<CBlockIndex *> m_tip;
-    mutable std::mutex m_lock;
+    mutable std::recursive_mutex m_lock;
 
 public:
     CChain();
@@ -384,7 +384,7 @@ public:
 
     /** Returns the index entry at a particular height in this chain, or nullptr if no such height exists. */
     CBlockIndex *operator[](int nHeight) const {
-        std::lock_guard<std::mutex> lock(m_lock);
+        std::lock_guard<std::recursive_mutex> lock(m_lock);
         if (nHeight < 0 || nHeight >= (int)m_chain.size())
             return nullptr;
         return m_chain[nHeight];
@@ -403,7 +403,7 @@ public:
 
     /** Find the successor of a block in this chain, or nullptr if the given index is not found or is the tip. */
     CBlockIndex *Next(const CBlockIndex *pindex) const {
-        std::lock_guard<std::mutex> lock(m_lock);
+        std::lock_guard<std::recursive_mutex> lock(m_lock);
         if (!pindex || pindex->nHeight < 0 || pindex->nHeight + 1>= (int)m_chain.size())
             return nullptr;
         if (m_chain[pindex->nHeight] == pindex)

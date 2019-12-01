@@ -35,7 +35,7 @@ CChain::CChain(const CChain &o)
 }
 
 void CChain::SetTip(CBlockIndex *pindex) {
-    std::lock_guard<std::mutex> lock(m_lock);
+    std::lock_guard<std::recursive_mutex> lock(m_lock);
     if (pindex == nullptr) {
         m_chain.clear();
         m_tip = nullptr;
@@ -50,7 +50,7 @@ void CChain::SetTip(CBlockIndex *pindex) {
 }
 
 CBlockLocator CChain::GetLocator(const CBlockIndex *pindex) const {
-    std::lock_guard<std::mutex> lock(m_lock);
+    std::lock_guard<std::recursive_mutex> lock(m_lock);
     int nStep = 1;
     std::vector<uint256> vHave;
     vHave.reserve(32);
@@ -79,7 +79,7 @@ CBlockLocator CChain::GetLocator(const CBlockIndex *pindex) const {
 }
 
 const CBlockIndex *CChain::FindFork(const CBlockIndex *pindex) const {
-    std::lock_guard<std::mutex> lock(m_lock);
+    std::lock_guard<std::recursive_mutex> lock(m_lock);
     if (pindex == nullptr) {
         return nullptr;
     }
