@@ -257,6 +257,7 @@ void Blockchain::SearchEnginePrivate::hubDisconnected(const EndPoint &ep)
 {
     // TODO unset flag in connections
     logDebug(Log::SearchEngine);
+    q->hubDisconnected();
 }
 
 void Blockchain::SearchEnginePrivate::hubSentMessage(const Message &message)
@@ -309,6 +310,7 @@ void Blockchain::SearchEnginePrivate::indexerDisconnected(const EndPoint &)
 {
     // TODO unset flag in connections
     logDebug(Log::SearchEngine);
+    q->indexerDisconnected();
 }
 
 void Blockchain::SearchEnginePrivate::indexerSentMessage(const Message &message)

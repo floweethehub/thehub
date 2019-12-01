@@ -252,6 +252,8 @@ public:
     virtual void initializeIndexerConnection(NetworkConnection connection, const std::set<Service> &services) { }
     virtual void hubSentMessage(const Message &message) { }
     virtual void indexerSentMessage(const Message &message) { }
+    virtual void hubDisconnected() {}
+    virtual void indexerDisconnected() {}
 
 protected:
     void reparseConfig();
