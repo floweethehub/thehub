@@ -98,7 +98,7 @@ struct Transaction
     int jobId = -1; // jobId that was processed to create this object
 
     bool isCoinbase() const {
-        return blockHeight > 0 && blockHeight < 100;
+        return offsetInBlock > 0 && offsetInBlock < 100;
     }
     Streaming::ConstBuffer fullTxData, txid;
 
