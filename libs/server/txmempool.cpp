@@ -458,7 +458,7 @@ bool CTxMemPool::insertTx(CTxMemPoolEntry &entry)
             if (iter->dsproof == -1) { // no DS proof exists, lets make one.
                 auto item = *iter;
                 item.dsproof = m_dspStorage->add(DoubleSpendProof::create(oldTx->second.tx, entry.tx));
-                logDebug(Log::Mempool) << "Double spend found, creating double spend proof"
+                logWarning(Log::Mempool) << "Double spend found, creating double spend proof"
                                        << oldTx->second.tx.createHash()
                                        << entry.tx.createHash() << "proof:" << item.dsproof;
                 mapTx.replace(iter, item);

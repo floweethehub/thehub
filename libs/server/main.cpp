@@ -1978,7 +1978,7 @@ bool static ProcessMessage(CNode* pfrom, std::string strCommand, CDataStream& vR
         for (const Validation::Settings &future : futures) {
             future.waitHeaderFinished();
             if (!future.error().empty()) {
-                logWarning(Log::Net) << "Headers have issue" << future.error();
+                logWarning(Log::Net) << "HEADERS received from peer:" << pfrom->GetId() << "returned:" << future.error();
                 LOCK(cs_main);
                 Misbehaving(pfrom->GetId(), Settings::DefaultBanscoreThreshold);
                 return false;

@@ -417,7 +417,8 @@ void TxValidationState::checkTransaction()
         parent->strand.post(std::bind(&TxValidationState::sync, shared_from_this()));
     } catch (const Validation::DoubleSpendException &ex) {
         raii.result = strprintf("%i: %s", Validation::RejectConflict, "txn-mempool-conflict");
-        logWarning(Log::TxValidation) << "Tx-Validation found a double spend";
+        if (ex.id != -1) // to avoid log file confusion, don't mention this for anything but the first DS
+            logWarning(Log::TxValidation) << "Tx-Validation found a double spend";
 
         m_doubleSpendTx = ex.otherTx;
         m_doubleSpendProofId = ex.id;
