@@ -238,6 +238,9 @@ public:
     void setConfigFile(const std::string &configFile);
     virtual void parseConfig(const std::string &confFile);
 
+    bool isHubConnected() const;
+    bool isIndexerConnected() const;
+
     virtual void initializeHubConnection(NetworkConnection connection, const std::string &hubVersion) { }
     virtual void initializeIndexerConnection(NetworkConnection connection, const std::set<Service> &services) { }
     virtual void hubSentMessage(const Message &message) { }

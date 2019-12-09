@@ -192,6 +192,24 @@ void Blockchain::SearchEngine::reparseConfig()
     parseConfig(d->configFile);
 }
 
+bool Blockchain::SearchEngine::isHubConnected() const
+{
+    for (auto iter = d->connections.begin(); iter != d->connections.end(); ++iter) {
+        if (iter->services.find(TheHub) != iter->services.end())
+            return true;
+    }
+    return false;
+}
+
+bool Blockchain::SearchEngine::isIndexerConnected() const
+{
+    for (auto iter = d->connections.begin(); iter != d->connections.end(); ++iter) {
+        if (iter->services.find(IndexerTxIdDb) != iter->services.end())
+            return true;
+    }
+    return false;
+}
+
 Blockchain::SearchEnginePrivate::SearchEnginePrivate(SearchEngine *q)
     : network(workers.ioService()),
       nextRequestId(1),
