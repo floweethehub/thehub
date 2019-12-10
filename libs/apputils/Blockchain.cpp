@@ -496,7 +496,7 @@ void Blockchain::SearchPolicy::parseMessageFromHub(Search *request, const Messag
                     unspent = parser.boolData();
                     break;
                 case Api::LiveTransactions::OutIndex:
-                    outIndex = parser.boolData();
+                    outIndex = parser.intData();
                     break;
                 case Api::LiveTransactions::Amount:
                     amount = int64_t(parser.longData());
