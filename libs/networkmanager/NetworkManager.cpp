@@ -1072,30 +1072,49 @@ void NetworkManagerServer::acceptConnection(boost::system::error_code error)
     if (priv->isClosingDown)
         return;
 
-    const boost::asio::ip::address peerAddress = m_socket.remote_endpoint().address();
-    for (const BannedNode &bn : priv->banned) {
-        if (bn.endPoint.ipAddress == peerAddress) {
-            if (bn.banTimeout > boost::posix_time::second_clock::universal_time()) { // incoming connection is banned.
-                logInfo(Log::NWM) << "acceptTcpConnection; closing incoming connection (banned)"
-                          << bn.endPoint.hostname;
-                m_socket.close();
-            }
-            setupCallback();
-            return;
+    struct RIAA {
+        RIAA(NetworkManagerServer *p) : parent(p) {}
+        ~RIAA() {
+            parent->setupCallback();
         }
+        NetworkManagerServer *parent;
+    };
+    RIAA riaa(this);
+
+    try {
+        // catch ENOTCONN (Transport endpoint is not connected) which remote_endpoint() may throw
+        const boost::asio::ip::address peerAddress = m_socket.remote_endpoint().address();
+        for (const BannedNode &bn : priv->banned) {
+            if (bn.endPoint.ipAddress == peerAddress) {
+                if (bn.banTimeout > boost::posix_time::second_clock::universal_time()) { // incoming connection is banned.
+                    logInfo(Log::NWM) << "acceptTcpConnection; closing incoming connection (banned)"
+                              << bn.endPoint.hostname;
+                    m_socket.close();
+                }
+                return;
+            }
+        }
+
+        const int conId = ++priv->lastConnectionId;
+        logDebug(Log::NWM) << "acceptTcpConnection; creating new connection object" << conId;
+        // Never do a setupCallback until we do a 'std::move' (or close)  to avoid an "Already open" error
+        std::shared_ptr<NetworkManagerConnection> connection = std::make_shared<NetworkManagerConnection>(priv, std::move(m_socket), conId);
+        priv->connections.insert(std::make_pair(conId, connection));
+        logDebug(Log::NWM) << "Total connections now;" << priv->connections.size();
+
+        NetworkConnection con(connection, conId);
+        try {
+            onIncomingConnection(con);
+        } catch (const std::exception &e) {
+            logCritical(Log::NWM) << "subsystem handling onIncomingConnection threw. Ignoring" << e;
+        }
+
+        // someone needs to call accept(), if they didn't we shall disconnect
+        if (!connection->acceptedConnection())
+            connection->m_strand.post(std::bind(&NetworkManagerConnection::disconnect, connection));
+
+    } catch (...) {
+        logInfo(Log::NWM) << "AcceptConnection found that peer closed before we could handle it.";
+        try { m_socket.close(); } catch (...) {} // TODO do we need this?
     }
-
-    const int conId = ++priv->lastConnectionId;
-    logDebug(Log::NWM) << "acceptTcpConnection; creating new connection object" << conId;
-    std::shared_ptr<NetworkManagerConnection> connection = std::make_shared<NetworkManagerConnection>(priv, std::move(m_socket), conId);
-    priv->connections.insert(std::make_pair(conId, connection));
-    logDebug(Log::NWM) << "Total connections now;" << priv->connections.size();
-
-    setupCallback(); // only after we std::move socket, to avoid an "Already open" error
-    NetworkConnection con(connection, conId);
-    onIncomingConnection(con);
-
-    // someone needs to call accept(), if they didn't we shall disconnect
-    if (!connection->acceptedConnection())
-        connection->m_strand.post(std::bind(&NetworkManagerConnection::disconnect, connection));
 }
