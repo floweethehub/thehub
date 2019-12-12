@@ -172,13 +172,6 @@ void AddressIndexer::insert(const Streaming::ConstBuffer &outScriptHashed, int o
     ++m_uncommittedCount;
 }
 
-void AddressIndexer::reachedTopOfChain()
-{
-    Q_ASSERT(m_height != -1); // make sure blockHeight was called before this one
-    m_topOfChain.testAndSetAcquire(InInitialSync, FlushRequested);
-    m_flushRequested = 1;
-}
-
 std::vector<AddressIndexer::TxData> AddressIndexer::find(const uint256 &address) const
 {
     std::vector<TxData> answer;
@@ -315,8 +308,10 @@ void AddressIndexer::run()
         }
         assert(blockHeight > 0);
         blockFinished(blockHeight);
-        if (blockHeight == tipHeight) // immediately flush when we processed the tip of the chain
+        if (blockHeight == tipHeight) { // immediately flush when we processed the tip of the chain
+            m_topOfChain.testAndSetAcquire(InInitialSync, FlushRequested);
             commitAllData();
+        }
     }
 }
 

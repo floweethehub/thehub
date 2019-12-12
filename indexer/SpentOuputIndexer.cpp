@@ -50,11 +50,6 @@ void SpentOutputIndexer::insertSpentTransaction(const uint256 &prevTxId, int pre
     m_txdb.insert(prevTxId, prevOutIndex, blockHeight, offsetInBlock);
 }
 
-void SpentOutputIndexer::saveCaches()
-{
-    m_txdb.saveCaches();
-}
-
 SpentOutputIndexer::TxData SpentOutputIndexer::findSpendingTx(const uint256 &txid, int output) const
 {
     TxData answer;
@@ -72,7 +67,8 @@ void SpentOutputIndexer::run()
     assert(m_dataSource);
     while (!isInterruptionRequested()) {
         logDebug() << "want block" << m_txdb.blockheight() + 1;
-        Message message = m_dataSource->nextBlock(m_txdb.blockheight() + 1);
+        int tipOfChain;
+        Message message = m_dataSource->nextBlock(m_txdb.blockheight() + 1, &tipOfChain);
         if (message.body().size() == 0)
             continue;
         int txOffsetInBlock = 0;
@@ -108,5 +104,7 @@ void SpentOutputIndexer::run()
         assert(blockHeight > 0);
         assert(!blockId.IsNull());
         m_txdb.blockFinished(blockHeight, blockId);
+        if (blockHeight == tipOfChain)
+            m_txdb.saveCaches();
     }
 }

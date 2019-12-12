@@ -34,8 +34,6 @@ public:
     void blockFinished(int blockheight, const uint256 &blockId);
     void insert(const uint256 &txid, int blockHeight, int offsetInBlock);
 
-    void saveCaches();
-
     struct TxData {
         int blockHeight = -1;
         int offsetInBlock = 0;

@@ -53,7 +53,7 @@ public:
 
     /// called by the workerthreads to get a block-message. Blocking.
     /// \param height is the requested blockheight of the next block to process
-    Message nextBlock(int height, int *knownTip = nullptr, unsigned long timeout = ULONG_MAX);
+    Message nextBlock(int height, int *knownTip, unsigned long timeout = ULONG_MAX);
 
 private slots:
     void requestBlock(int newBlockHeight = -1);
@@ -85,7 +85,6 @@ private:
     NetworkManager m_network;
     NetworkConnection m_serverConnection;
 
-    bool m_indexingFinished = false;
     bool m_isServer = false; /// remembers if we (successfully) called m_network::bind() once.
 
     int m_lastRequestedBlock = 0;

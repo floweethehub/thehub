@@ -49,11 +49,6 @@ void TxIndexer::insert(const uint256 &txid, int blockHeight, int offsetInBlock)
     m_txdb.insert(txid, 0, blockHeight, offsetInBlock);
 }
 
-void TxIndexer::saveCaches()
-{
-    m_txdb.saveCaches();
-}
-
 TxIndexer::TxData TxIndexer::find(const uint256 &txid) const
 {
     TxData answer;
@@ -70,7 +65,8 @@ void TxIndexer::run()
     assert(m_dataSource);
     while (!isInterruptionRequested()) {
         logDebug() << "want block" << m_txdb.blockheight() + 1;
-        Message message = m_dataSource->nextBlock(m_txdb.blockheight() + 1);
+        int tipOfChain;
+        Message message = m_dataSource->nextBlock(m_txdb.blockheight() + 1, &tipOfChain);
         if (message.body().size() == 0)
             continue;
 
@@ -109,5 +105,7 @@ void TxIndexer::run()
             m_txdb.insert(txid, 0, blockHeight, txOffsetInBlock);
         }
         m_txdb.blockFinished(blockHeight, blockId);
+        if (blockHeight == tipOfChain)
+            m_txdb.saveCaches();
     }
 }

@@ -40,8 +40,6 @@ public:
      */
     void insertSpentTransaction(const uint256 &prevTxId, int prevOutIndex, int blockHeight, int offsetInBlock);
 
-    void saveCaches();
-
     /// The transaction that spent an output.
     struct TxData {
         int blockHeight = -1;

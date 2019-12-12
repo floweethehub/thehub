@@ -99,7 +99,6 @@ Indexer::Indexer(const boost::filesystem::path &basedir)
         s_requestedHeights[i] = -1;
     }
 
-    // TODO add some auto-save of the databases.
     connect (&m_pollingTimer, SIGNAL(timeout()), SLOT(checkBlockArrived()));
     m_pollingTimer.start(2 * 60 * 1000);
     connect (this, SIGNAL(requestFindAddress(Message)), this, SLOT(onFindAddressRequest(Message)), Qt::QueuedConnection);
@@ -370,7 +369,10 @@ Message Indexer::nextBlock(int height, int *knownTip, unsigned long timeout)
         if (m_spentOutputDb) totalWanted++;
         if (m_addressdb) totalWanted++;
         if (token.allocatedTokens() == totalWanted) {
-            requestBlock();
+            if (height <= m_bestBlockHeight.load())
+                requestBlock();
+            else
+                logInfo() << "Reached top of chain" << m_bestBlockHeight.load();
         }
 
         // wait until the network-manager thread actually finds the block-message as sent by the Hub
@@ -390,6 +392,9 @@ void Indexer::checkBlockArrived()
         // Hub never sent the block to us :(
         requestBlock(m_lastRequestedBlock);
     }
+
+    // also poll the block count, so we can progress if for some reason the notification was not send.
+    m_serverConnection.send(Message(Api::BlockChainService, Api::BlockChain::GetBlockCount));
 }
 
 void Indexer::onFindAddressRequest(const Message &message)
@@ -535,8 +540,13 @@ void Indexer::hubSentMessage(const Message &message)
         else if (message.messageId() == Api::BlockChain::GetBlockCountReply) {
             Streaming::MessageParser parser(message.body());
             while (parser.next() == Streaming::FoundTag) {
-                if (parser.tag() == Api::BlockChain::BlockHeight)
-                    m_bestBlockHeight.store(parser.intData());
+                if (parser.tag() == Api::BlockChain::BlockHeight) {
+                    const int tipHeight = parser.intData();
+                    if (tipHeight >  m_bestBlockHeight.load()) {
+                        m_bestBlockHeight.store(tipHeight);
+                        requestBlock(tipHeight);
+                    }
+                }
             }
         }
     }
@@ -566,22 +576,8 @@ void Indexer::hubSentMessage(const Message &message)
                     logDebug() << "failed reason:" << parser.stringData();
             }
             if (serviceId == Api::BlockChainService && messageId == Api::BlockChain::GetBlock) {
-                logCritical() << "Failed to get block, assuming we are at 'top' of chain";
-                if (m_addressdb)
-                    logCritical() << "AddressDB now at:" << m_addressdb->blockheight();
-                if (m_txdb)
-                    logCritical() << "txDb now at:" << m_txdb->blockheight();
-                if (m_spentOutputDb)
-                    logCritical() << "spentDB now at:" << m_spentOutputDb->blockheight();
-                m_indexingFinished = true;
+                logWarning() << "Failed to get block, hub didn't have it.";
                 m_lastRequestedBlock = 0;
-                if (m_addressdb) {
-                    m_addressdb->reachedTopOfChain();
-                }
-                if (m_txdb)
-                    m_txdb->saveCaches();
-                if (m_spentOutputDb)
-                    m_spentOutputDb->saveCaches();
             }
             else logCritical() << "Failure detected" << serviceId << messageId;
         }
