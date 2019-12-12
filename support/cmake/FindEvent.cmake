@@ -14,6 +14,9 @@ endif (EVENT_INCLUDE_DIR AND EVENT_LIBRARY)
 
 pkg_check_modules(Event REQUIRED libevent_pthreads)
 
-foreach (DIR ${Event_LIBRARY_DIRS})
-    LIST(PREPEND Event_LIBRARIES "-L${DIR}")
-endforeach ()
+if (${CMAKE_SYSTEM_NAME} MATCHES "Darwin")
+    # brew installs the libs in some weird dir.
+    foreach (DIR ${Event_LIBRARY_DIRS})
+        LIST(PREPEND Event_LIBRARIES "-L${DIR}")
+    endforeach ()
+endif ()
