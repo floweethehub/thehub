@@ -1,6 +1,6 @@
 /*
  * This file is part of the Flowee project
- * Copyright (C) 2016-2018 Tom Zander <tomz@freedommail.ch>
+ * Copyright (C) 2016-2019 Tom Zander <tomz@freedommail.ch>
  *
  * This program is free software: you can redistribute it and/or modify
  * it under the terms of the GNU General Public License as published by
@@ -98,7 +98,9 @@ std::string Application::userAgent()
             ss << "; " << *it;
         ss << ")";
     } else {
-        ss << " (" << CLIENT_VERSION_MAJOR << "-" << CLIENT_VERSION_MINOR << ")";
+        ss << " (" << CLIENT_VERSION_MAJOR << "-";
+        ss.setf(std::ios::hex, std::ios::basefield);
+        ss << std::hex << CLIENT_VERSION_MINOR << ")";
     }
     ss << "/";
     std::string answer = ss.str();
