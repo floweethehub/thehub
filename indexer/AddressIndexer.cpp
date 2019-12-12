@@ -271,7 +271,7 @@ void AddressIndexer::run()
             m_topOfChain = m_spec->queryTableExists(query, "IBD") ? InInitialSync : InitialSyncFinished;
             break;
         } else {
-            sleep(5);
+            sleep(3);
             logCritical() << "Waiting for SQL DB to come online.";
         }
     }
@@ -279,7 +279,8 @@ void AddressIndexer::run()
 
     assert(m_dataSource);
     while (!isInterruptionRequested()) {
-        Message message = m_dataSource->nextBlock(blockheight() + 1, m_uncommittedData.empty() ? ULONG_MAX : 20000);
+        int tipHeight;
+        Message message = m_dataSource->nextBlock(blockheight() + 1, &tipHeight, m_uncommittedData.empty() ? ULONG_MAX : 20000);
 
         if (m_flushRequested.load() == 1) {
             commitAllData();
@@ -314,6 +315,8 @@ void AddressIndexer::run()
         }
         assert(blockHeight > 0);
         blockFinished(blockHeight);
+        if (blockHeight == tipHeight) // immediately flush when we processed the tip of the chain
+            commitAllData();
     }
 }
 

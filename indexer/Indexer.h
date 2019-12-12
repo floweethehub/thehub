@@ -53,7 +53,7 @@ public:
 
     /// called by the workerthreads to get a block-message. Blocking.
     /// \param height is the requested blockheight of the next block to process
-    Message nextBlock(int height, unsigned long timeout = ULONG_MAX);
+    Message nextBlock(int height, int *knownTip = nullptr, unsigned long timeout = ULONG_MAX);
 
 private slots:
     void requestBlock(int newBlockHeight = -1);
@@ -96,6 +96,7 @@ private:
 
     // data to process blocks in different workers.
     Message m_nextBlock;
+    mutable std::atomic_int m_bestBlockHeight;
     mutable QMutex m_nextBlockLock;
     mutable QWaitCondition m_waitForBlock;
 };

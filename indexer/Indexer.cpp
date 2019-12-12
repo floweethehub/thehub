@@ -88,7 +88,8 @@ Indexer::Indexer(const boost::filesystem::path &basedir)
     : NetworkService(Api::IndexerService),
     m_poolAddressAnswers(2 * 1024 * 1024),
     m_basedir(basedir),
-    m_network(m_workers.ioService())
+    m_network(m_workers.ioService()),
+    m_bestBlockHeight(0)
 {
     qRegisterMetaType<Message>("Message");
     m_network.addService(this);
@@ -346,8 +347,10 @@ void Indexer::onIncomingMessage(NetworkService::Remote *con, const Message &mess
     }
 }
 
-Message Indexer::nextBlock(int height, unsigned long timeout)
+Message Indexer::nextBlock(int height, int *knownTip, unsigned long timeout)
 {
+    if (knownTip)
+        *knownTip = 0;
     QMutexLocker lock(&m_nextBlockLock);
     // store an RAII token to synchronize all threads.
     Token token(height);
@@ -355,8 +358,11 @@ Message Indexer::nextBlock(int height, unsigned long timeout)
         if (m_nextBlock.serviceId() == Api::BlockChainService && m_nextBlock.messageId() == Api::BlockChain::GetBlockReply) {
             Streaming::MessageParser parser(m_nextBlock.body());
             parser.next();
-            if (parser.tag() == Api::BlockChain::BlockHeight && parser.intData() == height)
+            if (parser.tag() == Api::BlockChain::BlockHeight && parser.intData() == height) {
+                if (knownTip)
+                    *knownTip = m_bestBlockHeight.load();
                 return m_nextBlock;
+            }
         }
 
         int totalWanted = 0;
@@ -449,6 +455,7 @@ void Indexer::hubConnected(const EndPoint &ep)
                   << "addressDB:" << adHeight
                   << "spentOutputDB" << spentHeight;
     m_serverConnection.send(Message(Api::APIService, Api::Meta::Version));
+    m_serverConnection.send(Message(Api::BlockChainService, Api::BlockChain::GetBlockCount));
     m_serverConnection.send(Message(Api::BlockNotificationService, Api::BlockNotification::Subscribe));
     QMutexLocker lock(&m_nextBlockLock);
     requestBlock(m_lastRequestedBlock);
@@ -511,7 +518,7 @@ void Indexer::hubSentMessage(const Message &message)
                 if (parser.tag() == Api::BlockChain::BlockHeight) {
                     blockHeight = parser.intData();
                     logDebug() << "Hub sent us block" << blockHeight;
-                    if ((blockHeight % 500) == 0 || m_timeLastLogLine + 90000 < QDateTime::currentMSecsSinceEpoch()) {
+                    if ((blockHeight % 500) == 0 || m_timeLastLogLine + 2000 < QDateTime::currentMSecsSinceEpoch()) {
                         m_timeLastLogLine = QDateTime::currentMSecsSinceEpoch();
                         logCritical() << "Processing block" << blockHeight;
                     }
@@ -523,6 +530,13 @@ void Indexer::hubSentMessage(const Message &message)
                 m_nextBlock = message;
                 m_lastRequestedBlock = 0;
                 m_waitForBlock.wakeAll();
+            }
+        }
+        else if (message.messageId() == Api::BlockChain::GetBlockCountReply) {
+            Streaming::MessageParser parser(message.body());
+            while (parser.next() == Streaming::FoundTag) {
+                if (parser.tag() == Api::BlockChain::BlockHeight)
+                    m_bestBlockHeight.store(parser.intData());
             }
         }
     }
@@ -575,8 +589,10 @@ void Indexer::hubSentMessage(const Message &message)
     else if (message.serviceId() == Api::BlockNotificationService && message.messageId() == Api::BlockNotification::NewBlockOnChain) {
         Streaming::MessageParser parser(message.body());
         while (parser.next() == Streaming::FoundTag) {
-            if (parser.tag() == Api::BlockNotification::BlockHeight)
+            if (parser.tag() == Api::BlockNotification::BlockHeight) {
+                m_bestBlockHeight.store(parser.intData());
                 requestBlock(parser.intData());
+            }
         }
     }
     else {
