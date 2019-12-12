@@ -31,10 +31,14 @@ TestApi::TestApi()
 
 void TestApi::start(const QString &hostname, int port)
 {
+    m_port = port;
     m_hostname = hostname;
     if (m_hostname.isEmpty())
-        m_hostname = QLatin1String("localhost");
-    m_port = port;
+        m_hostname = QLatin1String("http://localhost");
+    else if (m_port == 443)
+        m_hostname = "https://" + m_hostname;
+    else
+        m_hostname = "http://" + m_hostname;
 
     // The Qt network access manager will serialize these since they all go to the same host.
     // We create all, but wait for one test to start (the timeout-timer) for the next.
@@ -63,21 +67,24 @@ void TestApi::finishedRequest()
         TestTx::startRequest(this, m_network);
         break;
     case 2:
-        TestTxCoins::startRequest(this, m_network);
+        TestTx2::startRequest(this, m_network);
         break;
     case 3:
-        TestTxCoins2::startRequest(this, m_network);
+        TestTxCoins::startRequest(this, m_network);
         break;
     case 4:
-        TestAddressTxs::startRequest(this, m_network);
+        TestTxCoins2::startRequest(this, m_network);
         break;
     case 5:
-        TestAddressOutputs::startRequest(this, m_network);
+        TestAddressTxs::startRequest(this, m_network);
         break;
     case 6:
-        TestAddressBalance::startRequest(this, m_network);
+        TestAddressOutputs::startRequest(this, m_network);
         break;
     case 7:
+        TestAddressBalance::startRequest(this, m_network);
+        break;
+    case 8:
         QCoreApplication::quit();
     }
 
@@ -177,7 +184,7 @@ void AbstractTestCall::timeout()
 
 void TestTxBlockHeight::startRequest(TestApi *parent, QNetworkAccessManager &manager)
 {
-    QString blockHeight("http://%1:%2/api/BCH/mainnet/tx?blockHeight=12");
+    QString blockHeight("%1:%2/api/BCH/mainnet/tx?blockHeight=12");
     auto reply = manager.get(QNetworkRequest(blockHeight.arg(parent->hostname()).arg(parent->port())));
     auto o = new TestTxBlockHeight(reply);
     connect (o, SIGNAL(requestDone()), parent, SLOT(finishedRequest()));
@@ -210,7 +217,7 @@ void TestTxBlockHeight::checkDocument(const QJsonDocument &doc)
 
 void TestTxBlockHash::startRequest(TestApi *parent, QNetworkAccessManager &manager)
 {
-    QString blockHeight("http://%1:%2/api/BCH/mainnet/tx?blockHash=0000000027c2488e2510d1acf4369787784fa20ee084c258b58d9fbd43802b5e");
+    QString blockHeight("%1:%2/api/BCH/mainnet/tx?blockHash=0000000027c2488e2510d1acf4369787784fa20ee084c258b58d9fbd43802b5e");
     auto reply = manager.get(QNetworkRequest(blockHeight.arg(parent->hostname()).arg(parent->port())));
     auto o = new TestTxBlockHash(reply);
     connect (o, SIGNAL(requestDone()), parent, SLOT(finishedRequest()));
@@ -218,7 +225,7 @@ void TestTxBlockHash::startRequest(TestApi *parent, QNetworkAccessManager &manag
 
 void TestTx::startRequest(TestApi *parent, QNetworkAccessManager &manager)
 {
-    QString blockHeight("http://%1:%2/api/BCH/mainnet/tx/3b96bb7e197ef276b85131afd4a09c059cc368133a26ca04ebffb0ab4f75c8b8");
+    QString blockHeight("%1:%2/api/BCH/mainnet/tx/3b96bb7e197ef276b85131afd4a09c059cc368133a26ca04ebffb0ab4f75c8b8");
     auto reply = manager.get(QNetworkRequest(blockHeight.arg(parent->hostname()).arg(parent->port())));
     auto o = new TestTx(reply);
     connect (o, SIGNAL(requestDone()), parent, SLOT(finishedRequest()));
@@ -250,9 +257,43 @@ void TestTx::checkDocument(const QJsonDocument &doc)
     check(coin, "value", (qint64) 5000000000);
 }
 
+void TestTx2::startRequest(TestApi *parent, QNetworkAccessManager &manager)
+{
+    QString blockHeight("%1:%2/api/BCH/mainnet/tx/609ea5cb7dd5ae908aaea2bf5a98cc7bb45b85b6e43c6d1dee48f5179ca8efa8");
+    auto reply = manager.get(QNetworkRequest(blockHeight.arg(parent->hostname()).arg(parent->port())));
+    auto o = new TestTx2(reply);
+    connect (o, SIGNAL(requestDone()), parent, SLOT(finishedRequest()));
+}
+
+void TestTx2::checkDocument(const QJsonDocument &doc)
+{
+    if (!doc.isObject())
+        error("Root should be an object, not an array");
+    if (doc["inputs"] != QJsonValue::Undefined)
+        error("inputs not expected but present");
+    if (doc["outputs"] != QJsonValue::Undefined)
+        error("outputs not expected but present");
+
+    QJsonObject coin = doc.object();
+    check(coin, "txid", "609ea5cb7dd5ae908aaea2bf5a98cc7bb45b85b6e43c6d1dee48f5179ca8efa8");
+    check(coin, "chain", "BCH");
+    check(coin, "network", "mainnet");
+    check(coin, "blockHeight", 613042);
+    check(coin, "blockHash", "00000000000000000057435d2d30474c6c100becff78ff996648caecf8a5f292");
+    check(coin, "blockTime", "2019-12-12T15:36:09.000Z");
+    check(coin, "blockTimeNormalized",  "2019-12-12T15:36:09.000Z");
+    check(coin, "coinbase", false);
+    check(coin, "locktime", 613040);
+    check(coin, "inputCount", 3);
+    check(coin, "outputCount", 2);
+    check(coin, "size", 520);
+    check(coin, "fee", 522);
+    check(coin, "value", (qint64) 22646675);
+}
+
 void TestTxAuthHead::startRequest(TestApi *parent, QNetworkAccessManager &manager)
 {
-    QString blockHeight("http://%1:%2/api/BCH/mainnet/tx/3b96bb7e197ef276b85131afd4a09c059cc368133a26ca04ebffb0ab4f75c8b8/authhead");
+    QString blockHeight("%1:%2/api/BCH/mainnet/tx/3b96bb7e197ef276b85131afd4a09c059cc368133a26ca04ebffb0ab4f75c8b8/authhead");
     auto reply = manager.get(QNetworkRequest(blockHeight.arg(parent->hostname()).arg(parent->port())));
     auto o = new TestTxAuthHead(reply);
     connect (o, SIGNAL(requestDone()), parent, SLOT(finishedRequest()));
@@ -265,7 +306,7 @@ void TestTxAuthHead::checkDocument(const QJsonDocument &doc)
 
 void TestTxCoins::startRequest(TestApi *parent, QNetworkAccessManager &manager)
 {
-    QString blockHeight("http://%1:%2/api/BCH/mainnet/tx/3b96bb7e197ef276b85131afd4a09c059cc368133a26ca04ebffb0ab4f75c8b8/coins");
+    QString blockHeight("%1:%2/api/BCH/mainnet/tx/3b96bb7e197ef276b85131afd4a09c059cc368133a26ca04ebffb0ab4f75c8b8/coins");
     auto reply = manager.get(QNetworkRequest(blockHeight.arg(parent->hostname()).arg(parent->port())));
     auto o = new TestTxCoins(reply);
     connect (o, SIGNAL(requestDone()), parent, SLOT(finishedRequest()));
@@ -310,7 +351,7 @@ void TestTxCoins::checkDocument(const QJsonDocument &doc)
 
 void TestTxCoins2::startRequest(TestApi *parent, QNetworkAccessManager &manager)
 {
-    QString blockHeight("http://%1:%2/api/BCH/mainnet/tx/dedabaa2b1e6e5fff513bf0a2aeebccf2b650617ff540e4baa27ff3588692acc/coins");
+    QString blockHeight("%1:%2/api/BCH/mainnet/tx/dedabaa2b1e6e5fff513bf0a2aeebccf2b650617ff540e4baa27ff3588692acc/coins");
     auto reply = manager.get(QNetworkRequest(blockHeight.arg(parent->hostname()).arg(parent->port())));
     auto o = new TestTxCoins2(reply);
     connect (o, SIGNAL(requestDone()), parent, SLOT(finishedRequest()));
@@ -388,7 +429,7 @@ void TestTxCoins2::checkDocument(const QJsonDocument &doc)
 
 void TestAddressTxs::startRequest(TestApi *parent, QNetworkAccessManager &manager)
 {
-    QString addressTxs("http://%1:%2/api/BCH/mainnet/address/qruexuvmqwc0cd7padx2qhvrdlmygefdnv2cqjpvq6/txs");
+    QString addressTxs("%1:%2/api/BCH/mainnet/address/qruexuvmqwc0cd7padx2qhvrdlmygefdnv2cqjpvq6/txs");
     auto reply = manager.get(QNetworkRequest(addressTxs.arg(parent->hostname()).arg(parent->port())));
     auto o = new TestAddressTxs(reply);
     connect (o, SIGNAL(requestDone()), parent, SLOT(finishedRequest()));
@@ -565,7 +606,7 @@ void TestAddressTxs::checkDocument(const QJsonDocument &doc)
 
 void TestAddressOutputs::startRequest(TestApi *parent, QNetworkAccessManager &manager)
 {
-    QString addressTxs("http://%1:%2/api/BCH/mainnet/address/1PYELM7jXHy5HhatbXGXfRpGrgMMxmpobu/?unspent=true");
+    QString addressTxs("%1:%2/api/BCH/mainnet/address/1PYELM7jXHy5HhatbXGXfRpGrgMMxmpobu/?unspent=true");
     auto reply = manager.get(QNetworkRequest(addressTxs.arg(parent->hostname()).arg(parent->port())));
     auto o = new TestAddressOutputs(reply);
     connect (o, SIGNAL(requestDone()), parent, SLOT(finishedRequest()));
@@ -629,7 +670,7 @@ void TestAddressOutputs::checkDocument(const QJsonDocument &doc)
 
 void TestAddressBalance::startRequest(TestApi *parent, QNetworkAccessManager &manager)
 {
-    QString addressTxs("http://%1:%2/api/BCH/mainnet/address/1PYELM7jXHy5HhatbXGXfRpGrgMMxmpobu/balance");
+    QString addressTxs("%1:%2/api/BCH/mainnet/address/1PYELM7jXHy5HhatbXGXfRpGrgMMxmpobu/balance");
     auto reply = manager.get(QNetworkRequest(addressTxs.arg(parent->hostname()).arg(parent->port())));
     auto o = new TestAddressBalance(reply);
     connect (o, SIGNAL(requestDone()), parent, SLOT(finishedRequest()));

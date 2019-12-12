@@ -122,6 +122,18 @@ protected:
     void checkDocument(const QJsonDocument &doc) override;
 };
 
+class TestTx2 : public AbstractTestCall
+{
+    Q_OBJECT
+public:
+    static void startRequest(TestApi *parent, QNetworkAccessManager &manager);
+
+protected:
+    TestTx2(QNetworkReply *parent) : AbstractTestCall(parent) {}
+
+    void checkDocument(const QJsonDocument &doc) override;
+};
+
 class TestTxAuthHead : public AbstractTestCall
 {
     Q_OBJECT
