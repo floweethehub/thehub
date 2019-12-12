@@ -73,7 +73,7 @@ Api::Server::Server(boost::asio::io_service &service)
       m_timerRunning(false),
       m_newConnectionTimeout(service)
 {
-    int defaultPort = BaseParams().ApiServerPort();
+    uint16_t defaultPort = BaseParams().ApiServerPort();
     using boost::asio::ip::tcp;
     std::list<tcp::endpoint> endpoints;
 
@@ -244,8 +244,9 @@ void Api::Server::Connection::incomingMessage(const Message &message)
     if (message.serviceId() == APIService && message.messageId() == Meta::Version) {
         Streaming::MessageBuilder builder(m_bufferPool);
         std::ostringstream ss;
-        ss << "Flowee:" << HUB_SERIES << " (" << CLIENT_VERSION_MAJOR << "-" << CLIENT_VERSION_MINOR
-           << "." << CLIENT_VERSION_REVISION << ")";;
+        ss << "Flowee:" << HUB_SERIES << " (" << CLIENT_VERSION_MAJOR << "-";
+        ss.setf(std::ios::hex, std::ios::basefield);
+        ss << CLIENT_VERSION_MINOR << "." << CLIENT_VERSION_REVISION << ")";
         builder.add(Meta::GenericByteData, ss.str());
         m_connection.send(builder.reply(message));
         return;
@@ -264,7 +265,7 @@ void Api::Server::Connection::incomingMessage(const Message &message)
     assert(parser.get());
     assert(message.serviceId() < 0xFFFF);
     assert(message.messageId() < 0xFFFF);
-    const uint32_t sessionDataId = static_cast<uint32_t>(message.serviceId()) << 16 + static_cast<uint32_t>(message.messageId());
+    const uint32_t sessionDataId = (static_cast<uint32_t>(message.serviceId()) << 16) + static_cast<uint32_t>(message.messageId());
     parser.get()->setSessionData(&m_properties[sessionDataId]);
 
     auto *rpcParser = dynamic_cast<Api::RpcParser*>(parser.get());
