@@ -462,8 +462,6 @@ void Indexer::hubConnected(const EndPoint &ep)
     m_serverConnection.send(Message(Api::APIService, Api::Meta::Version));
     m_serverConnection.send(Message(Api::BlockChainService, Api::BlockChain::GetBlockCount));
     m_serverConnection.send(Message(Api::BlockNotificationService, Api::BlockNotification::Subscribe));
-    QMutexLocker lock(&m_nextBlockLock);
-    requestBlock(m_lastRequestedBlock);
 }
 
 void Indexer::requestBlock(int newBlockHeight)
@@ -573,10 +571,10 @@ void Indexer::hubSentMessage(const Message &message)
                 else if (parser.tag() == Api::Meta::FailedCommandId)
                     messageId = parser.intData();
                 else if (parser.tag() == Api::Meta::FailedReason)
-                    logDebug() << "failed reason:" << parser.stringData();
+                    logWarning() << "Hub sends failed reason:" << parser.stringData();
             }
             if (serviceId == Api::BlockChainService && messageId == Api::BlockChain::GetBlock) {
-                logWarning() << "Failed to get block, hub didn't have it.";
+                logWarning() << "Failed to get block, hub didn't have it." << m_lastRequestedBlock;
                 m_lastRequestedBlock = 0;
             }
             else logCritical() << "Failure detected" << serviceId << messageId;
