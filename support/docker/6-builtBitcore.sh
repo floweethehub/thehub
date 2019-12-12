@@ -4,12 +4,12 @@ cd `dirname $0`
 
 if test ! -f "hub/Dockerfile"; then
     echo -e "ERROR: Something wrong"
-    exit
+    exit 1
 fi;
 
 if test ! -d "bitcore/bin"; then
     echo -e "ERROR: Missing bin dir, did you compile?"
-    exit
+    exit 1
 fi
 
 if test -z "$TAG"; then

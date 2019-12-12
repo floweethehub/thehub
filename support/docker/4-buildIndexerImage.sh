@@ -3,12 +3,12 @@ cd `dirname $0`
 
 if test ! -f "indexer/Dockerfile"; then
     echo -e "ERROR: Something wrong"
-    exit
+    exit 1
 fi;
 
 if test ! -d "indexer/bin"; then
     echo -e "ERROR: Missing bin dir, did you compile?"
-    exit
+    exit 1
 fi
 
 if test -z "$TAG"; then

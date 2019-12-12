@@ -4,7 +4,7 @@ cd `dirname $0`
 
 if test ! -f "hub/Dockerfile"; then
     echo -e "ERROR: Something wrong"
-    exit
+    exit 1
 fi;
 
 if test ! -d "hub/bin"; then
