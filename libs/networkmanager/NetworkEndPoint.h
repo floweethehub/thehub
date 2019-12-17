@@ -61,7 +61,7 @@ inline Log::Item operator<<(Log::Item item, const EndPoint &ep) {
         if (ep.ipAddress.is_unspecified())
             item << ep.hostname;
         else
-            item << ep.ipAddress.to_string();
+            item << ep.ipAddress.to_string().c_str();
         item << ':' << ep.announcePort;
         if (ep.announcePort != ep.peerPort && ep.peerPort != 0)
             item << '|' << ep.peerPort;

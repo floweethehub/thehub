@@ -330,7 +330,7 @@ void NetworkManagerConnection::onAddressResolveComplete(const boost::system::err
     if (m_isClosingDown)
         return;
     if (error) {
-        logWarning(Log::NWM).nospace() << "connect[" << m_remote.hostname << ":" << m_remote.announcePort << "] " << error.message();
+        logWarning(Log::NWM).nospace() << "connect[" << m_remote << "] " << error.message();
         m_isConnecting = false;
         m_reconnectDelay.expires_from_now(boost::posix_time::seconds(45));
         m_reconnectDelay.async_wait(m_strand.wrap(std::bind(&NetworkManagerConnection::reconnectWithCheck,
@@ -352,7 +352,7 @@ void NetworkManagerConnection::onConnectComplete(const boost::system::error_code
         return;
     m_isConnecting = false;
     if (error) {
-        logInfo(Log::NWM).nospace() << "connect[" << m_remote.hostname << ":" << m_remote.announcePort << "] " << error.message();
+        logInfo(Log::NWM).nospace() << "connect[" << m_remote.hostname.c_str() << ":" << m_remote.announcePort << "] " << error.message();
         if (m_remote.peerPort != m_remote.announcePort) // incoming connection
             return;
         m_reconnectDelay.expires_from_now(boost::posix_time::seconds(reconnectTimeoutForStep(++m_reconnectStep)));
@@ -362,7 +362,7 @@ void NetworkManagerConnection::onConnectComplete(const boost::system::error_code
     }
     m_isConnected = true;
     assert(m_strand.running_in_this_thread());
-    logInfo(Log::NWM) << "Successfully made TCP connection to" << m_remote.hostname << m_remote.announcePort;
+    logInfo(Log::NWM) << "Successfully made TCP connection to" << m_remote.hostname.c_str() << m_remote.announcePort;
 
     for (auto it = m_onConnectedCallbacks.begin(); it != m_onConnectedCallbacks.end(); ++it) {
         try {
@@ -1097,7 +1097,7 @@ void NetworkManagerServer::acceptConnection(boost::system::error_code error)
 
         const int conId = ++priv->lastConnectionId;
         logDebug(Log::NWM) << "acceptTcpConnection; creating new connection object" << conId;
-        // Never do a setupCallback until we do a 'std::move' (or close)  to avoid an "Already open" error
+        // Never do a setupCallback until we do a 'std::move' (or disconnect)  to avoid an "Already open" error
         std::shared_ptr<NetworkManagerConnection> connection = std::make_shared<NetworkManagerConnection>(priv, std::move(m_socket), conId);
         priv->connections.insert(std::make_pair(conId, connection));
         logDebug(Log::NWM) << "Total connections now;" << priv->connections.size();
