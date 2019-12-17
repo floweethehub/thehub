@@ -219,11 +219,10 @@ void Indexer::loadConfig(const QString &filename, const EndPoint &prioHubLocatio
         bind(tcp::endpoint(boost::asio::ip::address_v6::loopback(), 1234));
 
     // make sure we have the right workers.
-    QList<QThread*> newThreads;
     if (enableAddressDb && !m_addressdb) {
         m_addressdb = new AddressIndexer(m_basedir / "addresses", this);
         m_addressdb->loadSetting(settings);
-        newThreads.append(m_addressdb);
+        m_addressdb->start();
     } else if (!enableAddressDb && m_addressdb) {
         m_addressdb->requestInterruption();
         m_addressdb->wait();
@@ -232,7 +231,7 @@ void Indexer::loadConfig(const QString &filename, const EndPoint &prioHubLocatio
     }
     if (enableTxDB && !m_txdb) {
         m_txdb = new TxIndexer(m_workers.ioService(), m_basedir / "txindex", this);
-        newThreads.append(m_txdb);
+        m_txdb->start();
     } else if (!enableTxDB && m_txdb) {
         m_txdb->requestInterruption();
         m_txdb->wait();
@@ -241,7 +240,7 @@ void Indexer::loadConfig(const QString &filename, const EndPoint &prioHubLocatio
     }
     if (enableSpentDb && !m_spentOutputDb) {
         m_spentOutputDb = new SpentOutputIndexer(m_workers.ioService(), m_basedir / "spent", this);
-        newThreads.append(m_spentOutputDb);
+        m_spentOutputDb->start();
     } else if (!enableSpentDb && m_spentOutputDb) {
         m_spentOutputDb->requestInterruption();
         m_spentOutputDb->wait();
@@ -255,11 +254,6 @@ void Indexer::loadConfig(const QString &filename, const EndPoint &prioHubLocatio
             tryConnectHub(hub);
     } catch (const std::exception &e) {
         logFatal() << "Config: Hub connection string invalid." << e;
-    }
-
-    // start new threads as the last thing we do, put it in the future for stability.
-    for (auto t : newThreads) {
-        QTimer::singleShot(500, t, SLOT(start()));
     }
 }
 
@@ -368,12 +362,8 @@ Message Indexer::nextBlock(int height, int *knownTip, unsigned long timeout)
         if (m_txdb) totalWanted++;
         if (m_spentOutputDb) totalWanted++;
         if (m_addressdb) totalWanted++;
-        if (token.allocatedTokens() == totalWanted) {
-            if (height <= m_bestBlockHeight.load())
-                requestBlock();
-            else
-                logInfo() << "Reached top of chain" << m_bestBlockHeight.load();
-        }
+        if (token.allocatedTokens() == totalWanted && height <= m_bestBlockHeight.load())
+            requestBlock();
 
         // wait until the network-manager thread actually finds the block-message as sent by the Hub
         if (!m_waitForBlock.wait(&m_nextBlockLock, timeout))
@@ -386,8 +376,20 @@ void Indexer::checkBlockArrived()
 {
     if (!m_serverConnection.isConnected())
         return;
+    if (QDateTime::currentMSecsSinceEpoch() - m_timeLastRequest < 20000)
+        return;
+
     QMutexLocker lock(&m_nextBlockLock);
-    if (m_lastRequestedBlock != 0 && QDateTime::currentMSecsSinceEpoch() - m_timeLastRequest > 20000) {
+    int lastReceivedBlock = -1;
+    Streaming::MessageParser parser(m_nextBlock.body());
+    while (parser.next() == Streaming::FoundTag) {
+        if (parser.tag() == Api::BlockChain::BlockHeight) {
+            lastReceivedBlock = parser.intData();
+            break;
+        }
+    }
+
+    if (m_lastRequestedBlock != lastReceivedBlock) {
         logDebug() << "repeating block request";
         // Hub never sent the block to us :(
         requestBlock(m_lastRequestedBlock);
@@ -485,13 +487,12 @@ void Indexer::requestBlock(int newBlockHeight)
             return;
     }
 
-    // Unset requests now we acted on them.
-    for (size_t i = 0; i < s_requestedHeights.size(); ++i) {
-        int expected = blockHeight;
-        s_requestedHeights[i].compare_exchange_strong(expected, -1);
-    }
+    const auto now = QDateTime::currentMSecsSinceEpoch();
+    if (m_lastRequestedBlock == blockHeight && now - m_timeLastRequest < 1200)
+        return;
+
     m_lastRequestedBlock = blockHeight;
-    m_timeLastRequest = QDateTime::currentMSecsSinceEpoch();
+    m_timeLastRequest = now;
     m_pool.reserve(20);
     Streaming::MessageBuilder builder(m_pool);
     builder.add(Api::BlockChain::BlockHeight, blockHeight);
@@ -531,7 +532,14 @@ void Indexer::hubSentMessage(const Message &message)
             QMutexLocker lock(&m_nextBlockLock);
             if (m_lastRequestedBlock == blockHeight) {
                 m_nextBlock = message;
-                m_lastRequestedBlock = 0;
+                // Clear tokens.
+                // While the threads do this themselves too, its better to do it
+                // here in order to make sure **our** internel state is proper and
+                // we can avoid multiple calls to requestBlock().
+                for (size_t i = 0; i < s_requestedHeights.size(); ++i) {
+                    int expected = blockHeight;
+                    s_requestedHeights[i].compare_exchange_strong(expected, -1);
+                }
                 m_waitForBlock.wakeAll();
             }
         }
@@ -540,10 +548,9 @@ void Indexer::hubSentMessage(const Message &message)
             while (parser.next() == Streaming::FoundTag) {
                 if (parser.tag() == Api::BlockChain::BlockHeight) {
                     const int tipHeight = parser.intData();
-                    if (tipHeight >  m_bestBlockHeight.load()) {
+                    if (tipHeight > m_bestBlockHeight.load())
                         m_bestBlockHeight.store(tipHeight);
-                        requestBlock(tipHeight);
-                    }
+                    requestBlock(tipHeight);
                 }
             }
         }
@@ -565,19 +572,23 @@ void Indexer::hubSentMessage(const Message &message)
             Streaming::MessageParser parser(message.body());
             int serviceId = -1;
             int messageId = -1;
+            std::string failedReason;
             while (parser.next() == Streaming::FoundTag) {
                 if (parser.tag() == Api::Meta::FailedCommandServiceId)
                     serviceId = parser.intData();
                 else if (parser.tag() == Api::Meta::FailedCommandId)
                     messageId = parser.intData();
                 else if (parser.tag() == Api::Meta::FailedReason)
-                    logWarning() << "Hub sends failed reason:" << parser.stringData();
+                    failedReason = parser.stringData();
             }
             if (serviceId == Api::BlockChainService && messageId == Api::BlockChain::GetBlock) {
-                logWarning() << "Failed to get block, hub didn't have it." << m_lastRequestedBlock;
-                m_lastRequestedBlock = 0;
+                if (m_lastRequestedBlock > m_bestBlockHeight.load())
+                    logInfo().nospace() << "Reached top of chain (" << m_bestBlockHeight.load() << ")";
+                else
+                    logWarning() << "Failed to get block, hub didn't have it." << m_lastRequestedBlock;
+            } else {
+                logWarning() << "Hub reported failure" << serviceId << messageId << failedReason;
             }
-            else logCritical() << "Failure detected" << serviceId << messageId;
         }
     }
     else if (message.serviceId() == Api::BlockNotificationService && message.messageId() == Api::BlockNotification::NewBlockOnChain) {
