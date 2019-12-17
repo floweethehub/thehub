@@ -912,7 +912,7 @@ void NetworkManagerConnection::close(bool reconnect)
     m_sendHelperBuffer.clear();
     m_chunkedMessageBuffer.clear();
     m_chunkedMessageId = -1;
-    m_chunkedServiceId != -1;
+    m_chunkedServiceId = -1;
     m_chunkedHeaderData.clear();
     m_messageBytesSend = 0;
     m_messageBytesSent = 0;
