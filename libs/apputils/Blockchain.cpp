@@ -419,6 +419,9 @@ void Blockchain::SearchPolicy::parseMessageFromHub(Search *request, const Messag
 {
     const int jobId = message.headerInt(JobRequestId);
     logDebug(Log::SearchEngine) << "  " << jobId;
+    Streaming::MessageParser parser(message);
+    { // jobsLock scope
+    std::lock_guard<std::mutex> lock(request->jobsLock);
     if (jobId < 0 || request->jobs.size() <= jobId) {
         logDebug(Log::SearchEngine) << "Hub message refers to non existing job Id";
         return;
@@ -426,7 +429,6 @@ void Blockchain::SearchPolicy::parseMessageFromHub(Search *request, const Messag
     Job &job = request->jobs[jobId];
     job.finished = true;
 
-    Streaming::MessageParser parser(message);
     if (message.serviceId() == Api::BlockChainService) {
         if (message.messageId() == Api::BlockChain::GetTransactionReply) {
             request->answer.push_back(fillTx(parser, job, jobId));
@@ -474,7 +476,9 @@ void Blockchain::SearchPolicy::parseMessageFromHub(Search *request, const Messag
             logDebug(Log::SearchEngine) << "Unknown message from Hub";
         }
     }
-    else if (message.serviceId() == Api::LiveTransactionService) {
+    } // jobsLock scope
+
+    if (message.serviceId() == Api::LiveTransactionService) {
         // TODO also implement error reporting from the API module.
         // things like "OffsetInBlock larger than block" get reported there.
         if (message.messageId() == Api::LiveTransactions::IsUnspentReply) {
@@ -520,6 +524,8 @@ void Blockchain::SearchPolicy::parseMessageFromIndexer(Search *request, const Me
 {
     const int jobId = message.headerInt(JobRequestId);
     logDebug(Log::SearchEngine) << "  " << jobId;
+    { // jobslock scope
+    std::lock_guard<std::mutex> lock(request->jobsLock);
     if (jobId < 0 || request->jobs.size() <= jobId) {
         logDebug(Log::SearchEngine) << "Indexer message refers to non existing job Id";
         return;
@@ -563,6 +569,7 @@ void Blockchain::SearchPolicy::parseMessageFromIndexer(Search *request, const Me
     } else {
         logDebug(Log::SearchEngine) << "Unknown message from Indexer";
     }
+    } // jobslock scope
 
     processRequests(request);
 }
@@ -572,6 +579,8 @@ void Blockchain::SearchPolicy::processRequests(Blockchain::Search *request)
     int jobsInFlight = 0;
     int jobsWaiting = 0;
     Streaming::BufferPool *pool = m_owner->pool();
+    { // jobsLock scope
+    std::lock_guard<std::mutex> lock(request->jobsLock);
     for (size_t i = 0; i < request->jobs.size(); ++i) {
         Job &job = request->jobs.at(i);
         if (job.finished)
@@ -747,6 +756,7 @@ void Blockchain::SearchPolicy::processRequests(Blockchain::Search *request)
         if (job.started)
             jobsInFlight++;
     }
+    } // jobsLock scope
 
     if (jobsInFlight == 0)
         request->finished(jobsWaiting);
@@ -766,6 +776,7 @@ void Blockchain::SearchPolicy::sendMessage(Blockchain::Search *request, Message 
 
 void Blockchain::SearchPolicy::updateJob(int jobIndex, Search *request, const Streaming::ConstBuffer &data, int intData1, int intData2)
 {
+    // assumes the jobsLock is locked by caller
     if (jobIndex == -1)
         return;
     assert(jobIndex >= 0);
@@ -774,6 +785,5 @@ void Blockchain::SearchPolicy::updateJob(int jobIndex, Search *request, const St
     Job &ref = request->jobs[index];
     ref.intData = intData1;
     ref.intData2 = intData2;
-    // if (ref.data.isEmpty())
     ref.data = data;
 }
