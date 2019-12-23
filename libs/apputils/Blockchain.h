@@ -27,6 +27,7 @@
 
 #include <vector>
 #include <deque>
+#include <mutex>
 
 namespace Blockchain
 {
@@ -211,6 +212,7 @@ public:
     int requestId = -1;
 
     // questions
+    std::mutex jobsLock;
     std::deque<Job> jobs;
 
     // results
