@@ -192,6 +192,16 @@ void Blockchain::SearchEngine::reparseConfig()
     parseConfig(d->configFile);
 }
 
+Streaming::BufferPool &Blockchain::SearchEngine::poolForThread()
+{
+    return *d->pool();
+}
+
+void Blockchain::SearchEngine::sendMessage(const Message &message, Blockchain::Service service)
+{
+    d->sendMessage(message, service);
+}
+
 bool Blockchain::SearchEngine::isHubConnected() const
 {
     for (auto iter = d->connections.begin(); iter != d->connections.end(); ++iter) {

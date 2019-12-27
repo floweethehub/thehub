@@ -29,6 +29,8 @@
 #include <deque>
 #include <mutex>
 
+#include <streaming/BufferPool.h>
+
 namespace Blockchain
 {
 enum Service {
@@ -252,6 +254,9 @@ public:
 
 protected:
     void reparseConfig();
+
+    Streaming::BufferPool &poolForThread();
+    void sendMessage(const Message &message, Service service);
 
     SearchEnginePrivate *d;
 };
