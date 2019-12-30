@@ -304,14 +304,15 @@ void Blockchain::SearchEnginePrivate::hubSentMessage(const Message &message)
     }
     if (message.serviceId() == Api::APIService && message.messageId() == Api::Meta::VersionReply) {
         Streaming::MessageParser parser(message);
+        std::string hubId;
         while (parser.next() == Streaming::FoundTag) {
             if (parser.tag() == Api::GenericByteData) {
-                logCritical(Log::SearchEngine) << "  Upstream hub connected" << parser.stringData();
+                hubId = parser.stringData();
+                logCritical(Log::SearchEngine) << "  Upstream hub connected" << hubId;
                 if (parser.stringData().compare("Flowee:1 (2019-9.1)") < 0) {
                     logFatal() << "  Hub is too old, not using";
                     return;
                 }
-                q->initializeHubConnection(network.connection(network.endPoint(message.remote)), parser.stringData());
                 break;
             }
         }
@@ -322,6 +323,8 @@ void Blockchain::SearchEnginePrivate::hubSentMessage(const Message &message)
                 break;
             }
         }
+        // then as last thing, let our subclasses know;
+        q->initializeHubConnection(network.connection(network.endPoint(message.remote)), hubId);
         return;
     }
     q->hubSentMessage(message);
