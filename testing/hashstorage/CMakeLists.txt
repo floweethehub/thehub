@@ -18,12 +18,11 @@ project (test_hashstorage)
 include (testlib)
 
 add_executable(test_hashstorage
-    ../common/TestFloweeBase.cpp
     ../../indexer/HashStorage.cpp
     test_hashstorage.cpp
 )
 target_link_libraries(test_hashstorage
-    flowee_utils
+    flowee_testlib
     flowee_utxo
 
     ${TEST_LIBS}

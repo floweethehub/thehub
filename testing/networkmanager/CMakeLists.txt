@@ -19,10 +19,9 @@ include (testlib)
 
 add_executable(test_networkmanager
     testNWM.cpp
-    ../common/TestFloweeBase.cpp
 )
 target_link_libraries(test_networkmanager
+    flowee_testlib
     flowee_networkmanager
-    flowee_utils
     ${TEST_LIBS} ${OPENSSL_LIBRARIES})
 add_test(NAME HUB_test_networkmanager COMMAND test_networkmanager)

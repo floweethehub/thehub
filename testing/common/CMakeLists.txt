@@ -20,14 +20,19 @@ set(CMAKE_INCLUDE_CURRENT_DIR ON)
 set(CMAKE_AUTOMOC ON)
 
 add_library(flowee_testlib STATIC
-    MockBlockValidation.cpp
     TestFloweeBase.cpp
-    TestFloweeEnvPlusNet.cpp
-    TestFloweeSession.cpp
-    TestMemPoolEntryHelper.cpp
 )
 
 target_link_libraries(flowee_testlib
     flowee_utils
     Qt5::Test
 )
+
+add_library(flowee_testlib_server STATIC
+    MockBlockValidation.cpp
+    TestFloweeEnvPlusNet.cpp
+    TestFloweeSession.cpp
+    TestMemPoolEntryHelper.cpp
+)
+
+target_link_libraries(flowee_testlib_server flowee_testlib flowee_server)

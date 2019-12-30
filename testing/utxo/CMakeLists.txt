@@ -18,12 +18,11 @@ project (test_utxo)
 include (testlib)
 
 add_executable(test_utxo
-    ../common/TestFloweeBase.cpp
     test_utxo.cpp
 )
 target_link_libraries(test_utxo
+    flowee_testlib
     flowee_utxo
-    flowee_utils
 
     ${TEST_LIBS}
     ${OPENSSL_LIBRARIES}

@@ -60,7 +60,7 @@ add_executable(test_protocol
     main.cpp
 )
 target_link_libraries(test_protocol
-    flowee_testlib
+    flowee_testlib_server
     flowee_server
     flowee_utils
 

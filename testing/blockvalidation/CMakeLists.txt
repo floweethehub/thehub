@@ -21,7 +21,7 @@ add_executable(test_blockvalidation
     blockvalidation_tests.cpp
 )
 target_link_libraries(test_blockvalidation
-    flowee_testlib
+    flowee_testlib_server
     flowee_server
     flowee_utils
 
