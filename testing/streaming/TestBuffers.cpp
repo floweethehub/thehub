@@ -440,6 +440,30 @@ void TestBuffers::benchSerialize()
     }
 }
 
+void TestBuffers::testCompare()
+{
+    // test the operator== method
+
+    Streaming::BufferPool pool;
+    pool.writeHex("0x308400123809128309182093801923809128309128");
+    Streaming::ConstBuffer buf = pool.commit();
+
+    QCOMPARE(buf == buf, true);
+    QCOMPARE(buf == Streaming::ConstBuffer(), false);
+    QCOMPARE(Streaming::ConstBuffer() == buf, false);
+    QCOMPARE(Streaming::ConstBuffer() == Streaming::ConstBuffer(), true);
+    QCOMPARE(buf == buf.mid(1), false);
+    QCOMPARE(buf == buf.mid(0, 10), false);
+
+    auto x = buf;
+    QCOMPARE(buf == x, true);
+
+
+    pool.writeHex("0x308400123809128309182093801923809128309128");
+    Streaming::ConstBuffer buf2 = pool.commit();
+    QCOMPARE(buf == buf2, true);
+}
+
 void TestBuffers::testConstBufMid()
 {
     Streaming::BufferPool pool;

@@ -113,3 +113,22 @@ bool Streaming::ConstBuffer::startsWith(const Streaming::ConstBuffer &other) con
     }
     return true;
 }
+
+bool Streaming::ConstBuffer::operator==(const Streaming::ConstBuffer &other) const
+{
+    if (!other.isValid())
+        return !isValid();
+    if (!isValid())
+        return false;
+    if (size() != other.size())
+        return false;
+    const char *me = begin();
+    const char *them = other.begin();
+    while (me != end()) {
+        if (*me != *them)
+            return false;
+        ++them;
+        ++me;
+    }
+    return true;
+}

@@ -76,6 +76,8 @@ public:
 
     bool startsWith(const Streaming::ConstBuffer &other) const;
 
+    bool operator==(const Streaming::ConstBuffer &other) const;
+
 private:
     std::shared_ptr<char> m_buffer;
     char const* m_start;
