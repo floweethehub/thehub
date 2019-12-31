@@ -99,8 +99,9 @@ std::string Application::userAgent()
         ss << ")";
     } else {
         ss << " (" << CLIENT_VERSION_MAJOR << "-";
-        ss.setf(std::ios::hex, std::ios::basefield);
-        ss << std::hex << CLIENT_VERSION_MINOR << ")";
+        ss.width(2);
+        ss.fill('0');
+        ss << CLIENT_VERSION_MINOR << ")";
     }
     ss << "/";
     std::string answer = ss.str();

@@ -245,8 +245,9 @@ void Api::Server::Connection::incomingMessage(const Message &message)
         Streaming::MessageBuilder builder(m_bufferPool);
         std::ostringstream ss;
         ss << "Flowee:" << HUB_SERIES << " (" << CLIENT_VERSION_MAJOR << "-";
-        ss.setf(std::ios::hex, std::ios::basefield);
-        ss << CLIENT_VERSION_MINOR << "." << CLIENT_VERSION_REVISION << ")";
+        ss.width(2);
+        ss.fill('0');
+        ss << CLIENT_VERSION_MINOR << ")";
         builder.add(Meta::GenericByteData, ss.str());
         m_connection.send(builder.reply(message));
         return;
