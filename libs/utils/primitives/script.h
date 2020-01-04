@@ -394,13 +394,13 @@ protected:
     }
 public:
     CScript() { }
-    CScript(const CScript& b) : CScriptBase(b.begin(), b.end()) { }
     CScript(const_iterator pbegin, const_iterator pend) : CScriptBase(pbegin, pend) { }
     CScript(std::vector<unsigned char>::const_iterator pbegin, std::vector<unsigned char>::const_iterator pend) : CScriptBase(pbegin, pend) { }
     CScript(const unsigned char* pbegin, const unsigned char* pend) : CScriptBase(pbegin, pend) { }
     CScript(const Streaming::ConstBuffer &buf) : CScriptBase(buf) { }
 
     CScript& operator+=(const CScript& b) {
+        reserve(size() + b.size());
         insert(end(), b.begin(), b.end());
         return *this;
     }
