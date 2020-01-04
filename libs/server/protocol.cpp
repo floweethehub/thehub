@@ -65,20 +65,6 @@ const char *XPEDITEDTxn="Xt";
 const char *DSPROOF="dsproof-beta";
 }
 
-static const char* ppszTypeName[] =
-{
-    "ERROR", // Should never occur
-    NetMsgType::TX,
-    NetMsgType::BLOCK,
-    "filtered block", // Should never occur
-    // BUIP010 Xtreme Thinblocks - begin section
-    NetMsgType::THINBLOCK,
-    NetMsgType::XTHINBLOCK,
-    NetMsgType::XBLOCKTX,
-    NetMsgType::GET_XBLOCKTX
-    // BUIP010 Xtreme Thinblocks - end section
-};
-
 /** All known message types. Keep this in the same order as the list of
  * messages above and in protocol.h.
  */
@@ -209,7 +195,7 @@ bool operator<(const CInv& a, const CInv& b)
 
 bool CInv::IsKnownType() const
 {
-    return type >= 1 && type < 8 || type == MSG_DOUBLESPENDPROOF;
+    return (type >= 1 && type < 8) || type == MSG_DOUBLESPENDPROOF;
 }
 
 const char* CInv::GetCommand() const
