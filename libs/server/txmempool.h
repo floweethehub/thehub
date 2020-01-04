@@ -429,7 +429,7 @@ public:
 
     /**
      * Add a double spend proof we received elsewhere to an existing mempool-entry.
-     * Return CTransaction of the mempool entry we added this to.
+     * Return Tx of the mempool entry we added this to.
      */
     Tx addDoubleSpendProof(const DoubleSpendProof &proof);
 
@@ -462,8 +462,8 @@ public:
     // to track size/count of descendant transactions.  First version of
     // addUnchecked can be used to have it call CalculateMemPoolAncestors(), and
     // then invoke the second version.
-    void addUnchecked(const uint256& hash, const CTxMemPoolEntry &entry, bool fCurrentEstimate = true);
-    void addUnchecked(const uint256& hash, const CTxMemPoolEntry &entry, const setEntries &setAncestors, bool fCurrentEstimate = true);
+    void addUnchecked(const uint256& hash, const CTxMemPoolEntry &entry);
+    void addUnchecked(const uint256& hash, const CTxMemPoolEntry &entry, const setEntries &setAncestors);
 
     /**
      * Check entry for double spend, and adds if Ok.

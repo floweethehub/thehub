@@ -381,7 +381,7 @@ void CTxMemPool::AddTransactionsUpdated(unsigned int n)
     nTransactionsUpdated += n;
 }
 
-void CTxMemPool::addUnchecked(const uint256& hash, const CTxMemPoolEntry &entry, const setEntries &setAncestors, bool fCurrentEstimate)
+void CTxMemPool::addUnchecked(const uint256& hash, const CTxMemPoolEntry &entry, const setEntries &setAncestors)
 {
     // Add to memory pool without checking anything.
     // Used by insertTx via TxValidationState which DOES do
@@ -483,7 +483,7 @@ bool CTxMemPool::insertTx(CTxMemPoolEntry &entry)
             return false;
     }
 
-    addUnchecked(entry.tx.createHash(), entry, true);
+    addUnchecked(entry.tx.createHash(), entry);
     return true;
 }
 
@@ -768,14 +768,14 @@ int CTxMemPool::Expire(int64_t time) {
     return stage.size();
 }
 
-void CTxMemPool::addUnchecked(const uint256&hash, const CTxMemPoolEntry &entry, bool fCurrentEstimate)
+void CTxMemPool::addUnchecked(const uint256&hash, const CTxMemPoolEntry &entry)
 {
     LOCK(cs);
     setEntries setAncestors;
     uint64_t nNoLimit = std::numeric_limits<uint64_t>::max();
     std::string dummy;
     CalculateMemPoolAncestors(entry, setAncestors, nNoLimit, nNoLimit, nNoLimit, nNoLimit, dummy);
-    addUnchecked(hash, entry, setAncestors, fCurrentEstimate);
+    addUnchecked(hash, entry, setAncestors);
 }
 
 void CTxMemPool::UpdateChild(txiter entry, txiter child, bool add)
