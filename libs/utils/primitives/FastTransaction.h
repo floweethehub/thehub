@@ -1,6 +1,6 @@
 /*
  * This file is part of the Flowee project
- * Copyright (C) 2017-2019 Tom Zander <tomz@freedommail.ch>
+ * Copyright (C) 2017-2020 Tom Zander <tomz@freedommail.ch>
  *
  * This program is free software: you can redistribute it and/or modify
  * it under the terms of the GNU General Public License as published by
@@ -197,6 +197,9 @@ public:
     inline Streaming::ConstBuffer data() const {
         return m_data;
     }
+
+    inline bool operator==(const Tx &other) const { return m_data.operator==(other.m_data); }
+    inline bool operator!=(const Tx &other) const { return !operator==(other); }
 
 private:
     Streaming::ConstBuffer m_data;

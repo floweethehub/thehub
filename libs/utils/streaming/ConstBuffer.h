@@ -1,6 +1,6 @@
 /*
  * This file is part of the Flowee project
- * Copyright (C) 2016, 2019 Tom Zander <tomz@freedommail.ch>
+ * Copyright (C) 2016, 2019-2020 Tom Zander <tomz@freedommail.ch>
  *
  * This program is free software: you can redistribute it and/or modify
  * it under the terms of the GNU General Public License as published by
@@ -77,6 +77,7 @@ public:
     bool startsWith(const Streaming::ConstBuffer &other) const;
 
     bool operator==(const Streaming::ConstBuffer &other) const;
+    inline bool operator!=(const Streaming::ConstBuffer &other) const { return !operator==(other); }
 
 private:
     std::shared_ptr<char> m_buffer;
