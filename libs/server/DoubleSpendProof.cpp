@@ -79,7 +79,7 @@ namespace {
         {
         }
 
-        bool CheckSig(const std::vector<uint8_t> &vchSigIn, const std::vector<uint8_t> &vchPubKey, const CScript &scriptCode, uint32_t flags) const override {
+        bool CheckSig(const std::vector<uint8_t> &vchSigIn, const std::vector<uint8_t> &vchPubKey, const CScript &scriptCode, uint32_t /*flags*/) const override {
             CPubKey pubkey(vchPubKey);
             if (!pubkey.IsValid())
                 return false;
@@ -97,7 +97,7 @@ namespace {
             ss << m_spender.lockTime << (int) m_spender.pushData.front().back();
             const uint256 sighash = ss.GetHash();
 
-            if ((flags & SCRIPT_ENABLE_SCHNORR) && (vchSig.size() == 64))
+            if (vchSig.size() == 64)
                 return pubkey.verifySchnorr(sighash, vchSig);
             return pubkey.verifyECDSA(sighash, vchSig);
         }

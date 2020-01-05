@@ -442,7 +442,7 @@ bool CTxMemPool::insertTx(CTxMemPoolEntry &entry)
         return false;
 
     for (const CTxIn &txin : entry.oldTx.vin) {
-        int proofId = doubleSpendProofStorage()->claimOrphan(txin.prevout);
+        int proofId = m_dspStorage->claimOrphan(txin.prevout);
         if (proofId != -1) {
             entry.dsproof = proofId;
             // if we find this here, AS AN ORPHAN, then nothing has entered the mempool yet

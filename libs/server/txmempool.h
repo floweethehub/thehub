@@ -278,8 +278,6 @@ public:
     }
 };
 
-class CBlockPolicyEstimator;
-
 /** An inpoint - a combination of a transaction and an index n into its vin */
 class CInPoint
 {
@@ -292,7 +290,6 @@ public:
     CInPoint(const CTransaction* ptxIn, const Tx &txIn, uint32_t nIn) { ptx = ptxIn; tx = txIn; n = nIn; }
     void SetNull() { ptx = NULL; n = (uint32_t) -1; }
     bool IsNull() const { return (ptx == NULL && n == (uint32_t) -1); }
-    // size_t DynamicMemoryUsage() const { return 0; }
 };
 
 /**
