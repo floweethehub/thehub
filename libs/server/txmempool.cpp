@@ -444,11 +444,15 @@ bool CTxMemPool::insertTx(CTxMemPoolEntry &entry)
     for (const CTxIn &txin : entry.oldTx.vin) {
         int proofId = m_dspStorage->claimOrphan(txin.prevout);
         if (proofId != -1) {
-            entry.dsproof = proofId;
-            // if we find this here, AS AN ORPHAN, then nothing has entered the mempool yet
-            // that claimed it. As such we don't have to check for conflicts.
-            assert(mapNextTx.find(txin.prevout) != mapNextTx.end()); // Check anyway
-            continue;
+            if (m_dspStorage->proof(proofId).validate(mempool) != DoubleSpendProof::Valid) {
+                m_dspStorage->remove(proofId);
+            } else {
+                entry.dsproof = proofId;
+                // if we find this here, AS AN ORPHAN, then nothing has entered the mempool yet
+                // that claimed it. As such we don't have to check for conflicts.
+                assert(mapNextTx.find(txin.prevout) != mapNextTx.end()); // Check anyway
+                continue;
+            }
         }
         auto oldTx = mapNextTx.find(txin.prevout);
         if (oldTx != mapNextTx.end()) { // double spend detected!

@@ -94,11 +94,11 @@ void DoubleSpendProofTest::basic()
     QVERIFY(!s2.hashPrevOutputs.IsNull());
 
     // Will fail on MissingTransaction because we didn't add anything to the mempool yet.
-    QCOMPARE(dsp.validate(*bv->mempool(), bv->tipValidationFlags()), DoubleSpendProof::MissingTransction);
+    QCOMPARE(dsp.validate(*bv->mempool()), DoubleSpendProof::MissingTransction);
 
     // add one to the mempool.
     bv->mempool()->insertTx(first);
-    QCOMPARE(dsp.validate(*bv->mempool(), bv->tipValidationFlags()), DoubleSpendProof::Valid);
+    QCOMPARE(dsp.validate(*bv->mempool()), DoubleSpendProof::Valid);
 }
 
 void DoubleSpendProofTest::mempool()
@@ -169,5 +169,5 @@ void DoubleSpendProofTest::serialization()
 
     // check if the second one validates
     bv->mempool()->insertTx(second);
-    QCOMPARE(dsp2.validate(*bv->mempool(), bv->tipValidationFlags()), DoubleSpendProof::Valid);
+    QCOMPARE(dsp2.validate(*bv->mempool()), DoubleSpendProof::Valid);
 }

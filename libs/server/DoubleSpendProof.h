@@ -41,7 +41,7 @@ public:
         Invalid
     };
 
-    Validity validate(const CTxMemPool &mempool, uint32_t flags) const;
+    Validity validate(const CTxMemPool &mempool) const;
 
     uint256 prevTxId() const;
     int prevOutIndex() const;

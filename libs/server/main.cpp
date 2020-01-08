@@ -2497,7 +2497,7 @@ bool static ProcessMessage(CNode* pfrom, std::string strCommand, CDataStream& vR
                 mapAlreadyAskedFor.erase(hash);
             }
 
-            switch (dsp.validate(mempool, Application::instance()->validation()->tipValidationFlags(fRequireStandard))) {
+            switch (dsp.validate(mempool)) {
             case DoubleSpendProof::Valid: {
                 const auto tx = mempool.addDoubleSpendProof(dsp);
                 if (tx.size() > 0) { // added to mempool correctly, then forward to nodes.

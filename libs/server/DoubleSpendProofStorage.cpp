@@ -79,7 +79,7 @@ int DoubleSpendProofStorage::claimOrphan(const COutPoint &prevOut)
     for (auto proofId = q.begin(); proofId != q.end(); ++proofId) {
         auto proofIter = m_proofs.find(*proofId);
         assert (proofIter != m_proofs.end());
-        if (proofIter->second.prevOutIndex() != prevOut.n)
+        if (proofIter->second.prevOutIndex() != int(prevOut.n))
             continue;
         if (proofIter->second.prevTxId() == prevOut.hash) {
             q.erase(proofId);

@@ -19,6 +19,7 @@
 #include "DoubleSpendProof.h"
 #include "UnspentOutputData.h"
 #include "txmempool.h"
+#include "policy/policy.h"
 #include "script/interpreter.h"
 
 #include <utxo/UnspentOutputDatabase.h>
@@ -191,7 +192,7 @@ bool DoubleSpendProof::isEmpty() const
     return m_prevOutIndex == -1 || m_prevTxId.IsNull();
 }
 
-DoubleSpendProof::Validity DoubleSpendProof::validate(const CTxMemPool &mempool, uint32_t flags) const
+DoubleSpendProof::Validity DoubleSpendProof::validate(const CTxMemPool &mempool) const
 {
     if (m_prevTxId.IsNull() || m_prevOutIndex < 0)
         return Invalid;
@@ -282,6 +283,7 @@ DoubleSpendProof::Validity DoubleSpendProof::validate(const CTxMemPool &mempool,
         inScript << m_spender1.pushData.front();
         inScript << pubkey;
     }
+    const uint32_t flags = SCRIPT_ENABLE_SIGHASH_FORKID; // we depend on this way of signing
     DSPSignatureChecker checker1(this, m_spender1, amount);
     ScriptError_t error;
     if (!VerifyScript(inScript, prevOutScript, flags, checker1, &error)) {
