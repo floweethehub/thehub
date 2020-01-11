@@ -38,6 +38,7 @@ public:
         Valid,
         MissingTransction,
         MissingUTXO,
+        AlreadyMined,
         Invalid
     };
 

@@ -380,6 +380,12 @@ void TxValidationState::checkTransaction()
                 DEBUGTX << "Mempool did not accept tx entry, returned false";
                 return;
             }
+            if (entry.dsproof != -1) {
+                m_doubleSpendTx = entry.tx;
+                m_doubleSpendProofId = entry.dsproof;
+
+                parent->strand.post(std::bind(&TxValidationState::notifyDoubleSpend, shared_from_this()));
+            }
         }
 
         logDebug(Log::TxValidation) << "accepted:"<< txid << "peer:" << m_originatingNodeId
@@ -492,7 +498,8 @@ void TxValidationState::notifyDoubleSpend()
         auto dsp = mempool.doubleSpendProofStorage()->proof(m_doubleSpendProofId);
         if (!dsp.isEmpty()) {
             CInv inv(MSG_DOUBLESPENDPROOF, dsp.createHash());
-            const CTransaction oldTx = m_doubleSpendTx.createOldTransaction();
+            const CTransaction dspTx = m_doubleSpendTx.createOldTransaction();
+logFatal() << "  Good DSP(2), broadcasting an INV" << inv;
 
             LOCK(cs_vNodes);
             for (CNode* pnode : vNodes) {
@@ -501,7 +508,7 @@ void TxValidationState::notifyDoubleSpend()
                 LOCK(pnode->cs_filter);
                 if (pnode->pfilter) {
                     // For nodes that we sent this Tx before, send a proof.
-                    if (pnode->pfilter->IsRelevantAndUpdate(oldTx))
+                    if (pnode->pfilter->IsRelevantAndUpdate(dspTx))
                         pnode->PushInventory(inv);
                 } else {
                     pnode->PushInventory(inv);

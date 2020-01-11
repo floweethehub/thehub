@@ -438,21 +438,21 @@ bool CTxMemPool::insertTx(CTxMemPoolEntry &entry)
     assert(entry.dsproof == -1);
     LOCK(cs);
 
-    if (exists(entry.tx.createHash()))
+    uint256 hash = entry.tx.createHash();
+
+    if (exists(hash))
         return false;
 
-    for (const CTxIn &txin : entry.oldTx.vin) {
-        int proofId = m_dspStorage->claimOrphan(txin.prevout);
-        if (proofId != -1) {
-            if (m_dspStorage->proof(proofId).validate(mempool) != DoubleSpendProof::Valid) {
-                m_dspStorage->remove(proofId);
-            } else {
-                entry.dsproof = proofId;
-                // if we find this here, AS AN ORPHAN, then nothing has entered the mempool yet
-                // that claimed it. As such we don't have to check for conflicts.
-                assert(mapNextTx.find(txin.prevout) != mapNextTx.end()); // Check anyway
-                continue;
-            }
+    std::list<int> rescuedOrphans;
+    for (const CTxIn &txin : entry.oldTx.vin) { // find double spends.
+        auto orphans = m_dspStorage->findOrphans(txin.prevout);
+        if (!orphans.empty()) {
+            for (auto o : orphans)
+                rescuedOrphans.push_back(o);
+            // if we find this here, AS AN ORPHAN, then nothing has entered the mempool yet
+            // that claimed it. As such we don't have to check for conflicts.
+            assert(mapNextTx.find(txin.prevout) != mapNextTx.end()); // Check anyway
+            continue;
         }
         auto oldTx = mapNextTx.find(txin.prevout);
         if (oldTx != mapNextTx.end()) { // double spend detected!
@@ -462,7 +462,7 @@ bool CTxMemPool::insertTx(CTxMemPoolEntry &entry)
             if (iter->dsproof == -1) { // no DS proof exists, lets make one.
                 auto item = *iter;
                 item.dsproof = m_dspStorage->add(DoubleSpendProof::create(oldTx->second.tx, entry.tx));
-                logWarning(Log::Mempool) << "Double spend found, creating double spend proof"
+                logWarning(Log::DSProof) << "Double spend found, creating double spend proof"
                                        << oldTx->second.tx.createHash()
                                        << entry.tx.createHash() << "proof:" << item.dsproof;
                 mapTx.replace(iter, item);
@@ -487,7 +487,34 @@ bool CTxMemPool::insertTx(CTxMemPoolEntry &entry)
             return false;
     }
 
-    addUnchecked(entry.tx.createHash(), entry);
+    addUnchecked(hash, entry);
+    for (auto i = rescuedOrphans.begin(); i != rescuedOrphans.end(); ++i) {
+        const int proofId = *i;
+        auto dsp = m_dspStorage->proof(proofId);
+        logDebug(Log::DSProof) << "Rescued a DSP orphan" << dsp.createHash();
+        auto rc = dsp.validate(mempool);
+
+        // it can't be missing utxo or transaction, assert sure we are interally consistent.
+        assert(rc == DoubleSpendProof::Valid
+               || rc == DoubleSpendProof::Invalid);
+
+        if (rc == DoubleSpendProof::Valid) {
+            logDebug(Log::DSProof) << "  Using it, it validated just fine";
+            entry.dsproof = proofId;
+            txiter iter = mapTx.find(hash);
+            mapTx.replace(iter, entry);
+
+            while (++i != rescuedOrphans.end()) {
+                logDebug(Log::DSProof) << "Killing orphans, we don't need more than one";
+                m_dspStorage->remove(*i);
+            }
+            return true;
+        } else {
+            logDebug(Log::DSProof) << "  DSP didn't validate!" << dsp.createHash();
+            m_dspStorage->remove(proofId);
+        }
+    }
+
     return true;
 }
 

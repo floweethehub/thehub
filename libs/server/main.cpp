@@ -2482,10 +2482,12 @@ bool static ProcessMessage(CNode* pfrom, std::string strCommand, CDataStream& vR
     }
 
     else if (strCommand == NetMsgType::DSPROOF) {
+        logDebug(Log::DSProof) << "Got DSPROOF message";
         uint256 hash;
         try {
             DoubleSpendProof dsp;
             vRecv >> dsp;
+            logDebug(Log::DSProof) << "   DSP" << dsp.createHash();
             if (dsp.isEmpty())
                 throw std::runtime_error("DSP empty");
 
@@ -2501,6 +2503,7 @@ bool static ProcessMessage(CNode* pfrom, std::string strCommand, CDataStream& vR
             case DoubleSpendProof::Valid: {
                 const auto tx = mempool.addDoubleSpendProof(dsp);
                 if (tx.size() > 0) { // added to mempool correctly, then forward to nodes.
+                    logDebug(Log::DSProof) << "  Good DSP, broadcasting an INV";
                     ValidationNotifier().DoubleSpendFound(tx, dsp);
 
                     CTransaction oldTx = tx.createOldTransaction();
@@ -2518,14 +2521,19 @@ bool static ProcessMessage(CNode* pfrom, std::string strCommand, CDataStream& vR
                         }
                     }
                 }
+                else logDebug(Log::DSProof) << "  valid, not propagating";
                 break;
             }
             case DoubleSpendProof::MissingTransction:
-                logDebug(Log::Net) << "DoubleSpend Proof postponed: Missing Tx";
+                logDebug(Log::DSProof) << "DoubleSpend Proof postponed: Missing Tx";
                 mempool.doubleSpendProofStorage()->addOrphan(dsp);
                 break;
             case DoubleSpendProof::MissingUTXO:
-                logDebug(Log::Net) << "DoubleSpendProof rejected due to missing UTXO (outdated?)";
+                // the one it says it spends is unknown to us.
+                logDebug(Log::DSProof) << "DoubleSpendProof rejected due to missing UTXO";
+                return false;
+            case DoubleSpendProof::AlreadyMined:
+                logDebug(Log::Net) << "DoubleSpendProof late";
                 return false;
             case DoubleSpendProof::Invalid:
                 throw std::runtime_error("Proof didn't validate");
@@ -2534,7 +2542,7 @@ bool static ProcessMessage(CNode* pfrom, std::string strCommand, CDataStream& vR
                 return false;
             }
         } catch (const std::exception &e) {
-            logInfo(Log::Net) << "Failure handing double spend proof. Peer:" << pfrom->GetId() << "Reason:" << e;
+            logInfo(Log::DSProof) << "Failure handing double spend proof. Peer:" << pfrom->GetId() << "Reason:" << e;
             if (!hash.IsNull())
                 mempool.doubleSpendProofStorage()->markProofRejected(hash);
             LOCK(cs_main);

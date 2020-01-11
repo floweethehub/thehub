@@ -45,7 +45,7 @@ public:
     /// you can fetch those upto 90s using 'claim()'.
     void addOrphan(const DoubleSpendProof &proof);
     /// returns -1 if not found, otherwise a proof-id
-    int claimOrphan(const COutPoint &prevOut);
+    std::list<int> findOrphans(const COutPoint &prevOut);
 
     DoubleSpendProof lookup(const uint256 &proofId) const;
     bool exists(const uint256 &proofId) const;

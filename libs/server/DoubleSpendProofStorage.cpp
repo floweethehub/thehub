@@ -68,12 +68,13 @@ void DoubleSpendProofStorage::addOrphan(const DoubleSpendProof &proof)
     m_prevTxIdLookupTable[proof.prevTxId().GetCheapHash()].push_back(id);
 }
 
-int DoubleSpendProofStorage::claimOrphan(const COutPoint &prevOut)
+std::list<int> DoubleSpendProofStorage::findOrphans(const COutPoint &prevOut)
 {
+    std::list<int> answer;
     std::lock_guard<std::recursive_mutex> lock(m_lock);
     auto iter = m_prevTxIdLookupTable.find(prevOut.hash.GetCheapHash());
     if (iter == m_prevTxIdLookupTable.end())
-        return -1;
+        return answer;
 
     std::deque<int> &q = iter->second;
     for (auto proofId = q.begin(); proofId != q.end(); ++proofId) {
@@ -82,12 +83,10 @@ int DoubleSpendProofStorage::claimOrphan(const COutPoint &prevOut)
         if (proofIter->second.prevOutIndex() != int(prevOut.n))
             continue;
         if (proofIter->second.prevTxId() == prevOut.hash) {
-            q.erase(proofId);
-            m_orphans.erase(*proofId);
-            return *proofId;
+            answer.push_back(*proofId);
         }
     }
-    return -1;
+    return answer;
 }
 
 void DoubleSpendProofStorage::remove(int proof)
@@ -156,7 +155,7 @@ void DoubleSpendProofStorage::periodicCleanup()
             ++iter;
         }
     }
-    logDebug(Log::Mempool) << "DSP orphan count:" << m_orphans.size() << "DSProof count" << m_proofs.size();
+    logDebug(Log::DSProof) << "DSP orphan count:" << m_orphans.size() << "DSProof count" << m_proofs.size();
 }
 
 bool DoubleSpendProofStorage::isRecentlyRejectedProof(const uint256 &proofHash) const

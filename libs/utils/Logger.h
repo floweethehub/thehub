@@ -91,6 +91,7 @@ enum Sections {
     Tor,
     ThinBlocks,
     ExpeditedBlocks,
+    DSProof,
 
     // "legacy" apis
     RPC = 2100,
