@@ -18,6 +18,7 @@
 #include "DoubleSpendProofStorage.h"
 #include <utils/utiltime.h>
 #include <primitives/transaction.h>
+#include "main.h"
 
 #define SECONDS_TO_KEEP_ORPHANS 90
 
@@ -56,7 +57,7 @@ int DoubleSpendProofStorage::add(const DoubleSpendProof &proof)
     return m_nextId++;
 }
 
-void DoubleSpendProofStorage::addOrphan(const DoubleSpendProof &proof)
+void DoubleSpendProofStorage::addOrphan(const DoubleSpendProof &proof, int peerId)
 {
     std::lock_guard<std::recursive_mutex> lock(m_lock);
     const int next = m_nextId;
@@ -64,13 +65,13 @@ void DoubleSpendProofStorage::addOrphan(const DoubleSpendProof &proof)
     if (id != next) // it was already in the storage
         return;
 
-    m_orphans.insert(std::make_pair(id, GetTime()));
+    m_orphans.insert(std::make_pair(id, std::make_pair(peerId, GetTime())));
     m_prevTxIdLookupTable[proof.prevTxId().GetCheapHash()].push_back(id);
 }
 
-std::list<int> DoubleSpendProofStorage::findOrphans(const COutPoint &prevOut)
+std::list<std::pair<int, int> > DoubleSpendProofStorage::findOrphans(const COutPoint &prevOut)
 {
-    std::list<int> answer;
+    std::list<std::pair<int, int> > answer;
     std::lock_guard<std::recursive_mutex> lock(m_lock);
     auto iter = m_prevTxIdLookupTable.find(prevOut.hash.GetCheapHash());
     if (iter == m_prevTxIdLookupTable.end())
@@ -83,7 +84,10 @@ std::list<int> DoubleSpendProofStorage::findOrphans(const COutPoint &prevOut)
         if (proofIter->second.prevOutIndex() != int(prevOut.n))
             continue;
         if (proofIter->second.prevTxId() == prevOut.hash) {
-            answer.push_back(*proofId);
+            auto orphanIter = m_orphans.find(*proofId);
+            if (orphanIter != m_orphans.end()) {
+                answer.push_back(std::make_pair(*proofId, orphanIter->second.first));
+            }
         }
     }
     return answer;
@@ -146,10 +150,15 @@ void DoubleSpendProofStorage::periodicCleanup()
     auto expire = GetTime() - SECONDS_TO_KEEP_ORPHANS;
     auto iter = m_orphans.begin();
     while (iter != m_orphans.end()) {
-        if (iter->second <= expire) {
+        if (iter->second.second <= expire) {
+            const int peerId = iter->second.first;
+            logFatal() << "punish" << peerId;
             const int proofId = iter->first;
             iter = m_orphans.erase(iter);
             remove(proofId);
+
+            LOCK(cs_main);
+            Misbehaving(peerId, 1);
         }
         else {
             ++iter;

@@ -43,9 +43,10 @@ public:
 
     /// this add()s and additionally registers this is an orphan.
     /// you can fetch those upto 90s using 'claim()'.
-    void addOrphan(const DoubleSpendProof &proof);
-    /// returns -1 if not found, otherwise a proof-id
-    std::list<int> findOrphans(const COutPoint &prevOut);
+    void addOrphan(const DoubleSpendProof &proof, int peerId);
+    /// Returns all (not yet verified) orphans matching prevOut.
+    /// Each item is a pair of a proofId and the nodeId that send the proof to us
+    std::list<std::pair<int, int> > findOrphans(const COutPoint &prevOut);
 
     DoubleSpendProof lookup(const uint256 &proofId) const;
     bool exists(const uint256 &proofId) const;
@@ -60,7 +61,7 @@ public:
 private:
     std::map<int, DoubleSpendProof> m_proofs;
     int m_nextId = 1;
-    std::map<int, int64_t> m_orphans;
+    std::map<int, std::pair<int, int64_t> > m_orphans;
 
     typedef boost::unordered_map<uint256, int, HashShortener> LookupTable;
     LookupTable m_dspIdLookupTable;

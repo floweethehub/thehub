@@ -468,7 +468,6 @@ void TxValidationState::checkTransaction()
         logFatal(Log::TxValidation) << "TxValidation" << txid << "got exception:" << ex;
         logFatal(Log::TxValidation) << "  size" << m_tx.size() << m_tx.createHash();
         assert(false);
-        throw;
     }
 }
 
@@ -499,18 +498,21 @@ void TxValidationState::notifyDoubleSpend()
         if (!dsp.isEmpty()) {
             CInv inv(MSG_DOUBLESPENDPROOF, dsp.createHash());
             const CTransaction dspTx = m_doubleSpendTx.createOldTransaction();
-logFatal() << "  Good DSP(2), broadcasting an INV" << inv;
+            logDebug(Log::DSProof) << "Broadcasting DSP" << inv;
 
             LOCK(cs_vNodes);
             for (CNode* pnode : vNodes) {
-                if(!pnode->fRelayTxes)
+                if (!pnode->fRelayTxes)
                     continue;
                 LOCK(pnode->cs_filter);
                 if (pnode->pfilter) {
                     // For nodes that we sent this Tx before, send a proof.
-                    if (pnode->pfilter->IsRelevantAndUpdate(dspTx))
+                    if (pnode->pfilter->IsRelevantAndUpdate(dspTx)) {
+                        logDebug(Log::DSProof) << "  peer:" << pnode->id;
                         pnode->PushInventory(inv);
+                    }
                 } else {
+                    logDebug(Log::DSProof) << "  peer:" << pnode->id;
                     pnode->PushInventory(inv);
                 }
             }

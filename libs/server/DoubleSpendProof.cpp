@@ -219,11 +219,12 @@ DoubleSpendProof::Validity DoubleSpendProof::validate(const CTxMemPool &mempool)
         prevOutScript = output.outputScript;
     } else {
         auto prevTxData = mempool.utxo()->find(m_prevTxId, m_prevOutIndex);
-        if (!prevTxData.isValid())
+        if (!prevTxData.isValid()) {
             /* if the output we spend is missing then either the tx just got mined
              * or, more likely, our mempool just doesn't have it.
              */
             return MissingUTXO;
+        }
         UnspentOutputData data(prevTxData);
         amount = data.outputValue();
         prevOutScript = data.outputScript();
@@ -236,11 +237,7 @@ DoubleSpendProof::Validity DoubleSpendProof::validate(const CTxMemPool &mempool)
      */
     Tx tx;
     if (!mempool.lookup(COutPoint(m_prevTxId, m_prevOutIndex), tx)) {
-        // Maybe the DSP is old and one of the transaction is already mined.
-        auto prevTxData = mempool.utxo()->find(m_prevTxId, m_prevOutIndex);
-        if (!prevTxData.isValid())
-            return AlreadyMined;
-        return MissingTransction;
+        return MissingTransaction;
     }
 
     /*

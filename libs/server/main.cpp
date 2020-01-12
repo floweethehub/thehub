@@ -2482,17 +2482,17 @@ bool static ProcessMessage(CNode* pfrom, std::string strCommand, CDataStream& vR
     }
 
     else if (strCommand == NetMsgType::DSPROOF) {
-        logDebug(Log::DSProof) << "Got DSPROOF message";
+        logInfo(Log::DSProof) << "Got DSPROOF message";
         uint256 hash;
         try {
             DoubleSpendProof dsp;
             vRecv >> dsp;
-            logDebug(Log::DSProof) << "   DSP" << dsp.createHash();
             if (dsp.isEmpty())
                 throw std::runtime_error("DSP empty");
 
             hash = dsp.createHash();
-            CInv inv(MSG_DOUBLESPENDPROOF, hash);
+            const CInv inv(MSG_DOUBLESPENDPROOF, hash);
+            logDebug(Log::DSProof) << "   DSP" << inv;
             pfrom->setAskFor.erase(inv.hash);
             {
                 LOCK(cs_main);
@@ -2506,15 +2506,15 @@ bool static ProcessMessage(CNode* pfrom, std::string strCommand, CDataStream& vR
                     logDebug(Log::DSProof) << "  Good DSP, broadcasting an INV";
                     ValidationNotifier().DoubleSpendFound(tx, dsp);
 
-                    CTransaction oldTx = tx.createOldTransaction();
+                    CTransaction dspTx = tx.createOldTransaction();
                     LOCK(cs_vNodes);
                     for (CNode* pnode : vNodes) {
-                        if(!pnode->fRelayTxes || pnode == pfrom)
+                        if (!pnode->fRelayTxes || pnode == pfrom)
                             continue;
                         LOCK(pnode->cs_filter);
                         if (pnode->pfilter) {
                             // For nodes that we sent this Tx before, send a proof.
-                            if (pnode->pfilter->IsRelevantAndUpdate(oldTx))
+                            if (pnode->pfilter->IsRelevantAndUpdate(dspTx))
                                 pnode->PushInventory(inv);
                         } else {
                             pnode->PushInventory(inv);
@@ -2524,17 +2524,11 @@ bool static ProcessMessage(CNode* pfrom, std::string strCommand, CDataStream& vR
                 else logDebug(Log::DSProof) << "  valid, not propagating";
                 break;
             }
-            case DoubleSpendProof::MissingTransction:
-                logDebug(Log::DSProof) << "DoubleSpend Proof postponed: Missing Tx";
-                mempool.doubleSpendProofStorage()->addOrphan(dsp);
-                break;
             case DoubleSpendProof::MissingUTXO:
-                // the one it says it spends is unknown to us.
-                logDebug(Log::DSProof) << "DoubleSpendProof rejected due to missing UTXO";
-                return false;
-            case DoubleSpendProof::AlreadyMined:
-                logDebug(Log::Net) << "DoubleSpendProof late";
-                return false;
+            case DoubleSpendProof::MissingTransaction:
+                logInfo(Log::DSProof) << "DoubleSpend Proof postponed: is orphan";
+                mempool.doubleSpendProofStorage()->addOrphan(dsp, pfrom->id);
+                break;
             case DoubleSpendProof::Invalid:
                 throw std::runtime_error("Proof didn't validate");
             default:
@@ -2542,7 +2536,7 @@ bool static ProcessMessage(CNode* pfrom, std::string strCommand, CDataStream& vR
                 return false;
             }
         } catch (const std::exception &e) {
-            logInfo(Log::DSProof) << "Failure handing double spend proof. Peer:" << pfrom->GetId() << "Reason:" << e;
+            logWarning(Log::DSProof) << "Failure handling double spend proof. Peer:" << pfrom->GetId() << "Reason:" << e;
             if (!hash.IsNull())
                 mempool.doubleSpendProofStorage()->markProofRejected(hash);
             LOCK(cs_main);

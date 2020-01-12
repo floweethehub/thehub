@@ -94,7 +94,7 @@ void DoubleSpendProofTest::basic()
     QVERIFY(!s2.hashPrevOutputs.IsNull());
 
     // Will fail on MissingTransaction because we didn't add anything to the mempool yet.
-    QCOMPARE(dsp.validate(*bv->mempool()), DoubleSpendProof::MissingTransction);
+    QCOMPARE(dsp.validate(*bv->mempool()), DoubleSpendProof::MissingTransaction);
 
     // add one to the mempool.
     bv->mempool()->insertTx(first);

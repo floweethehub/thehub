@@ -36,9 +36,8 @@ public:
 
     enum Validity {
         Valid,
-        MissingTransction,
+        MissingTransaction,
         MissingUTXO,
-        AlreadyMined,
         Invalid
     };
 

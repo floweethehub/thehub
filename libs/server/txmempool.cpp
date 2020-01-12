@@ -443,7 +443,7 @@ bool CTxMemPool::insertTx(CTxMemPoolEntry &entry)
     if (exists(hash))
         return false;
 
-    std::list<int> rescuedOrphans;
+    std::list<std::pair<int, int> > rescuedOrphans;
     for (const CTxIn &txin : entry.oldTx.vin) { // find double spends.
         auto orphans = m_dspStorage->findOrphans(txin.prevout);
         if (!orphans.empty()) {
@@ -451,7 +451,7 @@ bool CTxMemPool::insertTx(CTxMemPoolEntry &entry)
                 rescuedOrphans.push_back(o);
             // if we find this here, AS AN ORPHAN, then nothing has entered the mempool yet
             // that claimed it. As such we don't have to check for conflicts.
-            assert(mapNextTx.find(txin.prevout) != mapNextTx.end()); // Check anyway
+            assert(mapNextTx.find(txin.prevout) == mapNextTx.end()); // Check anyway
             continue;
         }
         auto oldTx = mapNextTx.find(txin.prevout);
@@ -461,10 +461,10 @@ bool CTxMemPool::insertTx(CTxMemPoolEntry &entry)
             int newProofId = -1;
             if (iter->dsproof == -1) { // no DS proof exists, lets make one.
                 auto item = *iter;
-                item.dsproof = m_dspStorage->add(DoubleSpendProof::create(oldTx->second.tx, entry.tx));
                 logWarning(Log::DSProof) << "Double spend found, creating double spend proof"
                                        << oldTx->second.tx.createHash()
-                                       << entry.tx.createHash() << "proof:" << item.dsproof;
+                                       << entry.tx.createHash();
+                item.dsproof = m_dspStorage->add(DoubleSpendProof::create(oldTx->second.tx, entry.tx));
                 mapTx.replace(iter, item);
                 newProofId = item.dsproof;
 #ifndef NDEBUG
@@ -489,12 +489,12 @@ bool CTxMemPool::insertTx(CTxMemPoolEntry &entry)
 
     addUnchecked(hash, entry);
     for (auto i = rescuedOrphans.begin(); i != rescuedOrphans.end(); ++i) {
-        const int proofId = *i;
+        const int proofId = i->first;
         auto dsp = m_dspStorage->proof(proofId);
         logDebug(Log::DSProof) << "Rescued a DSP orphan" << dsp.createHash();
         auto rc = dsp.validate(mempool);
 
-        // it can't be missing utxo or transaction, assert sure we are interally consistent.
+        // it can't be missing utxo or transaction, assert we are internally consistent.
         assert(rc == DoubleSpendProof::Valid
                || rc == DoubleSpendProof::Invalid);
 
@@ -506,12 +506,15 @@ bool CTxMemPool::insertTx(CTxMemPoolEntry &entry)
 
             while (++i != rescuedOrphans.end()) {
                 logDebug(Log::DSProof) << "Killing orphans, we don't need more than one";
-                m_dspStorage->remove(*i);
+                m_dspStorage->remove(i->first);
             }
             return true;
         } else {
             logDebug(Log::DSProof) << "  DSP didn't validate!" << dsp.createHash();
             m_dspStorage->remove(proofId);
+
+            LOCK(cs_main);
+            Misbehaving(i->second, 10);
         }
     }
 
