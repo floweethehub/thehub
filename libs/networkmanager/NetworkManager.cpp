@@ -180,6 +180,7 @@ NetworkManagerPrivate::NetworkManagerPrivate(boost::asio::io_service &service)
 
 NetworkManagerPrivate::~NetworkManagerPrivate()
 {
+    m_cronHourly.cancel();
 }
 
 void NetworkManagerPrivate::punishNode(int connectionId, int punishScore)
