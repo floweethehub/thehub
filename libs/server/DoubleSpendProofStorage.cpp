@@ -93,6 +93,27 @@ std::list<std::pair<int, int> > DoubleSpendProofStorage::findOrphans(const COutP
     return answer;
 }
 
+void DoubleSpendProofStorage::claimOrphan(int proofId)
+{
+    std::lock_guard<std::recursive_mutex> lock(m_lock);
+    auto orphan = m_orphans.find(proofId);
+    if (orphan != m_orphans.end()) {
+        m_orphans.erase(orphan);
+
+        for (auto iter = m_prevTxIdLookupTable.begin(); iter != m_prevTxIdLookupTable.end(); ++iter) {
+            auto &list = iter->second;
+            for (auto i = list.begin(); i != list.end(); ++i) {
+                if (*i == proofId) {
+                    list.erase(i);
+                    if (list.size() == 0)
+                        m_prevTxIdLookupTable.erase(iter);
+                    return;
+                }
+            }
+        }
+    }
+}
+
 void DoubleSpendProofStorage::remove(int proof)
 {
     std::lock_guard<std::recursive_mutex> lock(m_lock);

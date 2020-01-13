@@ -500,6 +500,7 @@ bool CTxMemPool::insertTx(CTxMemPoolEntry &entry)
 
         if (rc == DoubleSpendProof::Valid) {
             logDebug(Log::DSProof) << "  Using it, it validated just fine";
+            m_dspStorage->claimOrphan(proofId);
             entry.dsproof = proofId;
             txiter iter = mapTx.find(hash);
             mapTx.replace(iter, entry);
