@@ -2,7 +2,7 @@
  * This file is part of the Flowee project
  * Copyright (C) 2010 Satoshi Nakamoto
  * Copyright (C) 2009-2015 The Bitcoin Core developers
- * Copyright (C) 2016,2019 Tom Zander <tomz@freedommail.ch>
+ * Copyright (C) 2016,2020 Tom Zander <tomz@freedommail.ch>
  *
  * This program is free software: you can redistribute it and/or modify
  * it under the terms of the GNU General Public License as published by
@@ -198,8 +198,9 @@ UniValue getrawtransaction(const UniValue& params, bool fHelp)
     uint256 hash = ParseHashV(params[0], "parameter 1");
 
     bool fVerbose = false;
-    if (params.size() > 1)
-        fVerbose = (params[1].get_int() != 0);
+    if (!params[1].isNull()) {
+        fVerbose = params[1].isNum() ? (params[1].get_int() != 0) : params[1].get_bool();
+    }
 
     CTransaction tx;
     bool success = flApp->mempool()->lookup(hash, tx);
