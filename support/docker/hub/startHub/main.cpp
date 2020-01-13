@@ -213,6 +213,7 @@ int main(int x, char**y) {
         out.flush();
         hub->waitForReadyRead(20000);
     }
+    out.flush();
     fflush(nullptr);
     sync();
 
