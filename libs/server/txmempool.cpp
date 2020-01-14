@@ -2,7 +2,7 @@
  * This file is part of the Flowee project
  * Copyright (C) 2009-2010 Satoshi Nakamoto
  * Copyright (C) 2009-2015 The Bitcoin Core developers
- * Copyright (C) 2017-2019 Tom Zander <tomz@freedommail.ch>
+ * Copyright (C) 2017-2020 Tom Zander <tomz@freedommail.ch>
  *
  * This program is free software: you can redistribute it and/or modify
  * it under the terms of the GNU General Public License as published by
@@ -458,21 +458,27 @@ bool CTxMemPool::insertTx(CTxMemPoolEntry &entry)
         if (oldTx != mapNextTx.end()) { // double spend detected!
             auto iter = mapTx.find(oldTx->second.tx.createHash());
             assert(mapTx.end() != iter);
-            int newProofId = -1;
-            if (iter->dsproof == -1) { // no DS proof exists, lets make one.
-                auto item = *iter;
-                logWarning(Log::DSProof) << "Double spend found, creating double spend proof"
-                                       << oldTx->second.tx.createHash()
-                                       << entry.tx.createHash();
-                item.dsproof = m_dspStorage->add(DoubleSpendProof::create(oldTx->second.tx, entry.tx));
-                mapTx.replace(iter, item);
-                newProofId = item.dsproof;
+            try {
+                int newProofId = -1;
+                if (iter->dsproof == -1) { // no DS proof exists, lets make one.
+                    auto item = *iter;
+                    logWarning(Log::DSProof) << "Double spend found, creating double spend proof"
+                                           << oldTx->second.tx.createHash()
+                                           << entry.tx.createHash();
+                    item.dsproof = m_dspStorage->add(DoubleSpendProof::create(oldTx->second.tx, entry.tx));
+                    mapTx.replace(iter, item);
+                    newProofId = item.dsproof;
 #ifndef NDEBUG
-                auto newIter = mapTx.find(oldTx->second.tx.createHash());
-                assert(newIter->dsproof == newProofId);
+                    auto newIter = mapTx.find(oldTx->second.tx.createHash());
+                    assert(newIter->dsproof == newProofId);
 #endif
+                }
+                throw Validation::DoubleSpendException(oldTx->second.tx, newProofId);
+            } catch (const std::runtime_error &e) {
+                // we don't support 100% of the types of transactions yet, failures are possible.
+                logInfo(Log::DSProof) << "Failed creating a proof:" << e;
+                return false;
             }
-            throw Validation::DoubleSpendException(oldTx->second.tx, newProofId);
         }
 
         auto iter = mapTx.find(txin.prevout.hash);
