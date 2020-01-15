@@ -490,6 +490,8 @@ void Indexer::requestBlock(int newBlockHeight)
     const auto now = QDateTime::currentMSecsSinceEpoch();
     if (m_lastRequestedBlock == blockHeight && now - m_timeLastRequest < 1200)
         return;
+    if (blockHeight > m_bestBlockHeight.load())
+        return;
 
     m_lastRequestedBlock = blockHeight;
     m_timeLastRequest = now;
@@ -548,8 +550,7 @@ void Indexer::hubSentMessage(const Message &message)
             while (parser.next() == Streaming::FoundTag) {
                 if (parser.tag() == Api::BlockChain::BlockHeight) {
                     const int tipHeight = parser.intData();
-                    if (tipHeight > m_bestBlockHeight.load())
-                        m_bestBlockHeight.store(tipHeight);
+                    m_bestBlockHeight.store(tipHeight);
                     requestBlock(tipHeight);
                 }
             }
