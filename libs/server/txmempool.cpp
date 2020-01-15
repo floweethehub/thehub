@@ -458,8 +458,8 @@ bool CTxMemPool::insertTx(CTxMemPoolEntry &entry)
         if (oldTx != mapNextTx.end()) { // double spend detected!
             auto iter = mapTx.find(oldTx->second.tx.createHash());
             assert(mapTx.end() != iter);
+            int newProofId = -1;
             try {
-                int newProofId = -1;
                 if (iter->dsproof == -1) { // no DS proof exists, lets make one.
                     auto item = *iter;
                     logWarning(Log::DSProof) << "Double spend found, creating double spend proof"
@@ -473,12 +473,12 @@ bool CTxMemPool::insertTx(CTxMemPoolEntry &entry)
                     assert(newIter->dsproof == newProofId);
 #endif
                 }
-                throw Validation::DoubleSpendException(oldTx->second.tx, newProofId);
             } catch (const std::runtime_error &e) {
                 // we don't support 100% of the types of transactions yet, failures are possible.
                 logInfo(Log::DSProof) << "Failed creating a proof:" << e;
-                return false;
+                throw Validation::Exception("Tx double spends another", 0);
             }
+            throw Validation::DoubleSpendException(oldTx->second.tx, newProofId);
         }
 
         auto iter = mapTx.find(txin.prevout.hash);
