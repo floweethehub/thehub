@@ -192,15 +192,17 @@ int main(int x, char**y) {
         return 1;
     }
     QTextStream out(stdout);
+    int rc = 0;
     while (true) {
         auto logData = hub->readAllStandardError();
         out << logData;
         logData = hub->readAllStandardOutput();
         out << logData;
         if (hub->state() != QProcess::Running) {
-            if (!shutdownRequested && hub->exitCode() != 0) { // maybe it crashed and we want to auto-restart it.
+            rc = hub->exitCode();
+            if (!shutdownRequested && rc != 0) { // maybe it crashed and we want to auto-restart it.
                 const auto now = QDateTime::currentDateTimeUtc().toString();
-                out << now << " WARN: Hub exited with code " << hub->exitCode() << endl;
+                out << now << " WARN: Hub exited with code " << rc << endl;
                 if (startTime.elapsed() > 120000) { // but not if it crashed too fast after restart.
                     out << now << " WARN: StartHub attempts to restart hub." << endl;
                     startTime.start();
@@ -217,5 +219,5 @@ int main(int x, char**y) {
     fflush(nullptr);
     sync();
 
-    return hub->exitCode();
+    return rc;
 }
