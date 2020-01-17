@@ -524,7 +524,7 @@ void BitcoreWebRequest::transactionAdded(const Blockchain::Transaction &transact
             Tx::Iterator iter(tx);
             while (iter.next() != Tx::End) {
                 if (iter.tag() == Tx::OutputValue)
-                    outputs.insert(std::make_pair(outIndex++, std::make_pair(-2, 0)));
+                    outputs.insert(std::make_pair(outIndex++, std::make_pair(-1, 0)));
             }
             txRefs.insert(std::make_pair(std::make_pair(transaction.blockHeight, transaction.offsetInBlock), outputs));
         }
@@ -560,6 +560,8 @@ void BitcoreWebRequest::transactionAdded(const Blockchain::Transaction &transact
                     assert(job.data.size() == 32);
                     job.intData = outputIndex;
                     job.type = Blockchain::LookupSpentTx;
+                    job.intData2= transaction.blockHeight;
+                    job.intData3 = transaction.offsetInBlock;
                     job.nextJobId = jobs.size() + 1;
                     jobs.push_back(job);
                     job = Blockchain::Job();
@@ -587,30 +589,30 @@ void BitcoreWebRequest::txIdResolved(int jobId, int blockHeight, int offsetInBlo
 
 void BitcoreWebRequest::spentOutputResolved(int jobId, int blockHeight, int offsetInBlock)
 {
-    if (blockHeight == -1)
-        return;
     assert(jobId >= 0);
     assert(static_cast<int>(jobs.size()) > jobId);
     // Job request is data = txid. intData = outIndex
     Blockchain::Job &job = jobs.at(static_cast<size_t>(jobId));
     const int outIndex = job.intData;
+    logDebug() << "output spent resolved" << outIndex << "->" << blockHeight << offsetInBlock;
     assert(job.data.size() == 32);
-    auto iter = transactionMap.find(uint256(job.data.begin()));
-    if (iter == transactionMap.end())
-        return;
+    assert(job.intData2 > 0 && job.intData3 > 0);
 
-    assert(iter->second >= 0);
-    assert(iter->second < answer.size());
-    Blockchain::Transaction &transaction = answer.at(iter->second);
-
-    assert(outIndex >= 0);
-    auto txIter = txRefs.find(std::make_pair(transaction.blockHeight, transaction.offsetInBlock));
+    auto txIter = txRefs.find(std::make_pair(job.intData2, job.intData3));
     assert (txIter != txRefs.end());
+    assert(outIndex >= 0);
     auto row = txIter->second.find(outIndex);
     assert(row != txIter->second.end());
-    row->second.first = blockHeight; // update placeholder inserted in addressUsedInOutput
+    // update placeholder inserted in addressUsedInOutput
+    if (blockHeight == -1) {
+        // Hub API states -1 means it is unspent.
+        // Bitcore decided that should be -2:
+        row->second.first = -2;
+    }
+    else {
+        row->second.first = blockHeight;
+    }
     row->second.second = offsetInBlock;
-    logDebug() << "output spent resolved" << outIndex << "->" << blockHeight << offsetInBlock;
 }
 
 void BitcoreWebRequest::addressUsedInOutput(int blockHeight, int offsetInBlock, int outIndex)
@@ -620,58 +622,53 @@ void BitcoreWebRequest::addressUsedInOutput(int blockHeight, int offsetInBlock, 
     Q_ASSERT(offsetInBlock > 0);
 
     auto iter = txRefs.find(std::make_pair(blockHeight, offsetInBlock));
+    bool txPresent = false;
     if (iter != txRefs.end()) {
         // only fetch a tx once
-        // but we do insert the outIndex
-        iter->second.insert(std::make_pair(outIndex, std::make_pair(-2, 0)));
-        return;
+        txPresent = true;
+        // insert the outIndex
+        iter->second.insert(std::make_pair(outIndex, std::make_pair(-1, 0)));
+        logDebug().nospace() << " _ " << blockHeight << "|" << offsetInBlock << ", " << outIndex << " => " << -1 << "|" << 0;
     }
     else { // insert outindex
         std::map<int, std::pair<int, int>> output;
-        output.insert(std::make_pair(outIndex, std::make_pair(-2, 0)));
+        output.insert(std::make_pair(outIndex, std::make_pair(-1, 0)));
         txRefs.insert(std::make_pair(std::make_pair(blockHeight, offsetInBlock), std::move(output)));
+        logDebug().nospace() << "   " << blockHeight << "|" << offsetInBlock << ", " << outIndex << " => " << -1 << "|" << 0;
     }
 
     Blockchain::Job job;
-    switch (answerType) {
-    case AddressTxs:
-        // fetch the transaction like its a normal fetch
+    job.intData = blockHeight;
+    job.intData2 = offsetInBlock;
+    if (answerType == AddressTxs && !txPresent) {
         job.type = Blockchain::FetchTx;
-        job.intData = blockHeight;
-        job.intData2 = offsetInBlock;
         job.transactionFilters = Blockchain::IncludeFullTransactionData;
-        break;
-    case AddressBalance:
-    case AddressUnspentOutputs:
+    } else if (answerType == AddressBalance || answerType == AddressUnspentOutputs) {
         job.type = Blockchain::FetchUTXOUnspent;
-        job.intData = blockHeight;
-        job.intData2 = offsetInBlock;
         job.intData3 = outIndex;
-        break;
-    default:
-        assert(false); // nobody else should get this.
-        break;
     }
-
-    if (job.type != Blockchain::Unset) {
-        // we want to fetch the highest blockHeight ones first
-        auto insertBeforeIter = --jobs.end();
-        while (insertBeforeIter != jobs.begin()) {
-            if (insertBeforeIter->type != Blockchain::FetchTx)
-                break;
-            if (insertBeforeIter->intData > blockHeight)
-                break;
-            --insertBeforeIter;
-        }
-        jobs.insert(++insertBeforeIter, job);
-    }
+    else
+        return;
+    logDebug() << "Job created:" << jobs.size();
+    jobs.push_back(job);
 }
 
-void BitcoreWebRequest::utxoLookup(int, int blockHeight, int offsetInBlock, int, bool unspent, int64_t, Streaming::ConstBuffer)
+void BitcoreWebRequest::utxoLookup(int jobId, int blockHeight, int offsetInBlock, int outIndex, bool unspent, int64_t, Streaming::ConstBuffer)
 {
+    if (unspent) {
+        auto txIter = txRefs.find(std::make_pair(blockHeight, offsetInBlock));
+        if (txIter != txRefs.end()) {
+            auto row = txIter->second.find(outIndex);
+            // mark as unspent.
+            row->second.first = -2;
+            row->second.second = 0;
+            logDebug().nospace() << " = " << blockHeight << "|" << offsetInBlock << ", " << outIndex << " => " << -2 << "|" << 0;
+        }
+    }
+
     if (unspent && (answerType == AddressUnspentOutputs || answerType == AddressBalance)) {
         // TODO avoid requesting duplicate transactions.
-        logDebug() << "UTXO finished lookup:" << blockHeight << offsetInBlock << unspent;
+        logDebug() << "UTXO unspent, going to lookup:" << blockHeight << offsetInBlock << outIndex;
 
         // fetch unspent tx
         Blockchain::Job job;
@@ -806,7 +803,6 @@ void BitcoreWebRequest::threadSafeFinished()
         QJsonArray root;
         QString script;
         for (auto tx : answer) {
-            assert(tx.jobId >= 0);
             auto refs = txRefs.find(std::make_pair(tx.blockHeight, tx.offsetInBlock));
             if (refs == txRefs.end()) // not one of main transactions
                 continue;
@@ -814,6 +810,9 @@ void BitcoreWebRequest::threadSafeFinished()
             const QString txid = uint256ToString(tx.txid);
             Tx fullTx(tx.fullTxData);
             for (auto out : refs->second) {
+                if (answerType == AddressUnspentOutputs && out.second.first != -2) // skip unspent
+                    continue;
+                // txRef is described in header file.
                 // about 'out': outputIndex is 'first' and who spent it is 'second' (a pair)
                 QJsonObject o;
                 o.insert("coinbase", tx.offsetInBlock > 0 && tx.offsetInBlock < 90);
@@ -848,12 +847,11 @@ void BitcoreWebRequest::threadSafeFinished()
     case AddressBalance: {
         qint64 balance = 0;
         for (auto tx : answer) {
-            logDebug() << tx.outputs.size();
             auto refs = txRefs.find(std::make_pair(tx.blockHeight, tx.offsetInBlock));
-            assert (refs != txRefs.end());
-            for (auto out : tx.outputs) {
-                if (refs->second.find(out.index) != refs->second.end()) {
-                    balance += out.amount;
+            for (auto out = refs->second.begin(); out != refs->second.end(); ++out) {
+                if (out->second.first == -2) { // unspent output
+                    assert (int(tx.outputs.size()) > out->first);
+                    balance += tx.outputs.at(out->first).amount;
                 }
             }
         }

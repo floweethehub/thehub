@@ -527,7 +527,7 @@ void Blockchain::SearchPolicy::parseMessageFromHub(Search *request, const Messag
         }
     }
     else {
-        logDebug(Log::SearchEngine) << "Unknown message from Hub";
+        logDebug(Log::SearchEngine) << "Unknown message from Hub" << message.serviceId() << message.messageId();
     }
 
     processRequests(request);

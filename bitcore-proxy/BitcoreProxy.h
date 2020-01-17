@@ -79,7 +79,7 @@ public:
     void txIdResolved(int jobId, int blockHeight, int offsetInBlock) override;
     void spentOutputResolved(int jobId, int blockHeight, int offsetInBlock) override;
     void addressUsedInOutput(int blockHeight, int offsetInBlock, int outIndex) override;
-    void utxoLookup(int jobId, int blockHeight, int offsetInBlock, int outIndex, bool unspent, int64_t amount, Streaming::ConstBuffer outputScript) override;
+    void utxoLookup(int jobId, int blockHeight, int offsetInBlock, int outindex, bool unspent, int64_t amount, Streaming::ConstBuffer outputScript) override;
 
     QJsonObject m_map;
 
@@ -95,6 +95,9 @@ private:
     // remembers the transactions we looked up and the outpoints we were interested in and who spent those.
     // key: pair of blockHeight to offsetInBlock (aka transaction)
     // value: map of outindex to a pair indicating the spending transaction
+    //        when the target-pair is (-1, 0) then we have no idea who spent the output.
+    //        * (-2, 0) => output is unspent.
+    //        * (120, 81) => tx indicated spends the output
     std::map<std::pair<int,int>, std::map<int, std::pair<int, int>> > txRefs;
 
 #ifdef BENCH

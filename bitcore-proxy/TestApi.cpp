@@ -614,31 +614,21 @@ void TestAddressOutputs::startRequest(TestApi *parent, QNetworkAccessManager &ma
 
 void TestAddressOutputs::checkDocument(const QJsonDocument &doc)
 {
+     /*
+      * This address mixes p2pk and p2pkh outputs.
+      * At this time I chose to make the proxy not search for public-keys, but only for public-key-hash
+      * style addresses. As that would be a lot of extra complexity and practically nobody needs this.
+      */
     if (!doc.isArray()) {
         error("Root should be an array, not an object");
         return;
     }
     auto txs = doc.array();
-    if (txs.size() != 3)
+    if (txs.size() != 2)
         error("Incorrect number of txs");
 
     startContext("out1");
     auto in = txs.at(0);
-    check(in, "chain", "BCH");
-    check(in, "network", "mainnet");
-    check(in, "coinbase", false);
-    check(in, "mintIndex", 1);
-    check(in, "spentTxid", "");
-    check(in, "address", "qrmn4jkcpxtqa0sp99jrswccfawffglnhgd2tf947a");
-    check(in, "mintTxid", "7307aa053fee854a50e432e07f177fc0ab012f4b584daf02b5a81f71cb54a117");
-    check(in, "confirmations", -1);
-    check(in, "mintHeight", 427269);
-    check(in, "spentHeight", -2);
-    check(in, "script", "76a914f73acad809960ebe012964383b184f5c94a3f3ba88ac");
-    check(in, "value", (qint64) 100000);
-
-    startContext("out2");
-    in = txs.at(1);
     check(in, "chain", "BCH");
     check(in, "network", "mainnet");
     check(in, "coinbase", false);
@@ -652,25 +642,25 @@ void TestAddressOutputs::checkDocument(const QJsonDocument &doc)
     check(in, "script", "76a914f73acad809960ebe012964383b184f5c94a3f3ba88ac");
     check(in, "value", (qint64) 12213);
 
-    startContext("out3");
-    in = txs.at(2);
+    startContext("out2");
+    in = txs.at(1);
     check(in, "chain", "BCH");
     check(in, "network", "mainnet");
-    check(in, "coinbase", true);
-    check(in, "mintIndex", 0);
+    check(in, "coinbase", false);
+    check(in, "mintIndex", 1);
     check(in, "spentTxid", "");
     check(in, "address", "qrmn4jkcpxtqa0sp99jrswccfawffglnhgd2tf947a");
-    check(in, "mintTxid", "3b96bb7e197ef276b85131afd4a09c059cc368133a26ca04ebffb0ab4f75c8b8");
+    check(in, "mintTxid", "7307aa053fee854a50e432e07f177fc0ab012f4b584daf02b5a81f71cb54a117");
     check(in, "confirmations", -1);
-    check(in, "mintHeight", 12);
+    check(in, "mintHeight", 427269);
     check(in, "spentHeight", -2);
     check(in, "script", "76a914f73acad809960ebe012964383b184f5c94a3f3ba88ac");
-    check(in, "value", (qint64) 5000000000);
+    check(in, "value", (qint64) 100000);
 }
 
 void TestAddressBalance::startRequest(TestApi *parent, QNetworkAccessManager &manager)
 {
-    QString addressTxs("%1:%2/api/BCH/mainnet/address/1PYELM7jXHy5HhatbXGXfRpGrgMMxmpobu/balance");
+    QString addressTxs("%1:%2/api/BCH/mainnet/address/qq0h24aghvfdge6cq8cs8ct3t53slgzm7grngua3ds/balance");
     auto reply = manager.get(QNetworkRequest(addressTxs.arg(parent->hostname()).arg(parent->port())));
     auto o = new TestAddressBalance(reply);
     connect (o, SIGNAL(requestDone()), parent, SLOT(finishedRequest()));
@@ -683,7 +673,7 @@ void TestAddressBalance::checkDocument(const QJsonDocument &doc)
         return;
     }
     auto object = doc.object();
-    check(object, "confirmed", (qint64) 5000112213);
+    check(object, "confirmed", (qint64) 7800);
     check(object, "unconfirmed", (qint64) 0);
-    check(object, "balance", (qint64) 5000112213);
+    check(object, "balance", (qint64) 7800);
 }
