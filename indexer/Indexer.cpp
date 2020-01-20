@@ -1,6 +1,6 @@
 /*
  * This file is part of the Flowee project
- * Copyright (C) 2019 Tom Zander <tomz@freedommail.ch>
+ * Copyright (C) 2019-2020 Tom Zander <tomz@freedommail.ch>
  *
  * This program is free software: you can redistribute it and/or modify
  * it under the terms of the GNU General Public License as published by
@@ -336,6 +336,21 @@ void Indexer::onIncomingMessage(NetworkService::Remote *con, const Message &mess
         Streaming::MessageBuilder builder(con->pool);
         builder.add(Api::Indexer::BlockHeight, data.blockHeight);
         builder.add(Api::Indexer::OffsetInBlock, data.offsetInBlock);
+        con->connection.send(builder.reply(message));
+    }
+    else if (message.messageId() == Api::Indexer::GetIndexerLastBlock) {
+        int lastReceivedBlock = -1;
+        Streaming::MessageParser parser(m_nextBlock.body());
+        while (parser.next() == Streaming::FoundTag) {
+            if (parser.tag() == Api::BlockChain::BlockHeight) {
+                lastReceivedBlock = parser.intData();
+                break;
+            }
+        }
+
+        con->pool.reserve(10);
+        Streaming::MessageBuilder builder(con->pool);
+        builder.add(Api::Indexer::BlockHeight, lastReceivedBlock);
         con->connection.send(builder.reply(message));
     }
 }
