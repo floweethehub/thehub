@@ -127,8 +127,6 @@ endif ()
 # find qrencode
 # USE-QRCODE
 
-
-
 #find_package(Qt5 COMPONENTS Core Gui Widgets Xml REQUIRED)
 if ("${Qt5Widgets_FOUND}" AND "${Protobuf_FOUND}" AND "${Qt5Network_FOUND}")
     PROTOBUF_GENERATE_CPP(PROTO_SRCS PROTO_HDRS paymentrequest.proto)
@@ -143,6 +141,5 @@ if ("${Qt5Widgets_FOUND}" AND "${Protobuf_FOUND}" AND "${Qt5Network_FOUND}")
     add_dependencies(hub-qt leveldb)
     add_dependencies(hub-qt secp256k1)
 
+    install(PROGRAMS ${CMAKE_CURRENT_BINARY_DIR}/hub-qt DESTINATION bin)
 endif ()
-
-install(PROGRAMS ${CMAKE_CURRENT_BINARY_DIR}/hub-qt DESTINATION bin)
