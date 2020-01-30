@@ -25,6 +25,7 @@
 #include <signal.h>
 #include <QTime>
 #include <QDateTime>
+#include <QElapsedTimer>
 /*
    Interprets env vars;
    FLOWEE_NETWORK:
@@ -182,7 +183,7 @@ int main(int x, char**y) {
     if (getenv("FLOWEE_HUB_REINDEX"))
         args << "-reindex=true";
     hub->setReadChannel(QProcess::StandardOutput);
-    QTime startTime;
+    QElapsedTimer startTime;
     startTime.start();
     hub->start(QLatin1String("/usr/bin/hub"), args, QIODevice::ReadOnly);
     hub->waitForReadyRead(20000);

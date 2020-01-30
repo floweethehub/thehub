@@ -25,6 +25,7 @@
 #include <utxo/UnspentOutputDatabase.h>
 #include <hash.h>
 #include <primitives/pubkey.h>
+#include <fstream>
 
 namespace {
     enum ScriptType {
@@ -275,8 +276,28 @@ DoubleSpendProof::Validity DoubleSpendProof::validate(const CTxMemPool &mempool)
         }
     }
     assert(!pubkey.empty());
-    if (pubkey.empty())
+    if (pubkey.empty()) {
+        logFatal() << "DoubleSpendProof; pubkey is empty..."
+                   << createHash() << "prevTxId:" << prevTx.createHash() << "|" << m_prevOutIndex;
+
+        try {
+            std::string filename = "/data/tx-" + m_prevTxId.ToString();
+            std::ofstream out(filename);
+            out.write(prevTx.data().begin(), prevTx.size());
+        } catch (std::exception &e) {
+            logFatal() << "DSP tx-save to disk failed" << e;
+        }
+
+        try {
+            std::string filename = "/data/dsp-" + createHash().ToString();
+            std::ofstream out(filename);
+            out << this;
+        } catch (std::exception &e) {
+            logFatal() << "DSP save to disk failed" << e;
+        }
+
         return Invalid;
+    }
 
     CScript inScript;
     if (scriptType == P2PKH) {
