@@ -55,10 +55,8 @@ public:
     std::map<std::string, short> categoryMapping;
     std::map<short, short> enabledSections;
 
-#ifndef NDEBUG
     bool inUnitTests = false; // if true, assumes testNameFunctor is non-empty
     std::function<const char*()> testNameFunctor;
-#endif
 };
 
 Log::Manager::Manager()
@@ -219,7 +217,6 @@ void Log::Manager::reopenLogFiles()
 void Log::Manager::loadDefaultTestSetup(const std::function<const char*()> &testNameFunction)
 {
     clearChannels();
-#ifndef NDEBUG
     auto channel = new ConsoleLogChannel();
     channel->setPrintMethodName(true);
     channel->setTimeStampFormat(Channel::TimeOnly);
@@ -231,7 +228,6 @@ void Log::Manager::loadDefaultTestSetup(const std::function<const char*()> &test
     d->enabledSections.clear();
     for (short i = 0; i <= 20000; i+=1000)
         d->enabledSections[i] = Log::DebugLevel;
-#endif
 }
 
 void Log::Manager::parseConfig(const boost::filesystem::path &configfile, const boost::filesystem::path &logfilename)
