@@ -119,7 +119,6 @@ Log::Manager::~Manager()
 
 bool Log::Manager::isEnabled(short section, Verbosity verbosity) const
 {
-#ifndef NDEBUG
     if (d->inUnitTests) {
         assert(!d->channels.empty());
         ConsoleLogChannel *lc = dynamic_cast<ConsoleLogChannel*>(d->channels.front());
@@ -130,7 +129,6 @@ bool Log::Manager::isEnabled(short section, Verbosity verbosity) const
             d->lastDateTime.clear();
         }
     }
-#endif
     auto iter = d->enabledSections.find(section);
     if (iter != d->enabledSections.end())
         return iter->second <= verbosity;
