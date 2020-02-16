@@ -27,6 +27,8 @@
 #include "HashStorage.h"
 
 #include <boost/filesystem/path.hpp>
+#include <vector>
+#include <deque>
 
 class QSettings;
 class DirtyData;
