@@ -81,7 +81,7 @@ public:
     /**
      * Create a message based on the build data and the argument header-data.
      */
-    Message message(int serviceId = -1, int messageId = -1);
+    Message message(int serviceId = -1, int messageId = -1, int requestId = -1);
 
     /**
      * Create a message based on the build data using the

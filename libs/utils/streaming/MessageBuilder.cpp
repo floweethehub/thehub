@@ -228,7 +228,7 @@ Streaming::ConstBuffer Streaming::MessageBuilder::buffer()
     return answer;
 }
 
-Message Streaming::MessageBuilder::message(int serviceId, int messageId)
+Message Streaming::MessageBuilder::message(int serviceId, int messageId, int requestId)
 {
     assert(m_beforeHeader == false); // should not call this before adding any data.
     if (m_messageType == HeaderAndBody || m_messageType == HeaderOnly) {
@@ -239,11 +239,17 @@ Message Streaming::MessageBuilder::message(int serviceId, int messageId)
             answer.setServiceId(serviceId);
         if (messageId != -1)
             answer.setMessageId(messageId);
+        if (requestId != -1)
+            answer.setHeaderInt(Api::RequestId, requestId);
         m_buffer->commit();
         return answer;
     }
     m_beforeHeader = (m_messageType != NoHeader);
-    return Message(m_buffer->commit(), serviceId, messageId);
+    if (requestId == -1)
+        return Message(m_buffer->commit(), serviceId, messageId);
+    auto m = Message(m_buffer->commit(), serviceId, messageId);
+    m.setHeaderInt(Api::RequestId, requestId);
+    return m;
 }
 
 Message Streaming::MessageBuilder::reply(const Message &incoming, int messageId)
