@@ -203,13 +203,22 @@ int main(int x, char**y) {
             rc = hub->exitCode();
             if (!shutdownRequested && rc != 0) { // maybe it crashed and we want to auto-restart it.
                 const auto now = QDateTime::currentDateTimeUtc().toString();
-                out << now << " WARN: Hub exited with code " << rc << endl;
+                out << now;
+                if (hub->error() == QProcess::Crashed)
+                    out << " ERROR: Hub crashed due to signal " << rc << endl;
+                else
+                    out << " WARN: Hub exited with code " << rc << endl;
+
                 if (startTime.elapsed() > 120000) { // but not if it crashed too fast after restart.
                     out << now << " WARN: StartHub attempts to restart hub." << endl;
                     startTime.start();
                     hub->start(QLatin1String("/usr/bin/hub"), args, QIODevice::ReadOnly);
                 }
-                else break;
+                else {
+                    out << now << " WARN: StartHub detected hub restarting too fast ("
+                        int(startTime.elapsed() / 1000) << " s). Exiting" << endl;
+                    break;
+                }
             }
             else break;
         }
