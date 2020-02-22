@@ -282,12 +282,16 @@ void UnspentOutputDatabase::blockFinished(int blockheight, const uint256 &blockI
         df->m_lastBlockHash = blockId;
         df->m_lastBlockHeight = blockheight;
         totalChanges += df->m_changesSinceJumptableWritten;
+        if (!df->m_dbIsTip && df->m_changesSincePrune > 250000) // Avoid too great fragmentation.
+            d->doPrune = true;
         df->commit(d);
     }
+    if (d->memOnly)
+        return;
 
     d->checkCapacity();
 
-    if (totalChanges > 5000000) { // every 5 million inserts/deletes, auto-flush jumptables
+    if (d->doPrune || totalChanges > 5000000) { // every 5 million inserts/deletes, auto-flush jumptables
         std::vector<std::string> infoFilenames;
         for (int i = 0; i < d->dataFiles.size(); ++i) {
             DataFile *df = d->dataFiles.at(i);
@@ -299,17 +303,18 @@ void UnspentOutputDatabase::blockFinished(int blockheight, const uint256 &blockI
         if (d->doPrune && d->dataFiles.size() > 1) { // prune the DB files.
             d->doPrune = false;
             logCritical() << "Garbage-collecting the sha256-DB";
-            int db = d->dataFiles.size() - 2; // we skip the last DB file
-            int jump = 1; // we don't do all DBs every time, this creates a nice sequence.
-            do {
-                if (d->dataFiles.at(db)->m_changesSincePrune < 10000) {
+
+            for (int db = 0; db < d->dataFiles.size() - 1; ++db) {
+                DataFile* df = d->dataFiles.at(db);
+                if (df->m_changesSincePrune < 200000) {
                     // not worth pruning, skip
-                    --db;
                     continue;
                 }
-                auto dbFilename = d->dataFiles.at(db)->m_path;
+                auto dbFilename = df->m_path;
                 Pruner pruner(dbFilename.string() + ".db", infoFilenames.at(static_cast<size_t>(db)),
-                              jump == 1 ? Pruner::MostActiveDB : Pruner::OlderDB);
+                              (db == d->dataFiles.size() - 2) ? Pruner::MostActiveDB : Pruner::OlderDB);
+
+                logFatal() << "pruning file" << dbFilename.string();
                 try {
                     pruner.prune();
                     DataFileCache cache(dbFilename.string());
@@ -319,14 +324,13 @@ void UnspentOutputDatabase::blockFinished(int blockheight, const uint256 &blockI
                     DataFile::LockGuard delLock(d->dataFiles.at(db));
                     delLock.deleteLater();
                     pruner.commit();
-                    d->dataFiles[db] = new DataFile(dbFilename);
+                    df = new DataFile(dbFilename);
+                    d->dataFiles[db] = df;
                 } catch (const std::runtime_error &pruneFailure) {
                     logCritical() << "Skipping GCing of db file" << db << "reason:" << pruneFailure;
                     pruner.cleanup();
                 }
-
-                db -= ++jump;
-            } while (db >= 0);
+            }
             fflush(nullptr);
         }
     }
@@ -445,6 +449,7 @@ UODBPrivate::UODBPrivate(boost::asio::io_service &service, const boost::filesyst
         if (doPrune)
             lastFull->m_changesSinceJumptableWritten = 5000000; // prune it sooner
     }
+    dataFiles.last()->m_dbIsTip = true;
 }
 
 boost::filesystem::path UODBPrivate::filepathForIndex(int fileIndex)
@@ -464,6 +469,7 @@ DataFile *UODBPrivate::checkCapacity()
     const bool isFull = df->m_fileFull.compare_exchange_strong(fullValue, 2); // only true once after it was set to '1'
     if (isFull) {
         doPrune = true;
+        df->m_dbIsTip = false;
         DEBUGUTXO << "Creating a new DataFile" << dataFiles.size();
         dataFiles.append(DataFile::createDatafile(filepathForIndex(dataFiles.size() + 1),
                 df->m_lastBlockHeight, df->m_lastBlockHash));
@@ -1371,6 +1377,7 @@ DataFile *DataFile::createDatafile(const boost::filesystem::path &filename, int 
     df->m_initialBlockHeight = firstBlockHeight;
     df->m_lastBlockHeight = firstBlockHeight;
     df->m_lastBlockHash = firstHash;
+    df->m_dbIsTip = true;
     return df;
 }
 
@@ -1460,6 +1467,7 @@ std::string DataFileCache::writeInfoFile(DataFile *source)
     builder.add(UODB::LastBlockId, source->m_lastBlockHash);
     builder.add(UODB::PositionInFile, source->m_writeBuffer.offset());
     builder.add(UODB::ChangesSincePrune, source->m_changesSincePrune);
+    builder.add(UODB::IsTip, source->m_dbIsTip);
     CHash256 ctx;
     ctx.Write(reinterpret_cast<const unsigned char*>(source->m_jumptables), sizeof(source->m_jumptables));
     uint256 result;
@@ -1504,8 +1512,10 @@ bool DataFileCache::load(const DataFileCache::InfoFile &info, DataFile *target)
                 target->m_writeBuffer.markUsed(parser.intData());
                 target->m_writeBuffer.forget(parser.intData());
             }
-            else
+            else if (parser.tag() == UODB::Separator)
                 break;
+            else if (parser.tag() != UODB::IsTip) // isTip is purely for external tools, we don't trust that one.
+                logDebug() << "UTOX info file has unrecognized tag" << parser.tag();
         }
         posOfJumptable = parser.consumed();
     }

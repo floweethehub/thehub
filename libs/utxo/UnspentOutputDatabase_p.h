@@ -1,6 +1,6 @@
 /*
  * This file is part of the Flowee project
- * Copyright (C) 2018-2019 Tom Zander <tomz@freedommail.ch>
+ * Copyright (C) 2018-2020 Tom Zander <tomz@freedommail.ch>
  *
  * This program is free software: you can redistribute it and/or modify
  * it under the terms of the GNU General Public License as published by
@@ -106,8 +106,10 @@ namespace UODB {
         LeafPosRepeat,
 
         // Additional tags for the jump-index
-        ChangesSincePrune
+        ChangesSincePrune,
 
+        // Is only present and true in the info that is the latest, tip, DB.
+        IsTip,
     };
 }
 
@@ -205,6 +207,7 @@ public:
     std::atomic_int m_changeCount; // changes that are waiting to be saved
     int m_changesSinceJumptableWritten = 0;
     int m_changesSincePrune = 0;
+    bool m_dbIsTip = false;
     std::atomic_bool m_flushScheduled;
 
     // --- rollback info ---
