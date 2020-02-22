@@ -1,6 +1,6 @@
 /*
  * This file is part of the Flowee project
- * Copyright (C) 2018-2019 Tom Zander <tomz@freedommail.ch>
+ * Copyright (C) 2018-2020 Tom Zander <tomz@freedommail.ch>
  *
  * This program is free software: you can redistribute it and/or modify
  * it under the terms of the GNU General Public License as published by
@@ -401,11 +401,13 @@ UODBPrivate::UODBPrivate(boost::asio::io_service &service, const boost::filesyst
         dataFiles.append(new DataFile(path));
         ++i;
     }
+    if (dataFiles.size() > 1 && dataFiles.last()->m_lastBlockHeight == 0) {
+        dataFiles.removeLast();
+    }
     if (dataFiles.isEmpty()) {
         dataFiles.append(DataFile::createDatafile(filepathForIndex(1), 0, uint256()));
-    } else if (dataFiles.size() > 1 && dataFiles.last()->m_lastBlockHeight == 0) {
-        dataFiles.removeLast();
-    } else {
+    }
+    else {
         // find a checkpoint version all datafiles can agree on.
         bool allEqual = false;
         int tries = 0;
@@ -416,11 +418,14 @@ UODBPrivate::UODBPrivate(boost::asio::io_service &service, const boost::filesyst
                 throw UTXOInternalError("Can't find a usable UTXO state");
             }
             int lastBlock = -1;
+            uint256 lastBlockId;
             for (int i = 0; i < dataFiles.size(); ++i) {
                 DataFile *df = dataFiles.at(i);
                 if (lastBlock == -1) {
                     lastBlock = df->m_lastBlockHeight;
-                } else if (lastBlock != df->m_lastBlockHeight) {
+                    lastBlockId = df->m_lastBlockHash;
+                } else if (lastBlock != df->m_lastBlockHeight
+                           || lastBlockId != df->m_lastBlockHash) {
                     allEqual = false;
                     logCritical(Log::UTXO) << "Need to roll back to an older state:" << df->m_lastBlockHeight
                                            << "Where the first knew:" << lastBlock;
@@ -1506,6 +1511,10 @@ bool DataFileCache::load(const DataFileCache::InfoFile &info, DataFile *target)
     }
     in.seekg(posOfJumptable);
     in.read(reinterpret_cast<char*>(target->m_jumptables), sizeof(target->m_jumptables));
+
+    logDebug(Log::UTXO) << "Loaded" << filenameFor(info.index).string();
+    logDebug(Log::UTXO) << "Block from" << target->m_initialBlockHeight << "to" << target->m_lastBlockHeight
+                           << "changes since prune" << target->m_changesSincePrune;
 
     CHash256 ctx;
     ctx.Write(reinterpret_cast<const unsigned char*>(target->m_jumptables), sizeof(target->m_jumptables));
