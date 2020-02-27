@@ -105,14 +105,6 @@ namespace {
         }
     };
 
-    CBlockIndex *pindexBestInvalid;
-
-    /**
-     * The set of all CBlockIndex entries with BLOCK_VALID_TRANSACTIONS (for itself and all ancestors) and
-     * as good as our current tip or better. Entries may be failed, though, and pruning nodes may be
-     * missing the data for the block.
-     */
-    std::set<CBlockIndex*, CBlockIndexWorkComparator> setBlockIndexCandidates;
     /** Number of nodes with fSyncStarted. */
     int nSyncStarted = 0;
 
@@ -1129,10 +1121,6 @@ bool LoadBlockIndexDB()
                 pindex->nChainTx = pindex->nTx;
             }
         }
-        if (pindex->IsValid(BLOCK_VALID_TRANSACTIONS) && (pindex->nChainTx || pindex->pprev == nullptr))
-            setBlockIndexCandidates.insert(pindex);
-        if (pindex->nStatus & BLOCK_FAILED_MASK && (!pindexBestInvalid || pindex->nChainWork > pindexBestInvalid->nChainWork))
-            pindexBestInvalid = pindex;
         if (pindex->pprev)
             pindex->BuildSkip();
         if (pindex->IsValid(BLOCK_VALID_TREE) && (pindexBestHeader == nullptr || CBlockIndexWorkComparator()(pindexBestHeader, pindex)))
@@ -1183,9 +1171,7 @@ bool LoadBlockIndexDB()
 void UnloadBlockIndex()
 {
     LOCK(cs_main);
-    setBlockIndexCandidates.clear();
     chainActive.SetTip(nullptr);
-    pindexBestInvalid = nullptr;
     pindexBestHeader = nullptr;
     mempool.clear();
     CTxOrphanCache::clear();
