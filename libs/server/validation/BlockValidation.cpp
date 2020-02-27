@@ -458,51 +458,46 @@ void ValidationEnginePrivate::cleanup()
 void ValidationEnginePrivate::startOrphanWithParent(std::list<std::shared_ptr<BlockValidationState> > &adoptedItems, const std::shared_ptr<BlockValidationState> &state)
 {
     assert(strand.running_in_this_thread());
-    const uint256 hash = state->m_block.createHash();
-    DEBUGBV << state->m_block.createHash();
+    std::list<std::shared_ptr<BlockValidationState> > parents;
+    parents.push_back(state); // we start with the method-argument, we replace it in each loop in the do{}while with new parents.
+    do {
+        std::list<std::shared_ptr<BlockValidationState> > younglings; // adoptees from the newest generation
+        auto iter = orphanBlocks.begin();
+        while (iter != orphanBlocks.end()) {
+            std::shared_ptr<BlockValidationState> orphan = *iter;
+            bool match = false;
+            for (const auto &parent : parents) {
+                if (parent->m_block.createHash() == orphan->m_block.previousBlockId()) {
+                    // we found a new child of one of the recently found parents.
+                    match = true;
 
-    std::list<std::shared_ptr<BlockValidationState> > adoptees;
-    auto iter = orphanBlocks.begin();
-    while (iter != orphanBlocks.end()) {
-        const std::shared_ptr<BlockValidationState> &orphan = *iter;
-        if (orphan->m_block.previousBlockId() == hash) {
-            adoptees.push_back(orphan);
-            iter = orphanBlocks.erase(iter);
-        } else {
-            ++iter;
-        }
-    }
+                    bool alreadyThere = false;
+                    for (auto child : parent->m_chainChildren) {
+                        if (child.lock() == orphan) {
+                            alreadyThere = true;
+                            break;
+                        }
+                    }
+                    if (!alreadyThere)
+                        parent->m_chainChildren.push_back(std::weak_ptr<BlockValidationState>(orphan));
 
-    // remember them.
-    iter = adoptees.begin();
-    while (iter != adoptees.end()) {
-        adoptedItems.push_back(*iter) ;
-        ++iter;
-    }
-
-    // due to recursive-ness, act on results outside of the iterator of the orphanBlocks list.
-    iter = adoptees.begin();
-    while (iter != adoptees.end()) {
-        std::shared_ptr<BlockValidationState> orphan = *iter;
-        DEBUGBV << "    + orphan:" << orphan->m_block.createHash();
-        bool alreadyThere = false;
-        for (auto child : state->m_chainChildren) {
-            if (child.lock() == orphan) {
-                alreadyThere = true;
-                break;
+                    CBlockIndex *index = orphan->m_blockIndex;
+                    index->pprev = parent->m_blockIndex;
+                    index->nHeight = parent->m_blockIndex->nHeight + 1;
+                    index->nChainWork = parent->m_blockIndex->nChainWork + GetBlockProof(*index);
+                    index->BuildSkip();
+                    adoptedItems.push_back(orphan);
+                    younglings.push_back(orphan);
+                    break;
+                }
             }
+            if (match)
+                iter = orphanBlocks.erase(iter);
+            else
+                ++iter;
         }
-        if (!alreadyThere)
-            state->m_chainChildren.push_back(std::weak_ptr<BlockValidationState>(orphan));
-        CBlockIndex *index = orphan->m_blockIndex;
-        index->pprev = state->m_blockIndex;
-        index->nHeight = state->m_blockIndex->nHeight + 1;
-        index->nChainWork = state->m_blockIndex->nChainWork + GetBlockProof(*index);
-        index->BuildSkip();
-
-        startOrphanWithParent(adoptedItems, orphan);
-        ++iter;
-    }
+        parents = younglings;
+    } while (!parents.empty());
 }
 
 /*
