@@ -82,6 +82,10 @@ public:
     void setScheduler(CScheduler *scheduler);
     void closeFiles();
     void pruneFiles();
+    /**
+     * @brief allByHeight Sort and return the blocks by height.
+     */
+    std::vector<std::pair<int, CBlockIndex*> > allByHeight() const;
 
     CChain headersChain;
     std::list<CBlockIndex*> headerChainTips;

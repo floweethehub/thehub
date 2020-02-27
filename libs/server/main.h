@@ -50,6 +50,7 @@ class CScriptCheck;
 class CTxMemPool;
 class ValidationInterface;
 class CValidationState;
+class UnspentOutputDatabase;
 
 struct CNodeStateStats;
 struct LockPoints;
@@ -148,7 +149,7 @@ bool CheckDiskSpace(uint64_t nAdditionalBytes = 0);
 /** Initialize a new block tree database + block data on disk */
 bool InitBlockIndex(const CChainParams& chainparams);
 /** Load the block tree and coins database from disk */
-bool LoadBlockIndexDB();
+bool LoadBlockIndexDB(const UnspentOutputDatabase *utxo);
 /** Unload database information */
 void UnloadBlockIndex();
 /** Process protocol messages received from a given node */

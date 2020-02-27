@@ -36,6 +36,7 @@ class uint256;
 class FastBlock;
 class CChain;
 class CScheduler;
+class UnspentOutputDatabase;
 
 namespace Blocks {
 
@@ -87,7 +88,7 @@ public:
     bool WriteFlag(const std::string &name, bool fValue);
     bool ReadFlag(const std::string &name, bool &fValue);
     /// Reads and caches all info about blocks.
-    bool CacheAllBlockInfos();
+    bool CacheAllBlockInfos(const UnspentOutputDatabase *utxo);
 
     ReindexingState reindexing() const;
     inline bool isReindexing() const {
@@ -165,10 +166,6 @@ namespace Index {
      * @return a set of file-indexes (blk[num].dat) that contain blocks.
      */
     std::set<int> fileIndexes();
-    /**
-     * @brief allByHeight Sort and return the blocks by height.
-     */
-    std::vector<std::pair<int, CBlockIndex*> > allByHeight();
     void unload();
 }
 }

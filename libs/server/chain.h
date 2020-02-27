@@ -151,7 +151,7 @@ public:
     //! Change to 64-bit type when necessary; won't happen before 2030
     unsigned int nChainTx;
 
-    //! Verification status of this block. See enum BlockStatus
+    //! (memory only) Verification status of this block. See enum BlockStatus
     unsigned int nStatus;
 
     //! block header

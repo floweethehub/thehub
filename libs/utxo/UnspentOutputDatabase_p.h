@@ -110,6 +110,10 @@ namespace UODB {
 
         // Is only present and true in the info that is the latest, tip, DB.
         IsTip,
+
+        // In the worldvie wof this UTXO a block stored in the 'block-index'
+        // that was invalid stores its sha256 blockId here.
+        InvalidBlockHash
     };
 }
 
@@ -192,6 +196,9 @@ public:
     std::shared_ptr<char> m_buffer;
     Streaming::BufferPool m_writeBuffer;
     boost::iostreams::mapped_file m_file;
+
+    // metadata not really part of the UTXO
+    std::set<uint256> m_rejectedBlocks;
 
     /// wipes and creates a new datafile
     static DataFile *createDatafile(const boost::filesystem::path &filename, int firstBlockindex, const uint256 &firstHash);

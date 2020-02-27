@@ -324,10 +324,9 @@ void UnspentOutputDatabase::blockFinished(int blockheight, const uint256 &blockI
                     DataFile::LockGuard delLock(d->dataFiles.at(db));
                     delLock.deleteLater();
                     pruner.commit();
-                    df = new DataFile(dbFilename);
-                    d->dataFiles[db] = df;
-                } catch (const std::runtime_error &pruneFailure) {
-                    logCritical() << "Skipping GCing of db file" << db << "reason:" << pruneFailure;
+                    d->dataFiles[db] = new DataFile(dbFilename);
+                } catch (const std::runtime_error &failure) {
+                    logCritical() << "Skipping GCing of db file" << db << "reason:" << failure;
                     pruner.cleanup();
                 }
             }
@@ -355,6 +354,24 @@ void UnspentOutputDatabase::saveCaches()
         if (df->m_flushScheduled.compare_exchange_strong(old, true))
             d->ioService.post(std::bind(&DataFile::flushSomeNodesToDisk_callback, df));
     }
+}
+
+void UnspentOutputDatabase::setFailedBlockId(const uint256 &blockId)
+{
+    auto dfs(d->dataFiles);
+    assert(dfs.size() > 0);
+    auto df = dfs.last();
+    std::lock_guard<std::recursive_mutex> lock(df->m_lock);
+    df->m_rejectedBlocks.insert(blockId);
+}
+
+bool UnspentOutputDatabase::blockIdHasFailed(const uint256 &blockId) const
+{
+    auto dfs(d->dataFiles);
+    assert(dfs.size() > 0);
+    auto df = dfs.last();
+    std::lock_guard<std::recursive_mutex> lock(df->m_lock);
+    return df->m_rejectedBlocks.find(blockId) != df->m_rejectedBlocks.end();
 }
 
 int UnspentOutputDatabase::blockheight() const
@@ -467,15 +484,18 @@ DataFile *UODBPrivate::checkCapacity()
     auto df = DataFileList(dataFiles).last();
     int fullValue = 1; // what the flush() method sets fileFull to
     const bool isFull = df->m_fileFull.compare_exchange_strong(fullValue, 2); // only true once after it was set to '1'
-    if (isFull) {
-        doPrune = true;
-        df->m_dbIsTip = false;
-        DEBUGUTXO << "Creating a new DataFile" << dataFiles.size();
-        dataFiles.append(DataFile::createDatafile(filepathForIndex(dataFiles.size() + 1),
-                df->m_lastBlockHeight, df->m_lastBlockHash));
-        return dataFiles.last();
-    }
-    return df;
+    if (!isFull)
+        return df;
+
+    doPrune = true;
+    DEBUGUTXO << "Creating a new DataFile" << dataFiles.size();
+    auto newDf = DataFile::createDatafile(filepathForIndex(dataFiles.size() + 1),
+            df->m_lastBlockHeight, df->m_lastBlockHash);
+    newDf->m_rejectedBlocks = df->m_rejectedBlocks;
+    df->m_rejectedBlocks.clear();
+    df->m_dbIsTip = false;
+    dataFiles.append(newDf);
+    return newDf;
 }
 
 
@@ -1468,6 +1488,11 @@ std::string DataFileCache::writeInfoFile(DataFile *source)
     builder.add(UODB::PositionInFile, source->m_writeBuffer.offset());
     builder.add(UODB::ChangesSincePrune, source->m_changesSincePrune);
     builder.add(UODB::IsTip, source->m_dbIsTip);
+    if (source->m_dbIsTip) {
+        for (auto blockId : source->m_rejectedBlocks) {
+            builder.add(UODB::InvalidBlockHash, blockId);
+        }
+    }
     CHash256 ctx;
     ctx.Write(reinterpret_cast<const unsigned char*>(source->m_jumptables), sizeof(source->m_jumptables));
     uint256 result;
@@ -1511,6 +1536,10 @@ bool DataFileCache::load(const DataFileCache::InfoFile &info, DataFile *target)
                 target->m_writeBuffer = Streaming::BufferPool(target->m_buffer, static_cast<int>(target->m_file.size()), true);
                 target->m_writeBuffer.markUsed(parser.intData());
                 target->m_writeBuffer.forget(parser.intData());
+            }
+            else if (parser.tag() == UODB::InvalidBlockHash) {
+                assert(parser.isByteArray() && parser.dataLength() == 32);
+                target->m_rejectedBlocks.insert(parser.uint256Data());
             }
             else if (parser.tag() == UODB::Separator)
                 break;

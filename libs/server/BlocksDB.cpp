@@ -1,7 +1,7 @@
 /*
  * This file is part of the Flowee project
  * Copyright (c) 2009-2010 Satoshi Nakamoto
- * Copyright (c) 2017-2019 Tom Zander <tomz@freedommail.ch>
+ * Copyright (c) 2017-2020 Tom Zander <tomz@freedommail.ch>
  * Copyright (c) 2017 Calin Culianu <calin.culianu@gmail.com>
  *
  * This program is free software: you can redistribute it and/or modify
@@ -36,6 +36,7 @@
 #include <boost/thread.hpp>
 #include <boost/filesystem.hpp>
 #include <boost/filesystem/fstream.hpp>
+#include <utxo/UnspentOutputDatabase.h>
 
 static const char DB_BLOCK_FILES = 'f';
 static const char DB_TXINDEX = 't';
@@ -46,7 +47,7 @@ static const char DB_REINDEX_FLAG = 'R';
 static const char DB_LAST_BLOCK = 'l';
 
 namespace {
-CBlockIndex * InsertBlockIndex(uint256 hash)
+CBlockIndex * insertBlockIndex(const uint256 &hash)
 {
     if (hash.IsNull())
         return nullptr;
@@ -57,7 +58,7 @@ CBlockIndex * InsertBlockIndex(uint256 hash)
         return answer;
 
     // Create new
-    CBlockIndex* pindexNew = new CBlockIndex();
+    CBlockIndex *pindexNew = new CBlockIndex();
     pindexNew->phashBlock = Blocks::Index::insert(hash, pindexNew);
     return pindexNew;
 }
@@ -234,7 +235,7 @@ bool Blocks::DB::ReadFlag(const std::string &name, bool &fValue) {
     return true;
 }
 
-bool Blocks::DB::CacheAllBlockInfos()
+bool Blocks::DB::CacheAllBlockInfos(const UnspentOutputDatabase *utxo)
 {
     boost::scoped_ptr<CDBIterator> pcursor(NewIterator());
 
@@ -248,8 +249,8 @@ bool Blocks::DB::CacheAllBlockInfos()
             CDiskBlockIndex diskindex;
             if (pcursor->GetValue(diskindex)) {
                 // Construct block index object
-                CBlockIndex* pindexNew = InsertBlockIndex(diskindex.GetBlockHash());
-                pindexNew->pprev          = InsertBlockIndex(diskindex.hashPrev);
+                CBlockIndex* pindexNew = insertBlockIndex(diskindex.GetBlockHash());
+                pindexNew->pprev          = insertBlockIndex(diskindex.hashPrev);
                 pindexNew->nHeight        = diskindex.nHeight;
                 pindexNew->nFile          = diskindex.nFile;
                 maxFile = std::max(pindexNew->nFile, maxFile);
@@ -260,9 +261,17 @@ bool Blocks::DB::CacheAllBlockInfos()
                 pindexNew->nTime          = diskindex.nTime;
                 pindexNew->nBits          = diskindex.nBits;
                 pindexNew->nNonce         = diskindex.nNonce;
-                pindexNew->nStatus        = diskindex.nStatus;
                 pindexNew->nTx            = diskindex.nTx;
 
+                // status is not saved, it comes from the UTXO-state
+                if (utxo->blockIdHasFailed(pindexNew->GetBlockHash()))
+                    pindexNew->nStatus = BLOCK_FAILED_VALID;
+                else if (pindexNew->nHeight > 0)
+                    pindexNew->nStatus = BLOCK_VALID_TREE; // needed to actually download blocks.
+                if (pindexNew->nDataPos)
+                    pindexNew->nStatus |= BLOCK_HAVE_DATA;
+                if (pindexNew->nUndoPos)
+                    pindexNew->nStatus |= BLOCK_HAVE_UNDO;
                 pcursor->Next();
             } else {
                 return error("CacheAllBlockInfos(): failed to read row");
@@ -297,6 +306,15 @@ bool Blocks::DB::CacheAllBlockInfos()
             pindexBestHeader = tip;
         }
     }
+
+    // Calculate nChainWork and nChainTx
+    std::vector<std::pair<int, CBlockIndex*> > vSortedByHeight = d->allByHeight();
+    for (const PAIRTYPE(int, CBlockIndex*) &item : vSortedByHeight) {
+        CBlockIndex* pindex = item.second;
+        pindex->nChainWork = (pindex->pprev ? pindex->pprev->nChainWork : 0) + GetBlockProof(*pindex);
+        pindex->nChainTx =  pindex->nTx + (pindex->pprev ? pindex->pprev->nChainTx : 0);
+    }
+
 #ifndef NDEBUG
     for (CBlockIndex *tip : d->headerChainTips) {
         bool isMain = tip == d->headersChain.Tip();
@@ -423,7 +441,10 @@ bool Blocks::DB::appendHeader(CBlockIndex *block)
         return false;
     CBlockIndex *validPrev = valid ? block : block->pprev;
     while (validPrev->nStatus & BLOCK_FAILED_MASK) {
-        validPrev = validPrev->pprev;
+        if (validPrev->pskip && (validPrev->pskip->nStatus & BLOCK_FAILED_MASK))
+            validPrev = validPrev->pskip;
+        else
+            validPrev = validPrev->pprev;
     }
     // try to simply append
     for (auto i = d->headerChainTips.begin(); i != d->headerChainTips.end(); ++i) {
@@ -618,14 +639,11 @@ void Blocks::Index::unload()
     instance->priv()->unloadIndexMap();
 }
 
-std::vector<std::pair<int, CBlockIndex *> > Blocks::Index::allByHeight()
+std::vector<std::pair<int, CBlockIndex *> > Blocks::DBPrivate::allByHeight() const
 {
-    auto priv = Blocks::DB::instance()->priv();
-    std::lock_guard<std::mutex> lock_(priv->blockIndexLock);
-
     std::vector<std::pair<int, CBlockIndex*> > vSortedByHeight;
-    vSortedByHeight.reserve(priv->indexMap.size());
-    for (const PAIRTYPE(uint256, CBlockIndex*)& item : priv->indexMap)
+    vSortedByHeight.reserve(indexMap.size());
+    for (const PAIRTYPE(uint256, CBlockIndex*)& item : indexMap)
     {
         CBlockIndex* pindex = item.second;
         vSortedByHeight.push_back(std::make_pair(pindex->nHeight, pindex));

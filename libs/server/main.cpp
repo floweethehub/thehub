@@ -2,7 +2,7 @@
  * This file is part of the Flowee project
  * Copyright (c) 2009-2010 Satoshi Nakamoto
  * Copyright (c) 2009-2015 The Bitcoin Core developers
- * Copyright (C) 2017-2019 Tom Zander <tomz@freedommail.ch>
+ * Copyright (C) 2017-2020 Tom Zander <tomz@freedommail.ch>
  *
  * This program is free software: you can redistribute it and/or modify
  * it under the terms of the GNU General Public License as published by
@@ -1099,33 +1099,10 @@ bool CheckDiskSpace(uint64_t nAdditionalBytes)
     return true;
 }
 
-bool LoadBlockIndexDB()
+bool LoadBlockIndexDB(const UnspentOutputDatabase *utxo)
 {
-    const CChainParams& chainparams = Params();
-    if (!Blocks::DB::instance()->CacheAllBlockInfos())
+    if (!Blocks::DB::instance()->CacheAllBlockInfos(utxo))
         return false;
-
-    boost::this_thread::interruption_point();
-
-    // Calculate nChainWork
-    std::vector<std::pair<int, CBlockIndex*> > vSortedByHeight = Blocks::Index::allByHeight();
-    for (const PAIRTYPE(int, CBlockIndex*) &item : vSortedByHeight) {
-        CBlockIndex* pindex = item.second;
-        pindex->nChainWork = (pindex->pprev ? pindex->pprev->nChainWork : 0) + GetBlockProof(*pindex);
-        // We can link the chain of blocks for which we've received transactions at some point.
-        // Pruned nodes may have deleted the block.
-        if (pindex->nTx > 0) {
-            if (pindex->pprev) {
-                pindex->nChainTx = pindex->pprev->nChainTx + pindex->nTx;
-            } else {
-                pindex->nChainTx = pindex->nTx;
-            }
-        }
-        if (pindex->pprev)
-            pindex->BuildSkip();
-        if (pindex->IsValid(BLOCK_VALID_TREE) && (pindexBestHeader == nullptr || CBlockIndexWorkComparator()(pindexBestHeader, pindex)))
-            pindexBestHeader = pindex;
-    }
 
     // Load block file info
     if (Blocks::DB::instance()->ReadLastBlockFile(nLastBlockFile)) {
@@ -1148,8 +1125,7 @@ bool LoadBlockIndexDB()
     // Check presence of blk files
     logInfo(Log::DB) << "Checking all blk files are present...";
     std::set<int> setBlkDataFiles = Blocks::Index::fileIndexes();
-    for (std::set<int>::iterator it = setBlkDataFiles.begin(); it != setBlkDataFiles.end(); it++)
-    {
+    for (std::set<int>::iterator it = setBlkDataFiles.begin(); it != setBlkDataFiles.end(); it++) {
         Streaming::ConstBuffer dataFile = Blocks::DB::instance()->loadBlockFile(*it);
         if (!dataFile.isValid())
             return false;
@@ -1163,7 +1139,7 @@ bool LoadBlockIndexDB()
         logCritical(Log::Bitcoin) << "LoadBlockIndexDB: hashBestChain:" << tip->GetBlockHash()
                                  << "height:" << chainActive.Height()
                                  << "date:" << DateTimeStrFormat("%Y-%m-%d %H:%M:%S", tip->GetBlockTime())
-                                 << "progress:" <<  Checkpoints::GuessVerificationProgress(chainparams.Checkpoints(), tip)
+                                 << "progress:" <<  Checkpoints::GuessVerificationProgress(Params().Checkpoints(), tip)
                                  << "header height:" << Blocks::DB::instance()->headerChain().Height();
     return true;
 }
@@ -1216,7 +1192,6 @@ bool InitBlockIndex(const CChainParams& chainparams)
         CValidationState state;
         return FlushStateToDisk(state, FLUSH_STATE_ALWAYS);
     }
-
     return true;
 }
 

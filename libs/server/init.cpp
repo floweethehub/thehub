@@ -835,7 +835,7 @@ bool AppInit2(boost::thread_group& threadGroup, CScheduler& scheduler)
                 if (fReindex)
                     Blocks::DB::instance()->setReindexing(Blocks::ScanningFiles);
 
-                if (!fReindex && !LoadBlockIndexDB()) {
+                if (!fReindex && !LoadBlockIndexDB(g_utxo)) {
                     strLoadError = _("Error loading block database");
                     break;
                 }

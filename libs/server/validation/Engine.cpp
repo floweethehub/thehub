@@ -163,8 +163,10 @@ void Validation::Engine::setBlockchain(CChain *chain)
     d->blockchain = chain;
     d->tip = chain->Tip();
 
-    if (chain->Height() > 1)
+    if (chain->Height() > 1) {
         d->tipFlags.updateForBlock(chain->Tip());
+        chain->Tip()->nStatus |= BLOCK_VALID_SCRIPTS;
+    }
 }
 
 bool Validation::Engine::isRecentlyRejectedTransaction(const uint256 &txHash) const
@@ -201,9 +203,9 @@ void Validation::Engine::invalidateBlock(CBlockIndex *index)
     assert(index);
     if (!d.get() || d->shuttingDown)
         return;
-    // Mark the block itself as invalid.
+    // Tell the UTXO that the block is invalid.
+    mempool()->utxo()->setFailedBlockId(index->GetBlockHash());
     index->nStatus |= BLOCK_FAILED_VALID;
-    MarkIndexUnsaved(index);
     Blocks::DB::instance()->appendHeader(index);
     WaitUntilFinishedHelper helper(std::bind(&ValidationEnginePrivate::prepareChain_priv, d), &d->strand);
     helper.run();

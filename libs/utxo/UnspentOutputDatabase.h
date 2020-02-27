@@ -1,6 +1,6 @@
 /*
  * This file is part of the Flowee project
- * Copyright (C) 2018 Tom Zander <tomz@freedommail.ch>
+ * Copyright (C) 2018-2020 Tom Zander <tomz@freedommail.ch>
  *
  * This program is free software: you can redistribute it and/or modify
  * it under the terms of the GNU General Public License as published by
@@ -193,6 +193,21 @@ public:
      * This method can be called periodically to use a time-based saving.
      */
     void saveCaches();
+
+    /**
+     * @brief setFailedBlockId remembers for this UTXO's view of the world the block-id that was invalid.
+     *
+     * This method is expected to be called from the same thread as the blockFinished() is called, to
+     * avoid race-conditions.
+     * @param blockId the hash of the block-header of the block which the validation engine rejected.
+     */
+    void setFailedBlockId(const uint256 &blockId);
+
+    /**
+     * @brief blockIdHasFailed returns true if the \a blockId has been registered using setFailedBlockId().
+     */
+    bool blockIdHasFailed(const uint256 &blockId) const;
+
 
     int blockheight() const;
     uint256 blockId() const;

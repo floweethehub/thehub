@@ -1,6 +1,6 @@
 /*
  * This file is part of the flowee project
- * Copyright (C) 2017-2019 Tom Zander <tomz@freedommail.ch>
+ * Copyright (C) 2017-2020 Tom Zander <tomz@freedommail.ch>
  *
  * This program is free software: you can redistribute it and/or modify
  * it under the terms of the GNU General Public License as published by
@@ -192,11 +192,8 @@ void ValidationEnginePrivate::blockHeaderValidated(std::shared_ptr<BlockValidati
     index = state->m_blockIndex;
     if (hasFailed || index->nStatus & BLOCK_FAILED_MASK) {
         logInfo(Log::BlockValidation) << "Block" << index->nHeight << hash << "rejected with error:" << state->error;
-        if (!state->m_checkValidityOnly && state->m_checkMerkleRoot) {
+        if (!state->m_checkValidityOnly && state->m_checkMerkleRoot)
             handleFailedBlock(state);
-            if (index)
-                MarkIndexUnsaved(index);
-        }
         return;
     }
 
@@ -239,9 +236,12 @@ void ValidationEnginePrivate::blockHeaderValidated(std::shared_ptr<BlockValidati
     for (auto item : adoptees) {
         if (item->m_checkValidityOnly)
             continue;
-        item->m_ownsIndex = false; // the CBlockIndex is now owned by the Blocks::DB
-        item->m_blockIndex->RaiseValidity(BLOCK_VALID_TREE);
-        item->m_blockIndex->phashBlock = Blocks::Index::insert(item->m_block.createHash(), item->m_blockIndex);
+        if (item->m_ownsIndex) {
+            item->m_ownsIndex = false; // the CBlockIndex is now owned by the Blocks::DB
+            item->m_blockIndex->RaiseValidity(BLOCK_VALID_TREE);
+            item->m_blockIndex->phashBlock = Blocks::Index::insert(item->m_block.createHash(), item->m_blockIndex);
+            MarkIndexUnsaved(item->m_blockIndex); // Save it to the DB.
+        }
         // check checkpoints. If we have the right height but not the hash, fail block
         for (auto iter = cpMap.begin(); iter != cpMap.end(); ++iter) {
             if (iter->first == item->m_blockIndex->nHeight && iter->second != item->m_blockIndex->GetBlockHash()) {
@@ -253,7 +253,6 @@ void ValidationEnginePrivate::blockHeaderValidated(std::shared_ptr<BlockValidati
             }
         }
 
-        MarkIndexUnsaved(item->m_blockIndex); // Save it to the DB.
         assert(item->m_blockIndex->pprev || item->m_blockIndex->nHeight == 0);
         Blocks::DB::instance()->appendHeader(item->m_blockIndex);
         DEBUGBV << "appendHeader block at height:" << item->m_blockIndex->nHeight;
@@ -679,7 +678,7 @@ void ValidationEnginePrivate::processNewBlock(std::shared_ptr<BlockValidationSta
     }
     int64_t start = GetTimeMicros();
 #endif
-    uiInterface.NotifyBlockTip(orphanBlocks.size() > 3, index);
+    uiInterface.NotifyBlockTip(farBehind, index);
     {
         LOCK(cs_main);
         ValidationNotifier().UpdatedTransaction(hashPrevBestCoinBase);
@@ -712,17 +711,12 @@ void ValidationEnginePrivate::handleFailedBlock(const std::shared_ptr<BlockValid
             if (tip->GetAncestor(index->nHeight) == index) {
                 while (tip != index) {
                     tip->nStatus |= BLOCK_FAILED_CHILD;
-                    MarkIndexUnsaved(tip);
                     tip = tip->pprev;
                 }
             }
         }
-        if (index->phashBlock == nullptr) {
-            // transfer ownership so we can remember this failed block.
-            index->phashBlock = Blocks::Index::insert(state->m_block.createHash(), index);
-            state->m_ownsIndex = false;
-        }
-        MarkIndexUnsaved(index);
+        // remember this failed block-id
+        mempool->utxo()->setFailedBlockId(state->m_block.createHash());
 
         auto currentHeaderTip = Blocks::DB::instance()->headerChain().Tip();
         const bool changed = Blocks::DB::instance()->appendHeader(index); // Processes that the block actually is invalid.
