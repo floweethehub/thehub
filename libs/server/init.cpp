@@ -2,7 +2,7 @@
  * This file is part of the Flowee project
  * Copyright (c) 2009-2010 Satoshi Nakamoto
  * Copyright (c) 2009-2015 The Bitcoin Core developers
- * Copyright (C) 2019 Tom Zander <tomz@freedommail.ch>
+ * Copyright (C) 2019-2020 Tom Zander <tomz@freedommail.ch>
  *
  * This program is free software: you can redistribute it and/or modify
  * it under the terms of the GNU General Public License as published by
@@ -845,6 +845,35 @@ bool AppInit2(boost::thread_group& threadGroup, CScheduler& scheduler)
                     logFatal(Log::Bitcoin) << "This version uses a new UTXO format, you need to restart with -reindex";
                     break;
                 }
+
+                while (!fReindex) {
+                    // now lets see if the utxo and the block-database like each other
+                    auto tip = Blocks::Index::get(g_utxo->blockId());
+                    if (tip) {
+                        chainActive.SetTip(tip);
+                        pindexBestHeader = tip;
+                        logCritical(Log::Bitcoin) << "LoadBlockIndexDB: hashBestChain:" << tip->GetBlockHash()
+                                                 << "height:" << tip->nHeight
+                                                 << "nTx:" << tip->nChainTx
+                                                 << "date:" << DateTimeStrFormat("%Y-%m-%d %H:%M:%S", tip->GetBlockTime()).c_str()
+                                                 << "header height:" << Blocks::DB::instance()->headerChain().Height();
+                        break;
+                    } else if (g_utxo->blockId().IsNull()) { // first start.
+                        break;
+                    } else {
+                        logCritical(Log::Bitcoin) << "UTXO has tip which we don't have in the block-index. UTXO best block:"
+                                                  << g_utxo->blockId() << g_utxo->blockheight();
+
+                        // they don't like each other. Try an older UTXO state.
+                        if (!g_utxo->loadOlderState()) {
+                            fRequestShutdown = true;
+                            break;
+                        }
+                    }
+                }
+                if (fRequestShutdown)
+                    break;
+
                 Application::instance()->validation()->setBlockchain(&chainActive);
                 scheduler.scheduleEvery(std::bind(&UnspentOutputDatabase::saveCaches, g_utxo), 5 * 60);
 

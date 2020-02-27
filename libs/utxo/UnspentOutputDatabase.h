@@ -193,6 +193,7 @@ public:
      * This method can be called periodically to use a time-based saving.
      */
     void saveCaches();
+    bool loadOlderState();
 
     /**
      * @brief setFailedBlockId remembers for this UTXO's view of the world the block-id that was invalid.

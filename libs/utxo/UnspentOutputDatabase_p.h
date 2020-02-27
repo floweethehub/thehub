@@ -159,7 +159,7 @@ class DataFile {
    * ones in m_leafs.
    */
 public:
-    DataFile(const boost::filesystem::path &filename);
+    DataFile(const boost::filesystem::path &filename, int beforeHeight = INT_MAX);
 
     void insert(const UODBPrivate *priv, const uint256 &txid, int firstOutput, int lastOutput, int blockHeight, int offsetInBlock);
     void insertAll(const UODBPrivate *priv, const UnspentOutputDatabase::BlockData &data, size_t start, size_t end);
@@ -260,7 +260,7 @@ struct Limits
 class UODBPrivate
 {
 public:
-    UODBPrivate(boost::asio::io_service &service,  const boost::filesystem::path &basedir);
+    UODBPrivate(boost::asio::io_service &service,  const boost::filesystem::path &basedir, int beforeHeight = INT_MAX);
 
     // find existing DataFiles
     void init();

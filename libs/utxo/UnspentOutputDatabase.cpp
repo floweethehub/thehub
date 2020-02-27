@@ -374,6 +374,21 @@ bool UnspentOutputDatabase::blockIdHasFailed(const uint256 &blockId) const
     return df->m_rejectedBlocks.find(blockId) != df->m_rejectedBlocks.end();
 }
 
+bool UnspentOutputDatabase::loadOlderState()
+{
+    assert(d);
+    assert(d->dataFiles.size() > 0);
+    auto newD = new UODBPrivate(d->ioService, d->basedir, blockheight());
+    newD->memOnly = d->memOnly;
+    if (blockheight() == newD->dataFiles.last()->m_lastBlockHeight) {
+        delete newD;
+        return false;
+    }
+    delete d;
+    d = newD;
+    return true;
+}
+
 int UnspentOutputDatabase::blockheight() const
 {
     return DataFileList(d->dataFiles).last()->m_lastBlockHeight;
@@ -391,7 +406,7 @@ uint256 UnspentOutputDatabase::blockId() const
 # include <linux/fs.h>
 #endif
 
-UODBPrivate::UODBPrivate(boost::asio::io_service &service, const boost::filesystem::path &basedir)
+UODBPrivate::UODBPrivate(boost::asio::io_service &service, const boost::filesystem::path &basedir, int beforeHeight)
     : ioService(service),
       basedir(basedir)
 {
@@ -419,7 +434,7 @@ UODBPrivate::UODBPrivate(boost::asio::io_service &service, const boost::filesyst
         if (status.type() != boost::filesystem::regular_file)
             break;
 
-        dataFiles.append(new DataFile(path));
+        dataFiles.append(new DataFile(path, beforeHeight));
         ++i;
     }
     if (dataFiles.size() > 1 && dataFiles.last()->m_lastBlockHeight == 0) {
@@ -445,15 +460,18 @@ UODBPrivate::UODBPrivate(boost::asio::io_service &service, const boost::filesyst
                 if (lastBlock == -1) {
                     lastBlock = df->m_lastBlockHeight;
                     lastBlockId = df->m_lastBlockHash;
-                } else if (lastBlock != df->m_lastBlockHeight
-                           || lastBlockId != df->m_lastBlockHash) {
+                } else if (lastBlock >= beforeHeight || lastBlock != df->m_lastBlockHeight || lastBlockId != df->m_lastBlockHash) {
                     allEqual = false;
-                    logCritical(Log::UTXO) << "Need to roll back to an older state:" << df->m_lastBlockHeight
-                                           << "Where the first knew:" << lastBlock;
                     int oldestHeight = std::min(lastBlock, df->m_lastBlockHeight);
+                    oldestHeight = std::min(oldestHeight, beforeHeight - 1);
+                    logCritical() << "Need to roll back to an older state:" << oldestHeight;
+                    logDebug() << "First:" << lastBlock << lastBlockId << "datafile" << i  << df->m_lastBlockHeight << df->m_lastBlockHash;
                     for (int i = 0; i < dataFiles.size(); ++i) {
                         DataFile *dataFile = dataFiles.at(i);
-                        dataFile->openInfo(oldestHeight);
+                        bool ok = dataFile->openInfo(oldestHeight);
+                        if (!ok)
+                            logWarning() << "finding the wanted block info file (height:" << oldestHeight << ") failed for"
+                                         << df->m_path.string();
                     }
                     break;
                 }
@@ -503,7 +521,7 @@ DataFile *UODBPrivate::checkCapacity()
 
 static void nothing(const char *){}
 
-DataFile::DataFile(const boost::filesystem::path &filename)
+DataFile::DataFile(const boost::filesystem::path &filename, int beforeHeight)
     :  m_fileFull(0),
       m_memBuffers(100000),
       m_nextBucketIndex(1),
@@ -529,7 +547,7 @@ DataFile::DataFile(const boost::filesystem::path &filename)
         auto iter = cache.m_validInfoFiles.begin();
         auto highest = iter;
         while (iter != cache.m_validInfoFiles.end()) {
-            if (iter->lastBlockHeight > highest->lastBlockHeight)
+            if (iter->lastBlockHeight > highest->lastBlockHeight && iter->lastBlockHeight < beforeHeight)
                 highest = iter;
             ++iter;
         }

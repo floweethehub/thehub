@@ -1130,17 +1130,6 @@ bool LoadBlockIndexDB(const UnspentOutputDatabase *utxo)
         if (!dataFile.isValid())
             return false;
     }
-
-    // Load pointer to end of best chain
-    auto tip = Blocks::Index::get(g_utxo->blockId());
-    chainActive.SetTip(tip);
-    pindexBestHeader = tip;
-    if (tip)
-        logCritical(Log::Bitcoin) << "LoadBlockIndexDB: hashBestChain:" << tip->GetBlockHash()
-                                 << "height:" << chainActive.Height()
-                                 << "date:" << DateTimeStrFormat("%Y-%m-%d %H:%M:%S", tip->GetBlockTime())
-                                 << "progress:" <<  Checkpoints::GuessVerificationProgress(Params().Checkpoints(), tip)
-                                 << "header height:" << Blocks::DB::instance()->headerChain().Height();
     return true;
 }
 
