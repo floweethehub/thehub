@@ -281,6 +281,7 @@ void UnspentOutputDatabase::blockFinished(int blockheight, const uint256 &blockI
         std::lock_guard<std::recursive_mutex> lock(df->m_lock);
         df->m_lastBlockHash = blockId;
         df->m_lastBlockHeight = blockheight;
+        df->m_needsSave = true;
         totalChanges += df->m_changesSinceJumptableWritten;
         if (!df->m_dbIsTip && df->m_changesSincePrune > 250000) // Avoid too great fragmentation.
             d->doPrune = true;
@@ -1077,7 +1078,7 @@ void DataFile::flushSomeNodesToDisk(ForceBool force)
     logInfo(Log::UTXO) << "Flushed" << flushedToDiskCount << "to disk." << m_path.filename().string() << "Filesize now:" << m_writeBuffer.offset();
 
     m_changeCount.fetch_sub(std::min(changeCountAtStart, flushedToDiskCount * 4));
-    m_jumptableNeedsSave = true;
+    m_needsSave = true;
     if (m_writeBuffer.offset() > UODBPrivate::limits.FileFull) {
         int notFull = 0; // only change if its still the default value.
         m_fileFull.compare_exchange_strong(notFull, 1);
@@ -1116,9 +1117,21 @@ std::string DataFile::flushAll()
     commit(nullptr);
 
     DataFileCache cache(m_path);
-    auto infoFilename = cache.writeInfoFile(this);
-    m_jumptableNeedsSave = false;
-    return infoFilename;
+    if (m_needsSave){
+        auto infoFilename = cache.writeInfoFile(this);
+        m_needsSave = false;
+        return infoFilename;
+    }
+
+    // unchanged, report which info file it was we used to load.
+    for (auto infoFile : cache.m_validInfoFiles) {
+        if (infoFile.lastBlockHeight == m_lastBlockHeight) {
+            std::stringstream ss;
+            ss << m_path.string() + '.' << infoFile.index << ".info";
+            return ss.str();
+        }
+    }
+    return ""; // in case of a new DB
 }
 
 int32_t DataFile::saveLeaf(const UnspentOutput *uo)

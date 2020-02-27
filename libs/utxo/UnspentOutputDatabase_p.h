@@ -181,7 +181,7 @@ public:
 
     bool openInfo(int targetHeight);
 
-    bool m_jumptableNeedsSave = false;
+    bool m_needsSave = false;
     std::atomic_int m_fileFull;
 
     // in-memory representation
