@@ -300,7 +300,8 @@ void ValidationEnginePrivate::blockHeaderValidated(std::shared_ptr<BlockValidati
         DEBUGBV << "  + validation-tip" << blockchain->Height() << blockchain->Tip()->GetBlockHash();
 
         if (reorgSize > 6 && Params().NetworkIDString() != CBaseChainParams::REGTEST) { // reorgs are fine on REGTEST
-            logCritical(Log::BlockValidation) << "Reorg larger than 6 blocks detected, this needs manual intervention.";
+            logCritical(Log::BlockValidation).nospace() << "Reorg larger than 6 blocks detected (" << reorgSize
+                                                        << "), this needs manual intervention.";
             logCritical(Log::BlockValidation) << "  Use invalidateblock and reconsiderblock methods to change chain.";
         } else if (reorgSize > 0) {
             prepareChain();
@@ -619,7 +620,7 @@ void ValidationEnginePrivate::processNewBlock(std::shared_ptr<BlockValidationSta
                 }
 
                 // Tell wallet about transactions that went from mempool to conflicted:
-                for(const CTransaction &tx : txConflicted) {
+                for (const CTransaction &tx : txConflicted) {
                     ValidationNotifier().SyncTransaction(tx);
                     ValidationNotifier().SyncTx(Tx::fromOldTransaction(tx, &pool));
                 }

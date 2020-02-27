@@ -1,6 +1,6 @@
 /*
  * This file is part of the Flowee project
- * Copyright (C) 2018-2019 Tom Zander <tomz@freedommail.ch>
+ * Copyright (C) 2018-2020 Tom Zander <tomz@freedommail.ch>
  *
  * This program is free software: you can redistribute it and/or modify
  * it under the terms of the GNU General Public License as published by
@@ -143,7 +143,7 @@ Pruner::Pruner(const std::string &dbFile, const std::string &infoFile, DBType db
     srandom(static_cast<uint32_t>(GetTimeMillis()));
     assert(m_dbType == OlderDB || m_dbType == MostActiveDB);
     char buf[20];
-    snprintf(buf, 20, ".new%d", random());
+    snprintf(buf, 20, ".new%d", int(random()));
     m_tmpExtension = std::string(buf);
 }
 
@@ -221,10 +221,10 @@ void Pruner::prune()
             continue;
         if (jumptable[i] > 0x7FFFFFFF)
             throw std::runtime_error("Info file jumps to pos > 2GB. Needs to be repaired first.");
-        int32_t bucketOffsetInFile = static_cast<int>(jumptable[i]);
-        if (bucketOffsetInFile > file.size())
+        const uint32_t bucketOffsetInFile = jumptable[i];
+        assert(bucketOffsetInFile < 0x80000000);
+        if (size_t(bucketOffsetInFile) > file.size())
             throw std::runtime_error("Info file links to pos greater than DB file.");
-
 
         Bucket bucket;
         bucket.fillFromDisk(Streaming::ConstBuffer(buffer, buffer.get() + bucketOffsetInFile, buffer.get() + file.size()),

@@ -272,7 +272,8 @@ public:
     uint256 hashPrevBestCoinBase;
 
     std::list<std::shared_ptr<BlockValidationState> > orphanBlocks;
-    boost::unordered_map<uint256, std::shared_ptr<BlockValidationState>, MapHashShortener> blocksBeingValidated;
+    typedef boost::unordered_map<uint256, std::shared_ptr<BlockValidationState>, MapHashShortener> StatesMap;
+    StatesMap blocksBeingValidated;
     std::vector<std::weak_ptr<BlockValidationState> > chainTipChildren;
 
     std::mutex recentRejectsLock;
