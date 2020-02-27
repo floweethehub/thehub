@@ -210,7 +210,9 @@ public:
     bool blockIdHasFailed(const uint256 &blockId) const;
 
 
+    /// return the last committed blockHeight
     int blockheight() const;
+    /// return the last committed blockId
     uint256 blockId() const;
 
 private:

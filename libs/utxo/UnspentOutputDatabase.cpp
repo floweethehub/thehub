@@ -315,7 +315,7 @@ void UnspentOutputDatabase::blockFinished(int blockheight, const uint256 &blockI
                 Pruner pruner(dbFilename.string() + ".db", infoFilenames.at(static_cast<size_t>(db)),
                               (db == d->dataFiles.size() - 2) ? Pruner::MostActiveDB : Pruner::OlderDB);
 
-                logFatal() << "pruning file" << dbFilename.string();
+                logDebug() << "GC-ing file" << dbFilename.string() << infoFilenames.at(db);
                 try {
                     pruner.prune();
                     DataFileCache cache(dbFilename.string());
@@ -1075,7 +1075,7 @@ void DataFile::flushSomeNodesToDisk(ForceBool force)
             m_jumptables[shortHash] = savedBucket.offsetInFile;
         }
     }
-    logInfo(Log::UTXO) << "Flushed" << flushedToDiskCount << "to disk." << m_path.filename().string() << "Filesize now:" << m_writeBuffer.offset();
+    logInfo() << "Flushed" << flushedToDiskCount << "to disk." << m_path.filename().string() << "Filesize now:" << m_writeBuffer.offset();
 
     m_changeCount.fetch_sub(std::min(changeCountAtStart, flushedToDiskCount * 4));
     m_needsSave = true;
@@ -1170,7 +1170,7 @@ void DataFile::commit(const UODBPrivate *priv)
                 && move < UODBPrivate::limits.ChangesToSave) {
             // Saving is too slow! We are more than an entire chunk-size behind.
             // forcefully slow down adding data into memory.
-            logInfo(Log::UTXO) << "saving too slow. Count:" << cc << "sleeping a little";
+            logInfo() << "saving too slow. Count:" << cc << "sleeping a little";
             boost::this_thread::sleep_for(boost::chrono::microseconds(std::min(cc, 100000)));
         }
         bool old = false;
@@ -1412,7 +1412,7 @@ DataFile *DataFile::createDatafile(const boost::filesystem::path &filename, int 
             // removing non-file in its place. We don't delete directories, though. That sounds too dangerous.
             bool removed = boost::filesystem::remove(dbFile);
             if (!removed) {
-                logFatal(Log::UTXO) << "Failed to create datafile, removing non-file failed";
+                logFatal() << "Failed to create datafile, removing non-file failed";
                 throw UTXOInternalError("Failed to replace non-file");
             }
         }
@@ -1540,7 +1540,7 @@ std::string DataFileCache::writeInfoFile(DataFile *source)
 
 bool DataFileCache::load(const DataFileCache::InfoFile &info, DataFile *target)
 {
-    logInfo(Log::UTXO) << "Loading" << filenameFor(info.index).string();
+    logInfo() << "Loading" << filenameFor(info.index).string();
     assert(info.index >= 0);
     std::ifstream in(filenameFor(info.index).string(), std::ios::binary | std::ios::in);
     if (!in.is_open())
@@ -1582,8 +1582,8 @@ bool DataFileCache::load(const DataFileCache::InfoFile &info, DataFile *target)
     in.seekg(posOfJumptable);
     in.read(reinterpret_cast<char*>(target->m_jumptables), sizeof(target->m_jumptables));
 
-    logDebug(Log::UTXO) << "Loaded" << filenameFor(info.index).string();
-    logDebug(Log::UTXO) << "Block from" << target->m_initialBlockHeight << "to" << target->m_lastBlockHeight
+    logDebug() << "Loaded" << filenameFor(info.index).string();
+    logDebug() << "Block from" << target->m_initialBlockHeight << "to" << target->m_lastBlockHeight
                            << "changes since prune" << target->m_changesSincePrune;
 
     CHash256 ctx;
