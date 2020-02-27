@@ -802,14 +802,19 @@ std::shared_ptr<char> Blocks::DBPrivate::mapFile(int fileIndex, Blocks::BlockTyp
     std::shared_ptr<char> buf = df->buffer.lock();
     if (buf.get() == nullptr) {
         auto path = getFilepathForIndex(fileIndex, prefix, true);
-        const auto mode = std::ios_base::binary | std::ios_base::in;
-        const auto modeRW = mode | std::ios_base::out;
+        constexpr auto modeRO = std::ios_base::binary | std::ios_base::in;
+        constexpr auto modeRW = modeRO | std::ios_base::out;
         try { // auto open read-write when last block, or any revert file.
-            df->file.open(path, (useBlk && fileIndex != nLastBlockFile) ? mode : modeRW);
+            auto mode = modeRW;
+            if (useBlk // blk files may be opened RO
+                    && fileIndex != nLastBlockFile // all historical ones are RO
+                    && reindexing != ScanningFiles) // unless we are reindexing, because any could be last
+                mode = modeRO;
+            df->file.open(path, mode);
         } catch (...) {
             // try to open again, read-only now.
             // the user may have moved the files to a read-only medium.
-            try { df->file.open(path, mode); } catch (...) {} // avoid throwing here.
+            try { df->file.open(path, modeRO); } catch (...) {} // avoid throwing here.
         }
         if (df->file.is_open()) {
             auto weakThis = std::weak_ptr<DBPrivate>(shared_from_this());
