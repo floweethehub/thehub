@@ -547,6 +547,7 @@ void ValidationEnginePrivate::processNewBlock(std::shared_ptr<BlockValidationSta
         mempool->utxo()->rollback();
         logInfo(Log::BlockValidation) << " block not valid" << index->nHeight << state->m_block.createHash() << "chain-height:" << blockchain->Height();
     }
+    const bool farBehind = Blocks::DB::instance()->headerChain().Height() - blockchain->Height() > 144; // catching up
 
     const bool isNextChainTip = index->nHeight == blockchain->Height() + 1; // If a parent was rejected for some reason, this is false
     bool addToChain = isNextChainTip && blockValid && Blocks::DB::instance()->headerChain().Contains(index);
@@ -612,9 +613,10 @@ void ValidationEnginePrivate::processNewBlock(std::shared_ptr<BlockValidationSta
                 m_mempoolTime.fetch_add(end - start);
                 start = end;
 #endif
-                {
+                if (!farBehind) {
+                    // ^ The Hub doesn't accept transactions on IBD, so avoid doing unneeded work.
                     std::lock_guard<std::mutex> rejects(recentRejectsLock);
-                    recentTxRejects.reset();
+                    recentTxRejects.clear();
                 }
 
                 // Tell wallet about transactions that went from mempool to conflicted:

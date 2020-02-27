@@ -1,6 +1,7 @@
 /*
  * This file is part of the Flowee project
  * Copyright (C) 2012-2015 The Bitcoin Core developers
+ * Copyright (C) 2020 Tom Zander <tomz@freedommail.ch>
  *
  * This program is free software: you can redistribute it and/or modify
  * it under the terms of the GNU General Public License as published by
@@ -141,6 +142,10 @@ public:
     bool contains(const uint256& hash) const;
 
     void reset();
+    inline void clear() {
+        if (nInsertions > 0)
+            reset();
+    }
 
 private:
     unsigned int nBloomSize;

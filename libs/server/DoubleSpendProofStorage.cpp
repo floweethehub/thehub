@@ -203,5 +203,5 @@ void DoubleSpendProofStorage::markProofRejected(const uint256 &proofHash)
 void DoubleSpendProofStorage::newBlockFound()
 {
     std::lock_guard<std::recursive_mutex> lock(m_lock);
-    m_recentRejects.reset();
+    m_recentRejects.clear();
 }
