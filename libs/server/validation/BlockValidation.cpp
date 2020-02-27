@@ -261,7 +261,7 @@ void ValidationEnginePrivate::blockHeaderValidated(std::shared_ptr<BlockValidati
             assert(!item->m_block.transactions().empty()); // assume we already had findTransactions called before here.
             item->m_blockIndex->nTx = static_cast<std::uint32_t>(item->m_block.transactions().size());
             try { // Write block to history file
-                if (item->m_onResultFlags & Validation::SaveGoodToDisk) {
+                if ((item->m_blockIndex->nStatus & BLOCK_HAVE_DATA) == 0 && item->m_onResultFlags & Validation::SaveGoodToDisk) {
                     item->m_block = Blocks::DB::instance()->writeBlock(item->m_block, item->m_blockPos);
                 }
                 if (!item->m_blockPos.IsNull()) {
