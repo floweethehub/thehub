@@ -716,6 +716,16 @@ Streaming::ConstBuffer Blocks::DBPrivate::writeBlock(const std::deque<Streaming:
         nLastBlockFile = std::max(nLastBlockFile + 1, pos.nFile);
         vinfoBlockFile.resize(static_cast<size_t>(nLastBlockFile) + 1);
     }
+    if (useBlk) { // Lets check if our blk file is writable, and if not create a new one.
+        // to make deployment faster the user may have used a symlink or read-only copy of the blocks.
+        // lets make sure that we don't fail due to that file being RO
+        const auto path = getFilepathForIndex(nLastBlockFile, "blk");
+        if (boost::filesystem::is_symlink(path)) {
+            newFile = true;
+            vinfoBlockFile.resize(static_cast<size_t>(++nLastBlockFile) + 1);
+        }
+    }
+
     if (useBlk) // revert files get to tell us which file they want to be in
         pos.nFile = nLastBlockFile;
     assert(pos.nFile <= nLastBlockFile);
