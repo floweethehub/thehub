@@ -1,6 +1,6 @@
 /*
  * This file is part of the Flowee project
- * Copyright (C) 2018 Tom Zander <tomz@freedommail.ch>
+ * Copyright (C) 2018-2020 Tom Zander <tomz@freedommail.ch>
  *
  * This program is free software: you can redistribute it and/or modify
  * it under the terms of the GNU General Public License as published by
@@ -21,10 +21,25 @@
 #include <boost/filesystem.hpp>
 #include <streaming/ConstBuffer.h>
 #include <streaming/MessageParser.h>
-// private header for createShortHas()
+// private header for createShortHash()
 #include <utxo/UnspentOutputDatabase_p.h>
 
 static void nothing(const char *){}
+
+namespace {
+void updateOutput(QTextStream &out, int current, int max)
+{
+    const int progressBefore = ((current - 1) * 50) / max;
+    const int progressAfter = (current * 50) / max;
+    for (int i = progressBefore; i < progressAfter; ++i) {
+        out << ".";
+        if ((progressAfter % 10) == 0)
+            out << (progressAfter * 2) << "%";
+        out.flush();
+    }
+}
+
+}
 
 CheckCommand::CheckCommand()
 {
@@ -79,11 +94,20 @@ Flowee::ReturnCodes CheckCommand::run()
         }
         std::shared_ptr<char> buffer = std::shared_ptr<char>(const_cast<char*>(file.const_data()), nothing);
 
-        out << " ok\nChecking buckets..." << endl;
+        int bucketCount = 0;
+        for (int shorthash = 0; shorthash < 0x100000; ++shorthash) {
+            if (jumptables[shorthash] != 0)
+                ++bucketCount;
+        }
+
+        out << " ok\nChecking buckets: ";
+        out.flush();
         // read buckets
+        int bucketsChecked = 0;
         for (int shorthash = 0; shorthash < 0x100000; ++shorthash) {
             if (jumptables[shorthash] == 0)
                 continue;
+            updateOutput(out, ++bucketsChecked, bucketCount);
             int32_t bucketOffsetInFile = static_cast<int>(jumptables[shorthash]);
             Streaming::ConstBuffer buf(buffer, buffer.get() + bucketOffsetInFile, buffer.get() + file.size());
             std::vector<LeafRef> leafRefs = readBucket(buf, bucketOffsetInFile);
@@ -125,6 +149,7 @@ Flowee::ReturnCodes CheckCommand::run()
                 }
             }
         }
+        out << endl;
     }
     out << "Check finished" << endl;
 
