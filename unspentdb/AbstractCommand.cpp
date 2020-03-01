@@ -153,7 +153,7 @@ QList<AbstractCommand::DatabaseFile> AbstractCommand::DatabaseFile::infoFiles() 
         const QFileInfo dbInfo(m_filepath);
         QString templateName = dbInfo.fileName().remove(".db");
         templateName += ".%1.info";
-        for (int i = 0; i < 10; ++i) {
+        for (int i = 0; i < 20; ++i) {
             QFileInfo info(dbInfo.absoluteDir(), templateName.arg(i));
             if (info.exists())
                 answer += DatabaseFile(info.absoluteFilePath(), InfoFile, i);

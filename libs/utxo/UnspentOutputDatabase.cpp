@@ -38,6 +38,10 @@
 # define DEBUGUTXO BCH_NO_DEBUG_MACRO()
 #endif
 
+// numbering in the .info files.
+constexpr int MAX_INFO_NUM = 20;
+constexpr int MAX_INFO_FILES = 13;
+
 /*
  * Threading rules;
  * The connection between m_jumptables and m_buckets is via a unique Id
@@ -319,7 +323,7 @@ void UnspentOutputDatabase::blockFinished(int blockheight, const uint256 &blockI
                 try {
                     pruner.prune();
                     DataFileCache cache(dbFilename.string());
-                    for (int i = 0; i < 10; ++i)
+                    for (int i = 0; i < MAX_INFO_NUM; ++i)
                         boost::filesystem::remove(cache.filenameFor(i));
 
                     DataFile::LockGuard delLock(d->dataFiles.at(db));
@@ -1438,7 +1442,7 @@ DataFile *DataFile::createDatafile(const boost::filesystem::path &filename, int 
 DataFileCache::DataFileCache(const boost::filesystem::path &baseFilename)
     : m_baseFilename(baseFilename)
 {
-    for (int i = 1; i < 10; ++i) {
+    for (int i = 1; i < MAX_INFO_NUM; ++i) {
         InfoFile info = parseInfoFile(i);
         if (info.initialBlockHeight >= 0) {
             m_validInfoFiles.push_back(info);
@@ -1473,9 +1477,9 @@ DataFileCache::InfoFile DataFileCache::parseInfoFile(int index) const
 
 std::string DataFileCache::writeInfoFile(DataFile *source)
 {
-    // if number of m_validInfoFiles are more than 4
+    // if number of m_validInfoFiles are more than MAX_INFO_FILES
     // delete the one with the lowest / oldest 'lastBlockHeight'
-    while (m_validInfoFiles.size() > 4) {
+    while (m_validInfoFiles.size() > MAX_INFO_FILES) {
         auto iter = m_validInfoFiles.begin();
         auto lowest = iter++;
         while (iter != m_validInfoFiles.end()) {
@@ -1487,24 +1491,15 @@ std::string DataFileCache::writeInfoFile(DataFile *source)
         m_validInfoFiles.erase(lowest);
     }
 
-    // find the first not used number and use that for our new datafile.
-    int newIndex = -1;
-    for (int i = 1; i < 10; ++i) {
-        bool unused = true;
-        for (const auto &info : m_validInfoFiles) {
-            if (info.index == i) {
-                unused = false;
-                break;
-            }
-        }
-        if (unused) {
-            newIndex = i;
-            break;
-        }
+    int newIndex = 1; // the index we use for the new info file
+    for (auto i : m_validInfoFiles) {
+        newIndex = std::max(newIndex, i.index);
     }
-
+    if (++newIndex >= MAX_INFO_NUM) {
+        newIndex = 1;
+    }
     assert(newIndex > 0);
-    assert(newIndex < 10);
+    assert(newIndex < MAX_INFO_NUM);
 
     boost::filesystem::remove(filenameFor(newIndex));
     std::string outFile = filenameFor(newIndex).string();
