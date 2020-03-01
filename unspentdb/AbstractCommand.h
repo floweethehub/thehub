@@ -1,6 +1,6 @@
 /*
  * This file is part of the Flowee project
- * Copyright (C) 2018 Tom Zander <tomz@freedommail.ch>
+ * Copyright (C) 2018-2020 Tom Zander <tomz@freedommail.ch>
  *
  * This program is free software: you can redistribute it and/or modify
  * it under the terms of the GNU General Public License as published by
@@ -23,6 +23,7 @@
 #include <QCommandLineParser>
 #include <QString>
 #include <QTextStream>
+#include <deque>
 
 #include <streaming/ConstBuffer.h>
 
@@ -119,6 +120,9 @@ protected:
         int lastBlockHeight = -1;
         int positionInFile = -1;
         int jumptableFilepos = -1;
+        int changesSincePrune = -1;
+        bool isTip = false;
+        std::deque<uint256> invalidBlockHashes;
     };
     CheckPoint readInfoFile(const QString &filepath);
 

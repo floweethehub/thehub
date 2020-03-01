@@ -1,6 +1,6 @@
 /*
  * This file is part of the Flowee project
- * Copyright (C) 2018 Tom Zander <tomz@freedommail.ch>
+ * Copyright (C) 2018-2020 Tom Zander <tomz@freedommail.ch>
  *
  * This program is free software: you can redistribute it and/or modify
  * it under the terms of the GNU General Public License as published by
@@ -42,11 +42,18 @@ Flowee::ReturnCodes InfoCommand::run()
         auto checkpoint = readInfoFile(df.filepath());
         if (checkpoint.jumptableFilepos < 0)
             continue;
+        out << "Is Tip           : " << (checkpoint.isTip ? "yes" : "no") << endl;
         out << "Last Block ID    : " << QString::fromStdString(checkpoint.lastBlockId.GetHex()) << endl;
         out << "First Blockheight: " << checkpoint.firstBlockHeight << endl;
         out << "Last Blockheight : " << checkpoint.lastBlockHeight << endl;
-        out << "Jumptable hash   : " << QString::fromStdString(checkpoint.jumptableHash.GetHex()) << endl;
+        out << "Jumptable Hash   : " << QString::fromStdString(checkpoint.jumptableHash.GetHex()) << endl;
         out << "Filesize         : " << checkpoint.positionInFile << endl;
+        out << "Changes Since GC : " << checkpoint.changesSincePrune << endl;
+        out << "Invalid blocks   : " << checkpoint.invalidBlockHashes.size() << endl;
+        for (auto b : checkpoint.invalidBlockHashes) {
+            out << "              ID : " << QString::fromStdString(b.ToString()) << endl;
+        }
+
         if (commandLineParser().isSet(m_printUsage)) {
             uint32_t jumptables[0x100000];
             if (readJumptables(df.filepath(), checkpoint.jumptableFilepos, jumptables)) {

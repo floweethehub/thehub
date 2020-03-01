@@ -1,6 +1,6 @@
 /*
  * This file is part of the Flowee project
- * Copyright (C) 2018 Tom Zander <tomz@freedommail.ch>
+ * Copyright (C) 2018-2020 Tom Zander <tomz@freedommail.ch>
  *
  * This program is free software: you can redistribute it and/or modify
  * it under the terms of the GNU General Public License as published by
@@ -234,6 +234,20 @@ AbstractCommand::CheckPoint AbstractCommand::readInfoFile(const QString &filepat
     Streaming::ParsedType type = parser.next();
     while (type == Streaming::FoundTag) {
         switch (static_cast<UODB::MessageTags>(parser.tag())) {
+        case UODB::IsTip:
+            checkpoint.isTip = parser.boolData();
+            break;
+        case UODB::InvalidBlockHash:
+            if (!parser.isByteArray())
+                err << "invalidBlockHash not a bytearray";
+            else if (parser.dataLength() != 32)
+                err << "invalidBlockHash not a sha256";
+            else
+                checkpoint.invalidBlockHashes.push_back(parser.uint256Data());
+            break;
+        case UODB::ChangesSincePrune:
+            checkpoint.changesSincePrune = parser.intData();
+            break;
         case UODB::Separator:
             checkpoint.jumptableFilepos = parser.consumed();
             return checkpoint;
@@ -253,6 +267,9 @@ AbstractCommand::CheckPoint AbstractCommand::readInfoFile(const QString &filepat
             checkpoint.positionInFile = parser.longData();
             break;
 
+        case UODB::LeafPosOn512MB:
+        case UODB::LeafPosFromPrevLeaf:
+        case UODB::LeafPosRepeat:
         case UODB::TXID:
         case UODB::OutIndex:
         case UODB::BlockHeight:
