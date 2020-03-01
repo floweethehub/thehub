@@ -917,6 +917,8 @@ void Blocks::DBPrivate::pruneFiles()
         boost::filesystem::path path = Blocks::getFilepathForIndex((int) i, "blk", false); // only 'local' files
         if (!boost::filesystem::exists(path))
             continue;
+        if (!boost::filesystem::is_symlink(path))
+            continue;
 
         DataFile *df = datafiles.at(i);
         if (df) { // been opened before.
@@ -950,7 +952,11 @@ void Blocks::DBPrivate::pruneFiles()
             if (iter != fileHistory.end())
                 fileHistory.erase(iter);
             const boost::filesystem::path path = Blocks::getFilepathForIndex((int) i, "blk", false);
-            boost::filesystem::resize_file(path, fileSize);
+            try {
+                boost::filesystem::resize_file(path, fileSize);
+            } catch (const std::exception &e) {
+                logInfo(Log::DB) << "Cleanup: Tried and failed to shrink blk file" << path.string();
+            }
         }
     } while (i-- > 0);
 }
