@@ -1,6 +1,6 @@
 /*
  * This file is part of the Flowee project
- * Copyright (C) 2018 Tom Zander <tomz@freedommail.ch>
+ * Copyright (C) 2018-2020 Tom Zander <tomz@freedommail.ch>
  *
  * This program is free software: you can redistribute it and/or modify
  * it under the terms of the GNU General Public License as published by
@@ -95,7 +95,7 @@ void LookupCommand::addArguments(QCommandLineParser &commandLineParser)
 
 void LookupCommand::findTransaction(const AbstractCommand::Leaf &leaf)
 {
-    QFileInfo info(dbDataFile().filepath());
+    QFileInfo info(dbDataFiles().first().filepath());
     QDir dir = info.absoluteDir();
     dir.cdUp();
     BlocksDB db(dir.absolutePath().toStdString());
@@ -180,11 +180,16 @@ Flowee::ReturnCodes LookupCommand::run()
         }
     }
 
+
     QList<DatabaseFile> files;
-    if (commandLineParser().isSet(m_all))
-        files = dbDataFile().infoFiles();
-    else
+    if (commandLineParser().isSet(m_all)) {
+        for (auto dbFile : dbDataFiles()) {
+            files.append(dbFile.infoFiles());
+        }
+    } else {
         files = highestDataFiles();
+    }
+
     for (auto info : files) {
         if (debug)
             out << "Opening " << info.filepath() << endl;

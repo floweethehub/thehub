@@ -97,7 +97,7 @@ protected:
      */
     virtual Flowee::ReturnCodes run() = 0;
 
-    DatabaseFile dbDataFile() const;
+    QList<DatabaseFile> dbDataFiles() const;
 
     /**
      * Find the files representing the highest consistent version
@@ -146,7 +146,7 @@ protected:
 
 private:
     QCommandLineParser m_parser;
-    DatabaseFile m_data;
+    QList<DatabaseFile> m_dataFiles;
 };
 
 #endif

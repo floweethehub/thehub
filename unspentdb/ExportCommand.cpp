@@ -1,6 +1,6 @@
 /*
  * This file is part of the Flowee project
- * Copyright (C) 2018 Tom Zander <tomz@freedommail.ch>
+ * Copyright (C) 2018-2020 Tom Zander <tomz@freedommail.ch>
  *
  * This program is free software: you can redistribute it and/or modify
  * it under the terms of the GNU General Public License as published by
@@ -73,15 +73,16 @@ void ExportCommand::write(const AbstractCommand::Leaf &leaf)
 
 Flowee::ReturnCodes ExportCommand::run()
 {
-    if (dbDataFile().databaseFiles().length() != 1) {
+    if (dbDataFiles().length() != 1
+            || dbDataFiles().first().databaseFiles().length() != 1) {
         err << "Please select exactly one database file" << endl;
         return Flowee::InvalidOptions;
     }
-    DatabaseFile infoFile = dbDataFile();
+    DatabaseFile infoFile = dbDataFiles().first();
     if (infoFile.filetype() != InfoFile) {
         // find the highest info file to use
         int highest = 0;
-        foreach (auto info, dbDataFile().infoFiles()) {
+        foreach (auto info, infoFile.infoFiles()) {
             const auto checkpoint = readInfoFile(info.filepath());
             if (checkpoint.lastBlockHeight > highest) {
                 infoFile = info;
@@ -100,7 +101,7 @@ Flowee::ReturnCodes ExportCommand::run()
     if (checkpoint.jumptableHash != calcChecksum(jumptables))
         out << "Checkpoint CHECKSUM Failed" << endl;
 
-    const DatabaseFile db = dbDataFile().databaseFiles().first();
+    const DatabaseFile db = infoFile.databaseFiles().first();
     boost::iostreams::mapped_file file;
     file.open(db.filepath().toStdString(), std::ios_base::binary | std::ios_base::in);
     if (!file.is_open()) {

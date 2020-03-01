@@ -1,6 +1,6 @@
 /*
  * This file is part of the Flowee project
- * Copyright (C) 2018 Tom Zander <tomz@freedommail.ch>
+ * Copyright (C) 2018-2020 Tom Zander <tomz@freedommail.ch>
  *
  * This program is free software: you can redistribute it and/or modify
  * it under the terms of the GNU General Public License as published by
@@ -43,24 +43,27 @@ void PruneCommand::addArguments(QCommandLineParser &parser)
 
 Flowee::ReturnCodes PruneCommand::run()
 {
-    DatabaseFile infoFile;
-    if (dbDataFile().filetype() == InfoFile) {
+    DatabaseFile infoFile = dbDataFiles().first();
+    if (dbDataFiles().size() > 1) {
+        err << "Wholesale pruning is not yet possible" << endl;
+        return Flowee::InvalidOptions;
+    }
+    else if (infoFile.filetype() == InfoFile) {
         if (!commandLineParser().isSet(m_force)) {
             err << "You selected a specific info file instead of a database\n"
                    "this risks you might not use the latest version.\n\n"
-                   "Select db file instead of pass --force if you don't mind losing data" << endl;
+                   "Select db file instead or pass --force if you don't mind losing data" << endl;
             return Flowee::NeedForce;
         }
-        infoFile = dbDataFile();
     }
-    else if (dbDataFile().filetype() == Datadir) {
+    else if (infoFile.filetype() == Datadir) {
         err << "Whole datadir pruning is not yet possible" << endl;
         return Flowee::InvalidOptions;
     }
     else {
         // we need to find the info file with the highest blockheight;
         // the cache takes a filename like the database, but without extensions
-        QString path = dbDataFile().filepath();
+        QString path = infoFile.filepath();
         if (path.endsWith(".db"))
             path = path.mid(0, path.length() - 3);
         DataFileCache cache(path.toStdString());
@@ -71,7 +74,7 @@ Flowee::ReturnCodes PruneCommand::run()
                 index = info.index;
             }
         }
-        for (auto info : dbDataFile().infoFiles()) {
+        for (auto info : infoFile.infoFiles()) {
             if (info.index() == index) {
                 infoFile = info;
                 break;

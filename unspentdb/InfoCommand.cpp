@@ -37,33 +37,35 @@ QString InfoCommand::commandDescription() const
 
 Flowee::ReturnCodes InfoCommand::run()
 {
-    foreach (auto df, dbDataFile().infoFiles()) {
-        out << "Working on checkpoint file; " << df.filepath() << endl;
-        auto checkpoint = readInfoFile(df.filepath());
-        if (checkpoint.jumptableFilepos < 0)
-            continue;
-        out << "Is Tip           : " << (checkpoint.isTip ? "yes" : "no") << endl;
-        out << "Last Block ID    : " << QString::fromStdString(checkpoint.lastBlockId.GetHex()) << endl;
-        out << "First Blockheight: " << checkpoint.firstBlockHeight << endl;
-        out << "Last Blockheight : " << checkpoint.lastBlockHeight << endl;
-        out << "Jumptable Hash   : " << QString::fromStdString(checkpoint.jumptableHash.GetHex()) << endl;
-        out << "Filesize         : " << checkpoint.positionInFile << endl;
-        out << "Changes Since GC : " << checkpoint.changesSincePrune << endl;
-        out << "Invalid blocks   : " << checkpoint.invalidBlockHashes.size() << endl;
-        for (auto b : checkpoint.invalidBlockHashes) {
-            out << "              ID : " << QString::fromStdString(b.ToString()) << endl;
-        }
-
-        if (commandLineParser().isSet(m_printUsage)) {
-            uint32_t jumptables[0x100000];
-            if (readJumptables(df.filepath(), checkpoint.jumptableFilepos, jumptables)) {
-                if (checkpoint.jumptableHash != calcChecksum(jumptables))
-                    err << "CHECKSUM Failed" << endl;
-                else
-                    printStats(jumptables, df);
+    for (auto dataFile : dbDataFiles()) {
+        for (auto infoFile : dataFile.infoFiles()) {
+            out << "Working on checkpoint file; " << infoFile.filepath() << endl;
+            auto checkpoint = readInfoFile(infoFile.filepath());
+            if (checkpoint.jumptableFilepos < 0)
+                continue;
+            out << "Is Tip           : " << (checkpoint.isTip ? "yes" : "no") << endl;
+            out << "Last Block ID    : " << QString::fromStdString(checkpoint.lastBlockId.GetHex()) << endl;
+            out << "First Blockheight: " << checkpoint.firstBlockHeight << endl;
+            out << "Last Blockheight : " << checkpoint.lastBlockHeight << endl;
+            out << "Jumptable Hash   : " << QString::fromStdString(checkpoint.jumptableHash.GetHex()) << endl;
+            out << "Filesize         : " << checkpoint.positionInFile << endl;
+            out << "Changes Since GC : " << checkpoint.changesSincePrune << endl;
+            out << "Invalid blocks   : " << checkpoint.invalidBlockHashes.size() << endl;
+            for (auto b : checkpoint.invalidBlockHashes) {
+                out << "              ID : " << QString::fromStdString(b.ToString()) << endl;
             }
+
+            if (commandLineParser().isSet(m_printUsage)) {
+                uint32_t jumptables[0x100000];
+                if (readJumptables(infoFile.filepath(), checkpoint.jumptableFilepos, jumptables)) {
+                    if (checkpoint.jumptableHash != calcChecksum(jumptables))
+                        err << "CHECKSUM Failed" << endl;
+                    else
+                        printStats(jumptables, infoFile);
+                }
+            }
+            out << endl;
         }
-        out << endl;
     }
 
     return Flowee::Ok;

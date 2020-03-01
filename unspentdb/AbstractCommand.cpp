@@ -42,34 +42,27 @@ AbstractCommand::~AbstractCommand()
 Flowee::ReturnCodes AbstractCommand::start(const QStringList &args)
 {
     m_parser.setApplicationDescription(commandDescription());
-    QCommandLineOption datafile(QStringList() << "f" << "datafile", "<PATH> to datafile.db.", "PATH");
-    QCommandLineOption basedir(QStringList() << "d" << "unspent", "<PATH> to unspent datadir.", "PATH");
-    QCommandLineOption infoFile(QStringList() << "i" << "info", "<PATH> to specific info file.", "PATH");
-    m_parser.addOption(datafile);
-    m_parser.addOption(basedir);
-    m_parser.addOption(infoFile);
     m_parser.addHelpOption();
     addArguments(m_parser);
     m_parser.process(args);
 
-    if (m_parser.isSet(datafile)) {
-        m_data = DatabaseFile(m_parser.value(datafile), DBFile);
-    }
-    if (m_parser.isSet(basedir)) {
-        if (m_data.filetype() != Unknown) {
-            err << "You can only pass in one of --datafile, --unspent or --info" << endl;
+
+    for (auto fn : m_parser.positionalArguments()) {
+        DBFileType ft = Unknown;
+        if (fn.endsWith(".info"))
+            ft = InfoFile;
+        else if (fn.endsWith(".db"))
+            ft = DBFile;
+        else if (QFileInfo(fn).isDir())
+            ft = Datadir;
+        else {
+            err << "Don't know what to do with arg:" << fn;
             return Flowee::InvalidOptions;
         }
-        m_data = DatabaseFile(m_parser.value(basedir), Datadir);
+        m_dataFiles << DatabaseFile(fn, ft);
     }
-    if (m_parser.isSet(infoFile)) {
-        if (m_data.filetype() != Unknown) {
-            err << "You can only pass in one of --datafile, --unspent or --info" << endl;
-            return Flowee::InvalidOptions;
-        }
-        m_data = DatabaseFile(m_parser.value(infoFile), InfoFile);
-    }
-    if (m_data.filetype() == Unknown)
+
+    if (m_dataFiles.isEmpty())
         m_parser.showHelp();
 
     return run();
@@ -79,32 +72,34 @@ void AbstractCommand::addArguments(QCommandLineParser &)
 {
 }
 
-AbstractCommand::DatabaseFile AbstractCommand::dbDataFile() const
+QList<AbstractCommand::DatabaseFile> AbstractCommand::dbDataFiles() const
 {
-    return m_data;
+    return m_dataFiles;
 }
 
 QList<AbstractCommand::DatabaseFile> AbstractCommand::highestDataFiles()
 {
-    Q_ASSERT(m_data.filetype() != Unknown);
     QList<DatabaseFile> answer;
-    if (m_data.filetype() == InfoFile)
-        return answer << m_data;
+    for (auto df : m_dataFiles) {
+        if (df.filetype() == InfoFile)
+            return answer << df;
 
-    for (auto db : m_data.databaseFiles()) {
-        // TODO sync checkpoint-versions between datafiles
-        AbstractCommand::DatabaseFile infoFile;
-        int highest = 0;
-        foreach (auto info, db.infoFiles()) {
-            const auto checkpoint = readInfoFile(info.filepath());
-            if (checkpoint.lastBlockHeight > highest) {
-                infoFile = info;
-                highest = checkpoint.lastBlockHeight;
+        for (auto db : df.databaseFiles()) {
+            // TODO sync checkpoint-versions between datafiles
+            AbstractCommand::DatabaseFile infoFile;
+            int highest = 0;
+            foreach (auto info, db.infoFiles()) {
+                const auto checkpoint = readInfoFile(info.filepath());
+                if (checkpoint.lastBlockHeight > highest) {
+                    infoFile = info;
+                    highest = checkpoint.lastBlockHeight;
+                }
             }
+            if (highest != 0)
+                answer.append(infoFile);
         }
-        if (highest != 0)
-            answer.append(infoFile);
     }
+
     return answer;
 }
 
