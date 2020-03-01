@@ -248,6 +248,9 @@ AbstractCommand::CheckPoint AbstractCommand::readInfoFile(const QString &filepat
         case UODB::ChangesSincePrune:
             checkpoint.changesSincePrune = parser.intData();
             break;
+        case UODB::InitialBucketSegmentSize:
+            checkpoint.initialBucketSize = parser.intData();
+            break;
         case UODB::Separator:
             checkpoint.jumptableFilepos = parser.consumed();
             return checkpoint;

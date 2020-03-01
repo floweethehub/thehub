@@ -121,6 +121,7 @@ protected:
         int positionInFile = -1;
         int jumptableFilepos = -1;
         int changesSincePrune = -1;
+        int initialBucketSize = -1;
         bool isTip = false;
         std::deque<uint256> invalidBlockHashes;
     };

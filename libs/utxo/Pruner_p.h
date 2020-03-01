@@ -47,11 +47,15 @@ public:
     // remove tmp files
     void cleanup();
 
+    /// Post-prune this is set to the amount of bytes used for the jumptables.
+    int bucketsSize() const;
+
 private:
     const std::string m_dbFile;
     const std::string m_infoFile;
     std::string m_tmpExtension;
     DBType m_dbType;
+    int m_bucketsSize = 0;
 };
 
 #endif

@@ -111,6 +111,9 @@ namespace UODB {
         // Is only present and true in the info that is the latest, tip, DB.
         IsTip,
 
+        // Initial size of the buckets section of the DB (just after pruning)
+        InitialBucketSegmentSize,
+
         // In the worldvie wof this UTXO a block stored in the 'block-index'
         // that was invalid stores its sha256 blockId here.
         InvalidBlockHash
@@ -166,6 +169,9 @@ public:
     UnspentOutput find(const uint256 &txid, int index) const;
     SpentOutput remove(const UODBPrivate *priv, const uint256 &txid, int index, uint32_t leafHint = 0);
 
+    /// checks jumptable fragmentation, returns amount of bytes its larger than after latest prune
+    int fragmentationLevel();
+
     // writing to disk. Return if there are still unsaved items left
     void flushSomeNodesToDisk(ForceBool force);
     void flushSomeNodesToDisk_callback(); // calls flush repeatedly, used as an asio callback
@@ -214,7 +220,10 @@ public:
     std::atomic_int m_changeCount; // changes that are waiting to be saved
     int m_changesSinceJumptableWritten = 0;
     int m_changesSincePrune = 0;
+    int m_initialBucketSize = 0; // the size of the buckets-segment immediately after the last prune.
+    boost::posix_time::ptime m_fragmentationCalcTimestamp;
     bool m_dbIsTip = false;
+    int32_t m_fragmentationLevel = false;
     std::atomic_bool m_flushScheduled;
 
     // --- rollback info ---

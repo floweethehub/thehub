@@ -159,6 +159,11 @@ void Pruner::cleanup()
     boost::filesystem::remove(m_infoFile + m_tmpExtension);
 }
 
+int Pruner::bucketsSize() const
+{
+    return m_bucketsSize;
+}
+
 void Pruner::prune()
 {
     logCritical() << "Garbage Collecting" << m_dbFile;
@@ -308,6 +313,7 @@ void Pruner::prune()
                     iter->leafPos = leafRefs.at(i).diskPosition;
                 }
             }
+            const uint32_t startJumptables = outBuf.offset();
             // next we write the bucket
             for (size_t index = 0; index < buckets.size(); ++index) {
                 const Bucket &bucket = buckets[index];
@@ -316,6 +322,8 @@ void Pruner::prune()
                 assert(newPos >= 0);
                 jumptable[createShortHash(bucket.unspentOutputs.front().cheapHash)] = static_cast<uint32_t>(newPos);
             }
+            m_bucketsSize = int(outBuf.offset() - startJumptables); // remember the size of the jumptables
+            assert(m_bucketsSize >= 0);
         }
         outFileSize = outBuf.offset();
         outFile.close();

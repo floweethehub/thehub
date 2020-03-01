@@ -188,14 +188,20 @@ UnspentOutputDatabase::~UnspentOutputDatabase()
     }
     else {
         logCritical() << "Flushing UTXO cashes to disk...";
+        bool m_changed = false;
+        for (int i = 0; i < d->dataFiles.size() && !m_changed; ++i) {
+            m_changed |= d->dataFiles.at(i)->m_needsSave;
+        }
         for (int i = 0; i < d->dataFiles.size(); ++i) {
             auto df = d->dataFiles.at(i);
             DataFile::LockGuard deleteLock(df);
             deleteLock.deleteLater();
-            std::lock_guard<std::recursive_mutex> saveLock(df->m_saveLock);
-            std::lock_guard<std::recursive_mutex> lock2(df->m_lock);
-            df->rollback();
-            df->flushAll();
+            if (m_changed) {
+                std::lock_guard<std::recursive_mutex> saveLock(df->m_saveLock);
+                std::lock_guard<std::recursive_mutex> lock2(df->m_lock);
+                df->rollback();
+                df->flushAll();
+            }
         }
     }
     d->dataFiles.clear();
@@ -280,16 +286,29 @@ void UnspentOutputDatabase::blockFinished(int blockheight, const uint256 &blockI
 {
     DEBUGUTXO << blockheight << blockId;
     int totalChanges = 0;
+
     for (int i = 0; i < d->dataFiles.size(); ++i) {
         DataFile* df = d->dataFiles.at(i);
         std::lock_guard<std::recursive_mutex> lock(df->m_lock);
         df->m_lastBlockHash = blockId;
         df->m_lastBlockHeight = blockheight;
-        df->m_needsSave = true;
         totalChanges += df->m_changesSinceJumptableWritten;
-        if (!df->m_dbIsTip && df->m_changesSincePrune > 250000) // Avoid too great fragmentation.
-            d->doPrune = true;
         df->commit(d);
+        if (!d->memOnly && !df->m_dbIsTip) {
+            /*
+             * Avoid too great fragmentation by doing a garbage-collection (aka prune of dead records).
+             *
+             * The series of databases have 3 types of fragmentation.
+             * The last one will be written until its full, possibly creating large fragmentation.
+             * the one prior to that keeps the buckets close to the leafs.
+             * For this one we can't really talk about fragmentation unless we check the actual buckets.
+             * All DBs prior to that will have their buckets at the end and we can talk about fragmentation.
+             */
+            if (d->dataFiles.size() - 2 > i) // check all but the last two for fragmentation.
+                d->doPrune = d->doPrune || df ->fragmentationLevel() > 60000000; // greater than 60MB
+            else // use only changesSincePrune
+                d->doPrune = d->doPrune || df->m_changesSincePrune > 800000;
+        }
     }
     if (d->memOnly)
         return;
@@ -297,6 +316,7 @@ void UnspentOutputDatabase::blockFinished(int blockheight, const uint256 &blockI
     d->checkCapacity();
 
     if (d->doPrune || totalChanges > 5000000) { // every 5 million inserts/deletes, auto-flush jumptables
+        logCritical() << "Sha256 DB writing checkpoints" << d->basedir.string();
         std::vector<std::string> infoFilenames;
         for (int i = 0; i < d->dataFiles.size(); ++i) {
             DataFile *df = d->dataFiles.at(i);
@@ -307,13 +327,15 @@ void UnspentOutputDatabase::blockFinished(int blockheight, const uint256 &blockI
 
         if (d->doPrune && d->dataFiles.size() > 1) { // prune the DB files.
             d->doPrune = false;
-            logCritical() << "Garbage-collecting the sha256-DB";
+            logCritical() << "Garbage-collecting the sha256-DB" << d->basedir.string();
 
             for (int db = 0; db < d->dataFiles.size() - 1; ++db) {
                 DataFile* df = d->dataFiles.at(db);
-                if (df->m_changesSincePrune < 200000) {
-                    // not worth pruning, skip
-                    continue;
+                if (d->dataFiles.size() - 2 > db) {
+                    if (df->fragmentationLevel() < 40000000) // not worth pruning, skip
+                        continue;
+                } else if (df->m_changesSincePrune < 200000) {
+                    continue; // not worth pruning, skip
                 }
                 auto dbFilename = df->m_path;
                 Pruner pruner(dbFilename.string() + ".db", infoFilenames.at(static_cast<size_t>(db)),
@@ -329,7 +351,9 @@ void UnspentOutputDatabase::blockFinished(int blockheight, const uint256 &blockI
                     DataFile::LockGuard delLock(d->dataFiles.at(db));
                     delLock.deleteLater();
                     pruner.commit();
-                    d->dataFiles[db] = new DataFile(dbFilename);
+                    const auto newDf = new DataFile(dbFilename);
+                    newDf->m_initialBucketSize = pruner.bucketsSize();
+                    d->dataFiles[db] = newDf;
                 } catch (const std::runtime_error &failure) {
                     logCritical() << "Skipping GCing of db file" << db << "reason:" << failure;
                     pruner.cleanup();
@@ -367,7 +391,10 @@ void UnspentOutputDatabase::setFailedBlockId(const uint256 &blockId)
     assert(dfs.size() > 0);
     auto df = dfs.last();
     std::lock_guard<std::recursive_mutex> lock(df->m_lock);
+    const auto size = df->m_rejectedBlocks.size();
     df->m_rejectedBlocks.insert(blockId);
+    if (size != df->m_rejectedBlocks.size())
+        df->m_needsSave = true;
 }
 
 bool UnspentOutputDatabase::blockIdHasFailed(const uint256 &blockId) const
@@ -534,6 +561,7 @@ DataFile::DataFile(const boost::filesystem::path &filename, int beforeHeight)
       m_path(filename),
       m_changeCountBlock(0),
       m_changeCount(0),
+      m_fragmentationCalcTimestamp(boost::gregorian::date(1970,1,1)),
       m_flushScheduled(false),
       m_usageCount(1)
 {
@@ -942,6 +970,35 @@ SpentOutput DataFile::remove(const UODBPrivate *priv, const uint256 &txid, int i
     return answer;
 }
 
+int DataFile::fragmentationLevel()
+{
+    const auto now = boost::posix_time::second_clock::universal_time();
+    if ((now - m_fragmentationCalcTimestamp).total_seconds() < 100)
+        return m_fragmentationLevel; // return cached
+
+    m_fragmentationCalcTimestamp = now;
+    uint32_t lowestOffset = m_file.size();
+    uint32_t highestOffset = 0;
+
+    for (int i = 0; i < 0x100000; ++i) {
+        uint32_t bucketId = m_jumptables[i];
+        if (bucketId < MEMBIT && bucketId > 0) {
+            lowestOffset = std::min(lowestOffset, bucketId);
+            highestOffset = std::max(highestOffset, bucketId);
+        }
+    }
+    if (lowestOffset < highestOffset) {
+        m_fragmentationLevel = highestOffset - lowestOffset;
+        if (m_fragmentationLevel < m_initialBucketSize)
+            m_fragmentationLevel = 0;
+        else
+            m_fragmentationLevel -= m_initialBucketSize;
+        logDebug() << "Datafile" << m_path.string() << "fragmentation check" << m_fragmentationLevel
+                   << "aka" << (m_fragmentationLevel / 1000000) << "MB";
+    }
+    return m_fragmentationLevel;
+}
+
 void DataFile::flushSomeNodesToDisk_callback()
 {
     flushSomeNodesToDisk(NormalSave);
@@ -1121,21 +1178,9 @@ std::string DataFile::flushAll()
     commit(nullptr);
 
     DataFileCache cache(m_path);
-    if (m_needsSave){
-        auto infoFilename = cache.writeInfoFile(this);
-        m_needsSave = false;
-        return infoFilename;
-    }
-
-    // unchanged, report which info file it was we used to load.
-    for (auto infoFile : cache.m_validInfoFiles) {
-        if (infoFile.lastBlockHeight == m_lastBlockHeight) {
-            std::stringstream ss;
-            ss << m_path.string() + '.' << infoFile.index << ".info";
-            return ss.str();
-        }
-    }
-    return ""; // in case of a new DB
+    auto infoFilename = cache.writeInfoFile(this);
+    m_needsSave = false;
+    return infoFilename;
 }
 
 int32_t DataFile::saveLeaf(const UnspentOutput *uo)
@@ -1169,6 +1214,7 @@ void DataFile::commit(const UODBPrivate *priv)
     m_changeCountBlock.fetch_sub(move);
     m_changeCount.fetch_add(move);
     const int cc = m_changeCount.load();
+    m_needsSave |= cc > 0;
     if (priv && !priv->memOnly && cc > UODBPrivate::limits.ChangesToSave) {
         if (m_flushScheduled && cc > UODBPrivate::limits.ChangesToSave * 2
                 && move < UODBPrivate::limits.ChangesToSave) {
@@ -1513,6 +1559,8 @@ std::string DataFileCache::writeInfoFile(DataFile *source)
     builder.add(UODB::LastBlockId, source->m_lastBlockHash);
     builder.add(UODB::PositionInFile, source->m_writeBuffer.offset());
     builder.add(UODB::ChangesSincePrune, source->m_changesSincePrune);
+    if (source->m_initialBucketSize > 0)
+        builder.add(UODB::InitialBucketSegmentSize, source->m_initialBucketSize);
     builder.add(UODB::IsTip, source->m_dbIsTip);
     if (source->m_dbIsTip) {
         for (auto blockId : source->m_rejectedBlocks) {
@@ -1558,6 +1606,8 @@ bool DataFileCache::load(const DataFileCache::InfoFile &info, DataFile *target)
                 checksum = parser.uint256Data();
             else if (parser.tag() == UODB::ChangesSincePrune)
                 target->m_changesSincePrune = parser.intData();
+            else if (parser.tag() == UODB::InitialBucketSegmentSize)
+                target->m_initialBucketSize = parser.intData();
             else if (parser.tag() == UODB::PositionInFile) {
                 target->m_writeBuffer = Streaming::BufferPool(target->m_buffer, static_cast<int>(target->m_file.size()), true);
                 target->m_writeBuffer.markUsed(parser.intData());
