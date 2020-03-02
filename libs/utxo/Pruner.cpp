@@ -18,17 +18,18 @@
 #include "Pruner_p.h"
 
 #include "UnspentOutputDatabase_p.h"
-#include <streaming/MessageBuilder.h>
-#include <streaming/MessageParser.h>
-
-#include <fstream>
-#include <boost/iostreams/device/mapped_file.hpp>
-#include <boost/filesystem.hpp>
-#include <boost/filesystem/fstream.hpp>
+#include <utils/streaming/MessageBuilder.h>
+#include <utils/streaming/MessageParser.h>
 #include <utils/hash.h>
 #include <utils/utiltime.h>
 
+#include <boost/iostreams/device/mapped_file.hpp>
+#include <boost/filesystem.hpp>
+#include <boost/filesystem/fstream.hpp>
+
 #include <stdlib.h>
+#include <fstream>
+#include <deque>
 
 namespace {
 static void nothing(const char *){}
@@ -176,6 +177,8 @@ void Pruner::prune()
     int lastBlockHeight = 1;
     uint256 lastBlockHash;
     int posInFile = 0;
+    bool isTip = false;
+    std::deque<uint256> invalidBlocks;
 
     int posOfJumptable = 0;
     uint256 checksum;
@@ -194,6 +197,10 @@ void Pruner::prune()
                 checksum = parser.uint256Data();
             else if (parser.tag() == UODB::PositionInFile)
                 posInFile = parser.intData();
+            else if (parser.tag() == UODB::IsTip)
+                isTip = parser.boolData();
+            else if (parser.tag() == UODB::InvalidBlockHash)
+                invalidBlocks.push_back(parser.uint256Data());
             else if (parser.tag() == UODB::Separator)
                 break;
         }
@@ -246,12 +253,16 @@ void Pruner::prune()
         boost::filesystem::remove(outFilename);
         boost::filesystem::ofstream outFle(outFilename);
         outFle.close();
-        // new file size is all leafs (55 bytes each)
-        // then the max 30 bytes to link to it from a bucket, times the amount of leafs in a bucket.
-        // since we can expect a bucket to be re-written that (=amount of leafs) amount of times.
         uint32_t newFileSize = 0;
-        for (auto bucket : buckets) {
-            newFileSize += static_cast<int>(bucket.unspentOutputs.size()) * (55 + 30 + /* add some for security */ 20);
+        if (isTip) {
+            newFileSize = 2147483600;
+        } else {
+            // new file size is all leafs (55 bytes each)
+            // then the max 30 bytes to link to it from a bucket, times the amount of leafs in a bucket.
+            // since we can expect a bucket to be re-written that (=amount of leafs) amount of times.
+            for (auto bucket : buckets) {
+                newFileSize += static_cast<int>(bucket.unspentOutputs.size()) * (55 + 30 + /* add some for security */ 20);
+            }
         }
         boost::filesystem::resize_file(outFilename, std::min((uint32_t) 0x7FFFFFFE, newFileSize));
     }
@@ -283,7 +294,7 @@ void Pruner::prune()
         Streaming::BufferPool outBuf = Streaming::BufferPool(outStream, static_cast<int>(outFile.size()), true);
         Streaming::MessageBuilder builder(outBuf);
 
-        if (m_dbType == MostActiveDB) {
+        if (m_dbType == MostActiveDB || isTip) {
             for (const Bucket &bucket : buckets) {
                 if (bucket.unspentOutputs.size() > 2)
                     continue;
@@ -342,6 +353,13 @@ void Pruner::prune()
     builder.add(UODB::LastBlockHeight, lastBlockHeight);
     builder.add(UODB::LastBlockId, lastBlockHash);
     builder.add(UODB::PositionInFile, outFileSize);
+    if (isTip) {
+        builder.add(UODB::IsTip, true);
+        for (auto hash : invalidBlocks) {
+            builder.add(UODB::InvalidBlockHash, hash);
+        }
+    }
+
     {
         CHash256 ctx;
         ctx.Write(reinterpret_cast<const unsigned char*>(jumptable), sizeof(jumptable));
