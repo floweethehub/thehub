@@ -846,24 +846,36 @@ bool AppInit2(boost::thread_group& threadGroup, CScheduler& scheduler)
                     break;
                 }
 
+                Application::instance()->validation()->setBlockchain(&chainActive);
+
                 while (!fReindex) {
-                    // now lets see if the utxo and the block-database like each other
                     auto tip = Blocks::Index::get(g_utxo->blockId());
+                    // now lets see if the utxo and the block-database like each other
                     if (tip) {
                         chainActive.SetTip(tip);
                         pindexBestHeader = tip;
+
+                        // verify basics
+                        if (!VerifyDB().verifyDB(GetArg("-checklevel", Settings::DefaultCheckLevel),
+                                                 GetArg("-checkblocks", Settings::DefaultCheckBlocks))) {
+                            // verify failed, go to an older state.
+                            tip = nullptr;
+                        }
+                    } else if (g_utxo->blockId().IsNull()) { // first start.
+                        break;
+                    } else {
+                        logCritical(Log::Bitcoin) << "UTXO has tip which we don't have in the block-index. UTXO best block:"
+                                                  << g_utxo->blockId() << g_utxo->blockheight();
+                    }
+
+                    if (tip) { // yes, lets go!
                         logCritical(Log::Bitcoin) << "LoadBlockIndexDB: hashBestChain:" << tip->GetBlockHash()
                                                  << "height:" << tip->nHeight
                                                  << "nTx:" << tip->nChainTx
                                                  << "date:" << DateTimeStrFormat("%Y-%m-%d %H:%M:%S", tip->GetBlockTime()).c_str()
                                                  << "header height:" << Blocks::DB::instance()->headerChain().Height();
                         break;
-                    } else if (g_utxo->blockId().IsNull()) { // first start.
-                        break;
                     } else {
-                        logCritical(Log::Bitcoin) << "UTXO has tip which we don't have in the block-index. UTXO best block:"
-                                                  << g_utxo->blockId() << g_utxo->blockheight();
-
                         // they don't like each other. Try an older UTXO state.
                         if (!g_utxo->loadOlderState()) {
                             fRequestShutdown = true;
@@ -873,9 +885,6 @@ bool AppInit2(boost::thread_group& threadGroup, CScheduler& scheduler)
                 }
                 if (fRequestShutdown)
                     break;
-
-                Application::instance()->validation()->setBlockchain(&chainActive);
-                scheduler.scheduleEvery(std::bind(&UnspentOutputDatabase::saveCaches, g_utxo), 5 * 60);
 
                 // Check whether we need to continue reindexing
                 fReindex = fReindex || Blocks::DB::instance()->reindexing() != Blocks::NoReindex;
@@ -902,12 +911,7 @@ bool AppInit2(boost::thread_group& threadGroup, CScheduler& scheduler)
                         break;
                     }
                 }
-
-                if (!VerifyDB().verifyDB(GetArg("-checklevel", Settings::DefaultCheckLevel),
-                              GetArg("-checkblocks", Settings::DefaultCheckBlocks))) {
-                    strLoadError = _("Corrupted block database detected");
-                    break;
-                }
+                scheduler.scheduleEvery(std::bind(&UnspentOutputDatabase::saveCaches, g_utxo), 5 * 60);
             } catch (const std::exception& e) {
                 logWarning() << e;
                 strLoadError = _("Error opening block database");
