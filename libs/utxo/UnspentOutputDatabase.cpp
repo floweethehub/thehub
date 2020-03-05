@@ -487,8 +487,8 @@ UODBPrivate::UODBPrivate(boost::asio::io_service &service, const boost::filesyst
             }
             int lastBlock = -1;
             uint256 lastBlockId;
-            for (int i = 0; i < dataFiles.size(); ++i) {
-                DataFile *df = dataFiles.at(i);
+            for (int i2 = 0; i2 < dataFiles.size(); ++i2) {
+                DataFile *df = dataFiles.at(i2);
                 if (lastBlock == -1) {
                     lastBlock = df->m_lastBlockHeight;
                     lastBlockId = df->m_lastBlockHash;
@@ -497,9 +497,9 @@ UODBPrivate::UODBPrivate(boost::asio::io_service &service, const boost::filesyst
                     int oldestHeight = std::min(lastBlock, df->m_lastBlockHeight);
                     oldestHeight = std::min(oldestHeight, beforeHeight - 1);
                     logCritical() << "Need to roll back to an older state:" << oldestHeight;
-                    logDebug() << "First:" << lastBlock << lastBlockId << "datafile" << i  << df->m_lastBlockHeight << df->m_lastBlockHash;
-                    for (int i = 0; i < dataFiles.size(); ++i) {
-                        DataFile *dataFile = dataFiles.at(i);
+                    logDebug() << "First:" << lastBlock << lastBlockId << "datafile" << i2  << df->m_lastBlockHeight << df->m_lastBlockHash;
+                    for (int i3 = 0; i3 < dataFiles.size(); ++i3) {
+                        DataFile *dataFile = dataFiles.at(i3);
                         bool ok = dataFile->openInfo(oldestHeight);
                         if (!ok)
                             logWarning() << "finding the wanted block info file (height:" << oldestHeight << ") failed for"
