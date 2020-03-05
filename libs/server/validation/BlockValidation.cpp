@@ -198,13 +198,6 @@ void ValidationEnginePrivate::blockHeaderValidated(std::shared_ptr<BlockValidati
     }
 
     state->flags = tipFlags;
-    const bool receivedFromPeer = state->m_originatingNodeId  >= 0;
-    bool wasRequested = false;
-    if (receivedFromPeer) {
-        LOCK(cs_main);
-        wasRequested = IsBlockInFlight(hash);
-    }
-
     if (index->nHeight == -1) { // is an orphan for now.
         if (state->m_checkValidityOnly) {
             state->blockFailed(100, "Block is an orphan, can't check", Validation::RejectInternal);
