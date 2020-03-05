@@ -70,7 +70,7 @@ Flowee::ReturnCodes CheckCommand::run()
             out.flush();
             // check if jump table links to positions after our highest filepos
             for (int i = 0; i < 0x100000; ++i) {
-                if (jumptables[i] >= checkpoint.positionInFile) {
+                if (jumptables[i] > 0 && jumptables[i] >= checkpoint.positionInFile) {
                     err << "shorthash: " << i << " points to disk pos " << (jumptables[i] - checkpoint.positionInFile)
                         << " bytes after checkpoint file-pos" << endl;
                     jumptables[i] = 0;
