@@ -56,8 +56,8 @@ void BucketMap::erase(BucketMap::Iterator &iterator)
 
 BucketHolder::BucketHolder(BucketMap *p, int index, int key)
     : p(p),
-      index(index),
-      b(nullptr)
+      b(nullptr),
+      index(index)
 {
     while (true) {
         d = p->m[index].exchange(nullptr, std::memory_order_acq_rel);
