@@ -178,8 +178,9 @@ public:
      * consistent with the full block passed in via the args.
      *
      * @see rollback
+     * @returns true if the database did a garbage-collect
      */
-    void blockFinished(int blockheight, const uint256 &blockId);
+    bool blockFinished(int blockheight, const uint256 &blockId);
 
     /**
      * Changes made since the last blockFinished() call are reverted.

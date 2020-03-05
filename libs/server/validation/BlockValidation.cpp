@@ -548,9 +548,7 @@ void ValidationEnginePrivate::processNewBlock(std::shared_ptr<BlockValidationSta
                 throw Exception("UnspentOutput DB inconsistent!");
 
             index->nChainTx = index->nTx + (index->pprev ? index->pprev->nChainTx : 0); // pprev is only null if this is the genesisblock.
-
             index->RaiseValidity(BLOCK_VALID_CHAIN);
-
             if (index->nHeight == 0) { // is genesis block
                 mempool->utxo()->blockFinished(index->nHeight, hash);
                 blockchain->SetTip(index);
@@ -576,19 +574,26 @@ void ValidationEnginePrivate::processNewBlock(std::shared_ptr<BlockValidationSta
                 }
                 Blocks::DB::instance()->writeUndoBlock(undoBlock, index->nFile, &index->nUndoPos);
                 index->nStatus |= BLOCK_HAVE_UNDO;
+                index->RaiseValidity(BLOCK_VALID_SCRIPTS); // done
+                MarkIndexUnsaved(index);
+
 #ifdef ENABLE_BENCHMARKS
                 int64_t end, start = GetTimeMicros();
 #endif
-                mempool->utxo()->blockFinished(index->nHeight, hash);
+                bool savedState = mempool->utxo()->blockFinished(index->nHeight, hash);
 #ifdef ENABLE_BENCHMARKS
                 end = GetTimeMicros();
                 m_utxoTime.fetch_add(end - start);
                 start = end;
 #endif
+                CValidationState val;
+                // if savedState is true then the UTXO just wrote a checkpoint, use this opportunity to also
+                // write all block-index state.
+                if (!FlushStateToDisk(val, savedState ? FLUSH_STATE_ALWAYS : FLUSH_STATE_IF_NEEDED))
+                    fatal(val.GetRejectReason().c_str());
 
                 std::list<CTransaction> txConflicted;
                 mempool->removeForBlock(block.vtx, txConflicted);
-                index->RaiseValidity(BLOCK_VALID_SCRIPTS); // done
                 state->signalChildren(); // start tx-validation of next one.
 
                 blockchain->SetTip(index);
@@ -639,15 +644,11 @@ void ValidationEnginePrivate::processNewBlock(std::shared_ptr<BlockValidationSta
 
     chainTipChildren = state->m_chainChildren;
     state->m_blockIndex = nullptr;
-    MarkIndexUnsaved(index);
     if (!addToChain)
         return;
 
     tipFlags = state->flags;
 
-    CValidationState val;
-    if (!FlushStateToDisk(val, FLUSH_STATE_IF_NEEDED))
-        fatal(val.GetRejectReason().c_str());
 
     if (state->flags.enableValidation || index->nHeight % 500 == 0)
         logCritical(Log::BlockValidation).nospace() << "new best=" << hash << " height=" << index->nHeight

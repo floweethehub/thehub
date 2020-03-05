@@ -282,7 +282,7 @@ SpentOutput UnspentOutputDatabase::remove(const uint256 &txid, int index, uint64
     return done;
 }
 
-void UnspentOutputDatabase::blockFinished(int blockheight, const uint256 &blockId)
+bool UnspentOutputDatabase::blockFinished(int blockheight, const uint256 &blockId)
 {
     DEBUGUTXO << blockheight << blockId;
     int totalChanges = 0;
@@ -311,7 +311,7 @@ void UnspentOutputDatabase::blockFinished(int blockheight, const uint256 &blockI
         }
     }
     if (d->memOnly)
-        return;
+        return false;
 
     d->checkCapacity();
 
@@ -361,7 +361,9 @@ void UnspentOutputDatabase::blockFinished(int blockheight, const uint256 &blockI
             }
             fflush(nullptr);
         }
+        return true;
     }
+    return false;
 }
 
 void UnspentOutputDatabase::rollback()
@@ -1063,9 +1065,9 @@ void DataFile::flushSomeNodesToDisk(ForceBool force)
             if (saveBucket) {
                 flushedToDiskCount++;
                 assert(!bucket->unspentOutputs.empty());
-                uint32_t offset = static_cast<uint32_t>(bucket->saveToDisk(m_writeBuffer));
+                int offset = bucket->saveToDisk(m_writeBuffer);
                 assert(static_cast<uint32_t>(offset) < MEMBIT && offset >= 0);
-                savedBuckets.push_back(SavedBucket(bucket->unspentOutputs, offset, bucket->saveAttempt));
+                savedBuckets.push_back(SavedBucket(bucket->unspentOutputs, static_cast<uint32_t>(offset), bucket->saveAttempt));
                 assert(!bucket->unspentOutputs.empty());
             }
         }
