@@ -49,8 +49,21 @@ Flowee::ReturnCodes InfoCommand::run()
             out << "Last Blockheight : " << checkpoint.lastBlockHeight << endl;
             out << "Jumptable Hash   : " << QString::fromStdString(checkpoint.jumptableHash.GetHex()) << endl;
             out << "Filesize         : " << checkpoint.positionInFile << endl;
-            out << "Changes Since GC : " << checkpoint.changesSincePrune << endl;
-            out << "Invalid blocks   : " << checkpoint.invalidBlockHashes.size() << endl;
+            out << "Changes Since GC : ";
+            if (checkpoint.changesSincePrune == -1)
+                out << "unset";
+            else
+                out << checkpoint.changesSincePrune;
+            out << "\nPruned-index size: ";
+            if (checkpoint.initialBucketSize == -1)
+                out << "unset";
+            else
+                out << checkpoint.initialBucketSize;
+            out << "\nInvalid blocks   : ";
+            if (checkpoint.invalidBlockHashes.size() == 0)
+                out << "none" << endl;
+            else
+                out << checkpoint.invalidBlockHashes.size() << endl;
             for (auto b : checkpoint.invalidBlockHashes) {
                 out << "              ID : " << QString::fromStdString(b.ToString()) << endl;
             }
