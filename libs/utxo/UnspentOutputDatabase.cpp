@@ -1273,7 +1273,6 @@ void DataFile::rollback()
         auto jti = m_committedBucketLocations.find(shortHash);
         if (jti != m_committedBucketLocations.end()) // before commit() it was a fully on-disk bucket.
             newBucketPos = jti->second;
-        assert(newBucketPos >= 0);
         assert(newBucketPos < MEMBIT);
         if (newBucketPos > 0)
             DEBUGUTXO << " + Restoring old buckets disk pos" << newBucketPos << "shortHash" << Log::Hex <<shortHash;
