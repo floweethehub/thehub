@@ -75,7 +75,7 @@ protected:
         QString filepath() const;
         DBFileType filetype() const;
 
-        /// return the index if applicable. Indexes are used in filenames.
+        /// return the index if applicable. Indexes are used in info-files.
         int index() const;
 
     private:
@@ -85,6 +85,10 @@ protected:
     };
 
     virtual void addArguments(QCommandLineParser &commandLineParser);
+    virtual Flowee::ReturnCodes preParseArguments(QStringList &positionalArguments) {
+        Q_UNUSED(positionalArguments)
+        return Flowee::Ok;
+    }
 
     /**
      * return long (multiline) Description of the command.

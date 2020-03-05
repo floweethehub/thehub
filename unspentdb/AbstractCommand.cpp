@@ -46,8 +46,11 @@ Flowee::ReturnCodes AbstractCommand::start(const QStringList &args)
     addArguments(m_parser);
     m_parser.process(args);
 
-
-    for (auto fn : m_parser.positionalArguments()) {
+    auto positionalArguments = m_parser.positionalArguments();
+    const auto rc = preParseArguments(positionalArguments);
+    if (rc != Flowee::Ok)
+        return rc;
+    for (auto fn : positionalArguments) {
         DBFileType ft = Unknown;
         if (fn.endsWith(".info"))
             ft = InfoFile;

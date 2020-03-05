@@ -29,6 +29,7 @@ add_executable(unspent-db
     main.cpp
     AbstractCommand.cpp
     CheckCommand.cpp
+    DuplicateCommand.cpp
     ExportCommand.cpp
     InfoCommand.cpp
     LookupCommand.cpp

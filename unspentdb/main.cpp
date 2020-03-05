@@ -21,6 +21,7 @@
 #include "InfoCommand.h"
 #include "LookupCommand.h"
 #include "PruneCommand.h"
+#include "DuplicateCommand.h"
 
 #include <QCoreApplication>
 #include <QTextStream>
@@ -52,6 +53,8 @@ int main(int argc, char **argv)
             run = new ExportCommand();
         else if (command == "lookup")
             run = new LookupCommand();
+        else if (command == "duplicate")
+            run = new DuplicateCommand();
     }
 
     if (run == nullptr) {
@@ -70,6 +73,8 @@ int main(int argc, char **argv)
         out << "Database maintainance:" << endl;
         out << "  check      Checks the internal structures of the database." << endl;
         out << "  prune      Prunes spent outputs to speed up database usage." << endl;
+        out << "Other:" << endl;
+        out << "  duplicate  Duplicates a file or a directory of the database." << endl;
         out << endl;
         return Flowee::InvalidOptions;
     }
