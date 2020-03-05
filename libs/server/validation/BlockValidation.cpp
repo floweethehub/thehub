@@ -1470,7 +1470,6 @@ void BlockValidationState::checkSignaturesChunk()
     try {
         for (;blockValid && txIndex < txMax; ++txIndex) {
             CAmount fees = 0;
-            uint32_t sigops = 0;
             Tx tx = m_block.transactions().at(static_cast<size_t>(txIndex));
             const uint256 hash = tx.createHash();
 
@@ -1586,6 +1585,7 @@ void BlockValidationState::checkSignaturesChunk()
                     throw Exception("bad-txns-nonfinal");
 
                 bool spendsCoinBase;
+                uint32_t sigops = 0;
                 ValidationPrivate::validateTransactionInputs(old, unspents, m_blockIndex->nHeight, flags, fees,
                                                              sigops, spendsCoinBase, /* requireStandard */ false);
                 chunkSigops += sigops;
