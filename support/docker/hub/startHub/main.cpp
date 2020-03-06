@@ -216,7 +216,7 @@ int main(int x, char**y) {
                 }
                 else {
                     out << now << " WARN: StartHub detected hub restarting too fast ("
-                        int(startTime.elapsed() / 1000) << " s). Exiting" << endl;
+                        << int(startTime.elapsed() / 1000) << " s). Exiting" << endl;
                     break;
                 }
             }
