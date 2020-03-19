@@ -257,6 +257,7 @@ void AddressMonitorService::findTxInMempool(int connectionId, const uint256 &has
             if (type == Tx::End) {
                 if (match) {
                     logDebug(Log::MonitorService) << " + Sending to peers tx from mempool!";
+                    std::lock_guard<std::mutex> guard(m_poolMutex);
                     m_pool.reserve(75);
                     Streaming::MessageBuilder builder(m_pool);
                     builder.add(Api::AddressMonitor::BitcoinScriptHashed, hash);
