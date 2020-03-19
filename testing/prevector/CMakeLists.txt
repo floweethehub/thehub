@@ -20,5 +20,5 @@ include (testlib)
 add_executable(test_prevector
     test_prevector.cpp
 )
-target_link_libraries(test_prevector flowee_testlib ${TEST_LIBS} ${OPENSSL_LIBRARIES})
+target_link_libraries(test_prevector flowee_testlib flowee_utils ${TEST_LIBS} ${OPENSSL_LIBRARIES})
 add_test(NAME HUB_test_prevector COMMAND test_prevector)

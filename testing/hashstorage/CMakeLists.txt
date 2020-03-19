@@ -24,6 +24,7 @@ add_executable(test_hashstorage
 target_link_libraries(test_hashstorage
     flowee_testlib
     flowee_utxo
+    flowee_utils
 
     ${TEST_LIBS}
     ${OPENSSL_LIBRARIES}
