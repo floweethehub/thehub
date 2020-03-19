@@ -885,6 +885,18 @@ DoubleSpendProofStorage *CTxMemPool::doubleSpendProofStorage() const
     return m_dspStorage;
 }
 
+bool CTxMemPool::doubleSpendProofFor(const uint256 &txid, DoubleSpendProof &dsp)
+{
+    LOCK(cs);
+    indexed_transaction_set::const_iterator i = mapTx.find(txid);
+    if (i == mapTx.end())
+        return false;
+    if (i->dsproof == -1)
+        return false;
+    dsp = doubleSpendProofStorage()->proof(i->dsproof);
+    return true;
+}
+
 CFeeRate CTxMemPool::GetMinFee() const
 {
     return CFeeRate();

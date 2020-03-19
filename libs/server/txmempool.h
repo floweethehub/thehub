@@ -2,7 +2,7 @@
  * This file is part of the Flowee project
  * Copyright (C) 2009-2010 Satoshi Nakamoto
  * Copyright (C) 2009-2015 The Bitcoin Core developers
- * Copyright (C) 2017-2019 Tom Zander <tomz@freedommail.ch>
+ * Copyright (C) 2017-2020 Tom Zander <tomz@freedommail.ch>
  *
  * This program is free software: you can redistribute it and/or modify
  * it under the terms of the GNU General Public License as published by
@@ -431,6 +431,14 @@ public:
     Tx addDoubleSpendProof(const DoubleSpendProof &proof);
 
     DoubleSpendProofStorage *doubleSpendProofStorage() const;
+
+    /**
+     * @brief doubleSpendProofFor does a lookup on the txid and finds the matching DSP, if it exists.
+     * @param txid the transaction-id
+     * @param[out] dsp  the double spend proof to fill.
+     * @return true if a dsp was found.
+     */
+    bool doubleSpendProofFor(const uint256 &txid, DoubleSpendProof &dsp);
 
 private:
     typedef std::map<txiter, setEntries, CompareIteratorByHash> cacheMap;
