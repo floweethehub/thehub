@@ -77,14 +77,15 @@ void BlackBoxTest::startHubs(int amount, Connect connect)
         hub.proc->setWorkingDirectory(nodePath);
         hub.proc->setArguments(QStringList() << "-conf=" + nodePath + "flowee.conf" <<"-datadir=" + m_baseDir +
                                QString("/node%1").arg(i));
+        logCritical() << "Starting hub" << hub.proc->arguments();
         hub.proc->start(QProcess::ReadOnly);
         con.push_back(m_network.connection(
                 EndPoint(boost::asio::ip::address_v4::loopback(), hub.apiPort)));
         con.back().setOnIncomingMessage(std::bind(&BlackBoxTest::Hub::addMessage, &m_hubs.back(), std::placeholders::_1));
         if (m_onConnectCallbacks.at(i))
             con.back().setOnConnected(m_onConnectCallbacks.at(i));
+        MilliSleep(500); // Assuming that the hub takes half a second is better than assuming it doesn't and hitting the reconnect-time.
     }
-    MilliSleep(500); // Assuming that the hub takes half a second is better than assuming it doesn't and hitting the reconnect-time.
     for (int i = 0; i < amount; ++i) {
         con.at(i).connect();
     }
@@ -113,7 +114,7 @@ void BlackBoxTest::feedDefaultBlocksToHub(int hubIndex)
         auto args = QStringList() << "-api=false" << "-server=false" << "-regtest" << "-listen=false"
                            << "-datadir=." << "-reindex" << "-stopafterblockimport";
         proc1.setArguments(args);
-        logFatal() << args;
+        logCritical() << "feedBlocks starting with:" << args;
         proc1.setWorkingDirectory(nodePath);
         proc1.start(QProcess::ReadOnly);
         proc1.waitForFinished();
@@ -125,7 +126,7 @@ void BlackBoxTest::feedDefaultBlocksToHub(int hubIndex)
     auto args = QStringList() << "-api=false" << "-server=false" << "-regtest"
                     << "-datadir=." << QString("-connect=127.0.0.1:%1").arg(target.p2pPort);
     hub.proc->setArguments(args);
-    logFatal() << args;
+    logCritical() << "feedBlocks restarting with" << args;
     hub.proc->setWorkingDirectory(nodePath);
     hub.proc->start(QProcess::ReadOnly);
     m_hubs.push_back(hub);
