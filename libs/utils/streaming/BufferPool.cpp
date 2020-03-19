@@ -1,6 +1,6 @@
 /*
  * This file is part of the Flowee project
- * Copyright (C) 2016,2018-2019 Tom Zander <tomz@freedommail.ch>
+ * Copyright (C) 2016,2018-2020 Tom Zander <tomz@freedommail.ch>
  *
  * This program is free software: you can redistribute it and/or modify
  * it under the terms of the GNU General Public License as published by
@@ -69,6 +69,8 @@ void Streaming::BufferPool::forget(int rc)
 {
     m_readPointer += rc;
     assert(m_readPointer <= m_buffer.get() + m_size);
+    m_writePointer = std::max(m_writePointer, m_readPointer);
+    assert(m_writePointer >= m_readPointer);
 }
 
 Streaming::ConstBuffer Streaming::BufferPool::commit(int usedBytes)
