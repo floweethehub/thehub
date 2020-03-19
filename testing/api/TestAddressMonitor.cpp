@@ -132,7 +132,7 @@ void TestAddressMonitor::testDoubleSpendProof()
 
     startHubs(2);
     feedDefaultBlocksToHub(0);
-    waitForHeight(115); // make sure all nodes are at the same tip.
+    QVERIFY(waitForHeight(115)); // make sure all nodes are at the same tip.
 
     Streaming::BufferPool pool;
     // two transactions that both spend the first output of the first (non-coinbase) tx on block 115
