@@ -219,8 +219,7 @@ public:
         vFixedSeeds.clear();
         vSeeds.clear();
         vSeeds.push_back(CDNSSeedData("ABC", "testnet-seed.bitcoinabc.org"));
-        vSeeds.push_back(CDNSSeedData("bitcoinforks.org", "testnet-seed-abc.bitcoinforks.org"));
-        vSeeds.push_back(CDNSSeedData("bitprim", "testnet-seed.bitprim.org"));
+        vSeeds.push_back(CDNSSeedData("bitcoinforks.org", "testnet-seed-bch.bitcoinforks.org"));
         vSeeds.push_back(CDNSSeedData("Amaury", "testnet-seed.deadalnix.me"));
 
         base58Prefixes[PUBKEY_ADDRESS] = std::vector<unsigned char>(1,111);
