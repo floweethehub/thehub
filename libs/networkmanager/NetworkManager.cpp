@@ -1,6 +1,6 @@
 /*
  * This file is part of the Flowee project
- * Copyright (C) 2016,2019 Tom Zander <tomz@freedommail.ch>
+ * Copyright (C) 2016,2019-2020 Tom Zander <tomz@freedommail.ch>
  *
  * This program is free software: you can redistribute it and/or modify
  * it under the terms of the GNU General Public License as published by
@@ -22,8 +22,9 @@
 #include <NetworkEnums.h>
 #include <APIProtocol.h>
 
-#include <streaming/MessageBuilder.h>
-#include <streaming/MessageParser.h>
+#include <utils/hash.h>
+#include <utils/streaming/MessageBuilder.h>
+#include <utils/streaming/MessageParser.h>
 #include <boost/lexical_cast.hpp>
 #include <boost/make_shared.hpp>
 
@@ -31,9 +32,10 @@
 
 // #define DEBUG_CONNECTIONS
 
-static const int RECEIVE_STREAM_SIZE = 200000;
-static const int CHUNK_SIZE = 8000;
-static const int MAX_MESSAGE_SIZE = 9000;
+constexpr int RECEIVE_STREAM_SIZE = 200000;
+constexpr int CHUNK_SIZE = 8000;
+constexpr int MAX_MESSAGE_SIZE = 9000;
+constexpr int LEGACY_HEADER_SIZE = 24;
 
 namespace {
 
@@ -159,6 +161,22 @@ void NetworkManager::removeService(NetworkServiceBase *service)
     boost::recursive_mutex::scoped_lock lock(d->mutex);
     d->services.remove(service);
     service->setManager(nullptr);
+}
+
+void NetworkManager::setMessageIdLookup(const std::map<int, std::string> &table)
+{
+    d->messageIds = table;
+    d->messageIdsReverse.clear();
+    for (auto iter = table.begin(); iter != table.end(); ++iter) {
+        d->messageIdsReverse.insert(std::make_pair(iter->second, iter->first));
+    }
+}
+
+void NetworkManager::setLegacyNetworkId(const std::vector<uint8_t> &magic)
+{
+    assert(magic.size() == 4);
+    for (size_t i = 0; i < 4; ++i)
+        d->networkId[i] = magic[i];
 }
 
 std::weak_ptr<NetworkManagerPrivate> NetworkManager::priv()
@@ -385,20 +403,49 @@ void NetworkManagerConnection::onConnectComplete(const boost::system::error_code
 Streaming::ConstBuffer NetworkManagerConnection::createHeader(const Message &message)
 {
     assert(message.serviceId() >= 0);
-    const auto map = message.headerData();
-    m_sendHelperBuffer.reserve(10 * static_cast<int>(map.size()));
-    Streaming::MessageBuilder builder(m_sendHelperBuffer, Streaming::HeaderOnly);
-    auto iter = map.begin();
-    while (iter != map.end()) {
-        assert(iter->first >= 0);
-        builder.add(static_cast<uint32_t>(iter->first), iter->second);
-        ++iter;
+    if (message.serviceId() == Api::LegacyP2P) {
+        const auto body = message.body();
+
+        m_sendHelperBuffer.reserve(4 + 12 + 4 + 4);
+        memcpy(m_sendHelperBuffer.data(), d->networkId, 4);
+        m_sendHelperBuffer.markUsed(4);
+        auto m = d->messageIds.find(message.messageId());
+        std::string messageId;
+        if (m != d->messageIds.end())
+            messageId = m->second;
+        else
+            logCritical() << "createHeader[legacy]: P2P message Id unknown:" << message.messageId();
+        assert(messageId.size() <= 12);
+        memcpy(m_sendHelperBuffer.data(), messageId.c_str(), messageId.size());
+        if (messageId.size() < 12) // ensure it has a trailing zero, if it fits
+            m_sendHelperBuffer.data()[messageId.size()] = 0;
+        m_sendHelperBuffer.markUsed(12);
+        const uint32_t messageSize = body.size();
+        WriteLE32(reinterpret_cast<uint8_t*>(m_sendHelperBuffer.data()), messageSize);
+        m_sendHelperBuffer.markUsed(4);
+
+        uint256 hash = Hash(body.begin(), body.end());
+        unsigned int checksum = 0;
+        memcpy(&checksum, &hash, 4);
+        WriteLE32(reinterpret_cast<uint8_t*>(m_sendHelperBuffer.data()), checksum);
+        return m_sendHelperBuffer.commit(4);
     }
-    builder.add(Network::HeaderEnd, true);
-    assert(m_sendHelperBuffer.size() + message.size() < MAX_MESSAGE_SIZE);
-    builder.setMessageSize(m_sendHelperBuffer.size() + message.size());
-    logDebug(Log::NWM) << "createHeader of message of length;" << m_sendHelperBuffer.size() << '+' << message.size();
-    return builder.buffer();
+    else {
+        const auto map = message.headerData();
+        m_sendHelperBuffer.reserve(10 * static_cast<int>(map.size()));
+        Streaming::MessageBuilder builder(m_sendHelperBuffer, Streaming::HeaderOnly);
+        auto iter = map.begin();
+        while (iter != map.end()) {
+            assert(iter->first >= 0);
+            builder.add(static_cast<uint32_t>(iter->first), iter->second);
+            ++iter;
+        }
+        builder.add(Network::HeaderEnd, true);
+        assert(m_sendHelperBuffer.size() + message.size() < MAX_MESSAGE_SIZE);
+        builder.setMessageSize(m_sendHelperBuffer.size() + message.size());
+        logDebug(Log::NWM) << "createHeader of message of length;" << m_sendHelperBuffer.size() << '+' << message.size();
+        return builder.buffer();
+    }
 }
 
 void NetworkManagerConnection::runMessageQueue()
@@ -597,27 +644,58 @@ void NetworkManagerConnection::receivedSomeBytes(const boost::system::error_code
 
         if (m_firstPacket) {
             m_firstPacket = false;
-            if (data.begin()[2] != 8) { // Positive integer (0) and Network::ServiceId (1 << 3)
-                logWarning(Log::NWM) << "receive; Data error from remote - this is NOT an NWM server. Disconnecting" << m_remote.hostname;
-                disconnect();
-                return;
+            if (m_messageHeaderType == FloweeNative) {
+                if (data.begin()[2] != 8) { // Positive integer (0) and Network::ServiceId (1 << 3)
+                    logWarning(Log::NWM) << "receive; Data error from remote - this is NOT an NWM server. Disconnecting" << m_remote.hostname;
+                    disconnect();
+                    return;
+                }
+            } else {
+                assert(m_messageHeaderType == LegacyP2P);
+                bool ok = true;
+                for (size_t i = 0; ok && i < 4; ++i)
+                    ok |= data.begin()[i] == d->networkId[i];
+                if (!ok) {
+                    logWarning(Log::NWM) << "receive; Data error from remote - this is NOT an P@P server. Disconnecting" << m_remote.hostname;
+                    disconnect();
+                    return;
+                }
             }
         }
+        if(m_messageHeaderType == LegacyP2P) {
+            if (data.size() < LEGACY_HEADER_SIZE) // wait for entire header
+                break;
 
-        const unsigned int rawHeader = *(reinterpret_cast<const unsigned int*>(data.begin()));
-        const int packetLength = (rawHeader & 0xFFFF);
-        logDebug(Log::NWM) << "Processing incoming packet. Size" << packetLength;
-        if (packetLength > MAX_MESSAGE_SIZE) {
-            logWarning(Log::NWM).nospace() << "receive; Data error from server - stream is corrupt ("
-                                           << "pl=" << packetLength << ")";
-            close();
-            return;
+            const uint32_t bodyLength = ReadLE32(reinterpret_cast<const uint8_t*>(data.begin() + 16));
+            if (bodyLength > 32000000) {
+                logWarning(Log::NWM).nospace() << "receive; Data error from server - stream is corrupt ("
+                                     << "bl=" << bodyLength << ")";
+                close();
+                return;
+            }
+            if (data.size() < LEGACY_HEADER_SIZE + static_cast<int>(bodyLength)) // do we have all data for this one?
+                break;
+
+            if (!processLegacyPacket(m_receiveStream.internal_buffer(), data.begin()))
+                return;
+            m_receiveStream.forget(bodyLength + LEGACY_HEADER_SIZE);
         }
-        if (data.size() < packetLength) // do we have all data for this one?
-            break;
-        if (!processPacket(m_receiveStream.internal_buffer(), data.begin()))
-            return;
-        m_receiveStream.forget(packetLength);
+        else {
+            const unsigned int rawHeader = *(reinterpret_cast<const unsigned int*>(data.begin()));
+            const int packetLength = (rawHeader & 0xFFFF);
+            logDebug(Log::NWM) << "Processing incoming packet. Size" << packetLength;
+            if (packetLength > MAX_MESSAGE_SIZE) {
+                logWarning(Log::NWM).nospace() << "receive; Data error from server - stream is corrupt ("
+                                               << "pl=" << packetLength << ")";
+                close();
+                return;
+            }
+            if (data.size() < packetLength) // do we have all data for this one?
+                break;
+            if (!processPacket(m_receiveStream.internal_buffer(), data.begin()))
+                return;
+            m_receiveStream.forget(packetLength);
+        }
     }
     requestMoreBytes_callback(boost::system::error_code());
 }
@@ -841,6 +919,48 @@ bool NetworkManagerConnection::processPacket(const std::shared_ptr<char> &buffer
                 logWarning(Log::NWM) << "service::onIncomingMessage threw exception, ignoring:" << ex;
             }
         }
+    }
+
+    return m_socket.is_open(); // if the user called disconnect, then stop processing packages
+}
+
+bool NetworkManagerConnection::processLegacyPacket(const std::shared_ptr<char> &buffer, const char *data)
+{
+    assert(m_strand.running_in_this_thread());
+    const int bodyLength = ReadLE32(reinterpret_cast<const uint8_t*>(data + 16));
+    logDebug(Log::NWM) << "Receive legacy-packet Body-length:" << bodyLength;
+
+    char buf[13];
+    memcpy(buf, data + 4, 12);
+    buf[12] = 0;
+    auto m = d->messageIdsReverse.find(std::string(buf));
+    if (m == d->messageIdsReverse.end()) {
+        logWarning(Log::NWM) << "Incoming message has unknown type:" << std::string(data + 4, 12);
+        return true; // skip
+    }
+    Message message(buffer, data + 4, data + LEGACY_HEADER_SIZE, data + LEGACY_HEADER_SIZE + bodyLength);
+
+    message.setMessageId(m->second);
+    message.setServiceId(Api::LegacyP2P);
+    message.remote = m_remote.connectionId;
+
+    // first copy to avoid problems if a callback removes its callback or closes the connection.
+    std::vector<std::function<void(const Message&)> > callbacks;
+    callbacks.reserve(m_onIncomingMessageCallbacks.size());
+    for (auto it = m_onIncomingMessageCallbacks.begin(); it != m_onIncomingMessageCallbacks.end(); ++it) {
+        callbacks.push_back(it->second);
+    }
+
+    for (auto callback : callbacks) {
+        try {
+            callback(message);
+        } catch (const NetworkQueueFullError &e) {
+            logDebug(Log::NWM) << "connection::onIncomingMessage tried to send, but failed (and didn't catch exception) dropping message" << e;
+        } catch (const std::exception &ex) {
+            logWarning(Log::NWM) << "connection::onIncomingMessage (LegacyP2P) threw exception, ignoring:" << ex;
+        }
+        if (!m_socket.is_open())
+            break;
     }
 
     return m_socket.is_open(); // if the user called disconnect, then stop processing packages

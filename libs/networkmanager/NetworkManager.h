@@ -1,6 +1,6 @@
 /*
  * This file is part of the Flowee project
- * Copyright (C) 2016, 2019 Tom Zander <tomz@freedommail.ch>
+ * Copyright (C) 2016, 2019-2020 Tom Zander <tomz@freedommail.ch>
  *
  * This program is free software: you can redistribute it and/or modify
  * it under the terms of the GNU General Public License as published by
@@ -85,6 +85,19 @@ public:
 
     void addService(NetworkServiceBase *service);
     void removeService(NetworkServiceBase *service);
+
+    /**
+     * @brief setMessageIdLookup allows one to set the p2p legacy mappings for messageIds.
+     * This maps from the messageId (Api::P2p::MessageIds) to the string version that is sent on the wire.
+     * /see NetworkConnection::setMessageHeaderLegacy()
+     */
+    void setMessageIdLookup(const std::map<int,std::string> &table);
+
+    /**
+     * Set the network Id (sometimes called magic) that is used for legacy p2p messages in the message-header.
+     * WARNING: the length is hardcoded to be 4 chars.
+     */
+    void setLegacyNetworkId(const std::vector<uint8_t> &magic);
 
     std::weak_ptr<NetworkManagerPrivate> priv(); ///< \internal
 

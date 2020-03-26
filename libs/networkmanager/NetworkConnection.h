@@ -1,6 +1,6 @@
 /*
  * This file is part of the Flowee project
- * Copyright (C) 2016 Tom Zander <tomz@freedommail.ch>
+ * Copyright (C) 2016,2020 Tom Zander <tomz@freedommail.ch>
  *
  * This program is free software: you can redistribute it and/or modify
  * it under the terms of the GNU General Public License as published by
@@ -156,6 +156,13 @@ public:
       * Posts a task on the underlying strand for it to be executed serially.
       */
     void postOnStrand(const std::function<void()> &task);
+
+    /**
+     * @brief setMessageHeaderLegacy marks this peer to return legacy-p2p style messages.
+     * Envelope handling will happen using a different algo.
+     * @param on Set to true when using to connect to the p2p network.
+     */
+    void setMessageHeaderLegacy(bool on);
 
 private:
     NetworkConnection(const NetworkConnection&);

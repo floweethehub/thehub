@@ -1,6 +1,6 @@
 /*
  * This file is part of the Flowee project
- * Copyright (C) 2016, 2019 Tom Zander <tomz@freedommail.ch>
+ * Copyright (C) 2016, 2019-2020 Tom Zander <tomz@freedommail.ch>
  *
  * This program is free software: you can redistribute it and/or modify
  * it under the terms of the GNU General Public License as published by
@@ -209,4 +209,12 @@ void NetworkConnection::postOnStrand(const std::function<void()> &task)
         else
             d->runOnStrand(task);
     }
+}
+
+void NetworkConnection::setMessageHeaderLegacy(bool on)
+{
+    auto d = m_parent.lock();
+    if (d)
+        d->m_messageHeaderType = on ? NetworkManagerConnection::LegacyP2P : NetworkManagerConnection::FloweeNative;
+
 }

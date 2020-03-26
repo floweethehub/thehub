@@ -42,6 +42,9 @@ enum ServiceIds {
 
     /// The service ID reserved for the Flowee Indexer. Runs as a stand-alone cloud-server.
     IndexerService,
+
+
+    LegacyP2P = 0x1000
 };
 
 enum ApiTags {
@@ -361,6 +364,45 @@ enum Tags {
     AddressIndexer,
     TxIdIndexer,
     SpentOutputIndexer
+};
+}
+
+namespace P2P {
+enum MessageIds {
+    Version = 1,
+    VersionAck,
+    GetAddr,
+    Addresses, // addr
+
+    PreferHeaders, // sendheaders
+    GetBlocks,
+    GetHeaders,
+    Headers,
+
+    Inventory, // inv
+    GetData,
+    Data_MerkleBlock,
+    Data_Transaction,
+    Data_Block,
+    Data_NotFound,
+    Data_DSProof,
+
+    RejectData,
+
+    GetXThin,
+    Data_ThinBlock,
+    Data_XThinBlock,
+    Get_XBlockTx,
+    Data_XBlockTx,
+
+    GetMempool,
+
+    Ping,
+    Pong,
+
+    FilterLoad,
+    FilterAdd,
+    FilterClear
 };
 }
 }

@@ -1,6 +1,6 @@
 /*
  * This file is part of the Flowee project
- * Copyright (C) 2016, 2019 Tom Zander <tomz@freedommail.ch>
+ * Copyright (C) 2016, 2019-2020 Tom Zander <tomz@freedommail.ch>
  *
  * This program is free software: you can redistribute it and/or modify
  * it under the terms of the GNU General Public License as published by
@@ -163,6 +163,11 @@ private:
 class NetworkManagerConnection : public std::enable_shared_from_this<NetworkManagerConnection>
 {
 public:
+    enum MessageHeaderType {
+        FloweeNative,
+        LegacyP2P
+    };
+
     NetworkManagerConnection(const std::shared_ptr<NetworkManagerPrivate> &parent, tcp::socket socket, int connectionId);
     NetworkManagerConnection(const std::shared_ptr<NetworkManagerPrivate> &parent, const EndPoint &remote);
     /// Connects to remote (async)
@@ -214,6 +219,8 @@ public:
     void punish(int amount);
 
     short m_punishment; // aka ban-sore
+    // used to check incoming messages being actually for us
+    MessageHeaderType m_messageHeaderType = FloweeNative;
 
 private:
     EndPoint m_remote;
@@ -229,6 +236,7 @@ private:
     void receivedSomeBytes(const boost::system::error_code& error, std::size_t bytes_transferred);
 
     bool processPacket(const std::shared_ptr<char> &buffer, const char *data);
+    bool processLegacyPacket(const std::shared_ptr<char> &buffer, const char *data);
     void close(bool reconnect = true); // close down connection
     void connect_priv(); // thread-unsafe version of connect
     void reconnectWithCheck(const boost::system::error_code& error); // called from the m_reconectDelay timer
@@ -332,6 +340,12 @@ public:
     std::list<BannedNode> banned;
     std::list<NetworkServiceBase*> services;
     boost::asio::deadline_timer m_cronHourly;
+
+
+    // support for the p2p legacy envelope design
+    uint8_t networkId[4] = { 0xE3, 0xE1, 0xF3, 0xE8};
+    std::map<int, std::string> messageIds;
+    std::map<std::string, int> messageIdsReverse;
 };
 
 #endif
