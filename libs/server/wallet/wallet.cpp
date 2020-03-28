@@ -52,7 +52,7 @@
 #include <boost/filesystem.hpp>
 #include <boost/thread.hpp>
 #include <boost/foreach.hpp>
-#include <interfaces/boost_compat.h>
+#include <boost/asio/io_context_strand.hpp>
 
 /** Transaction fee set by the user */
 CFeeRate payTxFee(Settings::DefaultTransactionFee);
@@ -1424,7 +1424,7 @@ private:
     }
 
     CWallet *m_wallet;
-    BoostCompatStrand m_strand;
+    boost::asio::io_context::strand m_strand;
     int m_lastBlockDone = -2;
     int m_txsAdded = 0;
     std::list<std::shared_ptr<ScanContext> > m_orphans;

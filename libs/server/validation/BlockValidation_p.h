@@ -40,8 +40,8 @@
 #include <txmempool.h>
 
 #include <boost/thread.hpp>
-#include <interfaces/boost_compat.h>
 #include <boost/unordered_map.hpp>
+#include <boost/asio/io_context_strand.hpp>
 
 // #define ENABLE_BENCHMARKS
 
@@ -243,7 +243,7 @@ public:
 
     bool disconnectTip(const FastBlock &tip, CBlockIndex *index, bool *userClean = nullptr, bool *error = nullptr);
 
-    BoostCompatStrand strand;
+    boost::asio::io_context::strand strand;
     std::atomic<bool> shuttingDown;
     std::mutex lock;
     std::condition_variable waitVariable;

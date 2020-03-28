@@ -33,12 +33,11 @@
 #include <Message.h>
 #include <streaming/BufferPool.h>
 
-#include <boost/thread/recursive_mutex.hpp>
-#include <boost/asio.hpp>
 #include <list>
-#include <boost/date_time/posix_time/ptime.hpp>
 #include <atomic>
-#include <interfaces/boost_compat.h>
+#include <boost/thread/recursive_mutex.hpp>
+#include <boost/date_time/posix_time/ptime.hpp>
+#include <boost/asio.hpp>
 
 class NetworkServiceBase;
 class NetworkManagerPrivate;
@@ -207,7 +206,7 @@ public:
         m_messageQueue.clear();
     }
 
-    BoostCompatStrand m_strand;
+    boost::asio::io_context::strand m_strand;
 
     /// move a call to the thread that the strand represents
     void runOnStrand(const std::function<void()> &function);

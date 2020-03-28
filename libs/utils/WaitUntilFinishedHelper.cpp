@@ -20,7 +20,7 @@
 
 #include "Logger.h"
 
-WaitUntilFinishedHelper::WaitUntilFinishedHelper(const std::function<void ()> &target, BoostCompatStrand *strand)
+WaitUntilFinishedHelper::WaitUntilFinishedHelper(const std::function<void ()> &target, boost::asio::io_context::strand *strand)
     : d(new Private())
 {
     d->ref = 1;

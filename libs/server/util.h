@@ -44,7 +44,6 @@
 #include <boost/filesystem/path.hpp>
 #include <boost/signals2/signal.hpp>
 #include <boost/thread/exceptions.hpp>
-#include <interfaces/boost_compat.h>
 
 // For bitcoin-cli
 static const char DEFAULT_RPCCONNECT[] = "127.0.0.1";

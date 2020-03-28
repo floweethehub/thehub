@@ -17,7 +17,7 @@
  */
 
 #include <functional>
-#include <boost_compat.h>
+#include <boost/asio/io_context_strand.hpp>
 
 #include <mutex>
 #include <atomic>
@@ -30,7 +30,7 @@
 class WaitUntilFinishedHelper
 {
 public:
-    WaitUntilFinishedHelper(const std::function<void()> &target, BoostCompatStrand *strand);
+    WaitUntilFinishedHelper(const std::function<void()> &target, boost::asio::io_context::strand *strand);
     WaitUntilFinishedHelper(const WaitUntilFinishedHelper &other);
     ~WaitUntilFinishedHelper();
 
@@ -41,7 +41,7 @@ private:
         mutable std::mutex mutex;
         std::function<void()> target;
         std::atomic<int> ref;
-        BoostCompatStrand *strand;
+        boost::asio::io_context::strand *strand;
     };
     Private *d;
 
