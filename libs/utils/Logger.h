@@ -1,6 +1,6 @@
 /*
  * This file is part of the Flowee project
- * Copyright (C) 2017-2019 Tom Zander <tomz@freedommail.ch>
+ * Copyright (C) 2017-2020 Tom Zander <tomz@freedommail.ch>
  *
  * This program is free software: you can redistribute it and/or modify
  * it under the terms of the GNU General Public License as published by
@@ -92,6 +92,7 @@ enum Sections {
     ThinBlocks,
     ExpeditedBlocks,
     DSProof,
+    P2PNet, // this is the new p2p protocol code (2020 and later).
 
     // "legacy" apis
     RPC = 2100,
