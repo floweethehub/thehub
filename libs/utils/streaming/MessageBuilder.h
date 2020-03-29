@@ -26,7 +26,6 @@
 namespace Streaming {
 
 class BufferPool;
-class ConstBuffer;
 
 enum MessageType {
     HeaderOnly,
