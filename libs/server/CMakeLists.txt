@@ -20,7 +20,6 @@ set (FLOWEE_SERVER_FILES
     addrman.cpp
     Application.cpp
     allowed_args.cpp
-    arith_uint256.cpp
     BlocksDB.cpp
     bloom.cpp
     chain.cpp

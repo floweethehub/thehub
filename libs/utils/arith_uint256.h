@@ -21,11 +21,7 @@
 #define FLOWEE_ARITH_UINT256_H
 
 #include <cassert>
-#include <cstring>
 #include <stdexcept>
-#include <cstdint>
-#include <string>
-#include <vector>
 
 class uint256;
 

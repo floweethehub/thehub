@@ -18,6 +18,7 @@ include_directories(${LIBUTILS_INCLUDES} ${CMAKE_BINARY_DIR}/include)
 
 add_library(flowee_utils STATIC
     amount.cpp
+    arith_uint256.cpp
     base58.cpp
     cashaddr.cpp
     chainparamsbase.cpp
@@ -64,6 +65,7 @@ target_link_libraries(flowee_utils flowee_interfaces flowee_crypto)
 install(FILES ${CMAKE_CURRENT_BINARY_DIR}/libflowee_utils.a DESTINATION lib)
 
 install(FILES
+    arith_uint256.h
     hash.h
     version.h
     Logger.h
