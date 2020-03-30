@@ -18,6 +18,7 @@ include_directories(${LIBNETWORKMANAGER_INCLUDES} ${CMAKE_BINARY_DIR}/include)
 
 add_library(flowee_networkmanager STATIC
     NetworkConnection.cpp
+    NetworkEndPoint.cpp
     NetworkManager.cpp
     NetworkServiceBase.cpp
     NetworkService.cpp
