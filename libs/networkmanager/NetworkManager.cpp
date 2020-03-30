@@ -938,7 +938,7 @@ bool NetworkManagerConnection::processLegacyPacket(const std::shared_ptr<char> &
         logWarning(Log::NWM) << "Incoming message has unknown type:" << std::string(data + 4, 12);
         return true; // skip
     }
-    Message message(buffer, data + 4, data + LEGACY_HEADER_SIZE, data + LEGACY_HEADER_SIZE + bodyLength);
+    Message message(buffer, data, data + LEGACY_HEADER_SIZE, data + LEGACY_HEADER_SIZE + bodyLength);
 
     message.setMessageId(m->second);
     message.setServiceId(Api::LegacyP2P);
