@@ -37,7 +37,7 @@ uint32_t CalculateNextCashWorkRequired(const CBlockIndex *pindexPrev, const CBlo
 /**
  * Check whether a block hash satisfies the proof-of-work requirement specified by nBits
  */
-bool CheckProofOfWork(uint256 hash, uint32_t nBits, const Consensus::Params &);
+bool CheckProofOfWork(const uint256 &hash, uint32_t nBits, const Consensus::Params &);
 arith_uint256 GetBlockProof(const CBlockIndex& block);
 
 /** Return the time it would take to redo the work difference between from and to, assuming the current hashrate corresponds to the difficulty at tip, in seconds. */

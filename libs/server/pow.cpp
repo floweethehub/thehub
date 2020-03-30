@@ -243,7 +243,7 @@ uint32_t CalculateNextWorkRequired(const CBlockIndex *pindexPrev, int64_t nFirst
     return bnNew.GetCompact();
 }
 
-bool CheckProofOfWork(uint256 hash, uint32_t nBits, const Consensus::Params &params) {
+bool CheckProofOfWork(const uint256 &hash, uint32_t nBits, const Consensus::Params &params) {
     bool fNegative;
     bool fOverflow;
     arith_uint256 bnTarget;
