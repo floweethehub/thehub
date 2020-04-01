@@ -86,6 +86,7 @@ public:
     /// initiates a (re)connect
     void connect();
     void disconnect();
+    void shutdown();
     /// Return the current remote we are connected to, or an empty one if we are not connected
     EndPoint endPoint() const;
 
@@ -144,6 +145,8 @@ public:
       * many instances representing the same physical connection.
       */
     void setOnIncomingMessage(const std::function<void(const Message&)> &callback);
+
+    void setOnError(const std::function<void(int,const boost::system::error_code&)> &callback);
 
     /**
      * Punish a node that misbehaves (for instance if it breaks your protocol).

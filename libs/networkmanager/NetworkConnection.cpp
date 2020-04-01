@@ -1,6 +1,6 @@
 /*
  * This file is part of the Flowee project
- * Copyright (C) 2016, 2019-2020 Tom Zander <tomz@freedommail.ch>
+ * Copyright (C) 2016, 2019 Tom Zander <tomz@freedommail.ch>
  *
  * This program is free software: you can redistribute it and/or modify
  * it under the terms of the GNU General Public License as published by
@@ -145,6 +145,16 @@ void NetworkConnection::disconnect()
     }
 }
 
+void NetworkConnection::shutdown()
+{
+    auto d = m_parent.lock();
+    if (d) {
+        d->d->connections.erase(m_id); // stop referring to the connection.
+        d->shutdown(d); // shutdown the connection.
+        m_parent.reset(); // instantly make this one invalid.
+    }
+}
+
 void NetworkConnection::send(const Message &message, MessagePriority priority)
 {
     auto d = m_parent.lock();
@@ -191,6 +201,20 @@ void NetworkConnection::setOnIncomingMessage(const std::function<void(const Mess
     }
 }
 
+void NetworkConnection::setOnError(const std::function<void (int, const boost::system::error_code &)> &callback)
+{
+    auto d = m_parent.lock();
+    if (d) {
+        if (m_callbacksId < 0)
+            m_callbacksId = d->nextCallbackId();
+        if (d->m_strand.running_in_this_thread())
+            d->addOnError(m_callbacksId, callback);
+        else
+            d->m_strand.post(std::bind(&NetworkManagerConnection::addOnError, d, m_callbacksId, callback));
+    }
+
+}
+
 void NetworkConnection::punishPeer(int punishment)
 {
     auto d = m_parent.lock();
@@ -215,6 +239,6 @@ void NetworkConnection::setMessageHeaderLegacy(bool on)
 {
     auto d = m_parent.lock();
     if (d)
-        d->m_messageHeaderType = on ? NetworkManagerConnection::LegacyP2P : NetworkManagerConnection::FloweeNative;
+        d->setMessageHeaderType(on ? NetworkManagerConnection::LegacyP2P : NetworkManagerConnection::FloweeNative);
 
 }

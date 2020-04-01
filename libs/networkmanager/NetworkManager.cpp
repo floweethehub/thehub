@@ -285,8 +285,8 @@ NetworkManagerConnection::NetworkManagerConnection(const std::shared_ptr<Network
 NetworkManagerConnection::NetworkManagerConnection(const std::shared_ptr<NetworkManagerPrivate> &parent, const EndPoint &remote)
     : m_strand(parent->ioService),
     m_punishment(0),
-    m_remote(remote),
     d(parent),
+    m_remote(remote),
     m_socket(parent->ioService),
     m_resolver(parent->ioService),
     m_messageBytesSend(0),
@@ -314,10 +314,7 @@ NetworkManagerConnection::NetworkManagerConnection(const std::shared_ptr<Network
 void NetworkManagerConnection::connect()
 {
     m_isClosingDown.store(false);
-    if (m_strand.running_in_this_thread())
-        connect_priv();
-    else
-        runOnStrand(std::bind(&NetworkManagerConnection::connect_priv, shared_from_this()));
+    runOnStrand(std::bind(&NetworkManagerConnection::connect_priv, shared_from_this()));
 }
 
 void NetworkManagerConnection::connect_priv()
@@ -354,6 +351,7 @@ void NetworkManagerConnection::onAddressResolveComplete(const boost::system::err
         m_reconnectDelay.expires_from_now(boost::posix_time::seconds(45));
         m_reconnectDelay.async_wait(m_strand.wrap(std::bind(&NetworkManagerConnection::reconnectWithCheck,
                             shared_from_this(), std::placeholders::_1)));
+        errorDetected(error);
         return;
     }
     assert(m_strand.running_in_this_thread());
@@ -377,6 +375,7 @@ void NetworkManagerConnection::onConnectComplete(const boost::system::error_code
         m_reconnectDelay.expires_from_now(boost::posix_time::seconds(reconnectTimeoutForStep(++m_reconnectStep)));
         m_reconnectDelay.async_wait(m_strand.wrap(std::bind(&NetworkManagerConnection::reconnectWithCheck,
                                                             shared_from_this(), std::placeholders::_1)));
+        errorDetected(error);
         return;
     }
     m_isConnected = true;
@@ -395,9 +394,11 @@ void NetworkManagerConnection::onConnectComplete(const boost::system::error_code
     requestMoreBytes(); // setup a callback for receiving.
 
     // for outgoing connections, ping. Notice that I don't care if they pong, as long as the TCP connection stays open
-    m_pingTimer.expires_from_now(boost::posix_time::seconds(90));
-    m_pingTimer.async_wait(m_strand.wrap(std::bind(&NetworkManagerConnection::sendPing, shared_from_this(),
-                                                   std::placeholders::_1)));
+    if (m_messageHeaderType == FloweeNative) {
+        m_pingTimer.expires_from_now(boost::posix_time::seconds(90));
+        m_pingTimer.async_wait(m_strand.wrap(std::bind(&NetworkManagerConnection::sendPing, shared_from_this(),
+                                                       std::placeholders::_1)));
+    }
 }
 
 Streaming::ConstBuffer NetworkManagerConnection::createHeader(const Message &message)
@@ -445,6 +446,22 @@ Streaming::ConstBuffer NetworkManagerConnection::createHeader(const Message &mes
         builder.setMessageSize(m_sendHelperBuffer.size() + message.size());
         logDebug(Log::NWM) << "createHeader of message of length;" << m_sendHelperBuffer.size() << '+' << message.size();
         return builder.buffer();
+    }
+}
+
+void NetworkManagerConnection::errorDetected(const boost::system::error_code &error)
+{
+    std::vector<std::function<void(int,const boost::system::error_code& error)> > callbacks;
+    callbacks.reserve(m_onErrorCallbacks.size());
+    for (auto it = m_onErrorCallbacks.begin(); it != m_onErrorCallbacks.end(); ++it) {
+        callbacks.push_back(it->second);
+    }
+    for (auto callback : callbacks) {
+        try {
+            callback(m_remote.connectionId, error);
+        } catch (const std::exception &e) {
+            logCritical(Log::NWM) << "Callback 'onError' threw with" << e;
+        }
     }
 }
 
@@ -984,6 +1001,12 @@ void NetworkManagerConnection::addOnIncomingMessageCallback(int id, const std::f
     m_onIncomingMessageCallbacks.insert(std::make_pair(id, callback));
 }
 
+void NetworkManagerConnection::addOnError(int id, const std::function<void (int, const boost::system::error_code &)> &callback)
+{
+    assert(m_strand.running_in_this_thread());
+    m_onErrorCallbacks.insert(std::make_pair(id, callback));
+}
+
 void NetworkManagerConnection::queueMessage(const Message &message, NetworkConnection::MessagePriority priority)
 {
     if (!message.hasHeader() && message.serviceId() == -1)
@@ -1062,6 +1085,7 @@ void NetworkManagerConnection::sendPing(const boost::system::error_code &error)
 
     if (m_isClosingDown)
         return;
+    assert (m_messageHeaderType != LegacyP2P);
     assert(m_strand.running_in_this_thread());
     if (!m_socket.is_open())
         return;
@@ -1106,6 +1130,7 @@ void NetworkManagerConnection::removeAllCallbacksFor(int id)
     m_onConnectedCallbacks.erase(id);
     m_onDisConnectedCallbacks.erase(id);
     m_onIncomingMessageCallbacks.erase(id);
+    m_onErrorCallbacks.erase(id);
 }
 
 void NetworkManagerConnection::shutdown(std::shared_ptr<NetworkManagerConnection> me)
@@ -1115,6 +1140,7 @@ void NetworkManagerConnection::shutdown(std::shared_ptr<NetworkManagerConnection
         m_onConnectedCallbacks.clear();
         m_onDisConnectedCallbacks.clear();
         m_onIncomingMessageCallbacks.clear();
+        m_onErrorCallbacks.clear();
         if (isConnected())
             m_socket.close();
         m_resolver.cancel();
@@ -1151,6 +1177,27 @@ void NetworkManagerConnection::runOnStrand(const std::function<void()> &function
 void NetworkManagerConnection::punish(int amount)
 {
     d->punishNode(m_remote.connectionId, amount);
+}
+
+void NetworkManagerConnection::setMessageHeaderType(MessageHeaderType messageHeaderType)
+{
+    if (m_messageHeaderType == messageHeaderType)
+        return;
+    m_messageHeaderType = messageHeaderType;
+    switch (m_messageHeaderType) {
+    case FloweeNative:
+        if (isOutgoing()) {
+            m_pingTimer.expires_from_now(boost::posix_time::seconds(30));
+            m_pingTimer.async_wait(m_strand.wrap(std::bind(&NetworkManagerConnection::sendPing, this, std::placeholders::_1)));
+        }
+        break;
+    case LegacyP2P:
+        m_pingTimer.cancel();
+        break;
+    default:
+        assert(false);
+        break;
+    }
 }
 
 void NetworkManagerConnection::finalShutdown(std::shared_ptr<NetworkManagerConnection>)

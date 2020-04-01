@@ -193,6 +193,8 @@ public:
     void addOnDisconnectedCallback(int id, const std::function<void(const EndPoint&)> &callback);
     /// add callback, calls have to be on the strand.
     void addOnIncomingMessageCallback(int id, const std::function<void(const Message&)> &callback);
+    /// add callback, calls have to be on the strand.
+    void addOnError(int id, const std::function<void(int,const boost::system::error_code&)> &callback);
 
     /// forcably shut down the connection, soon you should no longer reference this object
     void shutdown(std::shared_ptr<NetworkManagerConnection> me);
@@ -215,11 +217,15 @@ public:
         return m_acceptedConnection;
     }
 
+    void setMessageHeaderType(MessageHeaderType messageHeaderType);
+
     void punish(int amount);
 
     short m_punishment; // aka ban-sore
     // used to check incoming messages being actually for us
     MessageHeaderType m_messageHeaderType = FloweeNative;
+
+    std::shared_ptr<NetworkManagerPrivate> d;
 
 private:
     EndPoint m_remote;
@@ -249,11 +255,12 @@ private:
 
     Streaming::ConstBuffer createHeader(const Message &message);
 
-    std::shared_ptr<NetworkManagerPrivate> d;
+    void errorDetected(const boost::system::error_code& error);
 
     std::map<int, std::function<void(const EndPoint&)> > m_onConnectedCallbacks;
     std::map<int, std::function<void(const EndPoint&)> > m_onDisConnectedCallbacks;
     std::map<int, std::function<void(const Message&)> > m_onIncomingMessageCallbacks;
+    std::map<int, std::function<void(int,const boost::system::error_code&)> > m_onErrorCallbacks;
 
     tcp::socket m_socket;
     tcp::resolver m_resolver;
