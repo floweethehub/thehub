@@ -37,7 +37,7 @@
 #include <validationinterface.h>
 #include <chainparams.h>
 #include <consensus/validation.h>
-#include <consensus/merkle.h>
+#include <merkle.h>
 #include <streaming/BufferPool.h>
 #include <server/BlocksDB.h>
 #include <utxo/UnspentOutputDatabase.h>

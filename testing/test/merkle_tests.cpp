@@ -16,7 +16,7 @@
  * along with this program.  If not, see <http://www.gnu.org/licenses/>.
  */
 
-#include "consensus/merkle.h"
+#include <merkle.h>
 #include "test/test_bitcoin.h"
 #include "random.h"
 

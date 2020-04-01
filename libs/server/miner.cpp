@@ -34,7 +34,7 @@
 #include "chain.h"
 #include "chainparams.h"
 #include "consensus/consensus.h"
-#include "consensus/merkle.h"
+#include <merkle.h>
 #include "consensus/validation.h"
 #include "hash.h"
 #include "main.h"

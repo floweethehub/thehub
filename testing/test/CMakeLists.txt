@@ -92,7 +92,6 @@ set (TEST_SOURCES
     merkle_tests.cpp
     miner_tests.cpp
     netbase_tests.cpp
-    pmt_tests.cpp
     rpc_tests.cpp
     sanity_tests.cpp
     sighash_tests.cpp

@@ -19,11 +19,11 @@
  */
 
 #include "chainparams.h"
-#include "consensus/merkle.h"
-#include <SettingsDefaults.h>
 
-#include "util.h"
-#include "utilstrencodings.h"
+#include <SettingsDefaults.h>
+#include <util.h>
+#include <merkle.h>
+#include <utilstrencodings.h>
 
 #include <boost/assign/list_of.hpp>
 #include <boost/algorithm/string/case_conv.hpp> // for to_lower()

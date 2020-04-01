@@ -21,7 +21,7 @@
 #include <utils/bloom.h>
 
 #include <encodings_legacy.h>
-#include <server/merkleblock.h>
+#include <merkleblock.h>
 #include "random.h"
 #include <utilstrencodings.h>
 #include <streaming/streams.h>

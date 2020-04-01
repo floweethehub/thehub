@@ -25,7 +25,6 @@ set (FLOWEE_SERVER_FILES
     chainparams.cpp
     checkpoints.cpp
     compressor.cpp
-    consensus/merkle.cpp
     core_read.cpp
     core_write.cpp
     CrashCatcher.cpp
@@ -38,7 +37,6 @@ set (FLOWEE_SERVER_FILES
     init.cpp
     keystore.cpp
     main.cpp
-    merkleblock.cpp
     miner.cpp
     netbase.cpp
     net.cpp

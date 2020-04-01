@@ -20,6 +20,7 @@
 #include "uint256_tests.h"
 #include "checkdatasig_tests.h"
 #include "pow_tests.h"
+#include "pmt_tests.h"
 #include "script_P2SH_tests.h"
 #include "script_tests.h"
 #include "scriptnum_tests.h"
@@ -72,6 +73,10 @@ int main(int, char **)
     }
     if (!rc) {
         TestBloom test;
+        rc = QTest::qExec(&test);
+    }
+    if (!rc) {
+        PMTTests test;
         rc = QTest::qExec(&test);
     }
     return rc;

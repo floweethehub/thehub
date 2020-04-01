@@ -16,15 +16,14 @@
  * along with this program.  If not, see <http://www.gnu.org/licenses/>.
  */
 
-#include "consensus/merkle.h"
-#include "merkleblock.h"
+#include "pmt_tests.h"
+#include <merkle.h>
+#include <merkleblock.h>
 #include "arith_uint256.h"
 #include "random.h"
-#include "test/test_bitcoin.h"
 #include <streaming/streams.h>
 
 #include <boost/assign/list_of.hpp>
-#include <boost/test/unit_test.hpp>
 
 class CPartialMerkleTreeTester : public CPartialMerkleTree
 {
@@ -37,9 +36,7 @@ public:
     }
 };
 
-BOOST_FIXTURE_TEST_SUITE(pmt_tests, BasicTestingSetup)
-
-BOOST_AUTO_TEST_CASE(pmt_test1)
+void PMTTests::basics()
 {
     seed_insecure_rand(false);
     static const unsigned int nTxCounts[] = {1, 4, 7, 17, 56, 100, 127, 256, 312, 513, 1000, 4095};
@@ -87,7 +84,7 @@ BOOST_AUTO_TEST_CASE(pmt_test1)
 
             // verify CPartialMerkleTree's size guarantees
             unsigned int n = std::min<unsigned int>(nTx, 1 + vMatchTxid1.size()*nHeight);
-            BOOST_CHECK(ss.size() <= 10 + (258*n+7)/8);
+            QVERIFY(ss.size() <= 10 + (258*n+7)/8);
 
             // deserialize into a tester copy
             CPartialMerkleTreeTester pmt2;
@@ -98,11 +95,11 @@ BOOST_AUTO_TEST_CASE(pmt_test1)
             uint256 merkleRoot2 = pmt2.ExtractMatches(vMatchTxid2);
 
             // check that it has the same merkle root as the original, and a valid one
-            BOOST_CHECK(merkleRoot1 == merkleRoot2);
-            BOOST_CHECK(!merkleRoot2.IsNull());
+            QVERIFY(merkleRoot1 == merkleRoot2);
+            QVERIFY(!merkleRoot2.IsNull());
 
             // check that it contains the matched transactions (in the same order!)
-            BOOST_CHECK(vMatchTxid1 == vMatchTxid2);
+            QVERIFY(vMatchTxid1 == vMatchTxid2);
 
             // check that random bit flips break the authentication
             for (int j=0; j<4; j++) {
@@ -110,13 +107,13 @@ BOOST_AUTO_TEST_CASE(pmt_test1)
                 pmt3.Damage();
                 std::vector<uint256> vMatchTxid3;
                 uint256 merkleRoot3 = pmt3.ExtractMatches(vMatchTxid3);
-                BOOST_CHECK(merkleRoot3 != merkleRoot1);
+                QVERIFY(merkleRoot3 != merkleRoot1);
             }
         }
     }
 }
 
-BOOST_AUTO_TEST_CASE(pmt_malleability)
+void PMTTests::malleability()
 {
     std::vector<uint256> vTxid = boost::assign::list_of
         (ArithToUint256(1))(ArithToUint256(2))
@@ -129,7 +126,5 @@ BOOST_AUTO_TEST_CASE(pmt_malleability)
 
     CPartialMerkleTree tree(vTxid, vMatch);
     std::vector<uint256> vTxid2;
-    BOOST_CHECK(tree.ExtractMatches(vTxid).IsNull());
+    QVERIFY(tree.ExtractMatches(vTxid).IsNull());
 }
-
-BOOST_AUTO_TEST_SUITE_END()

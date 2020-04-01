@@ -29,7 +29,7 @@
 #include "BlocksDB.h"
 #include "utilstrencodings.h"
 #include "txorphancache.h"
-#include "consensus/merkle.h"
+#include <merkle.h>
 #include "consensus/validation.h"
 #include "policy/policy.h"
 

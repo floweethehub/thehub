@@ -20,7 +20,7 @@
 #include "test_bitcoin.h"
 #include <chain.h>
 #include <chainparams.h>
-#include <consensus/merkle.h>
+#include <merkle.h>
 #include <main.h>
 #include <primitives/key.h>
 #include <net.h>

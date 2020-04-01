@@ -20,7 +20,6 @@
 #include "merkleblock.h"
 
 #include "hash.h"
-#include "consensus/consensus.h"
 #include "utilstrencodings.h"
 
 CMerkleBlock::CMerkleBlock(const CBlock& block, CBloomFilter& filter)

@@ -31,6 +31,8 @@ add_library(flowee_utils STATIC
     LogChannels.cpp
     Logger.cpp
     Message.cpp
+    merkle.cpp
+    merkleblock.cpp
     random.cpp
     streaming/BufferPool.cpp
     streaming/ConstBuffer.cpp
@@ -74,6 +76,8 @@ install(FILES
     tinyformat.h
     WorkerThreads.h
     Message.h
+    merkle.h
+    merkleblock.h
     compat.h
     serialize.h
     prevector.h
