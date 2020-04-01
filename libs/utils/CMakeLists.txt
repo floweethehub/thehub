@@ -20,6 +20,7 @@ add_library(flowee_utils STATIC
     amount.cpp
     arith_uint256.cpp
     base58.cpp
+    bloom.cpp
     cashaddr.cpp
     chainparamsbase.cpp
     clientversion.cpp
@@ -66,6 +67,7 @@ install(FILES ${CMAKE_CURRENT_BINARY_DIR}/libflowee_utils.a DESTINATION lib)
 
 install(FILES
     arith_uint256.h
+    bloom.h
     hash.h
     version.h
     Logger.h

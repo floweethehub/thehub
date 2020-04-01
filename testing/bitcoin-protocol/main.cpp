@@ -16,6 +16,7 @@
  * along with this program.  If not, see <http://www.gnu.org/licenses/>.
  */
 #include "bip32_tests.h"
+#include "bloom_tests.h"
 #include "uint256_tests.h"
 #include "checkdatasig_tests.h"
 #include "pow_tests.h"
@@ -67,6 +68,10 @@ int main(int, char **)
     }
     if (!rc) {
         MultiSigTests test;
+        rc = QTest::qExec(&test);
+    }
+    if (!rc) {
+        TestBloom test;
         rc = QTest::qExec(&test);
     }
     return rc;

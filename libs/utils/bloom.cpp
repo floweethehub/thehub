@@ -21,7 +21,6 @@
 #include "primitives/transaction.h"
 #include "hash.h"
 #include "primitives/script.h"
-#include "script/standard.h"
 #include "random.h"
 #include "streaming/streams.h"
 

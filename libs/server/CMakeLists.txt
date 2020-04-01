@@ -21,7 +21,6 @@ set (FLOWEE_SERVER_FILES
     Application.cpp
     allowed_args.cpp
     BlocksDB.cpp
-    bloom.cpp
     chain.cpp
     chainparams.cpp
     checkpoints.cpp
