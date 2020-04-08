@@ -16,20 +16,6 @@
 
 include(ExternalProject)
 
-ExternalProject_Add(univalue
-    PREFIX ${CMAKE_BINARY_DIR}/lib
-    SOURCE_DIR ${CMAKE_CURRENT_SOURCE_DIR}/univalue
-    CONFIGURE_COMMAND ${CMAKE_CURRENT_SOURCE_DIR}/univalue/configure  --disable-shared --with-pic --libdir=${CMAKE_BINARY_DIR}/lib --includedir=${CMAKE_BINARY_DIR}/include
-    TEST_AFTER_INSTALL test/unitester
-    DEPENDEES autogen
-)
-
-ExternalProject_Add_Step(univalue autogen
-    COMMAND ${CMAKE_CURRENT_SOURCE_DIR}/univalue/autogen.sh
-    WORKING_DIRECTORY ${CMAKE_CURRENT_SOURCE_DIR}/univalue
-    COMMENT "Creating univalue configure"
-)
-
 ExternalProject_Add(leveldb
     #PREFIX ${CMAKE_BINARY_DIR}/lib
     SOURCE_DIR ${CMAKE_CURRENT_SOURCE_DIR}/leveldb
@@ -38,4 +24,5 @@ ExternalProject_Add(leveldb
     INSTALL_COMMAND cp -a "${CMAKE_CURRENT_SOURCE_DIR}/leveldb/${CMAKE_STATIC_LIBRARY_PREFIX}memenv${CMAKE_STATIC_LIBRARY_SUFFIX}" "${CMAKE_CURRENT_SOURCE_DIR}/leveldb/${CMAKE_STATIC_LIBRARY_PREFIX}leveldb${CMAKE_STATIC_LIBRARY_SUFFIX}" "${CMAKE_BINARY_DIR}/lib/" && cp -Ra "${CMAKE_CURRENT_SOURCE_DIR}/leveldb/include/leveldb" "${CMAKE_CURRENT_SOURCE_DIR}/leveldb/helpers/memenv/memenv.h" "${CMAKE_BINARY_DIR}/include/"
 )
 
+add_subdirectory(univalue)
 add_subdirectory(secp256k1)
