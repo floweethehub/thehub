@@ -23,9 +23,6 @@ target_link_libraries(test_doublespend
     flowee_server
     flowee_utils
 
-    ${LEVELDB_LIBRARY}
-    ${SECP256K1_LIBRARY}
-    ${UNIVALUE_LIBRARY}
     ${OPENSSL_LIBRARIES}
     ${Boost_LIBRARIES}
     ${ZMQ_LIBRARIES}

@@ -41,7 +41,6 @@ target_link_libraries(unspent-db
     flowee_utxo
     flowee_utils
 
-    ${LEVELDB_LIBRARY}
     ${OPENSSL_LIBRARIES}
     ${Boost_LIBRARIES}
     Qt5::Core

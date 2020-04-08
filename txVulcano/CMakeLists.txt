@@ -37,9 +37,6 @@ target_link_libraries(txVulcano
     flowee_apputils
     flowee_utils
 
-    ${LEVELDB_LIBRARY}
-    ${SECP256K1_LIBRARY}
-    ${UNIVALUE_LIBRARY}
     ${OPENSSL_LIBRARIES}
     ${Boost_LIBRARIES}
     ${ZMQ_LIBRARIES}

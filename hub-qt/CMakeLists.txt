@@ -31,9 +31,6 @@ set (HUB_QT_LIBS
     flowee_networkmanager
     flowee_utils
 
-    ${LEVELDB_LIBRARY}
-    ${SECP256K1_LIBRARY}
-    ${UNIVALUE_LIBRARY}
     ${Boost_LIBRARIES}
     ${ZMQ_LIBRARIES}
     ${Event_LIBRARIES}

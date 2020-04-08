@@ -270,12 +270,6 @@ set(CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS} -Wvla -pthread -Wno-deprecated ")
 #### Include hierarchy
 ######################
 
-set(UNIVALUE_LIBRARY "${CMAKE_BINARY_DIR}/lib/${CMAKE_STATIC_LIBRARY_PREFIX}univalue${CMAKE_STATIC_LIBRARY_SUFFIX}")
-set(LEVELDB_LIBRARY
-    "${CMAKE_BINARY_DIR}/lib/${CMAKE_STATIC_LIBRARY_PREFIX}leveldb${CMAKE_STATIC_LIBRARY_SUFFIX}"
-    "${CMAKE_BINARY_DIR}/lib/${CMAKE_STATIC_LIBRARY_PREFIX}memenv${CMAKE_STATIC_LIBRARY_SUFFIX}"
-)
-
 # define the include dirs for each section
 set(3RDPARTY_INCLUDES ${CMAKE_SOURCE_DIR}/libs/3rdparty/secp256k1/include)
 set(LIBCRYPTO_INCLUDES

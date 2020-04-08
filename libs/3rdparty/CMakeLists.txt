@@ -14,15 +14,6 @@
 # You should have received a copy of the GNU General Public License
 # along with this program.  If not, see <http://www.gnu.org/licenses/>.
 
-include(ExternalProject)
-
-ExternalProject_Add(leveldb
-    #PREFIX ${CMAKE_BINARY_DIR}/lib
-    SOURCE_DIR ${CMAKE_CURRENT_SOURCE_DIR}/leveldb
-    BUILD_COMMAND make -C ${CMAKE_CURRENT_SOURCE_DIR}/leveldb all memenv_test
-    CONFIGURE_COMMAND echo building leveldb in src dir
-    INSTALL_COMMAND cp -a "${CMAKE_CURRENT_SOURCE_DIR}/leveldb/${CMAKE_STATIC_LIBRARY_PREFIX}memenv${CMAKE_STATIC_LIBRARY_SUFFIX}" "${CMAKE_CURRENT_SOURCE_DIR}/leveldb/${CMAKE_STATIC_LIBRARY_PREFIX}leveldb${CMAKE_STATIC_LIBRARY_SUFFIX}" "${CMAKE_BINARY_DIR}/lib/" && cp -Ra "${CMAKE_CURRENT_SOURCE_DIR}/leveldb/include/leveldb" "${CMAKE_CURRENT_SOURCE_DIR}/leveldb/helpers/memenv/memenv.h" "${CMAKE_BINARY_DIR}/include/"
-)
-
 add_subdirectory(univalue)
+add_subdirectory(leveldb)
 add_subdirectory(secp256k1)

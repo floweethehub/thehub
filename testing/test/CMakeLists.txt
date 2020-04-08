@@ -52,9 +52,6 @@ set (TEST_LIBS
     flowee_utils
     flowee_crypto
 
-    ${LEVELDB_LIBRARY}
-    ${SECP256K1_LIBRARY}
-    ${UNIVALUE_LIBRARY}
     ${OPENSSL_LIBRARIES}
     ${Boost_LIBRARIES}
     ${ZMQ_LIBRARIES}

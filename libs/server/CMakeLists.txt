@@ -102,6 +102,4 @@ add_library(flowee_server STATIC
     ${FLOWEE_SERVER_FILES_ZMQ}
 )
 
-add_dependencies(flowee_server leveldb)
-
-target_link_libraries(flowee_server univalue secp256k1 flowee_utxo)
+target_link_libraries(flowee_server leveldb univalue secp256k1 flowee_utxo)

@@ -17,7 +17,6 @@ build-debian-stable:
     - cd build
     - cmake -Dbuild_tests=true -Denable_wallet=true -DCMAKE_BUILD_TYPE=ReleaseWithDebugInfo -DCMAKE_INSTALL_PREFIX=.. ..
     - echo nproc=`nproc`
-    - make univalue leveldb
     - make -j0`nproc` install
   artifacts:
     paths:
@@ -132,6 +131,5 @@ build-debian-nowallet:
     - mkdir build
     - cd build
     - cmake -Denable_gui=false ..
-    - make univalue leveldb
     - make -j0`nproc` all
 
