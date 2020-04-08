@@ -38,20 +38,4 @@ ExternalProject_Add(leveldb
     INSTALL_COMMAND cp -a "${CMAKE_CURRENT_SOURCE_DIR}/leveldb/${CMAKE_STATIC_LIBRARY_PREFIX}memenv${CMAKE_STATIC_LIBRARY_SUFFIX}" "${CMAKE_CURRENT_SOURCE_DIR}/leveldb/${CMAKE_STATIC_LIBRARY_PREFIX}leveldb${CMAKE_STATIC_LIBRARY_SUFFIX}" "${CMAKE_BINARY_DIR}/lib/" && cp -Ra "${CMAKE_CURRENT_SOURCE_DIR}/leveldb/include/leveldb" "${CMAKE_CURRENT_SOURCE_DIR}/leveldb/helpers/memenv/memenv.h" "${CMAKE_BINARY_DIR}/include/"
 )
 
-ExternalProject_Add(secp256k1
-    PREFIX ${CMAKE_BINARY_DIR}/lib
-    SOURCE_DIR ${CMAKE_CURRENT_SOURCE_DIR}/secp256k1
-    CONFIGURE_COMMAND ${CMAKE_CURRENT_SOURCE_DIR}/secp256k1/configure --disable-option-checking --with-bignum=no --enable-module-recovery --with-pic --libdir=${CMAKE_BINARY_DIR}/lib --includedir=${CMAKE_BINARY_DIR}/include
-    DEPENDEES autogen
-)
-
-ExternalProject_Add_Step(secp256k1 autogen
-    COMMAND ${CMAKE_CURRENT_SOURCE_DIR}/secp256k1/autogen.sh
-    WORKING_DIRECTORY ${CMAKE_CURRENT_SOURCE_DIR}/secp256k1
-    COMMENT "Creating secp256k1 configure"
-)
-
-install(FILES
-    ${CMAKE_BINARY_DIR}/lib/libsecp256k1.a
-    ${CMAKE_BINARY_DIR}/lib/libsecp256k1.la
-DESTINATION lib)
+add_subdirectory(secp256k1)

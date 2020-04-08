@@ -62,9 +62,8 @@ add_library(flowee_utils STATIC
 set(CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS} -fPIC")
 
 add_dependencies(flowee_utils univalue)
-add_dependencies(flowee_utils secp256k1)
 
-target_link_libraries(flowee_utils flowee_interfaces flowee_crypto)
+target_link_libraries(flowee_utils secp256k1 flowee_interfaces flowee_crypto)
 install(FILES ${CMAKE_CURRENT_BINARY_DIR}/libflowee_utils.a DESTINATION lib)
 
 install(FILES

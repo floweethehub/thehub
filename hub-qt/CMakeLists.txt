@@ -139,7 +139,6 @@ if ("${Qt5Widgets_FOUND}" AND "${Protobuf_FOUND}" AND "${Qt5Network_FOUND}")
     target_link_libraries(hub-qt ${HUB_QT_LIBS}  ${PROTOBUF_LIBRARIES} Qt5::Widgets Qt5::Network ${Qt5DBus_LIBRARIES})
     add_dependencies(hub-qt univalue)
     add_dependencies(hub-qt leveldb)
-    add_dependencies(hub-qt secp256k1)
 
     install(PROGRAMS ${CMAKE_CURRENT_BINARY_DIR}/hub-qt DESTINATION bin)
 endif ()

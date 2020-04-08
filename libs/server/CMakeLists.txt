@@ -103,7 +103,6 @@ add_library(flowee_server STATIC
 )
 
 add_dependencies(flowee_server univalue)
-add_dependencies(flowee_server secp256k1)
 add_dependencies(flowee_server leveldb)
 
-target_link_libraries(flowee_server flowee_utxo)
+target_link_libraries(flowee_server secp256k1 flowee_utxo)

@@ -1,41 +1,44 @@
-# Copyright (c) 2017 The Bitcoin developers
+# This file is part of the Flowee project
+# Copyright (C) 2020 Tom Zander <tomz@freedommail.ch>
+#
+# This program is free software: you can redistribute it and/or modify
+# it under the terms of the GNU General Public License as published by
+# the Free Software Foundation, either version 3 of the License, or
+# (at your option) any later version.
+#
+# This program is distributed in the hope that it will be useful,
+# but WITHOUT ANY WARRANTY; without even the implied warranty of
+# MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
+# GNU General Public License for more details.
+#
+# You should have received a copy of the GNU General Public License
+# along with this program.  If not, see <http://www.gnu.org/licenses/>.
 
 cmake_minimum_required(VERSION 3.5)
+
 project(secp256k1)
 
-# libsecp256k1 use a different set of flags.
-add_compiler_flag(
-	-pedantic
-	-Wshadow
-	-Wno-unused-function
-	-Wno-nonnull
-	-Wno-overlength-strings
-)
-
-add_c_compiler_flag(
-	-std=c89
-	-Wno-long-long
-)
-
-# Default visibility is hidden on all targets.
-set(CMAKE_C_VISIBILITY_PRESET hidden)
-
 include_directories(
-	.
-	src
-	# For the config
+    ${CMAKE_CURRENT_SOURCE_DIR} src
 	${CMAKE_CURRENT_BINARY_DIR}/src
 )
 
-# The library
-add_library(secp256k1 src/secp256k1.c)
-target_include_directories(secp256k1 PUBLIC include)
+## Build gen_context which is used to pre-compute ecmult_static_context.h
 
-# We need to link in GMP
+add_executable (gen_context src/gen_context.c)
+target_link_libraries (gen_context)
+target_compile_definitions(gen_context PRIVATE LIBSECP256K1_CONFIG_H)
+
+add_custom_command (
+    OUTPUT ${CMAKE_CURRENT_BINARY_DIR}/src/ecmult_static_context.h
+    COMMAND ${CMAKE_CURRENT_BINARY_DIR}/gen_context
+    DEPENDS gen_context
+)
+
+## Generate the config
+
 find_package(GMP)
 if(GMP_FOUND)
-	target_include_directories(secp256k1 PUBLIC ${GMP_INCLUDE_DIR})
-	target_link_libraries(secp256k1 ${GMP_LIBRARY})
 	set(USE_NUM_GMP 1)
 	set(USE_FIELD_INV_NUM 1)
 	set(USE_SCALAR_INV_NUM 1)
@@ -43,9 +46,12 @@ else()
 	set(USE_NUM_NONE 1)
 	set(USE_FIELD_INV_BUILTIN 1)
 	set(USE_SCALAR_INV_BUILTIN 1)
+    set(GMP_LIBRARY "")
+    set(GMP_INCLUDE_DIR "")
 endif()
 
-# We check if amd64 asm is supported.
+# check if amd64 asm is supported.
+include(CheckCSourceCompiles)
 check_c_source_compiles("
 	#include <stdint.h>
 	int main() {
@@ -55,7 +61,7 @@ check_c_source_compiles("
 	}
 " USE_ASM_X86_64)
 
-# We make sure __int128 is defined
+# make sure __int128 is defined
 include(CheckTypeSize)
 check_type_size(__int128 SIZEOF___INT128)
 if(SIZEOF___INT128 EQUAL 16)
@@ -79,91 +85,32 @@ else()
 	set(USE_SCALAR_8X32 1)
 	set(USE_FIELD_10X26 1)
 endif()
+set(ENABLE_MODULE_ECDH 0)
+set(ENABLE_MODULE_MULTISET 1)
+set(ENABLE_MODULE_RECOVERY 1)
+set(ENABLE_MODULE_SCHNORR 1)
+set(USE_ECMULT_STATIC_PRECOMPUTATION 1)
 
-# Executable internal to secp256k1 need to have the HAVE_CONFIG_H define set.
-# For convenience, we wrap this into a function.
-function(link_secp256k1_internal NAME)
-	target_link_libraries(${NAME} secp256k1)
-	target_compile_definitions(${NAME} PRIVATE HAVE_CONFIG_H SECP256K1_BUILD)
-endfunction(link_secp256k1_internal)
-
-# Phony target to build benchmarks
-add_custom_target(bench-secp256k1)
-
-function(add_secp256k1_bench NAME)
-	add_executable(${NAME} EXCLUDE_FROM_ALL ${ARGN})
-	link_secp256k1_internal(${NAME})
-	add_dependencies(bench-secp256k1 ${NAME})
-endfunction(add_secp256k1_bench)
-
-# ECDH module
-option(SECP256K1_ENABLE_MODULE_ECDH "Build libsecp256k1's ECDH module" OFF)
-if(SECP256K1_ENABLE_MODULE_ECDH)
-	set(ENABLE_MODULE_ECDH 1)
-	add_secp256k1_bench(bench_ecdh src/bench_ecdh.c)
-endif()
-
-# MultiSet module
-option(SECP256K1_ENABLE_MODULE_MULTISET "Build libsecp256k1's MULTISET module" ON)
-if(SECP256K1_ENABLE_MODULE_MULTISET)
-    set(ENABLE_MODULE_MULTISET 1)
-	add_secp256k1_bench(bench_multiset src/bench_multiset.c)
-endif()
-
-# Recovery module
-option(SECP256K1_ENABLE_MODULE_RECOVERY "Build libsecp256k1's recovery module" ON)
-if(SECP256K1_ENABLE_MODULE_RECOVERY)
-	set(ENABLE_MODULE_RECOVERY 1)
-	add_secp256k1_bench(bench_recover src/bench_recover.c)
-endif()
-
-# Schnorr module
-option(SECP256K1_ENABLE_MODULE_SCHNORR "Build libsecp256k1's Schnorr module" ON)
-if(SECP256K1_ENABLE_MODULE_SCHNORR)
-	set(ENABLE_MODULE_SCHNORR 1)
-endif()
-
-# Static precomputation for eliptic curve mutliplication
-option(SECP256K1_ECMULT_STATIC_PRECOMPUTATION "Precompute libsecp256k1's eliptic curve mutliplication tables" ON)
-if(SECP256K1_ECMULT_STATIC_PRECOMPUTATION)
-	set(USE_ECMULT_STATIC_PRECOMPUTATION 1)
-
-	include(NativeExecutable)
-	add_native_executable(gen_context src/gen_context.c)
-
-	add_custom_command(
-		OUTPUT ecmult_static_context.h
-		COMMAND gen_context
-	)
-
-	target_sources(secp256k1 PRIVATE ecmult_static_context.h)
-endif()
-
-# Generate the config
 configure_file(src/libsecp256k1-config.h.cmake.in src/libsecp256k1-config.h ESCAPE_QUOTES)
+
+
+## Last, actually compile our library.
+
+add_library(secp256k1 src/secp256k1.c)
+# Make sure we build the header
+target_sources(secp256k1 PRIVATE ${CMAKE_CURRENT_BINARY_DIR}/src/ecmult_static_context.h)
+target_include_directories(secp256k1 PUBLIC include ${GMP_INCLUDE_DIR})
+target_link_libraries(secp256k1 ${GMP_LIBRARY})
 target_compile_definitions(secp256k1 PRIVATE HAVE_CONFIG_H SECP256K1_BUILD)
+set (CMAKE_C_FLAGS ${CMAKE_C_FLAGS} "-pedantic -Wshadow -Wno-unused-function -Wno-nonnull -Wno-overlength-strings -std=c89 -Wno-long-long")
+# Default visibility is hidden on all targets.
+set(CMAKE_C_VISIBILITY_PRESET hidden)
 
-# Tests
-option(SECP256K1_BUILD_TEST "Build secp256k1's unit tests" ON)
-if(SECP256K1_BUILD_TEST)
-	include(TestSuite)
-	create_test_suite(secp256k1)
 
-	function(create_secp256k1_test NAME FILES)
-		add_test_to_suite(secp256k1 ${NAME} EXCLUDE_FROM_ALL ${FILES})
-		link_secp256k1_internal(${NAME})
-	endfunction()
-
-	create_secp256k1_test(tests src/tests.c)
-	target_compile_definitions(tests PRIVATE VERIFY)
-
-	create_secp256k1_test(exhaustive_tests src/tests_exhaustive.c)
-	# This should not be enabled at the same time as coverage is.
-	# TODO: support coverage.
-	target_compile_definitions(exhaustive_tests PRIVATE VERIFY)
-endif(SECP256K1_BUILD_TEST)
-
-# Benchmarks
-add_secp256k1_bench(bench_verify src/bench_verify.c)
-add_secp256k1_bench(bench_sign src/bench_sign.c)
-add_secp256k1_bench(bench_internal src/bench_internal.c)
+install(FILES ${CMAKE_CURRENT_BINARY_DIR}/libsecp256k1.a DESTINATION lib)
+install(FILES
+    include/secp256k1.h
+    include/secp256k1_multiset.h
+    include/secp256k1_recovery.h
+    include/secp256k1_schnorr.h
+DESTINATION include/flowee)
