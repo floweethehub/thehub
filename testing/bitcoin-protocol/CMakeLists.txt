@@ -58,6 +58,7 @@ add_executable(test_protocol
     scriptnum_tests.cpp
     transaction_tests.cpp
     transaction_utils.cpp
+    TestReverseBytes.cpp
     DoubleSpendProofTest.cpp
     main.cpp
 )

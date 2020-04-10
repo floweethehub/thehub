@@ -115,6 +115,9 @@ enum
 
     // Allows the miner to appropriate coins sent to p2sh segwit addresses
     SCRIPT_ALLOW_SEGWIT_RECOVERY = (1U << 20),
+
+    // Whether the new OP_REVERSEBYTES opcode can be used.
+    SCRIPT_ENABLE_OP_REVERSEBYTES = (1U << 21),
 };
 
 bool CheckTransactionSignatureEncoding(const std::vector<unsigned char> &vchSig, unsigned int flags, ScriptError* serror);

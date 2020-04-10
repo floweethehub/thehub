@@ -163,6 +163,7 @@ const char* GetOpName(opcodetype opcode)
     // new opcodes hard-forked in.
     case OP_CHECKDATASIG: return "OP_CHECKDATASIG";
     case OP_CHECKDATASIGVERIFY: return "OP_CHECKDATASIGVERIFY";
+    case OP_REVERSEBYTES: return "OP_REVERSEBYTES";
 
     case OP_INVALIDOPCODE          : return "OP_INVALIDOPCODE";
 

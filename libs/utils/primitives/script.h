@@ -192,6 +192,9 @@ enum opcodetype
     OP_CHECKDATASIG = 0xba,
     OP_CHECKDATASIGVERIFY = 0xbb,
 
+    // additional byte string operations
+    OP_REVERSEBYTES = 0xbc,
+
     // template matching params
     OP_SMALLINTEGER = 0xfa,
     OP_PUBKEYS = 0xfb,

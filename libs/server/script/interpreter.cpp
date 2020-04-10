@@ -1410,6 +1410,17 @@ bool EvalScript(std::vector<std::vector<unsigned char> >& stack, const CScript& 
                     stacktop(-1) = std::move(n2);
                     break;
                 }
+                case OP_REVERSEBYTES: {
+                    if (!(flags & SCRIPT_ENABLE_OP_REVERSEBYTES))
+                        return set_error(serror, SCRIPT_ERR_BAD_OPCODE);
+                    // (in -- out)
+                    if (stack.size() < 1)
+                        return set_error(serror, SCRIPT_ERR_INVALID_STACK_OPERATION);
+
+                    valtype &data = stacktop(-1);
+                    std::reverse(data.begin(), data.end());
+                    break;
+                }
 
                 //
                 // Conversion operations
