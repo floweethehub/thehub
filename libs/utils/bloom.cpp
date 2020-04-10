@@ -27,6 +27,8 @@
 
 #include <cmath>
 
+#include <streaming/P2PBuilder.h>
+
 #define LN2SQUARED 0.4804530139182014246671025263266649717305529515945455
 #define LN2 0.6931471805599453094172321214581765680755001343602552
 
@@ -229,6 +231,17 @@ void CBloomFilter::updateEmptyFull()
     isFull = full;
     isEmpty = empty;
 }
+
+void CBloomFilter::store(Streaming::P2PBuilder &builder) const
+{
+    builder.writeByteArray(vData, Streaming::WithLength);
+    builder.writeInt(nHashFuncs);
+    builder.writeInt(nTweak);
+    builder.writeByte(nFlags);
+}
+
+// ///////////////////////////////////////////////////////////////
+
 
 CRollingBloomFilter::CRollingBloomFilter(unsigned int nElements, double fpRate) :
     b1(nElements * 2, fpRate, 0), b2(nElements * 2, fpRate, 0)

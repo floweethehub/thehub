@@ -38,6 +38,8 @@ add_library(flowee_utils STATIC
     streaming/ConstBuffer.cpp
     streaming/MessageBuilder.cpp
     streaming/MessageParser.cpp
+    streaming/P2PBuilder.cpp
+    streaming/P2PParser.cpp
     support/cleanse.cpp
     support/pagelocker.cpp
     sync.cpp
@@ -87,6 +89,8 @@ install(FILES
     streaming/ConstBuffer.h
     streaming/MessageBuilder.h
     streaming/MessageParser.h
+    streaming/P2PParser.h
+    streaming/P2PBuilder.h
 DESTINATION include/flowee/utils/streaming)
 
 install(FILES

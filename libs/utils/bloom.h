@@ -28,6 +28,9 @@
 class COutPoint;
 class CTransaction;
 class uint256;
+namespace Streaming {
+  class P2PBuilder;
+}
 
 //! 20,000 items with fp rate < 0.1% or 10,000 items and <0.0001%
 static const unsigned int MAX_BLOOM_FILTER_SIZE = 36000; // bytes
@@ -95,6 +98,8 @@ public:
         READWRITE(nTweak);
         READWRITE(nFlags);
     }
+
+    void store(Streaming::P2PBuilder &builder) const;
 
     void insert(const std::vector<unsigned char> &vKey);
     void insert(const COutPoint &outpoint);
