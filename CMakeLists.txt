@@ -115,12 +115,6 @@ if (enable_wallet)
     message ("NOTICE: txVulcano is not compiled when wallet is enabled")
 endif ()
 
-# Since our 3rd party require this, lets give a nice warning here.
-find_program(AUTOCONF autoconf)
-if (NOT AUTOCONF)
-    message ("ERROR: autoconf is required for 3rd-party libraries compilation.")
-endif()
-
 find_package(Event REQUIRED)
 
 
