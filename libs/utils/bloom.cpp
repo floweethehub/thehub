@@ -1,6 +1,7 @@
 /*
  * This file is part of the Flowee project
  * Copyright (c) 2012-2015 The Bitcoin Core developers
+ * Copyright (c) 2020 Tom Zander <tomz@freedommail.ch>
  *
  * This program is free software: you can redistribute it and/or modify
  * it under the terms of the GNU General Public License as published by
@@ -60,7 +61,7 @@ CBloomFilter::CBloomFilter(unsigned int nElements, double nFPRate, unsigned int 
 {
 }
 
-inline unsigned int CBloomFilter::Hash(unsigned int nHashNum, const std::vector<unsigned char>& vDataToHash) const
+inline unsigned int CBloomFilter::hash(unsigned int nHashNum, const std::vector<unsigned char>& vDataToHash) const
 {
     // 0xFBA4C795 chosen as it guarantees a reasonable bit difference between nHashNum values.
     return MurmurHash3(nHashNum * 0xFBA4C795 + nTweak, vDataToHash) % (vData.size() * 8);
@@ -72,7 +73,7 @@ void CBloomFilter::insert(const std::vector<unsigned char>& vKey)
         return;
     for (unsigned int i = 0; i < nHashFuncs; i++)
     {
-        unsigned int nIndex = Hash(i, vKey);
+        unsigned int nIndex = hash(i, vKey);
         // Sets bit nIndex of vData
         vData[nIndex >> 3] |= (1 << (7 & nIndex));
     }
@@ -93,6 +94,12 @@ void CBloomFilter::insert(const uint256& hash)
     insert(data);
 }
 
+void CBloomFilter::insert(const Streaming::ConstBuffer &buf)
+{
+    std::vector<unsigned char> data(buf.begin(), buf.end());
+    insert(data);
+}
+
 bool CBloomFilter::contains(const std::vector<unsigned char>& vKey) const
 {
     if (isFull)
@@ -101,7 +108,7 @@ bool CBloomFilter::contains(const std::vector<unsigned char>& vKey) const
         return false;
     for (unsigned int i = 0; i < nHashFuncs; i++)
     {
-        unsigned int nIndex = Hash(i, vKey);
+        unsigned int nIndex = hash(i, vKey);
         // Checks bit nIndex of vData
         if (!(vData[nIndex >> 3] & (1 << (7 & nIndex))))
             return false;
@@ -141,7 +148,7 @@ bool CBloomFilter::IsWithinSizeConstraints() const
     return vData.size() <= MAX_BLOOM_FILTER_SIZE && nHashFuncs <= MAX_HASH_FUNCS;
 }
 
-bool CBloomFilter::IsRelevantAndUpdate(const CTransaction& tx)
+bool CBloomFilter::isRelevantAndUpdate(const CTransaction& tx)
 {
     bool fFound = false;
     // Match if the filter contains the hash of tx
@@ -210,7 +217,7 @@ bool CBloomFilter::IsRelevantAndUpdate(const CTransaction& tx)
     return false;
 }
 
-void CBloomFilter::UpdateEmptyFull()
+void CBloomFilter::updateEmptyFull()
 {
     bool full = true;
     bool empty = true;

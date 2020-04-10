@@ -2281,7 +2281,7 @@ bool static ProcessMessage(CNode* pfrom, std::string strCommand, CDataStream& vR
                 CTransaction tx;
                 bool fInMemPool = mempool.lookup(hash, tx);
                 if (!fInMemPool) continue; // another thread removed since queryHashes, maybe...
-                if (!pfrom->pfilter->IsRelevantAndUpdate(tx)) continue;
+                if (!pfrom->pfilter->isRelevantAndUpdate(tx)) continue;
             }
             vInv.push_back(inv);
             if (vInv.size() == MAX_INV_SZ) {
@@ -2393,7 +2393,7 @@ bool static ProcessMessage(CNode* pfrom, std::string strCommand, CDataStream& vR
             LOCK(pfrom->cs_filter);
             delete pfrom->pfilter;
             pfrom->pfilter = new CBloomFilter(filter);
-            pfrom->pfilter->UpdateEmptyFull();
+            pfrom->pfilter->updateEmptyFull();
         }
         pfrom->fRelayTxes = true;
     }
@@ -2470,7 +2470,7 @@ bool static ProcessMessage(CNode* pfrom, std::string strCommand, CDataStream& vR
                         LOCK(pnode->cs_filter);
                         if (pnode->pfilter) {
                             // For nodes that we sent this Tx before, send a proof.
-                            if (pnode->pfilter->IsRelevantAndUpdate(dspTx))
+                            if (pnode->pfilter->isRelevantAndUpdate(dspTx))
                                 pnode->PushInventory(inv);
                         } else {
                             pnode->PushInventory(inv);

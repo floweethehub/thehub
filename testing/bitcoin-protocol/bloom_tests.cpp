@@ -129,33 +129,33 @@ void TestBloom::bloom_match()
 
     CBloomFilter filter(10, 0.000001, 0, BLOOM_UPDATE_ALL);
     filter.insert(uint256S("0xb4749f017444b051c44dfd2720e88f314ff94f3dd6d56d40ef65854fcd7fff6b"));
-    QVERIFY2(filter.IsRelevantAndUpdate(tx), "Simple Bloom filter didn't match tx hash");
+    QVERIFY2(filter.isRelevantAndUpdate(tx), "Simple Bloom filter didn't match tx hash");
 
     filter = CBloomFilter(10, 0.000001, 0, BLOOM_UPDATE_ALL);
     // byte-reversed tx hash
     filter.insert(ParseHex("6bff7fcd4f8565ef406dd5d63d4ff94f318fe82027fd4dc451b04474019f74b4"));
-    QVERIFY2(filter.IsRelevantAndUpdate(tx), "Simple Bloom filter didn't match manually serialized tx hash");
+    QVERIFY2(filter.isRelevantAndUpdate(tx), "Simple Bloom filter didn't match manually serialized tx hash");
 
     filter = CBloomFilter(10, 0.000001, 0, BLOOM_UPDATE_ALL);
     filter.insert(ParseHex("30450220070aca44506c5cef3a16ed519d7c3c39f8aab192c4e1c90d065f37b8a4af6141022100a8e160b856c2d43d27d8fba71e5aef6405b8643ac4cb7cb3c462aced7f14711a01"));
-    QVERIFY2(filter.IsRelevantAndUpdate(tx), "Simple Bloom filter didn't match input signature");
+    QVERIFY2(filter.isRelevantAndUpdate(tx), "Simple Bloom filter didn't match input signature");
 
     filter = CBloomFilter(10, 0.000001, 0, BLOOM_UPDATE_ALL);
     filter.insert(ParseHex("046d11fee51b0e60666d5049a9101a72741df480b96ee26488a4d3466b95c9a40ac5eeef87e10a5cd336c19a84565f80fa6c547957b7700ff4dfbdefe76036c339"));
-    QVERIFY2(filter.IsRelevantAndUpdate(tx), "Simple Bloom filter didn't match input pub key");
+    QVERIFY2(filter.isRelevantAndUpdate(tx), "Simple Bloom filter didn't match input pub key");
 
     filter = CBloomFilter(10, 0.000001, 0, BLOOM_UPDATE_ALL);
     filter.insert(ParseHex("04943fdd508053c75000106d3bc6e2754dbcff19"));
-    QVERIFY2(filter.IsRelevantAndUpdate(tx), "Simple Bloom filter didn't match output address");
-    QVERIFY2(filter.IsRelevantAndUpdate(spendingTx), "Simple Bloom filter didn't add output");
+    QVERIFY2(filter.isRelevantAndUpdate(tx), "Simple Bloom filter didn't match output address");
+    QVERIFY2(filter.isRelevantAndUpdate(spendingTx), "Simple Bloom filter didn't add output");
 
     filter = CBloomFilter(10, 0.000001, 0, BLOOM_UPDATE_ALL);
     filter.insert(ParseHex("a266436d2965547608b9e15d9032a7b9d64fa431"));
-    QVERIFY2(filter.IsRelevantAndUpdate(tx), "Simple Bloom filter didn't match output address");
+    QVERIFY2(filter.isRelevantAndUpdate(tx), "Simple Bloom filter didn't match output address");
 
     filter = CBloomFilter(10, 0.000001, 0, BLOOM_UPDATE_ALL);
     filter.insert(COutPoint(uint256S("0x90c122d70786e899529d71dbeba91ba216982fb6ba58f3bdaab65e73b7e9260b"), 0));
-    QVERIFY2(filter.IsRelevantAndUpdate(tx), "Simple Bloom filter didn't match COutPoint");
+    QVERIFY2(filter.isRelevantAndUpdate(tx), "Simple Bloom filter didn't match COutPoint");
 
     filter = CBloomFilter(10, 0.000001, 0, BLOOM_UPDATE_ALL);
     COutPoint prevOutPoint(uint256S("0x90c122d70786e899529d71dbeba91ba216982fb6ba58f3bdaab65e73b7e9260b"), 0);
@@ -165,23 +165,23 @@ void TestBloom::bloom_match()
         memcpy(&data[32], &prevOutPoint.n, sizeof(unsigned int));
         filter.insert(data);
     }
-    QVERIFY2(filter.IsRelevantAndUpdate(tx), "Simple Bloom filter didn't match manually serialized COutPoint");
+    QVERIFY2(filter.isRelevantAndUpdate(tx), "Simple Bloom filter didn't match manually serialized COutPoint");
 
     filter = CBloomFilter(10, 0.000001, 0, BLOOM_UPDATE_ALL);
     filter.insert(uint256S("00000009e784f32f62ef849763d4f45b98e07ba658647343b915ff832b110436"));
-    QVERIFY2(!filter.IsRelevantAndUpdate(tx), "Simple Bloom filter matched random tx hash");
+    QVERIFY2(!filter.isRelevantAndUpdate(tx), "Simple Bloom filter matched random tx hash");
 
     filter = CBloomFilter(10, 0.000001, 0, BLOOM_UPDATE_ALL);
     filter.insert(ParseHex("0000006d2965547608b9e15d9032a7b9d64fa431"));
-    QVERIFY2(!filter.IsRelevantAndUpdate(tx), "Simple Bloom filter matched random address");
+    QVERIFY2(!filter.isRelevantAndUpdate(tx), "Simple Bloom filter matched random address");
 
     filter = CBloomFilter(10, 0.000001, 0, BLOOM_UPDATE_ALL);
     filter.insert(COutPoint(uint256S("0x90c122d70786e899529d71dbeba91ba216982fb6ba58f3bdaab65e73b7e9260b"), 1));
-    QVERIFY2(!filter.IsRelevantAndUpdate(tx), "Simple Bloom filter matched COutPoint for an output we didn't care about");
+    QVERIFY2(!filter.isRelevantAndUpdate(tx), "Simple Bloom filter matched COutPoint for an output we didn't care about");
 
     filter = CBloomFilter(10, 0.000001, 0, BLOOM_UPDATE_ALL);
     filter.insert(COutPoint(uint256S("0x000000d70786e899529d71dbeba91ba216982fb6ba58f3bdaab65e73b7e9260b"), 0));
-    QVERIFY2(!filter.IsRelevantAndUpdate(tx), "Simple Bloom filter matched COutPoint for an output we didn't care about");
+    QVERIFY2(!filter.isRelevantAndUpdate(tx), "Simple Bloom filter matched COutPoint for an output we didn't care about");
 }
 
 void TestBloom::merkle_block_1()

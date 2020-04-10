@@ -507,7 +507,7 @@ void TxValidationState::notifyDoubleSpend()
                 LOCK(pnode->cs_filter);
                 if (pnode->pfilter) {
                     // For nodes that we sent this Tx before, send a proof.
-                    if (pnode->pfilter->IsRelevantAndUpdate(dspTx)) {
+                    if (pnode->pfilter->isRelevantAndUpdate(dspTx)) {
                         logDebug(Log::DSProof) << "  peer:" << pnode->id;
                         pnode->PushInventory(inv);
                     }

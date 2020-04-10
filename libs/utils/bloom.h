@@ -22,6 +22,7 @@
 
 #include "serialize.h"
 
+#include <streaming/ConstBuffer.h>
 #include <vector>
 
 class COutPoint;
@@ -36,7 +37,7 @@ static const unsigned int MAX_HASH_FUNCS = 50;
  * First two bits of nFlags control how much IsRelevantAndUpdate actually updates
  * The remaining bits are reserved
  */
-enum bloomflags
+enum BloomFlags
 {
     BLOOM_UPDATE_NONE = 0,
     BLOOM_UPDATE_ALL = 1,
@@ -66,7 +67,7 @@ private:
     unsigned int nTweak;
     unsigned char nFlags;
 
-    unsigned int Hash(unsigned int nHashNum, const std::vector<unsigned char>& vDataToHash) const;
+    unsigned int hash(unsigned int nHashNum, const std::vector<unsigned char>& vDataToHash) const;
 
     // Private constructor for CRollingBloomFilter, no restrictions on size
     CBloomFilter(unsigned int nElements, double nFPRate, unsigned int nTweak);
@@ -95,9 +96,10 @@ public:
         READWRITE(nFlags);
     }
 
-    void insert(const std::vector<unsigned char>& vKey);
-    void insert(const COutPoint& outpoint);
-    void insert(const uint256& hash);
+    void insert(const std::vector<unsigned char> &vKey);
+    void insert(const COutPoint &outpoint);
+    void insert(const uint256 &hash);
+    void insert(const Streaming::ConstBuffer &buf);
 
     bool contains(const std::vector<unsigned char>& vKey) const;
     bool contains(const COutPoint& outpoint) const;
@@ -111,10 +113,10 @@ public:
     bool IsWithinSizeConstraints() const;
 
     //! Also adds any outputs which match the filter to the filter (to match their spending txes)
-    bool IsRelevantAndUpdate(const CTransaction& tx);
+    bool isRelevantAndUpdate(const CTransaction& tx);
 
     //! Checks for empty and full filters to avoid wasting cpu
-    void UpdateEmptyFull();
+    void updateEmptyFull();
 };
 
 /**
