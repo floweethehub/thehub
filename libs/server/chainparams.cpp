@@ -2,7 +2,7 @@
  * This file is part of the Flowee project
  * Copyright (c) 2010 Satoshi Nakamoto
  * Copyright (c) 2009-2015 The Bitcoin Core developers
- * Copyright (C) 2016-2019 Tom Zander <tomz@freedommail.ch>
+ * Copyright (C) 2016-2020 Tom Zander <tomz@freedommail.ch>
  *
  * This program is free software: you can redistribute it and/or modify
  * it under the terms of the GNU General Public License as published by
@@ -146,6 +146,7 @@ public:
         consensus.hf201811Height = 556767;
         consensus.hf201905Height = 582680;
         consensus.hf201911Time = 1573819200;
+        consensus.hf202005Time = 1589544000;
 
         checkpointData = CCheckpointData {
             boost::assign::map_list_of
@@ -242,6 +243,7 @@ public:
         consensus.hf201811Height = 1267997;
         consensus.hf201905Height = 1303885;
         consensus.hf201911Time = 1573819200;
+        consensus.hf202005Time = 1589544000;
 
         checkpointData = CCheckpointData {
             boost::assign::map_list_of
@@ -315,6 +317,7 @@ public:
         consensus.hf201811Height = 9999999; // avoid invalidating my unit-test chain
         consensus.hf201905Height = 1;
         consensus.hf201911Time = 1;
+        consensus.hf202005Time = 1;
 
         checkpointData = CCheckpointData {
             boost::assign::map_list_of

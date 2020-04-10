@@ -946,7 +946,8 @@ ValidationFlags::ValidationFlags()
     hf201805Active(false),
     hf201811Active(false),
     hf201905Active(false),
-    hf201911Active(false)
+    hf201911Active(false),
+    hf202005Active(false)
 {
 }
 
@@ -977,6 +978,9 @@ uint32_t ValidationFlags::scriptValidationFlags(bool requireStandard) const
     if (hf201911Active) {
         flags |= SCRIPT_VERIFY_MINIMALDATA;
         flags |= SCRIPT_ENABLE_SCHNORR_MULTISIG;
+    }
+    if (hf202005Active) {
+        flags |= SCRIPT_ENABLE_OP_REVERSEBYTES;
     }
     return flags;
 }
@@ -1025,6 +1029,8 @@ void ValidationFlags::updateForBlock(CBlockIndex *index)
         hf201905Active = true;
     if (hf201905Active && !hf201911Active && index->GetMedianTimePast() >= consensus.hf201911Time)
         hf201911Active = true;
+    if (hf202005Active && !hf202005Active && index->GetMedianTimePast() >= consensus.hf202005Time)
+        hf202005Active = true;
 }
 
 /* TODO Expire orphans.
