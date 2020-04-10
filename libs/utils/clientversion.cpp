@@ -47,6 +47,8 @@
 //! First, include build.h if requested
 #ifdef HAVE_BUILD_INFO
 #include "build.h"
+#else
+# define GIT_COMMIT_ID ":"
 #endif
 
 #define BUILD_DESC_WITH_SUFFIX(maj, min, rev, series, suffix) \
