@@ -58,8 +58,6 @@ struct LockPoints;
 /** The maximum size of a blk?????.dat file */
 static const unsigned int MAX_BLOCKFILE_SIZE = 0x40000000; // 1024 MiB
 
-/** -par default (number of script-checking threads, 0 = auto) */
-static const int DEFAULT_SCRIPTCHECK_THREADS = 0;
 /** Number of blocks that can be requested at any given time from a single peer. */
 static const int MAX_BLOCKS_IN_TRANSIT_PER_PEER = 16;
 /** Timeout in seconds during which a peer must stall block download progress before being disconnected. */
