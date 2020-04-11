@@ -1141,6 +1141,8 @@ bool Script::eval(std::vector<std::vector<unsigned char> > &stack, const CScript
                     CleanupScriptCode(scriptCode, vchSig, state.flags);
 
                     bool fSuccess = checker.CheckSig(vchSig, vchPubKey, scriptCode, state.flags);
+                    if (!vchSig.empty())
+                        state.sigCheckCount++;
 
                     if (!fSuccess && (state.flags & SCRIPT_VERIFY_NULLFAIL) && vchSig.size())
                         return set_error(state.error, SCRIPT_ERR_SIG_NULLFAIL);
@@ -1248,6 +1250,7 @@ bool Script::eval(std::vector<std::vector<unsigned char> > &stack, const CScript
                                 // bitfield should have had a false
                                 return set_error(state.error, SCRIPT_ERR_SIG_NULLFAIL);
                             }
+                            state.sigCheckCount++;
                         }
 
                         if ((checkBits >> iKey) != 0) {
@@ -1296,6 +1299,14 @@ bool Script::eval(std::vector<std::vector<unsigned char> > &stack, const CScript
                             // signatures.
                             if (nSigsRemaining > nKeysRemaining)
                                 fSuccess = false;
+                        }
+
+                        // unless all signatures are null, add the keysCount to our metrics.
+                        for (int i = 0; i < nSigsCount; i++) {
+                            if (stacktop(-idxTopSig - i).size()) {
+                                state.sigCheckCount += nKeysCount;
+                                break;
+                            }
                         }
                     }
 
@@ -1353,6 +1364,7 @@ bool Script::eval(std::vector<std::vector<unsigned char> > &stack, const CScript
                             fSuccess = pubkey.verifySchnorr(messagehash, vchSig);
                         else
                             fSuccess = pubkey.verifyECDSA(messagehash, vchSig);
+                        state.sigCheckCount++;
                     }
 
                     if (!fSuccess && (state.flags & SCRIPT_VERIFY_NULLFAIL) && vchSig.size())

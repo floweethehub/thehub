@@ -175,6 +175,7 @@ struct State {
     State() = default;
     State(uint32_t flags) : flags(flags) {}
     uint32_t flags = SCRIPT_VERIFY_NONE; // validation flags
+    uint32_t sigCheckCount = 0;
     ScriptError error = SCRIPT_ERR_OK;
 
     const char* errorString() const;
