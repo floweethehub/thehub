@@ -304,11 +304,10 @@ DoubleSpendProof::Validity DoubleSpendProof::validate(const CTxMemPool &mempool)
         inScript << m_spender1.pushData.front();
         inScript << pubkey;
     }
-    const uint32_t flags = SCRIPT_ENABLE_SIGHASH_FORKID; // we depend on this way of signing
     DSPSignatureChecker checker1(this, m_spender1, amount);
-    ScriptError_t error;
-    if (!VerifyScript(inScript, prevOutScript, flags, checker1, &error)) {
-        logDebug(Log::Bitcoin) << "DoubleSpendProof failed validating first tx due to" << ScriptErrorString(error);
+    Script::State state(SCRIPT_ENABLE_SIGHASH_FORKID); // we depend on this way of signing
+    if (!Script::verify(inScript, prevOutScript, checker1, state)) {
+        logDebug(Log::Bitcoin) << "DoubleSpendProof failed validating first tx due to" << state.errorString();
         return Invalid;
     }
 
@@ -318,8 +317,8 @@ DoubleSpendProof::Validity DoubleSpendProof::validate(const CTxMemPool &mempool)
         inScript << pubkey;
     }
     DSPSignatureChecker checker2(this, m_spender2, amount);
-    if (!VerifyScript(inScript, prevOutScript, flags, checker2, &error)) {
-        logDebug(Log::Bitcoin) << "DoubleSpendProof failed validating second tx due to" << ScriptErrorString(error);
+    if (!Script::verify(inScript, prevOutScript, checker2, state)) {
+        logDebug(Log::Bitcoin) << "DoubleSpendProof failed validating second tx due to" << state.errorString();
         return Invalid;
     }
     return Valid;

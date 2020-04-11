@@ -53,7 +53,6 @@ void MultiSigTests::multisig_verify()
 {
     unsigned int flags = SCRIPT_VERIFY_P2SH | SCRIPT_VERIFY_STRICTENC;
 
-    ScriptError err;
     CKey key[4];
     CAmount amount = 0;
     for (int i = 0; i < 4; i++)
@@ -85,25 +84,26 @@ void MultiSigTests::multisig_verify()
 
     std::vector<CKey> keys;
     CScript s;
+    Script::State state(flags);
 
     // Test a AND b:
     keys.assign(1,key[0]);
     keys.push_back(key[1]);
     s = sign_multisig(a_and_b, keys, txTo[0], 0);
-    QVERIFY(VerifyScript(s, a_and_b, flags, MutableTransactionSignatureChecker(&txTo[0], 0, amount), &err));
-    QVERIFY2(err == SCRIPT_ERR_OK, ScriptErrorString(err));
+    QVERIFY(Script::verify(s, a_and_b, MutableTransactionSignatureChecker(&txTo[0], 0, amount), state));
+    QVERIFY2(state.error == SCRIPT_ERR_OK, state.errorString());
 
     for (int i = 0; i < 4; i++) {
         keys.assign(1,key[i]);
         s = sign_multisig(a_and_b, keys, txTo[0], 0);
-        QVERIFY2(!VerifyScript(s, a_and_b, flags, MutableTransactionSignatureChecker(&txTo[0], 0, amount), &err), strprintf("a&b 1: %d", i).c_str());
-        QVERIFY2(err == SCRIPT_ERR_INVALID_STACK_OPERATION, ScriptErrorString(err));
+        QVERIFY2(!Script::verify(s, a_and_b, MutableTransactionSignatureChecker(&txTo[0], 0, amount), state), strprintf("a&b 1: %d", i).c_str());
+        QVERIFY2(state.error == SCRIPT_ERR_INVALID_STACK_OPERATION, state.errorString());
 
         keys.assign(1,key[1]);
         keys.push_back(key[i]);
         s = sign_multisig(a_and_b, keys, txTo[0], 0);
-        QVERIFY2(!VerifyScript(s, a_and_b, flags, MutableTransactionSignatureChecker(&txTo[0], 0, amount), &err), strprintf("a&b 2: %d", i).c_str());
-        QVERIFY2(err == SCRIPT_ERR_EVAL_FALSE, ScriptErrorString(err));
+        QVERIFY2(!Script::verify(s, a_and_b, MutableTransactionSignatureChecker(&txTo[0], 0, amount), state), strprintf("a&b 2: %d", i).c_str());
+        QVERIFY2(state.error == SCRIPT_ERR_EVAL_FALSE, state.errorString());
     }
 
     // Test a OR b:
@@ -112,19 +112,19 @@ void MultiSigTests::multisig_verify()
         s = sign_multisig(a_or_b, keys, txTo[1], 0);
         if (i == 0 || i == 1)
         {
-            QVERIFY2(VerifyScript(s, a_or_b, flags, MutableTransactionSignatureChecker(&txTo[1], 0, amount), &err), strprintf("a|b: %d", i).c_str());
-            QVERIFY2(err == SCRIPT_ERR_OK, ScriptErrorString(err));
+            QVERIFY2(Script::verify(s, a_or_b, MutableTransactionSignatureChecker(&txTo[1], 0, amount), state), strprintf("a|b: %d", i).c_str());
+            QVERIFY2(state.error == SCRIPT_ERR_OK, state.errorString());
         }
         else
         {
-            QVERIFY2(!VerifyScript(s, a_or_b, flags, MutableTransactionSignatureChecker(&txTo[1], 0, amount), &err), strprintf("a|b: %d", i).c_str());
-            QVERIFY2(err == SCRIPT_ERR_EVAL_FALSE, ScriptErrorString(err));
+            QVERIFY2(!Script::verify(s, a_or_b, MutableTransactionSignatureChecker(&txTo[1], 0, amount), state), strprintf("a|b: %d", i).c_str());
+            QVERIFY2(state.error == SCRIPT_ERR_EVAL_FALSE, state.errorString());
         }
     }
     s.clear();
     s << OP_0 << OP_1;
-    QVERIFY(!VerifyScript(s, a_or_b, flags, MutableTransactionSignatureChecker(&txTo[1], 0, amount), &err));
-    QVERIFY2(err == SCRIPT_ERR_SIG_DER, ScriptErrorString(err));
+    QVERIFY(!Script::verify(s, a_or_b, MutableTransactionSignatureChecker(&txTo[1], 0, amount), state));
+    QVERIFY2(state.error == SCRIPT_ERR_SIG_DER, state.errorString());
 
 
     for (int i = 0; i < 4; i++)
@@ -135,12 +135,12 @@ void MultiSigTests::multisig_verify()
             s = sign_multisig(escrow, keys, txTo[2], 0);
             if (i < j && i < 3 && j < 3)
             {
-                QVERIFY2(VerifyScript(s, escrow, flags, MutableTransactionSignatureChecker(&txTo[2], 0, amount), &err), strprintf("escrow 1: %d %d", i, j).c_str());
-                QVERIFY2(err == SCRIPT_ERR_OK, ScriptErrorString(err));
+                QVERIFY2(Script::verify(s, escrow, MutableTransactionSignatureChecker(&txTo[2], 0, amount), state), strprintf("escrow 1: %d %d", i, j).c_str());
+                QVERIFY2(state.error == SCRIPT_ERR_OK, state.errorString());
             }
             else {
-                QVERIFY2(!VerifyScript(s, escrow, flags, MutableTransactionSignatureChecker(&txTo[2], 0, amount), &err), strprintf("escrow 2: %d %d", i, j).c_str());
-                QVERIFY2(err == SCRIPT_ERR_EVAL_FALSE, ScriptErrorString(err));
+                QVERIFY2(!Script::verify(s, escrow, MutableTransactionSignatureChecker(&txTo[2], 0, amount), state), strprintf("escrow 2: %d %d", i, j).c_str());
+                QVERIFY2(state.error == SCRIPT_ERR_EVAL_FALSE, state.errorString());
             }
         }
 }

@@ -54,7 +54,10 @@ Verify(const CScript& scriptSig, const CScript& scriptPubKey, bool fStrict, Scri
     txTo.vin[0].scriptSig = scriptSig;
     txTo.vout[0].nValue = 1;
 
-    return VerifyScript(scriptSig, scriptPubKey, fStrict ? SCRIPT_VERIFY_P2SH : SCRIPT_VERIFY_NONE, MutableTransactionSignatureChecker(&txTo, 0, txFrom.vout[0].nValue), &err);
+    Script::State state(fStrict ? SCRIPT_VERIFY_P2SH : SCRIPT_VERIFY_NONE);
+    bool ok = Script::verify(scriptSig, scriptPubKey, MutableTransactionSignatureChecker(&txTo, 0, txFrom.vout[0].nValue), state);
+    err = state.error;
+    return ok;
 }
 
 

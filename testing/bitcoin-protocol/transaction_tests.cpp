@@ -104,7 +104,6 @@ void TransactionTests::tx_valid()
     // verifyFlags is a comma separated list of script verification flags to apply, or "NONE"
     UniValue tests = read_json(std::string(json_tests::tx_valid, json_tests::tx_valid + sizeof(json_tests::tx_valid)));
 
-    ScriptError err;
     for (unsigned int idx = 0; idx < tests.size(); idx++) {
         UniValue test = tests[idx];
         std::string strTest = test.write();
@@ -149,11 +148,12 @@ void TransactionTests::tx_valid()
 
                 CAmount amount = 0;
                 unsigned int verify_flags = parseScriptFlags(test[2].get_str());
-                const bool ok = VerifyScript(tx.vin[i].scriptSig, mapprevOutScriptPubKeys[tx.vin[i].prevout],
-                        verify_flags, TransactionSignatureChecker(&tx, i, amount), &err);
+                Script::State state(verify_flags);
+                const bool ok = Script::verify(tx.vin[i].scriptSig, mapprevOutScriptPubKeys[tx.vin[i].prevout],
+                        TransactionSignatureChecker(&tx, i, amount), state);
                 if (!ok)
                     logDebug() << strTest;
-                QCOMPARE(ScriptErrorString(err), "No error");
+                QCOMPARE(state.errorString(), "No error");
                 QVERIFY(ok);
             }
         }
@@ -171,7 +171,6 @@ void TransactionTests::tx_invalid()
     // verifyFlags is a comma separated list of script verification flags to apply, or "NONE"
     UniValue tests = read_json(std::string(json_tests::tx_invalid, json_tests::tx_invalid + sizeof(json_tests::tx_invalid)));
 
-    ScriptError err;
     for (unsigned int idx = 0; idx < tests.size(); idx++) {
         UniValue test = tests[idx];
         std::string strTest = test.write();
@@ -208,6 +207,7 @@ void TransactionTests::tx_invalid()
 
             CValidationState state;
             fValid = CheckTransaction(tx, state) && state.IsValid();
+            Script::State scriptState;
 
             for (unsigned int i = 0; i < tx.vin.size() && fValid; i++)
             {
@@ -215,12 +215,15 @@ void TransactionTests::tx_invalid()
                     QFAIL("Bad test");
 
                 CAmount amount = 0;
-                unsigned int verify_flags = parseScriptFlags(test[2].get_str());
-                fValid = VerifyScript(tx.vin[i].scriptSig, mapprevOutScriptPubKeys[tx.vin[i].prevout],
-                                      verify_flags, TransactionSignatureChecker(&tx, i, amount), &err);
+                scriptState.flags = parseScriptFlags(test[2].get_str());
+                fValid = Script::verify(tx.vin[i].scriptSig, mapprevOutScriptPubKeys[tx.vin[i].prevout],
+                                      TransactionSignatureChecker(&tx, i, amount), scriptState);
+                if (fValid)
+                    QVERIFY(scriptState.error == SCRIPT_ERR_OK);
+                else
+                    QVERIFY(scriptState.error != SCRIPT_ERR_OK);
             }
             QVERIFY(!fValid);
-            QVERIFY(err != SCRIPT_ERR_OK);
         }
     }
 }

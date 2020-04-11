@@ -41,21 +41,21 @@ KeyData::KeyData() {
 static void CheckError(uint32_t flags, const stacktype &original_stack, const CScript &script, ScriptError expected)
 {
     BaseSignatureChecker sigchecker;
-    ScriptError err = SCRIPT_ERR_OK;
+    Script::State state(flags);
     stacktype stack{original_stack};
-    bool r = EvalScript(stack, script, flags, sigchecker, &err);
+    bool r = Script::eval(stack, script, sigchecker, state);
     QVERIFY(!r);
-    QCOMPARE(err, expected);
+    QCOMPARE(state.error, expected);
 }
 
 static void CheckPass(uint32_t flags, const stacktype &original_stack, const CScript &script, const stacktype &expected)
 {
     BaseSignatureChecker sigchecker;
-    ScriptError err = SCRIPT_ERR_OK;
+    Script::State state(flags);
     stacktype stack{original_stack};
-    bool r = EvalScript(stack, script, flags, sigchecker, &err);
+    bool r = Script::eval(stack, script, sigchecker, state);
     QVERIFY(r);
-    QCOMPARE(err, SCRIPT_ERR_OK);
+    QCOMPARE(state.error, SCRIPT_ERR_OK);
     QVERIFY(stack == expected);
 }
 

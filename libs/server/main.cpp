@@ -917,7 +917,7 @@ void queueRejectMessage(int peerId, const uint256 &blockHash, uint8_t rejectCode
 
 bool CScriptCheck::operator()() {
     const CScript &scriptSig = ptxTo->vin[nIn].scriptSig;
-    if (!VerifyScript(scriptSig, scriptPubKey, nFlags, CachingTransactionSignatureChecker(ptxTo, nIn, amount, cacheStore), &error)) {
+    if (!Script::verify(scriptSig, scriptPubKey, CachingTransactionSignatureChecker(ptxTo, nIn, amount, cacheStore), state)) {
         return false;
     }
     return true;

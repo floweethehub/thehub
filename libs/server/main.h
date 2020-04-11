@@ -42,6 +42,8 @@
 #include <boost/atomic.hpp>
 #include <boost/unordered_map.hpp>
 
+#include <script/interpreter.h>
+
 class CBlockIndex;
 class CBloomFilter;
 class CChainParams;
@@ -272,32 +274,35 @@ bool CheckSequenceLocks(CTxMemPool &mp, const CTransaction &tx, int flags, LockP
  * Closure representing one script verification
  * Note that this stores references to the spending transaction 
  */
-class CScriptCheck
+class CScriptCheck // TODO move this class to a more appropriate file.
 {
 private:
     CScript scriptPubKey;
     CAmount amount;
     const CTransaction *ptxTo;
     unsigned int nIn;
-    unsigned int nFlags;
     bool cacheStore;
-    ScriptError error;
+    Script::State state;
 
 public:
-    CScriptCheck(): amount(0), ptxTo(0), nIn(0), nFlags(0), cacheStore(false), error(SCRIPT_ERR_UNKNOWN_ERROR) {}
+    CScriptCheck(): amount(0), ptxTo(0), nIn(0), cacheStore(false)
+    {
+        state.error = SCRIPT_ERR_UNKNOWN_ERROR;
+    }
     CScriptCheck(const CScript &outputScript, CAmount amount, const CTransaction& txToIn, unsigned int nInIn, unsigned int nFlagsIn, bool cacheIn)
         : scriptPubKey(outputScript),
         amount(amount),
         ptxTo(&txToIn),
         nIn(nInIn),
-        nFlags(nFlagsIn),
         cacheStore(cacheIn),
-        error(SCRIPT_ERR_UNKNOWN_ERROR) {
+        state(nFlagsIn)
+    {
+        state.error = SCRIPT_ERR_UNKNOWN_ERROR;
     }
 
     bool operator()();
 
-    ScriptError GetScriptError() const { return error; }
+    ScriptError GetScriptError() const { return state.error; }
 };
 
 

@@ -110,7 +110,7 @@ enum
     SCRIPT_ENABLE_CHECKDATASIG = (1U << 17),
 
     SCRIPT_ENABLE_SCHNORR = (1U << 18),
-    
+
     SCRIPT_ENABLE_SCHNORR_MULTISIG = (1U << 19),
 
     // Allows the miner to appropriate coins sent to p2sh segwit addresses
@@ -119,8 +119,6 @@ enum
     // Whether the new OP_REVERSEBYTES opcode can be used.
     SCRIPT_ENABLE_OP_REVERSEBYTES = (1U << 21),
 };
-
-bool CheckTransactionSignatureEncoding(const std::vector<unsigned char> &vchSig, unsigned int flags, ScriptError* serror);
 
 uint256 SignatureHash(const CScript &scriptCode, const CTransaction& txTo, unsigned int nIn, CAmount amount, int nHashType, uint32_t flags = SCRIPT_ENABLE_SIGHASH_FORKID);
 
@@ -171,7 +169,22 @@ public:
     MutableTransactionSignatureChecker(const CMutableTransaction* txToIn, unsigned int nInIn, const CAmount& amount) : TransactionSignatureChecker(&txTo, nInIn, amount), txTo(*txToIn) {}
 };
 
-bool EvalScript(std::vector<std::vector<unsigned char> >& stack, const CScript& script, unsigned int flags, const BaseSignatureChecker& checker, ScriptError* error = nullptr);
-bool VerifyScript(const CScript& scriptSig, const CScript& scriptPubKey, unsigned int flags, const BaseSignatureChecker& checker, ScriptError* error = nullptr);
+
+namespace Script {
+struct State {
+    State() = default;
+    State(uint32_t flags) : flags(flags) {}
+    uint32_t flags = SCRIPT_VERIFY_NONE; // validation flags
+    ScriptError error = SCRIPT_ERR_OK;
+
+    const char* errorString() const;
+};
+
+bool eval(std::vector<std::vector<unsigned char> > &stack, const CScript &script, const BaseSignatureChecker &checker, Script::State &state);
+bool verify(const CScript& scriptSig, const CScript& scriptPubKey, const BaseSignatureChecker& checker, Script::State &state);
+
+bool checkTransactionSignatureEncoding(const std::vector<unsigned char> &vchSig, State &state);
+}
+
 
 #endif

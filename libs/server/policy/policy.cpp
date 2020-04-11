@@ -146,7 +146,8 @@ bool Policy::isInputStandard(const CScript &outputScript, const CScript &inputSc
     if (whichType == Script::TX_SCRIPTHASH) {
         std::vector<std::vector<unsigned char> > stack;
         // convert the scriptSig into a stack, so we can inspect the redeemScript
-        if (!EvalScript(stack, inputScript, SCRIPT_VERIFY_NONE, BaseSignatureChecker(), nullptr))
+        Script::State state;
+        if (!Script::eval(stack, inputScript, BaseSignatureChecker(), state))
             return false;
         if (stack.empty())
             return false;

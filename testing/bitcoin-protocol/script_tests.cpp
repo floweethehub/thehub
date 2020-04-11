@@ -86,13 +86,13 @@ CMutableTransaction BuildSpendingTransaction(const CScript& scriptSig, const CMu
 
 void DoTest(const CScript& scriptPubKey, const CScript& scriptSig, int flags, bool expect, const QString &message, CAmount nValue)
 {
-    ScriptError err;
     CMutableTransaction tx = BuildSpendingTransaction(scriptSig, BuildCreditingTransaction(scriptPubKey, nValue));
     CMutableTransaction tx2 = tx;
-    QCOMPARE(VerifyScript(scriptSig, scriptPubKey, flags, MutableTransactionSignatureChecker(&tx, 0, nValue), &err), expect);
-    if ((err == SCRIPT_ERR_OK) != expect)
-        qWarning() << QString::fromStdString(std::string(ScriptErrorString(err)) + ": ")+ message;
-    QCOMPARE(err == SCRIPT_ERR_OK, expect);
+    Script::State state(flags);
+    QCOMPARE(Script::verify(scriptSig, scriptPubKey, MutableTransactionSignatureChecker(&tx, 0, nValue), state), expect);
+    if ((state.error == SCRIPT_ERR_OK) != expect)
+        qWarning() << QString(state.errorString()) + ": " + message;
+    QCOMPARE(state.error == SCRIPT_ERR_OK, expect);
 }
 
 void static NegateSignatureS(std::vector<unsigned char>& vchSig) {
@@ -704,25 +704,28 @@ void TestScript::script_PushData()
     static const unsigned char pushdata2[] = { OP_PUSHDATA2, 1, 0, 0x5a };
     static const unsigned char pushdata4[] = { OP_PUSHDATA4, 1, 0, 0, 0, 0x5a };
 
-    ScriptError err;
+    Script::State state(SCRIPT_VERIFY_P2SH);
     std::vector<std::vector<unsigned char> > directStack;
-    QVERIFY(EvalScript(directStack, CScript(&direct[0], &direct[sizeof(direct)]), SCRIPT_VERIFY_P2SH, BaseSignatureChecker(), &err));
-    QCOMPARE(ScriptErrorString(err), "No error");
+    QVERIFY(Script::eval(directStack, CScript(&direct[0], &direct[sizeof(direct)]), BaseSignatureChecker(), state));
+    QCOMPARE(state.errorString(), "No error");
 
-    std::vector<std::vector<unsigned char> > pushdata1Stack;
-    QVERIFY(EvalScript(pushdata1Stack, CScript(&pushdata1[0], &pushdata1[sizeof(pushdata1)]), SCRIPT_VERIFY_P2SH, BaseSignatureChecker(), &err));
+    std::vector<std::vector<unsigned char>> pushdata1Stack;
+    state = Script::State(SCRIPT_VERIFY_P2SH);
+    QVERIFY(Script::eval(pushdata1Stack, CScript(&pushdata1[0], &pushdata1[sizeof(pushdata1)]), BaseSignatureChecker(), state));
     QVERIFY(pushdata1Stack == directStack);
-    QCOMPARE(ScriptErrorString(err), "No error");
+    QCOMPARE(state.errorString(), "No error");
 
     std::vector<std::vector<unsigned char> > pushdata2Stack;
-    QVERIFY(EvalScript(pushdata2Stack, CScript(&pushdata2[0], &pushdata2[sizeof(pushdata2)]), SCRIPT_VERIFY_P2SH, BaseSignatureChecker(), &err));
+    state = Script::State(SCRIPT_VERIFY_P2SH);
+    QVERIFY(Script::eval(pushdata2Stack, CScript(&pushdata2[0], &pushdata2[sizeof(pushdata2)]), BaseSignatureChecker(),  state));
     QVERIFY(pushdata2Stack == directStack);
-    QCOMPARE(ScriptErrorString(err), "No error");
+    QCOMPARE(state.errorString(), "No error");
 
     std::vector<std::vector<unsigned char> > pushdata4Stack;
-    QVERIFY(EvalScript(pushdata4Stack, CScript(&pushdata4[0], &pushdata4[sizeof(pushdata4)]), SCRIPT_VERIFY_P2SH, BaseSignatureChecker(), &err));
+    state = Script::State(SCRIPT_VERIFY_P2SH);
+    QVERIFY(Script::eval(pushdata4Stack, CScript(&pushdata4[0], &pushdata4[sizeof(pushdata4)]), BaseSignatureChecker(),  state));
     QVERIFY(pushdata4Stack == directStack);
-    QCOMPARE(ScriptErrorString(err), "No error");
+    QCOMPARE(state.errorString(), "No error");
 }
 
 CScript TestScript::sign_multisig(CScript scriptPubKey, std::vector<CKey> keys, CTransaction transaction)
@@ -760,7 +763,6 @@ CScript TestScript::sign_multisig(CScript scriptPubKey, const CKey &key, CTransa
 
 void TestScript::script_CHECKMULTISIG12()
 {
-    ScriptError err;
     CKey key1, key2, key3;
     key1.MakeNewKey(true);
     key2.MakeNewKey(false);
@@ -772,27 +774,27 @@ void TestScript::script_CHECKMULTISIG12()
     CMutableTransaction txFrom12 = BuildCreditingTransaction(scriptPubKey12);
     CMutableTransaction txTo12 = BuildSpendingTransaction(CScript(), txFrom12);
 
+    Script::State state(flags);
     CScript goodsig1 = sign_multisig(scriptPubKey12, key1, txTo12);
-    bool ok = VerifyScript(goodsig1, scriptPubKey12, flags, MutableTransactionSignatureChecker(&txTo12, 0, txFrom12.vout[0].nValue), &err);
-    QCOMPARE(ScriptErrorString(err), "No error");
+    bool ok = Script::verify(goodsig1, scriptPubKey12, MutableTransactionSignatureChecker(&txTo12, 0, txFrom12.vout[0].nValue), state);
+    QCOMPARE(state.errorString(), "No error");
     QVERIFY(ok);
     txTo12.vout[0].nValue = 2;
-    ok = VerifyScript(goodsig1, scriptPubKey12, flags, MutableTransactionSignatureChecker(&txTo12, 0, txFrom12.vout[0].nValue), &err);
-    QCOMPARE(ScriptErrorString(err), ScriptErrorString(SCRIPT_ERR_EVAL_FALSE));
+    ok = Script::verify(goodsig1, scriptPubKey12, MutableTransactionSignatureChecker(&txTo12, 0, txFrom12.vout[0].nValue), state);
+    QCOMPARE(state.errorString(), ScriptErrorString(SCRIPT_ERR_EVAL_FALSE));
     QVERIFY(!ok);
 
     CScript goodsig2 = sign_multisig(scriptPubKey12, key2, txTo12);
-    QVERIFY(VerifyScript(goodsig2, scriptPubKey12, flags, MutableTransactionSignatureChecker(&txTo12, 0, txFrom12.vout[0].nValue), &err));
-    QCOMPARE(ScriptErrorString(err), "No error");
+    QVERIFY(Script::verify(goodsig2, scriptPubKey12, MutableTransactionSignatureChecker(&txTo12, 0, txFrom12.vout[0].nValue), state));
+    QCOMPARE(state.errorString(), "No error");
 
     CScript badsig1 = sign_multisig(scriptPubKey12, key3, txTo12);
-    QVERIFY(!VerifyScript(badsig1, scriptPubKey12, flags, MutableTransactionSignatureChecker(&txTo12, 0, txFrom12.vout[0].nValue), &err));
-    QCOMPARE(ScriptErrorString(err), ScriptErrorString(SCRIPT_ERR_EVAL_FALSE));
+    QVERIFY(!Script::verify(badsig1, scriptPubKey12, MutableTransactionSignatureChecker(&txTo12, 0, txFrom12.vout[0].nValue), state));
+    QCOMPARE(state.errorString(), ScriptErrorString(SCRIPT_ERR_EVAL_FALSE));
 }
 
 void TestScript::script_CHECKMULTISIG23()
 {
-    ScriptError err;
     CKey key1, key2, key3, key4;
     key1.MakeNewKey(true);
     key2.MakeNewKey(false);
@@ -808,63 +810,64 @@ void TestScript::script_CHECKMULTISIG23()
     std::vector<CKey> keys;
     keys.push_back(key1); keys.push_back(key2);
     CScript goodsig1 = sign_multisig(scriptPubKey23, keys, txTo23);
-    bool ok = VerifyScript(goodsig1, scriptPubKey23, flags, MutableTransactionSignatureChecker(&txTo23, 0, txFrom23.vout[0].nValue), &err);
-    QCOMPARE(ScriptErrorString(err), "No error");
+    Script::State state(flags);
+    bool ok = Script::verify(goodsig1, scriptPubKey23, MutableTransactionSignatureChecker(&txTo23, 0, txFrom23.vout[0].nValue), state);
+    QCOMPARE(state.errorString(), "No error");
     QVERIFY(ok);
 
     keys.clear();
     keys.push_back(key1); keys.push_back(key3);
     CScript goodsig2 = sign_multisig(scriptPubKey23, keys, txTo23);
-    ok = VerifyScript(goodsig2, scriptPubKey23, flags, MutableTransactionSignatureChecker(&txTo23, 0, txFrom23.vout[0].nValue), &err);
-    QCOMPARE(ScriptErrorString(err), "No error");
+    ok = Script::verify(goodsig2, scriptPubKey23, MutableTransactionSignatureChecker(&txTo23, 0, txFrom23.vout[0].nValue), state);
+    QCOMPARE(state.errorString(), "No error");
     QVERIFY(ok);
 
     keys.clear();
     keys.push_back(key2); keys.push_back(key3);
     CScript goodsig3 = sign_multisig(scriptPubKey23, keys, txTo23);
-    ok = VerifyScript(goodsig3, scriptPubKey23, flags, MutableTransactionSignatureChecker(&txTo23, 0, txFrom23.vout[0].nValue), &err);
-    QCOMPARE(ScriptErrorString(err), "No error");
+    ok = Script::verify(goodsig3, scriptPubKey23, MutableTransactionSignatureChecker(&txTo23, 0, txFrom23.vout[0].nValue), state);
+    QCOMPARE(state.errorString(), "No error");
     QVERIFY(ok);
 
     keys.clear();
     keys.push_back(key2); keys.push_back(key2); // Can't re-use sig
     CScript badsig1 = sign_multisig(scriptPubKey23, keys, txTo23);
-    ok = VerifyScript(badsig1, scriptPubKey23, flags, MutableTransactionSignatureChecker(&txTo23, 0, txFrom23.vout[0].nValue), &err);
-    QCOMPARE(ScriptErrorString(err), ScriptErrorString(SCRIPT_ERR_EVAL_FALSE));
+    ok = Script::verify(badsig1, scriptPubKey23, MutableTransactionSignatureChecker(&txTo23, 0, txFrom23.vout[0].nValue), state);
+    QCOMPARE(state.errorString(), ScriptErrorString(SCRIPT_ERR_EVAL_FALSE));
     QVERIFY(!ok);
 
     keys.clear();
     keys.push_back(key2); keys.push_back(key1); // sigs must be in correct order
     CScript badsig2 = sign_multisig(scriptPubKey23, keys, txTo23);
-    ok = VerifyScript(badsig2, scriptPubKey23, flags, MutableTransactionSignatureChecker(&txTo23, 0, txFrom23.vout[0].nValue), &err);
-    QCOMPARE(ScriptErrorString(err), ScriptErrorString(SCRIPT_ERR_EVAL_FALSE));
+    ok = Script::verify(badsig2, scriptPubKey23, MutableTransactionSignatureChecker(&txTo23, 0, txFrom23.vout[0].nValue), state);
+    QCOMPARE(state.errorString(), ScriptErrorString(SCRIPT_ERR_EVAL_FALSE));
     QVERIFY(!ok);
 
     keys.clear();
     keys.push_back(key3); keys.push_back(key2); // sigs must be in correct order
     CScript badsig3 = sign_multisig(scriptPubKey23, keys, txTo23);
-    ok = VerifyScript(badsig3, scriptPubKey23, flags, MutableTransactionSignatureChecker(&txTo23, 0, txFrom23.vout[0].nValue), &err);
-    QCOMPARE(ScriptErrorString(err), ScriptErrorString(SCRIPT_ERR_EVAL_FALSE));
+    ok = Script::verify(badsig3, scriptPubKey23, MutableTransactionSignatureChecker(&txTo23, 0, txFrom23.vout[0].nValue), state);
+    QCOMPARE(state.errorString(), ScriptErrorString(SCRIPT_ERR_EVAL_FALSE));
     QVERIFY(!ok);
 
     keys.clear();
     keys.push_back(key4); keys.push_back(key2); // sigs must match pubkeys
     CScript badsig4 = sign_multisig(scriptPubKey23, keys, txTo23);
-    ok = VerifyScript(badsig4, scriptPubKey23, flags, MutableTransactionSignatureChecker(&txTo23, 0, txFrom23.vout[0].nValue), &err);
-    QCOMPARE(ScriptErrorString(err), ScriptErrorString(SCRIPT_ERR_EVAL_FALSE));
+    ok = Script::verify(badsig4, scriptPubKey23, MutableTransactionSignatureChecker(&txTo23, 0, txFrom23.vout[0].nValue), state);
+    QCOMPARE(state.errorString(), ScriptErrorString(SCRIPT_ERR_EVAL_FALSE));
     QVERIFY(!ok);
 
     keys.clear();
     keys.push_back(key1); keys.push_back(key4); // sigs must match pubkeys
     CScript badsig5 = sign_multisig(scriptPubKey23, keys, txTo23);
-    ok = VerifyScript(badsig5, scriptPubKey23, flags, MutableTransactionSignatureChecker(&txTo23, 0, txFrom23.vout[0].nValue), &err);
-    QCOMPARE(ScriptErrorString(err), ScriptErrorString(SCRIPT_ERR_EVAL_FALSE));
+    ok = Script::verify(badsig5, scriptPubKey23, MutableTransactionSignatureChecker(&txTo23, 0, txFrom23.vout[0].nValue), state);
+    QCOMPARE(state.errorString(), ScriptErrorString(SCRIPT_ERR_EVAL_FALSE));
     QVERIFY(!ok);
 
     keys.clear(); // Must have signatures
     CScript badsig6 = sign_multisig(scriptPubKey23, keys, txTo23);
-    ok = VerifyScript(badsig6, scriptPubKey23, flags, MutableTransactionSignatureChecker(&txTo23, 0, txFrom23.vout[0].nValue), &err);
-    QCOMPARE(ScriptErrorString(err), ScriptErrorString(SCRIPT_ERR_INVALID_STACK_OPERATION));
+    ok = Script::verify(badsig6, scriptPubKey23, MutableTransactionSignatureChecker(&txTo23, 0, txFrom23.vout[0].nValue), state);
+    QCOMPARE(state.errorString(), ScriptErrorString(SCRIPT_ERR_INVALID_STACK_OPERATION));
     QVERIFY(!ok);
 }
 
@@ -980,22 +983,23 @@ void TestScript::script_combineSigs()
 
 void TestScript::script_standard_push()
 {
-    ScriptError err;
     for (int i=0; i<67000; i++) {
+        Script::State state(SCRIPT_VERIFY_MINIMALDATA);
         CScript script;
         script << i;
         QVERIFY(script.IsPushOnly());
-        QVERIFY(VerifyScript(script, CScript() << OP_1, SCRIPT_VERIFY_MINIMALDATA, BaseSignatureChecker(), &err));
-        QCOMPARE(ScriptErrorString(err), "No error");
+        QVERIFY(Script::verify(script, CScript() << OP_1, BaseSignatureChecker(), state));
+        QCOMPARE(state.errorString(), "No error");
     }
 
     for (unsigned int i=0; i<=MAX_SCRIPT_ELEMENT_SIZE; i++) {
         std::vector<unsigned char> data(i, '\111');
+        Script::State state(SCRIPT_VERIFY_MINIMALDATA);
         CScript script;
         script << data;
         QVERIFY(script.IsPushOnly());
-        QVERIFY(VerifyScript(script, CScript() << OP_1, SCRIPT_VERIFY_MINIMALDATA, BaseSignatureChecker(), &err));
-        QCOMPARE(ScriptErrorString(err), "No error");
+        QVERIFY(Script::verify(script, CScript() << OP_1, BaseSignatureChecker(), state));
+        QCOMPARE(state.errorString(), "No error");
     }
 }
 

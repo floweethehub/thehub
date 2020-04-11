@@ -739,7 +739,7 @@ UniValue signrawtransaction(const UniValue& params, bool fHelp)
 
         CScript outputScript;
         CAmount amount = 0;
-        bool found;
+        bool found = false;
         Tx::Input input;
         input.index = txin.prevout.n;
         input.txid = txin.prevout.hash;
@@ -783,9 +783,9 @@ UniValue signrawtransaction(const UniValue& params, bool fHelp)
         BOOST_FOREACH(const CMutableTransaction& txv, txVariants) {
             txin.scriptSig = CombineSignatures(outputScript, TransactionSignatureChecker(&txConst, i, amount), txin.scriptSig, txv.vin[i].scriptSig);
         }
-        ScriptError serror = SCRIPT_ERR_OK;
-        if (!VerifyScript(txin.scriptSig, outputScript, validationFlags, TransactionSignatureChecker(&txConst, i, amount), &serror)) {
-            TxInErrorToJSON(txin, vErrors, ScriptErrorString(serror));
+        Script::State state(validationFlags);
+        if (!Script::verify(txin.scriptSig, outputScript, TransactionSignatureChecker(&txConst, i, amount), state)) {
+            TxInErrorToJSON(txin, vErrors, state.errorString());
         }
     }
     bool fComplete = vErrors.empty();

@@ -138,9 +138,10 @@ bool ProduceSignature(const BaseSignatureCreator& creator, const CScript& fromPu
     // Because we have no good way to get nHashType here, we just try with and
     // without enabling it. One of the two must pass.
     // TODO: Remove after the fork.
-    return VerifyScript(scriptSig, fromPubKey, STANDARD_SCRIPT_VERIFY_FLAGS, creator.Checker())
-            || VerifyScript(scriptSig, fromPubKey,
-                            STANDARD_SCRIPT_VERIFY_FLAGS | SCRIPT_ENABLE_SIGHASH_FORKID, creator.Checker());
+    Script::State before(STANDARD_SCRIPT_VERIFY_FLAGS);
+    Script::State after(STANDARD_SCRIPT_VERIFY_FLAGS | SCRIPT_ENABLE_SIGHASH_FORKID);
+    return Script::verify(scriptSig, fromPubKey, creator.Checker(), before)
+            || Script::verify(scriptSig, fromPubKey, creator.Checker(), after);
 }
 
 bool SignSignature(const CKeyStore &keystore, const CScript& fromPubKey, CMutableTransaction& txTo, unsigned int nIn, CAmount amount, int nHashType)
@@ -293,10 +294,12 @@ CScript CombineSignatures(const CScript& scriptPubKey, const BaseSignatureChecke
     std::vector<std::vector<unsigned char> > vSolutions;
     Script::solver(scriptPubKey, txType, vSolutions);
 
+    Script::State state;
+    state.flags = SCRIPT_VERIFY_STRICTENC;
     std::vector<valtype> stack1;
-    EvalScript(stack1, scriptSig1, SCRIPT_VERIFY_STRICTENC, BaseSignatureChecker());
+    Script::eval(stack1, scriptSig1, BaseSignatureChecker(), state);
     std::vector<valtype> stack2;
-    EvalScript(stack2, scriptSig2, SCRIPT_VERIFY_STRICTENC, BaseSignatureChecker());
+    Script::eval(stack2, scriptSig2, BaseSignatureChecker(), state);
 
     return CombineSignatures(scriptPubKey, checker, txType, vSolutions, stack1, stack2);
 }
