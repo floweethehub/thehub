@@ -555,9 +555,9 @@ void ValidationEnginePrivate::processNewBlock(std::shared_ptr<BlockValidationSta
                 index->RaiseValidity(BLOCK_VALID_SCRIPTS); // done
                 state->signalChildren();
             } else {
-                const uint64_t maxSigOps = Policy::blockSigOpAcceptLimit(state->m_block.size());
-                if (state->m_sigOpsCounted > maxSigOps)
-                    throw Exception("bad-blk-sigops");
+                static const uint64_t maxSigChecks = Policy::blockSigCheckAcceptLimit();
+                if (state->m_sigChecksCounted > maxSigChecks)
+                    throw Exception("bad-blk-sigcheck");
 
                 CBlock block = state->m_block.createOldBlock();
                 if (state->flags.enableValidation) {
@@ -1050,7 +1050,7 @@ BlockValidationState::BlockValidationState(const std::weak_ptr<ValidationEngineP
       m_txChunkLeftToFinish(-1),
       m_validationStatus(BlockValidityUnknown),
       m_blockFees(0),
-      m_sigOpsCounted(0),
+      m_sigChecksCounted(0),
       m_parent(parent)
 {
     assert(onResultFlags < 0x100);
@@ -1292,18 +1292,6 @@ void BlockValidationState::checks2HaveParentHeaders()
                 throw Exception("bad-cb-height");
         }
 
-        // Sigops.
-        // Notice that we continue counting in validateTransactionInputs and do one last check in processNewBlock()
-        // TODO chunk this over all CPUs
-        uint32_t sigOpsCounted = 0;
-        for (const CTransaction &tx : block.vtx)
-            sigOpsCounted += Validation::countSigOps(tx);
-        const uint32_t maxSigOps = Policy::blockSigOpAcceptLimit(m_block.size());
-        if (sigOpsCounted > maxSigOps)
-            throw Exception("bad-blk-sigops");
-        assert(m_sigOpsCounted == 0);
-        m_sigOpsCounted = sigOpsCounted;
-
         if (flags.hf201811Active) {
             for (auto tx : m_block.transactions()) {
                 // Impose a minimum transaction size of 100 bytes after the Nov, 15 2018 HF
@@ -1470,7 +1458,7 @@ void BlockValidationState::checkSignaturesChunk()
     bool blockValid = (m_validationStatus.load() & BlockInvalid) == 0;
     int txIndex = itemsPerChunk * chunkToStart;
     const int txMax = std::min(txIndex + itemsPerChunk, totalTxCount);
-    uint32_t chunkSigops = 0;
+    uint32_t chunkSigChecks = 0;
     CAmount chunkFees = 0;
     std::unique_ptr<std::deque<FastUndoBlock::Item> >undoItems(new std::deque<FastUndoBlock::Item>());
 
@@ -1592,10 +1580,10 @@ void BlockValidationState::checkSignaturesChunk()
                     throw Exception("bad-txns-nonfinal");
 
                 bool spendsCoinBase;
-                uint32_t sigops = 0;
+                uint32_t sigChecks = 0;
                 ValidationPrivate::validateTransactionInputs(old, unspents, m_blockIndex->nHeight, flags, fees,
-                                                             sigops, spendsCoinBase, /* requireStandard */ false);
-                chunkSigops += sigops;
+                                                             sigChecks, spendsCoinBase, /* requireStandard */ false);
+                chunkSigChecks += sigChecks;
                 chunkFees += fees;
             }
 
@@ -1626,7 +1614,7 @@ void BlockValidationState::checkSignaturesChunk()
         blockValid = false;
     }
     m_blockFees.fetch_add(chunkFees);
-    m_sigOpsCounted.fetch_add(chunkSigops);
+    m_sigChecksCounted.fetch_add(chunkSigChecks );
     m_undoItems[static_cast<size_t>(chunkToStart)] = undoItems.release();
 
 #ifdef ENABLE_BENCHMARKS

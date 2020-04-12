@@ -2,6 +2,7 @@
  * This file is part of the Flowee project
  * Copyright (C) 2009-2010 Satoshi Nakamoto
  * Copyright (C) 2009-2015 The Bitcoin developers
+ * Copyright (C) 2019-2020 Tom Zander <tomz@freedommail.ch>
  *
  * This program is free software: you can redistribute it and/or modify
  * it under the terms of the GNU General Public License as published by
@@ -31,10 +32,6 @@ class UnspentOutputDatabase;
 
 /** The maximum size for transactions we're willing to relay/mine */
 static const unsigned int MAX_STANDARD_TX_SIZE = 100000;
-/** Maximum number of signature check operations in an IsStandard() P2SH script */
-static const unsigned int MAX_P2SH_SIGOPS = 15;
-/** The maximum number of sigops we're willing to relay/mine in a single tx */
-static const unsigned int MAX_STANDARD_TX_SIGOPS = MAX_BLOCK_SIGOPS_PER_MB/5;
 
 /**
  * Standard script verification flags that standard transactions will comply
@@ -68,8 +65,10 @@ bool IsStandard(const CScript &scriptPubKey, Script::TxnOutType &whichType);
 bool IsStandardTx(const CTransaction& tx, std::string& reason);
 
 namespace Policy {
+    constexpr unsigned int MAX_SIGCHEKCS_PER_TX = 3000;
+
     std::int32_t blockSizeAcceptLimit();
-    uint32_t blockSigOpAcceptLimit(int32_t nBlockSize);
+    uint32_t blockSigCheckAcceptLimit();
     /**
      * Check for standard transaction types
      * @return True if input use standard transaction forms

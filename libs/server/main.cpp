@@ -65,7 +65,6 @@ CWaitableCriticalSection csBestBlock;
 CConditionVariable cvBlockChange;
 bool fIsBareMultisigStd = Settings::DefaultPermitBareMultisig;
 bool fRequireStandard = true;
-unsigned int nBytesPerSigOp = Settings::DefaultBytesPerSigop;
 bool fCheckpointsEnabled = Settings::DefaultCheckpointsEnabled;
 
 /** Fees smaller than this (in satoshi) are considered zero fee (for relaying, mining and transaction creation) */

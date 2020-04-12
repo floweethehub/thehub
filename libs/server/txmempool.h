@@ -102,7 +102,6 @@ public:
     bool hadNoDependencies; //! Not dependent on any other txs when it entered the mempool
     CAmount inChainInputValue; //! Sum of all txin values that are already in blockchain
     bool spendsCoinbase; //! keep track of transactions that spend a coinbase
-    unsigned int sigOpCount; //! Legacy sig ops plus P2SH sig op count
     int64_t feeDelta; //! Used for determining the priority of the transaction for mining in a block
     LockPoints lockPoints; //! Track the height and time at which tx was final
 
@@ -121,7 +120,7 @@ public:
     CTxMemPoolEntry(const CTransaction &tx, const CAmount& _nFee,
                     int64_t _nTime, double _entryPriority, unsigned int _entryHeight,
                     bool poolHasNoInputsOf, CAmount _inChainInputValue, bool spendsCoinbase,
-                    unsigned int nSigOps, LockPoints lp);
+                    LockPoints lp);
     CTxMemPoolEntry(const CTxMemPoolEntry& other);
 
     const CTransaction& GetTx() const { return this->oldTx; }
@@ -135,7 +134,6 @@ public:
     int64_t GetTime() const { return nTime; }
     unsigned int GetHeight() const { return entryHeight; }
     bool WasClearAtEntry() const { return hadNoDependencies; }
-    unsigned int GetSigOpCount() const { return sigOpCount; }
     int64_t GetModifiedFee() const { return nFee + feeDelta; }
     size_t DynamicMemoryUsage() const { return nUsageSize; }
     const LockPoints& GetLockPoints() const { return lockPoints; }

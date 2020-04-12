@@ -58,7 +58,6 @@ BOOST_AUTO_TEST_CASE(CreateNewBlock_validity)
 {
     CScript scriptPubKey = CScript() << ParseHex("04678afdb0fe5548271967f1a67130b7105cd6a828e03909a67962e0ea1f61deb649f6bc3f4cef38c4f35504e51ec112de5c384df7ba0b8d578a4c702b6bf11d5f") << OP_CHECKSIG;
     CBlockTemplate *pblocktemplate;
-    CMutableTransaction tx;
     CScript script;
     uint256 hash;
     TestMemPoolEntryHelper entry;
@@ -78,7 +77,7 @@ BOOST_AUTO_TEST_CASE(CreateNewBlock_validity)
     delete pblocktemplate;
 
     // We can't make transactions until we have inputs
-    // Therefore, load 100 blocks :)
+    // Therefore, load 110 blocks :)
 
     int baseheight = bv.blockchain()->Height();
     auto chain = bv.appendChain(110, MockBlockValidation::EmptyOutScript);
@@ -95,6 +94,7 @@ BOOST_AUTO_TEST_CASE(CreateNewBlock_validity)
     delete pblocktemplate;
 
     // block sigops > limit: 1000 CHECKMULTISIG + 1
+    CMutableTransaction tx;
     tx.vin.resize(1);
     // NOTE: OP_NOP is used to force 20 SigOps for the CHECKMULTISIG
     tx.vin[0].scriptSig = CScript() << OP_0 << OP_0 << OP_0 << OP_NOP << OP_CHECKMULTISIG << OP_1;
@@ -102,29 +102,12 @@ BOOST_AUTO_TEST_CASE(CreateNewBlock_validity)
     tx.vin[0].prevout.n = 0;
     tx.vout.resize(1);
     tx.vout[0].nValue = 5000000000LL;
-    for (unsigned int i = 0; i < 1001; ++i)
-    {
-        tx.vout[0].nValue -= 1000000;
-        hash = tx.GetHash();
-        const bool spendsCoinbase = i == 0; // only first tx spends coinbase
-        // If we don't set the # of sig ops in the CTxMemPoolEntry, template creation fails
-        bv.mp.addUnchecked(hash, entry.Fee(1000000).Time(GetTime()).SpendsCoinbase(spendsCoinbase).FromTx(tx));
-        tx.vin[0].prevout.hash = hash;
-    }
-    BOOST_CHECK(pblocktemplate = miner.CreateNewBlock(bv));
-    BOOST_CHECK(!bv.mp.exists(hash));
-    BOOST_CHECK_EQUAL(pblocktemplate->block.vtx.size(), 1);
-    delete pblocktemplate;
-    bv.mp.clear();
-
-    tx.vin[0].prevout.hash = txFirst[0]->GetHash();
-    tx.vout[0].nValue = 5000000000LL;
     for (unsigned int i = 0; i < 1; ++i) {
         tx.vout[0].nValue -= 1000000;
         hash = tx.GetHash();
         const bool spendsCoinbase = i == 0; // only first tx spends coinbase
         // If we do set the # of sig ops in the CTxMemPoolEntry, template creation passes
-        bv.mp.addUnchecked(hash, entry.Fee(1000000).Time(GetTime()).SpendsCoinbase(spendsCoinbase).SigOps(20).FromTx(tx));
+        bv.mp.addUnchecked(hash, entry.Fee(1000000).Time(GetTime()).SpendsCoinbase(spendsCoinbase).FromTx(tx));
         tx.vin[0].prevout.hash = hash;
     }
     BOOST_CHECK(pblocktemplate = miner.CreateNewBlock(bv));

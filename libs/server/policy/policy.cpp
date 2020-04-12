@@ -2,7 +2,7 @@
  * This file is part of the Flowee project
  * Copyright (C) 2009-2010 Satoshi Nakamoto
  * Copyright (C) 2009-2015 The Bitcoin developers
- * Copyright (C) 2019 Tom Zander <tomz@freedommail.ch>
+ * Copyright (C) 2019-2020 Tom Zander <tomz@freedommail.ch>
  *
  * This program is free software: you can redistribute it and/or modify
  * it under the terms of the GNU General Public License as published by
@@ -117,9 +117,9 @@ bool IsStandardTx(const CTransaction& tx, std::string& reason)
             return false;
         }
 
-        if (whichType == Script::TX_NULL_DATA)
+        if (whichType == Script::TX_NULL_DATA) {
             nDataOut++;
-        else if ((whichType == Script::TX_MULTISIG) && (!fIsBareMultisigStd)) {
+        } else if ((whichType == Script::TX_MULTISIG) && (!fIsBareMultisigStd)) {
             reason = "bare-multisig";
             return false;
         } else if (txout.IsDust(::minRelayTxFee)) {
@@ -151,10 +151,6 @@ bool Policy::isInputStandard(const CScript &outputScript, const CScript &inputSc
             return false;
         if (stack.empty())
             return false;
-        CScript subscript(stack.back().begin(), stack.back().end());
-        if (subscript.GetSigOpCount(true) > MAX_P2SH_SIGOPS) {
-            return false;
-        }
     }
 
     return true;
@@ -186,14 +182,6 @@ int32_t Policy::blockSizeAcceptLimit()
     return static_cast<int>(std::min(int64_t(INT_MAX), limit));
 }
 
-uint32_t Policy::blockSigOpAcceptLimit(int32_t nBlockSize)
-{
-    if (nBlockSize < 2)
-        return MAX_BLOCK_SIGOPS_PER_MB;
-    uint32_t nBlockSizeMb = 1 + ((static_cast<uint32_t>(nBlockSize) - 1) / 1000000);
-    return nBlockSizeMb * MAX_BLOCK_SIGOPS_PER_MB;
-}
-
 bool Policy::areInputsStandard(const Tx &tx, const UnspentOutputDatabase *utxo)
 {
     Tx::Iterator iter(tx);
@@ -216,4 +204,9 @@ bool Policy::areInputsStandard(const Tx &tx, const UnspentOutputDatabase *utxo)
         type = iter.next(Tx::PrevTxHash);
     }
     return true;
+}
+
+uint32_t Policy::blockSigCheckAcceptLimit()
+{
+    return (blockSizeAcceptLimit() + 70) / 141;
 }

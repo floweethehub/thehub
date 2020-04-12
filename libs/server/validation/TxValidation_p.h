@@ -36,10 +36,6 @@
 
 class CTransaction;
 
-namespace Validation {
-    uint32_t countSigOps(const CTransaction &tx);
-}
-
 class TxValidationState  : public std::enable_shared_from_this<TxValidationState> {
 public:
     enum InternalFlags {

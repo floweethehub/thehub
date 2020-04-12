@@ -278,7 +278,6 @@ void TestPaymentToScriptHash::switchover()
 void TestPaymentToScriptHash::AreInputsStandard()
 {
     LOCK(cs_main);
-    UnspentOutputDatabase *utxo = UnspentOutputDatabase::createMemOnlyDB("unspent");
     CBasicKeyStore keystore;
     CKey key[6];
     std::vector<CPubKey> keys;
@@ -316,9 +315,9 @@ void TestPaymentToScriptHash::AreInputsStandard()
     txFrom.vout[3].scriptPubKey = GetScriptForDestination(CScriptID(oneAndTwo));
     txFrom.vout[3].nValue = 4000;
 
-    // vout[4] is max sigops:
+    // vout[4] is max sigchecks: Non-standard because its too long
     CScript fifteenSigops; fifteenSigops << OP_1;
-    for (unsigned i = 0; i < MAX_P2SH_SIGOPS; i++)
+    for (unsigned i = 0; i < Policy::MAX_SIGCHEKCS_PER_TX; i++)
         fifteenSigops << ToByteVector(key[i%3].GetPubKey());
     fifteenSigops << OP_15 << OP_CHECKMULTISIG;
     keystore.AddCScript(fifteenSigops);
@@ -357,44 +356,7 @@ void TestPaymentToScriptHash::AreInputsStandard()
     for (size_t i = 0; i < txTo.vin.size(); ++i) {
         const auto in = txTo.vin.at(i);
         const auto prevOut = txFrom.vout.at(i);
-        QVERIFY(Policy::isInputStandard(prevOut.scriptPubKey, in.scriptSig));
-        // 22 P2SH sigops for all inputs (1 for vin[0], 6 for vin[3], 15 for vin[4]
-        if (prevOut.scriptPubKey.IsPayToScriptHash()) {
-            int expected = 0;
-            switch (i) {
-            case 1: case 2: case 5: expected = 0; break;
-            case 0: expected = 1; break;
-            case 3: expected = 6; break;
-            case 4: expected = 15; break;
-            }
-            // an incredibly-expensive-to-validate block.
-            QCOMPARE(prevOut.scriptPubKey.GetSigOpCount(in.scriptSig), (uint) expected);
-        }
+        const bool ok = Policy::isInputStandard(prevOut.scriptPubKey, in.scriptSig);
+        QCOMPARE(ok, i < 4);
     }
-
-    CMutableTransaction txToNonStd1;
-    txToNonStd1.vout.resize(1);
-    txToNonStd1.vout[0].scriptPubKey = GetScriptForDestination(key[1].GetPubKey().GetID());
-    txToNonStd1.vout[0].nValue = 1000;
-    txToNonStd1.vin.resize(1);
-    txToNonStd1.vin[0].prevout.n = 5;
-    txToNonStd1.vin[0].prevout.hash = txFrom.GetHash();
-    txToNonStd1.vin[0].scriptSig << std::vector<unsigned char>(sixteenSigops.begin(), sixteenSigops.end());
-
-    QVERIFY(!Policy::isInputStandard(txFrom.vout.at(0).scriptPubKey,
-                                        txToNonStd1.vin.at(0).scriptSig));
-    QCOMPARE(txFrom.vout.at(5).scriptPubKey.GetSigOpCount(txToNonStd1.vin.at(0).scriptSig), (uint) 16);
-
-    CMutableTransaction txToNonStd2;
-    txToNonStd2.vout.resize(1);
-    txToNonStd2.vout[0].scriptPubKey = GetScriptForDestination(key[1].GetPubKey().GetID());
-    txToNonStd2.vout[0].nValue = 1000;
-    txToNonStd2.vin.resize(1);
-    txToNonStd2.vin[0].prevout.n = 6;
-    txToNonStd2.vin[0].prevout.hash = txFrom.GetHash();
-    txToNonStd2.vin[0].scriptSig << std::vector<unsigned char>(twentySigops.begin(), twentySigops.end());
-
-    QVERIFY(!Policy::isInputStandard(txFrom.vout.at(0).scriptPubKey,
-                                        txToNonStd2.vin.at(0).scriptSig));
-    QCOMPARE(txFrom.vout.at(6).scriptPubKey.GetSigOpCount(txToNonStd2.vin.at(0).scriptSig), (uint) 20);
 }

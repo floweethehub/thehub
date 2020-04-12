@@ -92,7 +92,6 @@ set (TEST_SOURCES
     rpc_tests.cpp
     sanity_tests.cpp
     sighash_tests.cpp
-    sigopcount_tests.cpp
     skiplist_tests.cpp
     test_bitcoin.cpp
     thinblock_tests.cpp

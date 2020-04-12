@@ -178,7 +178,7 @@ public:
     mutable std::atomic<int> m_validationStatus;
 
     mutable std::atomic<std::int64_t> m_blockFees;
-    mutable std::atomic<std::uint32_t> m_sigOpsCounted;
+    mutable std::atomic<std::uint32_t> m_sigChecksCounted;
 
     std::vector<std::deque<FastUndoBlock::Item> *> m_undoItems;
 

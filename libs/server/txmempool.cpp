@@ -55,7 +55,7 @@ CTxMemPoolEntry::CTxMemPoolEntry(const Tx &tx)
 CTxMemPoolEntry::CTxMemPoolEntry(const CTransaction &tx, const CAmount& _nFee,
                                  int64_t _nTime, double _entryPriority, unsigned int _entryHeight,
                                  bool poolHasNoInputsOf, CAmount _inChainInputValue,
-                                 bool _spendsCoinbase, unsigned int _sigOps, LockPoints lp)
+                                 bool _spendsCoinbase, LockPoints lp)
     : CTxMemPoolEntry(Tx::fromOldTransaction(tx))
 {
     nFee = _nFee;
@@ -66,7 +66,6 @@ CTxMemPoolEntry::CTxMemPoolEntry(const CTransaction &tx, const CAmount& _nFee,
     hadNoDependencies = poolHasNoInputsOf;
     inChainInputValue = _inChainInputValue;
     spendsCoinbase = _spendsCoinbase;
-    sigOpCount = _sigOps;
     lockPoints = lp;
 
     assert(inChainInputValue <= oldTx.GetValueOut() + nFee);

@@ -102,7 +102,6 @@ extern CWaitableCriticalSection csBestBlock;
 extern CConditionVariable cvBlockChange;
 extern bool fIsBareMultisigStd;
 extern bool fRequireStandard;
-extern unsigned int nBytesPerSigOp;
 extern bool fCheckpointsEnabled;
 extern CFeeRate minRelayTxFee;
 

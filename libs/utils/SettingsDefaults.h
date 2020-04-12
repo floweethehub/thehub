@@ -106,8 +106,6 @@ static const unsigned int DefaultDescendantSizeLimit = 101;
 
 static const unsigned int DefaultLimitFreeRelay = 15;
 
-static const unsigned int DefaultBytesPerSigop = 20;
-
 // ///////// Wallet
 
 static const unsigned int DefaultKeypoolSize = 100;

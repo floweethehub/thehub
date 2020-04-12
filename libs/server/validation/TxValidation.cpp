@@ -44,24 +44,17 @@
 
 using Validation::Exception;
 
-void ValidationPrivate::validateTransactionInputs(CTransaction &tx, const std::vector<UnspentOutput> &unspents, int blockHeight, ValidationFlags flags, int64_t &fees, uint32_t &txSigops, bool &spendsCoinbase, bool requireStandard)
+void ValidationPrivate::validateTransactionInputs(CTransaction &tx, const std::vector<UnspentOutput> &unspents, int blockHeight, ValidationFlags flags, int64_t &fees, uint32_t &txSigChecks, bool &spendsCoinbase, bool requireStandard)
 {
     assert(unspents.size() == tx.vin.size());
+    txSigChecks = 0;
 
     int64_t valueIn = 0;
     for (size_t i = 0; i < tx.vin.size(); ++i) {
         const ValidationPrivate::UnspentOutput &prevout = unspents.at(i);
         assert(prevout.amount >= 0);
-        if (flags.strictPayToScriptHash && prevout.outputScript.IsPayToScriptHash()) {
-            // Add in sigops done by pay-to-script-hash inputs;
-            // this is to prevent a "rogue miner" from creating
-            // an incredibly-expensive-to-validate block.
-            txSigops += prevout.outputScript.GetSigOpCount(tx.vin[i].scriptSig);
-        }
         valueIn += prevout.amount;
     }
-    if (txSigops > MAX_BLOCK_SIGOPS_PER_MB)
-        throw Exception("bad-tx-sigops");
 
     if (valueIn < tx.GetValueOut())
         throw Exception("bad-txns-in-belowout");
@@ -112,6 +105,7 @@ void ValidationPrivate::validateTransactionInputs(CTransaction &tx, const std::v
 
             throw Exception(strprintf("mandatory-script-verify-flag-failed (%s)", strict.errorString()));
         }
+        txSigChecks += strict.sigCheckCount;
     }
 }
 
@@ -314,8 +308,11 @@ void TxValidationState::checkTransaction()
             if (!CheckSequenceLocks(*parent->mempool, tx, STANDARD_LOCKTIME_VERIFY_FLAGS, &entry.lockPoints, false, tip))
                 throw Exception("non-BIP68-final", Validation::RejectNonstandard, 0);
 
-            entry.sigOpCount = Validation::countSigOps(tx);
-            ValidationPrivate::validateTransactionInputs(tx, unspents, static_cast<int>(entry.entryHeight) + 1, flags, entry.nFee, entry.sigOpCount, entry.spendsCoinbase, fRequireStandard);
+            uint32_t txSigChecks = 0;
+            ValidationPrivate::validateTransactionInputs(tx, unspents, static_cast<int>(entry.entryHeight) + 1, flags, entry.nFee, txSigChecks , entry.spendsCoinbase, fRequireStandard);
+            if (fRequireStandard && txSigChecks > Policy::MAX_SIGCHEKCS_PER_TX) {
+                throw Exception("bad-blk-sigcheck", Validation::RejectNonstandard, 0);
+            }
 
             // nModifiedFees includes any fee deltas from PrioritiseTransaction
             CAmount nModifiedFees = entry.nFee;
@@ -325,10 +322,6 @@ void TxValidationState::checkTransaction()
             entry.hadNoDependencies = parent->mempool->HasNoInputsOf(tx);
 
             const size_t nSize = entry.GetTxSize();
-
-            // Notice nBytesPerSigOp is a global!
-            if ((entry.sigOpCount > MAX_STANDARD_TX_SIGOPS) || (nBytesPerSigOp && entry.sigOpCount > nSize / nBytesPerSigOp))
-                throw Exception("bad-txns-too-many-sigops", Validation::RejectNonstandard);
 
             CAmount mempoolRejectFee = parent->mempool->GetMinFee().GetFee(nSize);
             if (mempoolRejectFee > 0 && nModifiedFees < mempoolRejectFee) {
@@ -524,17 +517,4 @@ void TxValidationState::notifyDoubleSpend()
     }
 
     ValidationNotifier().DoubleSpendFound(m_doubleSpendTx, m_tx);
-}
-
-
-uint32_t Validation::countSigOps(const CTransaction &tx)
-{
-    uint32_t txSigops = 0;
-    for (auto out : tx.vout)
-        txSigops += out.scriptPubKey.GetSigOpCount(false);
-    for (auto in : tx.vin)
-        txSigops += in.scriptSig.GetSigOpCount(false);
-    if (txSigops > MAX_BLOCK_SIGOPS_PER_MB)
-        throw Exception("bad-tx-sigops");
-    return txSigops;
 }

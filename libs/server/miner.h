@@ -39,7 +39,6 @@ struct CBlockTemplate
 {
     CBlock block;
     std::vector<CAmount> vTxFees;
-    std::vector<uint32_t> vTxSigOps;
 };
 
 

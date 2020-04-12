@@ -140,7 +140,6 @@ CBlockTemplate* Mining::CreateNewBlock(Validation::Engine &validationEngine) con
     // Add dummy coinbase tx as first transaction
     pblock->vtx.push_back(CTransaction());
     pblocktemplate->vTxFees.push_back(-1); // updated at end
-    pblocktemplate->vTxSigOps.push_back(0); // updated at end
 
     // Largest block you're willing to create (in bytes):
     uint32_t nBlockMaxSize = std::max<uint32_t>(1000, GetArg("-blockmaxsize", Settings::DefaultBlockMAxSize));
@@ -169,7 +168,6 @@ CBlockTemplate* Mining::CreateNewBlock(Validation::Engine &validationEngine) con
     const uint32_t nCoinbaseReserveSize = 1000;
     uint64_t nBlockSize = nCoinbaseReserveSize;
     uint64_t nBlockTx = 0;
-    unsigned int nBlockSigOps = 100;
     int lastFewTxs = 0;
     CAmount nFees = 0;
 
@@ -275,23 +273,12 @@ CBlockTemplate* Mining::CreateNewBlock(Validation::Engine &validationEngine) con
             if (!IsFinalTx(tx, nHeight, nLockTimeCutoff))
                 continue;
 
-            const uint64_t maxSigOps = Policy::blockSigOpAcceptLimit(nBlockSize + nTxSize - nCoinbaseReserveSize);
-            unsigned int nTxSigOps = iter->GetSigOpCount();
-            if (nBlockSigOps + nTxSigOps >= maxSigOps) {
-                if (nBlockSigOps > maxSigOps - 2) {
-                    break;
-                }
-                continue;
-            }
-
             CAmount nTxFees = iter->GetFee();
             // Added
             pblock->vtx.push_back(tx);
             pblocktemplate->vTxFees.push_back(nTxFees);
-            pblocktemplate->vTxSigOps.push_back(nTxSigOps);
             nBlockSize += nTxSize;
             ++nBlockTx;
-            nBlockSigOps += nTxSigOps;
             nFees += nTxFees;
 
             if (fPrintPriority) {
@@ -325,7 +312,7 @@ CBlockTemplate* Mining::CreateNewBlock(Validation::Engine &validationEngine) con
         nLastBlockTx = nBlockTx;
         nLastBlockSize = nBlockSize;
         logInfo(Log::Mining) << "CreateNewBlock(): total size:" <<nBlockSize << "txs:" << nBlockTx
-                             << "fees:" << nFees << "sigops:"<< nBlockSigOps;
+                             << "fees:" << nFees;
 
         // Compute final coinbase transaction.
         txNew.vout[0].nValue = nFees + GetBlockSubsidy(nHeight, Params().GetConsensus());
@@ -343,11 +330,6 @@ CBlockTemplate* Mining::CreateNewBlock(Validation::Engine &validationEngine) con
         UpdateTime(pblock, Params().GetConsensus(), pindexPrev);
         pblock->nBits          = GetNextWorkRequired(pindexPrev, pblock, Params().GetConsensus());
         pblock->nNonce         = 0;
-        uint32_t sigops = 0;
-        for (auto out : pblock->vtx.at(0).vout) {
-            sigops += out.scriptPubKey.GetSigOpCount(false);
-        }
-        pblocktemplate->vTxSigOps[0] = sigops;
     }
     if (validationEngine.priv().lock()->tipFlags.hf201811Active) {
         // sort the to-be-mined block using CTOR rules
