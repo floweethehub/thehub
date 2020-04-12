@@ -33,6 +33,7 @@
 #include <consensus/consensus.h>
 #include <utxo/UnspentOutputDatabase.h>
 #include <util.h>
+#include <script/sigcache.h>
 
 // #define DEBUG_TRANSACTION_VALIDATION
 #ifdef DEBUG_TRANSACTION_VALIDATION
@@ -86,19 +87,9 @@ void ValidationPrivate::validateTransactionInputs(CTransaction &tx, const std::v
             throw Exception("bad-txns-inputvalues-outofrange");
 
         // Verify signature
-        CScriptCheck check(prevout.outputScript, prevout.amount, tx, i, scriptValidationFlags, true);
-        if (!check()) {
-            if (scriptValidationFlags & STANDARD_NOT_MANDATORY_VERIFY_FLAGS) {
-                // Check whether the failure was caused by a
-                // non-mandatory script verification check, such as
-                // non-standard DER encodings or non-null dummy
-                // arguments; if so, don't trigger DoS protection to
-                // avoid splitting the network between upgraded and
-                // non-upgraded nodes.
-                CScriptCheck check2(prevout.outputScript, prevout.amount, tx, i, scriptValidationFlags & ~STANDARD_NOT_MANDATORY_VERIFY_FLAGS, true);
-                if (check2())
-                    throw Exception(strprintf("non-mandatory-script-verify-flag (%s)", ScriptErrorString(check.GetScriptError())), Validation::RejectNonstandard);
-            }
+        Script::State strict(scriptValidationFlags);
+        if (!Script::verify(tx.vin[i].scriptSig, prevout.outputScript,
+                            CachingTransactionSignatureChecker(&tx, i, prevout.amount, true), strict)) {
             // Failures of other flags indicate a transaction that is
             // invalid in new blocks, e.g. a invalid P2SH. We DoS ban
             // such nodes as they are not following the protocol. That
@@ -106,7 +97,20 @@ void ValidationPrivate::validateTransactionInputs(CTransaction &tx, const std::v
             // as to the correct behavior - we may want to continue
             // peering with non-upgraded nodes even after a soft-fork
             // super-majority vote has passed.
-            throw Exception(strprintf("mandatory-script-verify-flag-failed (%s)", ScriptErrorString(check.GetScriptError())));
+
+            if (scriptValidationFlags & STANDARD_NOT_MANDATORY_VERIFY_FLAGS) {
+                // Check whether the failure was caused by a
+                // non-mandatory script verification check, such as
+                // non-standard DER encodings or non-null dummy
+                // arguments; if so, don't trigger DoS protection to
+                // avoid splitting the network between upgraded and
+                // non-upgraded nodes.
+                Script::State flexible(scriptValidationFlags & ~STANDARD_NOT_MANDATORY_VERIFY_FLAGS);
+                if (Script::verify(tx.vin[i].scriptSig, prevout.outputScript, TransactionSignatureChecker(&tx, i, prevout.amount), flexible))
+                    throw Exception(strprintf("non-mandatory-script-verify-flag (%s)", strict.errorString()), Validation::RejectNonstandard, 0);
+            }
+
+            throw Exception(strprintf("mandatory-script-verify-flag-failed (%s)", strict.errorString()));
         }
     }
 }

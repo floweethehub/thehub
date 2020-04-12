@@ -23,6 +23,7 @@
 #include "main.h"
 #include "policy/policy.h"
 #include "script/sign.h"
+#include <script/interpreter.h>
 
 #include <utxo/UnspentOutputDatabase.h>
 
@@ -127,10 +128,10 @@ void TestPaymentToScriptHash::sign()
             CScript sigSave = txTo[i].vin[0].scriptSig;
             txTo[i].vin[0].scriptSig = txTo[j].vin[0].scriptSig;
             const CTransaction &txToIn = txTo[i];
-            bool sigOK = CScriptCheck(txFrom.vout[txToIn.vin[0].prevout.n].scriptPubKey,
-                        txFrom.vout[txToIn.vin[0].prevout.n].nValue,
-                        txTo[i], 0, SCRIPT_VERIFY_P2SH | SCRIPT_VERIFY_STRICTENC, false)();
+            Script::State state(SCRIPT_VERIFY_P2SH | SCRIPT_VERIFY_STRICTENC);
 
+            bool sigOK = Script::verify(txToIn.vin[0].scriptSig, txFrom.vout[txToIn.vin[0].prevout.n].scriptPubKey,
+                    TransactionSignatureChecker(&txToIn, 0, txFrom.vout[txToIn.vin[0].prevout.n].nValue), state);
             if (i == j)
                 QVERIFY(sigOK);
             else

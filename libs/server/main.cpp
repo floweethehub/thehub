@@ -915,14 +915,6 @@ void queueRejectMessage(int peerId, const uint256 &blockHash, uint8_t rejectCode
     }
 }
 
-bool CScriptCheck::operator()() {
-    const CScript &scriptSig = ptxTo->vin[nIn].scriptSig;
-    if (!Script::verify(scriptSig, scriptPubKey, CachingTransactionSignatureChecker(ptxTo, nIn, amount, cacheStore), state)) {
-        return false;
-    }
-    return true;
-}
-
 /** Abort with a message */
 bool AbortNode(const std::string& strMessage, const std::string& userMessage="")
 {

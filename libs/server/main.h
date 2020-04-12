@@ -270,41 +270,6 @@ bool SequenceLocks(const CTransaction &tx, int flags, std::vector<int>* prevHeig
  */
 bool CheckSequenceLocks(CTxMemPool &mp, const CTransaction &tx, int flags, LockPoints* lp = nullptr, bool useExistingLockPoints = false, CBlockIndex *tip = nullptr);
 
-/**
- * Closure representing one script verification
- * Note that this stores references to the spending transaction 
- */
-class CScriptCheck // TODO move this class to a more appropriate file.
-{
-private:
-    CScript scriptPubKey;
-    CAmount amount;
-    const CTransaction *ptxTo;
-    unsigned int nIn;
-    bool cacheStore;
-    Script::State state;
-
-public:
-    CScriptCheck(): amount(0), ptxTo(0), nIn(0), cacheStore(false)
-    {
-        state.error = SCRIPT_ERR_UNKNOWN_ERROR;
-    }
-    CScriptCheck(const CScript &outputScript, CAmount amount, const CTransaction& txToIn, unsigned int nInIn, unsigned int nFlagsIn, bool cacheIn)
-        : scriptPubKey(outputScript),
-        amount(amount),
-        ptxTo(&txToIn),
-        nIn(nInIn),
-        cacheStore(cacheIn),
-        state(nFlagsIn)
-    {
-        state.error = SCRIPT_ERR_UNKNOWN_ERROR;
-    }
-
-    bool operator()();
-
-    ScriptError GetScriptError() const { return state.error; }
-};
-
 
 /** Functions for disk access for blocks */
 bool ReadBlockFromDisk(CBlock& block, const CDiskBlockPos& pos, const Consensus::Params& consensusParams);
