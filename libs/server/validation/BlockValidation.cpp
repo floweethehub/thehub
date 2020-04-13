@@ -1620,8 +1620,8 @@ void BlockValidationState::checkSignaturesChunk()
 #ifdef ENABLE_BENCHMARKS
     int64_t end = GetTimeMicros();
     if (blockValid) {
-        parent_->m_validationTime.fetch_add(end - start - utxoDuration);
-        parent_->m_utxoTime.fetch_add(utxoDuration);
+        parent->m_validationTime.fetch_add(end - start - utxoDuration);
+        parent->m_utxoTime.fetch_add(utxoDuration);
     }
     logDebug(Log::BlockValidation) << "batch:" << chunkToStart << '/' << chunks << (end - start)/1000. << "ms" << "success so far:" << blockValid;
 #endif
