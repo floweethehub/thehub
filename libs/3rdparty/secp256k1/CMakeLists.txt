@@ -102,7 +102,7 @@ target_sources(secp256k1 PRIVATE ${CMAKE_CURRENT_BINARY_DIR}/src/ecmult_static_c
 target_include_directories(secp256k1 PUBLIC include ${GMP_INCLUDE_DIR})
 target_link_libraries(secp256k1 ${GMP_LIBRARY})
 target_compile_definitions(secp256k1 PRIVATE HAVE_CONFIG_H SECP256K1_BUILD)
-set (CMAKE_C_FLAGS ${CMAKE_C_FLAGS} "-pedantic -Wshadow -Wno-unused-function -Wno-nonnull -Wno-overlength-strings -std=c89 -Wno-long-long")
+set (CMAKE_C_FLAGS "${CMAKE_C_FLAGS} -pedantic -Wshadow -Wno-unused-function -Wno-nonnull -Wno-overlength-strings -std=c89 -Wno-long-long")
 # Default visibility is hidden on all targets.
 set(CMAKE_C_VISIBILITY_PRESET hidden)
 
