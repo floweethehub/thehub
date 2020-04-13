@@ -19,13 +19,13 @@ project (Flowee)
 
 set(COPYRIGHT_YEAR 2020)
 set(CLIENT_VERSION_MAJOR ${COPYRIGHT_YEAR})
-set(CLIENT_VERSION_MINOR 2)
+set(CLIENT_VERSION_MINOR 3)
 set(CLIENT_VERSION_REVISION 1)
 set(HUB_SERIES 1)
 
 # ------------------------------------------------------------------------------------
 
-set(CLIENT_VERSION_IS_RELEASE 0)
+set(CLIENT_VERSION_IS_RELEASE 1)
 set(CMAKE_CXX_STANDARD 11)
 set(CMAKE_CXX_STANDARD_REQUIRED ON)
 set(CMAKE_MODULE_PATH ${CMAKE_MODULE_PATH} ${CMAKE_SOURCE_DIR}/support/cmake)
