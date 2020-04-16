@@ -515,7 +515,7 @@ void NetworkManagerConnection::runMessageQueue()
         if (m_sendQHeaders.isFull())
             break;
         const Message &message = m_messageQueue.unreadTip();
-        if (message.rawData().size() > CHUNK_SIZE) {
+        if (message.rawData().size() > CHUNK_SIZE && message.serviceId() != Api::LegacyP2P) {
             assert(!message.hasHeader()); // should have been blocked from entering in queueMessage();
 
             /*
