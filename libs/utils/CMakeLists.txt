@@ -33,6 +33,7 @@ add_library(flowee_utils STATIC
     Message.cpp
     merkle.cpp
     merkleblock.cpp
+    PartialMerkleTree.cpp
     random.cpp
     streaming/BufferPool.cpp
     streaming/ConstBuffer.cpp
@@ -76,7 +77,7 @@ install(FILES
     WorkerThreads.h
     Message.h
     merkle.h
-    merkleblock.h
+    PartialMerkleTree.h
     compat.h
     serialize.h
     prevector.h
