@@ -11,9 +11,10 @@
 #  flowee_utils
 #  flowee_apputils
 #  flowee_networkmanager
+#  flowee_p2p
 #  flowee_httpengine
 
-# Copyright (c) 2019, Tom Zander, <tomz@freedommail.ch>
+# Copyright (c) 2019-2020 Tom Zander <tomz@freedommail.ch>
 
 
 find_path(FLOWEE_INCLUDE_DIR flowee/utils/WorkerThreads.h
@@ -73,6 +74,15 @@ if (_FloweeNetworkManager)
     set_property(TARGET flowee_networkmanager PROPERTY IMPORTED_LINK_INTERFACE_LIBRARIES flowee_utils)
     set_target_properties(flowee_networkmanager PROPERTIES IMPORTED_LOCATION "${_FloweeNetworkManager}")
     set (__libsFound "${__libsFound} flowee_networkmanager")
+endif()
+
+find_library(_FloweeP2PNet libflowee_p2p.a ${FLOWEE_INCLUDE_DIR}/..)
+if (_FloweeP2PNet)
+    add_library(flowee_p2p STATIC IMPORTED)
+    set_property(TARGET flowee_p2p PROPERTY INTERFACE_INCLUDE_DIRECTORIES ${FLOWEE_INCLUDE_DIR}/flowee/p2p)
+    set_property(TARGET flowee_p2p PROPERTY IMPORTED_LINK_INTERFACE_LIBRARIES flowee_utils flowee_networkmanager)
+    set_target_properties(flowee_p2p PROPERTIES IMPORTED_LOCATION "${_FloweeP2PNet}")
+    set (__libsFound "${__libsFound} flowee_p2p")
 endif()
 
 find_library(_FloweeHttpEngine libflowee_httpengine.a ${FLOWEE_INCLUDE_DIR}/..)

@@ -20,7 +20,7 @@ add_subdirectory(networkmanager)
 add_subdirectory(utils)
 add_subdirectory(server)
 add_subdirectory(crypto)
-#add_subdirectory(console)
+add_subdirectory(p2p)
 add_subdirectory(api)
 add_subdirectory(utxo)
 

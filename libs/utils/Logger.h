@@ -263,8 +263,8 @@ public:
     inline Item &operator<<(unsigned long long val) { if(d->on)d->stream << val ; return maybespace(); }
     inline Item &operator<<(float val) { if(d->on)d->stream << val ; return maybespace(); }
     inline Item &operator<<(long double val) { if(d->on)d->stream << val ; return maybespace(); }
-    inline Item &operator<<(const void* val) { if(d->on)d->stream << val ; return maybespace(); }
-    inline Item &operator<<(std::nullptr_t) { if(d->on)d->stream << "(nullptr)" ; return maybespace(); }
+    inline Item &operator<<(const void* val) { if(d->on){if (!val)d->stream << "(nullptr)";else d->stream << val;} return maybespace(); }
+    inline Item &operator<<(std::nullptr_t) { if(d->on)d->stream << "(nullptr)"; return maybespace(); }
     inline Item &operator<<(std::ostream& (*pf)(std::ostream&)) { if(d->on)d->stream << pf; return *this; }
     inline Item &operator<<(std::ios& (*pf)(std::ios&)) { if(d->on)d->stream << pf; return *this; }
     inline Item &operator<<(std::ios_base& (*pf)(std::ios_base&)) { if(d->on)d->stream << pf; return *this; }

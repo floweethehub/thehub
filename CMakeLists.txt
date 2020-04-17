@@ -284,6 +284,7 @@ set(LIBHTTPENGINE_INCLUDES ${CMAKE_SOURCE_DIR}/libs/httpengine ${CMAKE_BINARY_DI
 # these two should only ever be used by the hub hub-qt and the unit tests.
 set(LIBSERVER_INCLUDES ${LIBNETWORKMANAGER_INCLUDES} ${CMAKE_SOURCE_DIR}/libs/server ${CMAKE_SOURCE_DIR}/libs/server/wallet)
 set(LIBAPI_INCLUDES ${LIBSERVER_INCLUDES} ${CMAKE_SOURCE_DIR}/libs/api)
+set(LIBP2P_INCLUDES ${LIBNETWORKMANAGER_INCLUDES} ${CMAKE_SOURCE_DIR}/libs/p2p)
 
 
 add_subdirectory(libs)

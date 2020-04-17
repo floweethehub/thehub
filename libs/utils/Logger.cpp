@@ -70,6 +70,7 @@ Log::Manager::Manager()
     d->sectionNames.emplace(Log::Proxy, "Proxy");
     d->sectionNames.emplace(Log::NWM, "NWM");
     d->sectionNames.emplace(Log::Tor, "Tor");
+    d->sectionNames.emplace(Log::P2PNet, "P2PNet");
     d->sectionNames.emplace(Log::ApiServer, "ApiServer");
     d->sectionNames.emplace(Log::SearchEngine, "Search");
     d->sectionNames.emplace(Log::RPC, "RPC");
