@@ -111,7 +111,7 @@ find_package(Boost 1.67.0
 )
 
 if (enable_wallet)
-    find_package(BerkeleyDB REQUIRED)
+    find_package(Berkeley REQUIRED)
     message ("NOTICE: txVulcano is not compiled when wallet is enabled")
 endif ()
 
@@ -120,7 +120,7 @@ find_package(Event REQUIRED)
 
 message ("===== Find optional dependencies")
 
-find_package(ZeroMQ 4.0)
+find_package(ZMQ 4.0) # ZeroMQ
 if (${ZMQ_FOUND})
     set (ENABLE_ZMQ 1)
 else ()
