@@ -130,7 +130,7 @@ DoubleSpendProof DoubleSpendProof::create(const Tx &tx1, const Tx &tx2)
     size_t inputIndex2 = 0;
     for (; inputIndex1 < t1.vin.size(); ++inputIndex1) {
         const CTxIn &in1 = t1.vin.at(inputIndex1);
-        for (;inputIndex2 < t2.vin.size(); ++inputIndex2) {
+        for (inputIndex2 = 0;inputIndex2 < t2.vin.size(); ++inputIndex2) {
             const CTxIn &in2 = t2.vin.at(inputIndex2);
             if (in1.prevout == in2.prevout) {
                 answer.m_prevOutIndex = in1.prevout.n;
