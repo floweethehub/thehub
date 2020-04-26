@@ -108,6 +108,12 @@ void ConnectionManager::connect(PeerAddress &address)
     }
 }
 
+void ConnectionManager::disconnect(Peer *peer)
+{
+    std::unique_lock<std::mutex> lock(m_lock);
+    removePeer(peer);
+}
+
 uint64_t ConnectionManager::servicesBitfield() const
 {
     return m_servicesBitfield;
@@ -167,7 +173,7 @@ void ConnectionManager::connectionEstablished(Peer *peer)
     assert(m_peers.find(peer->connectionId()) != m_peers.end());
     m_connectedPeers.insert(peer->connectionId());
 
-    if (!peer->peerAddress().everConnected()
+    if (!peer->peerAddress().hasEverConnected()
             || time(nullptr) - peer->peerAddress().lastConnected() > 3600 * 36) {
         // check if this peer is using the same chain as us.
         requestHeaders(peer);
@@ -358,6 +364,12 @@ void ConnectionManager::setUserAgent(const std::string &userAgent)
     m_userAgent = userAgent;
 }
 
+int ConnectionManager::peerCount() const
+{
+    assert(m_peers.size() <= INT_MAX);
+    return int(m_peers.size());
+}
+
 
 void ConnectionManager::cron(const boost::system::error_code &error)
 {
@@ -377,8 +389,10 @@ void ConnectionManager::cron(const boost::system::error_code &error)
         Peer *peer = iter->second;
         logInfo() << "   " << iter->first << peer->userAgent() << (peer->status() == Peer::Connected ? "connected" : "connecting")
                              << "Wallet:" << (peer->privacySegment() ? peer->privacySegment()->segmentId() : 0);
-        if (peer->status() == Peer::Connecting && peer->protocolVersion() == 0
-                && now - peer->timeOffset() > 30) {
+        if ((peer->status() == Peer::Connecting
+             || peer->status() == Peer::Connected)
+                && peer->protocolVersion() == 0
+                && now - peer->connectTime() > 30) {
             // after 30 seconds of connects, give up.
             logInfo() << "   kicking dead connection" << peer->connectionId();
             auto iter2 = m_connections.find(peer->connectionId());
@@ -395,6 +409,11 @@ void ConnectionManager::cron(const boost::system::error_code &error)
 }
 
 void ConnectionManager::handleError(int remoteId, const boost::system::error_code &error)
+{
+    m_dlManager->strand().post(std::bind(&ConnectionManager::handleError_impl, this, remoteId, error));
+}
+
+void ConnectionManager::handleError_impl(int remoteId, const boost::system::error_code &error)
 {
     logDebug() << "on error" << remoteId << error.message();
     if (m_shuttingDown)

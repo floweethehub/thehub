@@ -61,6 +61,7 @@ void Peer::disconnect()
 void Peer::connected(const EndPoint &endPoint)
 {
     m_peerStatus = Connected;
+    m_connectTime = time(nullptr);
     logDebug() << "connected. Peer:" << connectionId();
 
     // send the version message.
@@ -110,7 +111,9 @@ void Peer::processMessage(const Message &message)
             Streaming::P2PParser parser(message);
             m_protocolVersion = parser.readInt();
             m_services = parser.readLong();
-            m_timeOffset = time(nullptr) - parser.readLong();
+            const auto now = time(nullptr);
+            // offset of node, adjusted with the round-trip time
+            m_timeOffset = (now - parser.readLong()) - (now - m_connectTime);
 
             // address
             parser.skip(8 + 16 + 2); // IP (and services and port) of them
@@ -197,6 +200,11 @@ void Peer::sendFilter()
     auto buf = m_segment->writeFilter(m_connectionManager->pool(0));
     m_con.send(Message(buf, Api::LegacyP2P, Api::P2P::FilterLoad));
     m_bloomUploadHeight = m_segment->lastBlockSynched();
+}
+
+uint32_t Peer::connectTime() const
+{
+    return m_connectTime;
 }
 
 void Peer::sendFilter(const CBloomFilter &bloom, int blockHeight)

@@ -158,7 +158,7 @@ void SyncChainAction::execute(const boost::system::error_code &error)
 
         // Lets add a couple more peers.
         if (goodPeers < MaxGoodPeers) {
-            logDebug() << "SyncChain has" << goodPeers << "good pees, but we are still behind. Connecting a new peer";
+            logDebug() << "SyncChain has" << goodPeers << "good peers, but we are still behind. Connecting a new peer";
             connectToNextPeer();
         }
     }

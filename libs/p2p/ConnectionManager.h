@@ -50,6 +50,7 @@ public:
     Streaming::BufferPool &pool(int reserveSize);
 
     void connect(PeerAddress &address);
+    void disconnect(Peer *peer);
 
     uint64_t servicesBitfield() const;
     void setServicesBitfield(const uint64_t &servicesBitfield);
@@ -97,6 +98,8 @@ public:
         return m_userAgent;
     }
 
+    int peerCount() const;
+
     std::deque<PrivacySegment *> segments() const;
 
     void shutdown();
@@ -104,6 +107,7 @@ public:
 private:
     void cron(const boost::system::error_code &error);
     void handleError(int remoteId, const boost::system::error_code &error);
+    void handleError_impl(int remoteId, const boost::system::error_code &error);
 
     // m_lock should already be taken by caller
     void removePeer(Peer *peer);

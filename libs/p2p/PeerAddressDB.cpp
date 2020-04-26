@@ -62,6 +62,13 @@ short PeerAddress::punishment() const
     return i->second.punishment;
 }
 
+void PeerAddress::resetPunishment()
+{
+    auto i = d->m_peers.find(m_id);
+    assert(d->m_peers.end() != i);
+    i->second.punishment = 0;
+}
+
 bool PeerAddress::isValid() const
 {
     return d && m_id >= 0 && d->m_nextPeerId > m_id;
@@ -81,7 +88,7 @@ void PeerAddress::setAskedAddresses(bool on)
     i->second.askedAddr = on;
 }
 
-bool PeerAddress::everConnected() const
+bool PeerAddress::hasEverConnected() const
 {
     auto i = d->m_peers.find(m_id);
     assert(d->m_peers.end() != i);
@@ -166,8 +173,6 @@ PeerAddress PeerAddressDB::findBest(uint64_t requiredServices, uint16_t segment)
     int bestScore = 0;
     for (int i = 0; i < goodIndex; ++i) {
         int score = 0;
-        // TODO let punishment decay every week by 50 points or so.
-        // IPs do get reused...
         PeerInfo &info = m_peers[good[i]];
         score = PUNISHMENT_MAX - info.punishment;
 

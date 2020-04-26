@@ -111,6 +111,8 @@ public:
     /// send to the peer the bloom filter arg, with the promise that that it looked like that at \a blockHeight
     void sendFilter(const CBloomFilter &bloom, int blockHeight);
 
+    uint32_t connectTime() const;
+
 private:
     void connected(const EndPoint&);
     void disconnected(const EndPoint&);
@@ -122,6 +124,7 @@ private:
 
     uint64_t m_services = 0;
     int m_timeOffset = 0;
+    uint32_t m_connectTime = 0;
     int m_protocolVersion = 0;
     std::string m_userAgent;
     int m_startHeight = 0;

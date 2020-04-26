@@ -36,11 +36,12 @@ public:
     void successfullyConnected();
     short punishPeer(short amount);
     short punishment() const;
+    void resetPunishment();
     bool isValid() const;
 
     bool askedAddresses() const;
     void setAskedAddresses(bool on);
-    bool everConnected() const;
+    bool hasEverConnected() const;
 
     uint16_t segment() const;
     void setSegment(uint16_t segment);
@@ -68,7 +69,6 @@ public:
     PeerAddressDB(ConnectionManager *parent);
 
     PeerAddress findBest(uint64_t requiredServices = 0, uint16_t segment = 0);
-    // PeerAddress findBestInSegment(uint64_t requiredServices = 0);
 
     int peerCount() const;
 
@@ -78,7 +78,6 @@ public:
 
     inline PeerAddress peer(int id) {
         assert(0 <= id);
-        assert(id < m_nextPeerId);
         return PeerAddress(this, id);
     }
 
