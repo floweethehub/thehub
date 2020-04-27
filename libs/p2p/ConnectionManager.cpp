@@ -398,8 +398,7 @@ void ConnectionManager::cron(const boost::system::error_code &error)
             assert(iter2 != m_connections.end());
             m_connections.erase(iter2);
             iter = m_peers.erase(iter);
-            peer->disconnect();
-            delete peer;
+            peer->shutdown(); // shutdown takes ownership of peer and deletes it safely
         }
         else {
             ++iter;
@@ -459,8 +458,7 @@ void ConnectionManager::removePeer(Peer *p)
 
     auto iter = m_peers.find(id);
     assert (iter != m_peers.end());
-    iter->second->disconnect();
-    delete p;
+    iter->second->shutdown(); // shutdown takes ownership of peer and deletes it safely
     m_peers.erase(iter);
 
     auto iter2 = m_connections.find(id);

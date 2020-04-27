@@ -47,7 +47,11 @@ public:
 
     ~Peer();
 
-    void disconnect();
+    /**
+     * @brief shutdown will cause this peer to be shut down and deleted.
+     * You should not use this peer object after calling this method anymore.
+     */
+    void shutdown();
 
     uint64_t services() const;
 
@@ -119,6 +123,7 @@ private:
     void processMessage(const Message &message);
     void processTransaction(const Tx &tx);
     void requestMerkleBlocks();
+    void finalShutdown();
 
     void sendFilter();
 

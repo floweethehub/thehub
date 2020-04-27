@@ -52,9 +52,10 @@ Peer::~Peer()
     m_peerAddress.setInUse(false);
 }
 
-void Peer::disconnect()
+void Peer::shutdown()
 {
     logDebug() << "I asked to disconnect. Peer:" << connectionId();
+    m_con.postOnStrand(std::bind(&Peer::finalShutdown, this));
     m_con.shutdown();
 }
 
@@ -105,7 +106,7 @@ void Peer::disconnected(const EndPoint &)
 void Peer::processMessage(const Message &message)
 {
     try {
-        logDebug() << "Peer:" << connectionId() << "messageId:"
+        logCritical() << ((void*)this) << "Peer:" << connectionId() << "messageId:"
                              << message.header().constData() << "of" << message.body().size() << "bytes";
         if (message.messageId() == Api::P2P::Version) {
             Streaming::P2PParser parser(message);
@@ -252,6 +253,11 @@ void Peer::requestMerkleBlocks()
         builder.writeByteArray(m_connectionManager->blockHashFor(i), Streaming::RawBytes);
     }
     m_con.send(builder.message(Api::P2P::GetData));
+}
+
+void Peer::finalShutdown()
+{
+    delete this;
 }
 
 int Peer::bloomUploadHeight() const
