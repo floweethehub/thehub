@@ -389,9 +389,8 @@ void ConnectionManager::cron(const boost::system::error_code &error)
         Peer *peer = iter->second;
         logInfo() << "   " << iter->first << peer->userAgent() << (peer->status() == Peer::Connected ? "connected" : "connecting")
                              << "Wallet:" << (peer->privacySegment() ? peer->privacySegment()->segmentId() : 0);
-        if ((peer->status() == Peer::Connecting
-             || peer->status() == Peer::Connected)
-                && peer->protocolVersion() == 0
+        if ((((peer->status() == Peer::Connecting || peer->status() == Peer::Connected) && peer->protocolVersion() == 0)
+                || peer->status() == Peer::IncompatiblePeer)
                 && now - peer->connectTime() > 30) {
             // after 30 seconds of connects, give up.
             logInfo() << "   kicking dead connection" << peer->connectionId();
