@@ -28,9 +28,9 @@
 static std::vector<std::string> fillSeeders()
 {
     std::vector<std::string> answer;
-    answer.push_back("seed.bchd.cash");
+    answer.push_back("seed.flowee.cash");
     answer.push_back("seed.bitcoinabc.org");
-    answer.push_back("seed.flowee.org");
+    answer.push_back("seed.bchd.cash");
     return answer;
 }
 
