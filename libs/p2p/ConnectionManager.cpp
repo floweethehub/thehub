@@ -98,19 +98,22 @@ void ConnectionManager::connect(PeerAddress &address)
     // first check if we are already have a Peer for this endpoint
     if (m_peers.find(con.connectionId()) == m_peers.end()) {
         address.punishPeer(100); // when the connection succeeds, we remove the 100 again.
+        con.setOnError(std::bind(&ConnectionManager::handleError, this, std::placeholders::_1, std::placeholders::_2));
         auto p = new Peer(this, std::move(con), address);
         m_peers.insert(std::make_pair(p->connectionId(), p));
-
-        auto con2 = m_network.connection(address.peerAddress(), NetworkManager::OnlyExisting);
-        assert(p->connectionId() == con2.connectionId());
-        con2.setOnError(std::bind(&ConnectionManager::handleError, this, std::placeholders::_1, std::placeholders::_2));
-        m_connections.insert(std::make_pair(con2.connectionId(), std::move(con2)));
     }
 }
 
 void ConnectionManager::disconnect(Peer *peer)
 {
+    assert(peer);
+    if (m_shuttingDown)
+        return;
+    for (auto iface : m_dlManager->p2pNetListeners()) {
+        iface->lostPeer(peer->connectionId());
+    }
     std::unique_lock<std::mutex> lock(m_lock);
+    assert(m_peers.find(peer->connectionId()) != m_peers.end());
     removePeer(peer);
 }
 
@@ -217,29 +220,6 @@ void ConnectionManager::connectionEstablished(Peer *peer)
                 peer->setPrivacySegment(ps);
                 break;
             }
-        }
-    }
-}
-
-void ConnectionManager::disconnected(Peer *peer)
-{
-    assert(peer);
-    if (m_shuttingDown)
-        return;
-    for (auto iface : m_dlManager->p2pNetListeners()) {
-        iface->lostPeer(peer->connectionId());
-    }
-    std::unique_lock<std::mutex> lock(m_lock);
-    assert(m_peers.find(peer->connectionId()) != m_peers.end());
-    if (peer->status() == Peer::Disconnected || peer->status() == Peer::IncompatiblePeer) {
-        // It can be removed.
-        removePeer(peer);
-    }
-    else {
-        auto i = m_connectedPeers.find(peer->connectionId());
-        if (i != m_connectedPeers.end()) {
-            m_connectedPeers.erase(i);
-            m_dlManager->peerDisconnected(peer->connectionId());
         }
     }
 }
@@ -389,14 +369,10 @@ void ConnectionManager::cron(const boost::system::error_code &error)
         Peer *peer = iter->second;
         logInfo() << "   " << iter->first << peer->userAgent() << (peer->status() == Peer::Connected ? "connected" : "connecting")
                              << "Wallet:" << (peer->privacySegment() ? peer->privacySegment()->segmentId() : 0);
-        if ((((peer->status() == Peer::Connecting || peer->status() == Peer::Connected) && peer->protocolVersion() == 0)
-                || peer->status() == Peer::IncompatiblePeer)
-                && now - peer->connectTime() > 30) {
+        if ((peer->status() == Peer::Connecting || peer->status() == Peer::Connected)
+                && peer->protocolVersion() == 0 && now - peer->connectTime() > 30) {
             // after 30 seconds of connects, give up.
             logInfo() << "   kicking dead connection" << peer->connectionId();
-            auto iter2 = m_connections.find(peer->connectionId());
-            assert(iter2 != m_connections.end());
-            m_connections.erase(iter2);
             iter = m_peers.erase(iter);
             peer->shutdown(); // shutdown takes ownership of peer and deletes it safely
         }
@@ -450,6 +426,9 @@ void ConnectionManager::handleError_impl(int remoteId, const boost::system::erro
 void ConnectionManager::removePeer(Peer *p)
 {
     const int id = p->connectionId();
+    p->shutdown(); // shutdown takes ownership of peer and deletes it safely
+    p = nullptr;
+
     auto i = m_connectedPeers.find(id);
     if (i != m_connectedPeers.end()) {
         m_connectedPeers.erase(i);
@@ -458,12 +437,7 @@ void ConnectionManager::removePeer(Peer *p)
 
     auto iter = m_peers.find(id);
     assert (iter != m_peers.end());
-    iter->second->shutdown(); // shutdown takes ownership of peer and deletes it safely
     m_peers.erase(iter);
-
-    auto iter2 = m_connections.find(id);
-    assert(iter2 != m_connections.end());
-    m_connections.erase(iter2);
 }
 
 std::deque<PrivacySegment *> ConnectionManager::segments() const

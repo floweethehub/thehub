@@ -37,10 +37,9 @@ class Peer
 {
 public:
     enum PeerStatus {
-        Connected,
         Connecting,
-        Disconnected, // they killed the connection
-        IncompatiblePeer // typically if the peer violated the protocol
+        Connected,
+        ShuttingDown
     };
 
     explicit Peer(ConnectionManager *parent, NetworkConnection && server, const PeerAddress &address);
@@ -138,7 +137,7 @@ private:
     bool m_receivedHeaders = false;
 
     PeerAddress m_peerAddress;
-    PeerStatus m_peerStatus = Connecting;
+    std::atomic<PeerStatus> m_peerStatus;
 
     NetworkConnection m_con;
     ConnectionManager * const m_connectionManager;

@@ -149,6 +149,7 @@ void NetworkConnection::shutdown()
 {
     auto d = m_parent.lock();
     if (d) {
+        boost::recursive_mutex::scoped_lock lock(d->d->mutex); // protects 'connections' map
         d->d->connections.erase(m_id); // stop referring to the connection.
         d->shutdown(d); // shutdown the connection.
         m_parent.reset(); // instantly make this one invalid.
@@ -227,12 +228,7 @@ void NetworkConnection::postOnStrand(const std::function<void()> &task)
 {
     auto d = m_parent.lock();
     if (d)
-    {
-        if (d->m_strand.running_in_this_thread())
-            task();
-        else
-            d->runOnStrand(task);
-    }
+        d->runOnStrand(task);
 }
 
 void NetworkConnection::setMessageHeaderLegacy(bool on)

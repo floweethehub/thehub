@@ -31,7 +31,8 @@
 #include <primitives/FastTransaction.h>
 
 Peer::Peer(ConnectionManager *parent, NetworkConnection && server, const PeerAddress &address)
-    :  m_peerAddress(address),
+    : m_peerAddress(address),
+      m_peerStatus(Connecting),
       m_con(std::move(server)),
       m_connectionManager(parent)
 {
@@ -50,13 +51,13 @@ Peer::~Peer()
 {
     assert(m_peerAddress.isValid());
     m_peerAddress.setInUse(false);
+    m_con.shutdown();
 }
 
 void Peer::shutdown()
 {
     logDebug() << "I asked to disconnect. Peer:" << connectionId();
     m_con.postOnStrand(std::bind(&Peer::finalShutdown, this));
-    m_con.shutdown();
 }
 
 void Peer::connected(const EndPoint &endPoint)
@@ -98,13 +99,15 @@ void Peer::connected(const EndPoint &endPoint)
 void Peer::disconnected(const EndPoint &)
 {
     logDebug() << "Disconnected. Peer:" << connectionId();
-    if (m_peerStatus == Connected)
-        m_peerStatus = Disconnected;
-    m_connectionManager->disconnected(this);
+    if (m_peerStatus == ShuttingDown)
+        return;
+    m_connectionManager->disconnect(this); // will cause us to be deleted.
 }
 
 void Peer::processMessage(const Message &message)
 {
+    if (m_peerStatus == ShuttingDown)
+        return;
     try {
         logCritical() << ((void*)this) << "Peer:" << connectionId() << "messageId:"
                              << message.header().constData() << "of" << message.body().size() << "bytes";
@@ -190,13 +193,14 @@ void Peer::processMessage(const Message &message)
     } catch (const Streaming::ParsingException &e) {
         logCritical() << "Parsing failure" << e << "peer=" << m_con.connectionId();
         m_peerAddress.punishPeer(200);
-        m_peerStatus = IncompatiblePeer; // makes sure we get removed on disconnect.
-        m_con.disconnect();
+        m_connectionManager->disconnect(this); // will cause us to be deleted.
     }
 }
 
 void Peer::sendFilter()
 {
+    if (m_peerStatus == ShuttingDown)
+        return;
     assert(m_segment);
     auto buf = m_segment->writeFilter(m_connectionManager->pool(0));
     m_con.send(Message(buf, Api::LegacyP2P, Api::P2P::FilterLoad));
@@ -210,6 +214,8 @@ uint32_t Peer::connectTime() const
 
 void Peer::sendFilter(const CBloomFilter &bloom, int blockHeight)
 {
+    if (m_peerStatus == ShuttingDown)
+        return;
     Streaming::P2PBuilder builder(m_connectionManager->pool(bloom.GetSerializeSize(0, 0)));
     bloom.store(builder);
     m_con.send(Message(builder.buffer(), Api::LegacyP2P, Api::P2P::FilterLoad));
@@ -229,6 +235,8 @@ bool Peer::merkleDownloadInProgress() const
 
 void Peer::startMerkleDownload(int from)
 {
+    if (m_peerStatus == ShuttingDown)
+        return;
     assert(m_segment);
     if (m_bloomUploadHeight < m_segment->filterChangedHeight() // filter changed since we uploaded it.
             && m_merkleDownloadFrom >= m_segment->filterChangedHeight()) // unless I'm the one that changed it
@@ -242,6 +250,8 @@ void Peer::startMerkleDownload(int from)
 
 void Peer::requestMerkleBlocks()
 {
+    if (m_peerStatus == ShuttingDown)
+        return;
     const int count = m_merkleDownloadTo - m_merkleDownloadFrom;
     if (count == 0)
         return;
@@ -283,6 +293,8 @@ void Peer::setPrivacySegment(PrivacySegment *ps)
 
 void Peer::processTransaction(const Tx &tx)
 {
+    if (m_peerStatus == ShuttingDown)
+        return;
     if (m_merkleBlockHeight > 0) {
         assert(m_segment);
         const uint256 txHash = tx.createHash();

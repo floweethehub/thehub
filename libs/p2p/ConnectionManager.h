@@ -63,7 +63,6 @@ public:
     uint64_t appNonce() const;
 
     void connectionEstablished(Peer *peer);
-    void disconnected(Peer *peer);
 
     void addBlockHeaders(const Message &message, int sourcePeerId);
     void addAddresses(const Message &message, int sourcePeerId);
@@ -120,7 +119,6 @@ private:
     std::atomic<bool> m_shuttingDown;
     std::map<int, Peer*> m_peers;
     std::set<int> m_connectedPeers;
-    std::map<int, NetworkConnection> m_connections;
 
     boost::asio::io_service &m_ioService;
     boost::asio::deadline_timer m_cronTimer;
