@@ -73,11 +73,11 @@ public:
         return m_ioService;
     }
 
-    void punish(Peer *peer, int amount = 250);
+    void punish(std::shared_ptr<Peer> peer, int amount = 250);
     void punish(int connectionId, int amount = 250);
-    void requestHeaders(Peer *peer);
+    void requestHeaders(std::shared_ptr<Peer> peer);
 
-    std::deque<Peer*> connectedPeers() const;
+    std::deque<std::shared_ptr<Peer> > connectedPeers() const;
 
     inline const PeerAddressDB &peerAddressDb() const {
         return m_peerAddressDb;
@@ -86,7 +86,7 @@ public:
         return m_peerAddressDb;
     }
 
-    Peer *peer(int connectionId) const;
+    std::shared_ptr<Peer> peer(int connectionId) const;
 
     void addPrivacySegment(PrivacySegment *ps);
     void removePrivacySegment(PrivacySegment *ps);
@@ -117,7 +117,7 @@ private:
 
     mutable std::mutex m_lock;
     std::atomic<bool> m_shuttingDown;
-    std::map<int, Peer*> m_peers;
+    std::map<int, std::shared_ptr<Peer>> m_peers;
     std::set<int> m_connectedPeers;
 
     boost::asio::io_service &m_ioService;

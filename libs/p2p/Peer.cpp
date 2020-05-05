@@ -30,34 +30,35 @@
 #include <boost/asio/error.hpp>
 #include <primitives/FastTransaction.h>
 
-Peer::Peer(ConnectionManager *parent, NetworkConnection && server, const PeerAddress &address)
+Peer::Peer(ConnectionManager *parent, const PeerAddress &address)
     : m_peerAddress(address),
       m_peerStatus(Connecting),
-      m_con(std::move(server)),
       m_connectionManager(parent)
 {
     assert(m_peerAddress.isValid());
     m_peerAddress.setInUse(true);
     m_timeOffset = time(nullptr);
-
-    m_con.setOnConnected(std::bind(&Peer::connected, this, std::placeholders::_1));
-    m_con.setOnDisconnected(std::bind(&Peer::disconnected, this, std::placeholders::_1));
-    m_con.setOnIncomingMessage(std::bind(&Peer::processMessage, this, std::placeholders::_1));
-    m_con.setMessageHeaderLegacy(true);
-    m_con.connect();
 }
 
 Peer::~Peer()
 {
     assert(m_peerAddress.isValid());
     m_peerAddress.setInUse(false);
-    m_con.shutdown();
+}
+
+void Peer::connect(NetworkConnection && server)
+{
+    m_con = std::move(server);
+    m_con.setOnConnected(std::bind(&Peer::connected, shared_from_this(), std::placeholders::_1));
+    m_con.setOnDisconnected(std::bind(&Peer::disconnected, shared_from_this(), std::placeholders::_1));
+    m_con.setOnIncomingMessage(std::bind(&Peer::processMessage, shared_from_this(), std::placeholders::_1));
+    m_con.setMessageHeaderLegacy(true);
 }
 
 void Peer::shutdown()
 {
-    logDebug() << "I asked to disconnect. Peer:" << connectionId();
-    m_con.postOnStrand(std::bind(&Peer::finalShutdown, this));
+    m_peerStatus = ShuttingDown;
+    m_con.clear(); // forgets callbacks (shared ptrs) to us.
 }
 
 void Peer::connected(const EndPoint &endPoint)
@@ -263,11 +264,6 @@ void Peer::requestMerkleBlocks()
         builder.writeByteArray(m_connectionManager->blockHashFor(i), Streaming::RawBytes);
     }
     m_con.send(builder.message(Api::P2P::GetData));
-}
-
-void Peer::finalShutdown()
-{
-    delete this;
 }
 
 int Peer::bloomUploadHeight() const

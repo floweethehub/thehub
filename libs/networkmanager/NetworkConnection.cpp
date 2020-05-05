@@ -74,15 +74,8 @@ void NetworkConnection::clear()
 {
     auto d = m_parent.lock();
     if (d) {
-        if (m_callbacksId >= 0) {
-            if (d->m_strand.running_in_this_thread()) {
-                d->removeAllCallbacksFor(m_callbacksId);
-            } else {
-                d->m_strand.post(std::bind(&NetworkManagerConnection::removeAllCallbacksFor, d, m_callbacksId));
-                WaitUntilFinishedHelper helper(std::bind(&NetworkConnection::dummy, this), &d->m_strand);
-                helper.run();
-            }
-        }
+        if (m_callbacksId >= 0)
+            d->m_strand.post(std::bind(&NetworkManagerConnection::removeAllCallbacksFor, d, m_callbacksId));
         m_callbacksId = -1;
         m_parent.reset();
     }

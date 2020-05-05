@@ -30,8 +30,8 @@ SyncSPVAction::SyncSPVAction(DownloadManager *parent)
 }
 
 struct WalletInfo {
-    Peer *downloading = nullptr;
-    std::set<Peer*> peers;
+    std::shared_ptr<Peer> downloading;
+    std::set<std::shared_ptr<Peer>> peers;
 };
 
 void SyncSPVAction::execute(const boost::system::error_code &error)
@@ -115,7 +115,7 @@ void SyncSPVAction::execute(const boost::system::error_code &error)
 
             // is behind. Is someone downloading?
             if (w->second.downloading) {
-                Peer *cur = w->second.downloading;
+                auto cur = w->second.downloading;
                 // remember the downloader so we avoid asking the same peer to download twice.
                 info.previousDownloadedBy.insert(cur->connectionId());
 
@@ -154,7 +154,7 @@ void SyncSPVAction::execute(const boost::system::error_code &error)
              *  int backupSyncHeight() const;
              */
             if (w->second.downloading == nullptr && !w->second.peers.empty()) {
-                Peer *preferred = nullptr;
+                std::shared_ptr<Peer> preferred;
                 for (auto p : w->second.peers) {
                     if (info.previousDownloadedBy.find(p->connectionId()) != info.previousDownloadedBy.end())
                         continue;

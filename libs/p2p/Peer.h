@@ -33,7 +33,7 @@ class Tx;
 class ConnectionManager;
 class CBloomFilter;
 
-class Peer
+class Peer : public std::enable_shared_from_this<Peer>
 {
 public:
     enum PeerStatus {
@@ -42,9 +42,10 @@ public:
         ShuttingDown
     };
 
-    explicit Peer(ConnectionManager *parent, NetworkConnection && server, const PeerAddress &address);
-
+    explicit Peer(ConnectionManager *parent, const PeerAddress &address);
     ~Peer();
+
+    void connect(NetworkConnection && server);
 
     /**
      * @brief shutdown will cause this peer to be shut down and deleted.
@@ -122,7 +123,6 @@ private:
     void processMessage(const Message &message);
     void processTransaction(const Tx &tx);
     void requestMerkleBlocks();
-    void finalShutdown();
 
     void sendFilter();
 

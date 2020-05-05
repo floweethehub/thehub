@@ -53,8 +53,8 @@ void DownloadManager::headersDownloadFinished(int newBlockHeight, int peerId)
     if (m_peerDownloadingHeaders == peerId)
         m_peerDownloadingHeaders = -1;
 
-    Peer *peer = m_connectionManager.peer(peerId);
-    if (peer)
+    auto peer = m_connectionManager.peer(peerId);
+    if (peer.get())
         peer->peerAddress().gotGoodHeaders();
 
     if (m_peerDownloadingHeaders == -1) { // check if we need to download more of them.
@@ -62,7 +62,7 @@ void DownloadManager::headersDownloadFinished(int newBlockHeight, int peerId)
         for (auto p : m_connectionManager.connectedPeers()) {
             if (p->startHeight() > newBlockHeight) {
                 m_peerDownloadingHeaders = p->connectionId();
-                Peer *p = m_connectionManager.peer(m_peerDownloadingHeaders);
+                auto p = m_connectionManager.peer(m_peerDownloadingHeaders);
                 if (p) {
                     m_connectionManager.requestHeaders(p);
                     break;
@@ -333,6 +333,6 @@ void DownloadManager::runQueue()
 
 void DownloadManager::start()
 {
-    addAction<SyncChainAction>();
-    addAction<FillAddressDBAction>();
+    // addAction<SyncChainAction>();
+    // addAction<FillAddressDBAction>();
 }

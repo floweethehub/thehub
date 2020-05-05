@@ -99,7 +99,8 @@ void ConnectionManager::connect(PeerAddress &address)
     if (m_peers.find(con.connectionId()) == m_peers.end()) {
         address.punishPeer(100); // when the connection succeeds, we remove the 100 again.
         con.setOnError(std::bind(&ConnectionManager::handleError, this, std::placeholders::_1, std::placeholders::_2));
-        auto p = new Peer(this, std::move(con), address);
+        auto p = std::make_shared<Peer>(this, address);
+        p->connect(std::move(con));
         m_peers.insert(std::make_pair(p->connectionId(), p));
     }
 }
@@ -173,13 +174,14 @@ void ConnectionManager::connectionEstablished(Peer *peer)
         iface->newPeer(peer->connectionId(), peer->userAgent(), peer->startHeight(),
                        peer->peerAddress());
     }
-    assert(m_peers.find(peer->connectionId()) != m_peers.end());
+    auto peerIter = m_peers.find(peer->connectionId());
+    assert(peerIter != m_peers.end());
     m_connectedPeers.insert(peer->connectionId());
 
     if (!peer->peerAddress().hasEverGotGoodHeaders()
             || time(nullptr) - peer->peerAddress().lastConnected() > 3600 * 36) {
         // check if this peer is using the same chain as us.
-        requestHeaders(peer);
+        requestHeaders(peerIter->second);
     }
 
     const auto previousSegment = peer->peerAddress().segment();
@@ -242,7 +244,7 @@ void ConnectionManager::addAddresses(const Message &message, int sourcePeerId)
                                          &m_peerAddressDb, message, sourcePeerId));
 }
 
-void ConnectionManager::punish(Peer *peer, int amount)
+void ConnectionManager::punish(std::shared_ptr<Peer> peer, int amount)
 {
     assert(peer);
     if (m_shuttingDown)
@@ -264,13 +266,13 @@ void ConnectionManager::punish(Peer *peer, int amount)
             iface->lostPeer(peer->connectionId());
         }
         std::unique_lock<std::mutex> lock(m_lock);
-        removePeer(peer);
+        removePeer(peer.get());
     }
 }
 
 void ConnectionManager::punish(int connectionId, int amount)
 {
-    Peer *p = nullptr;
+    std::shared_ptr<Peer> p;
     {
         std::unique_lock<std::mutex> lock(m_lock);
         auto peerIter = m_peers.find(connectionId);
@@ -281,7 +283,7 @@ void ConnectionManager::punish(int connectionId, int amount)
     punish(p, amount);
 }
 
-void ConnectionManager::requestHeaders(Peer *peer)
+void ConnectionManager::requestHeaders(std::shared_ptr<Peer> peer)
 {
     if (m_shuttingDown)
         return;
@@ -291,10 +293,10 @@ void ConnectionManager::requestHeaders(Peer *peer)
     peer->sendMessage(message);
 }
 
-std::deque<Peer *> ConnectionManager::connectedPeers() const
+std::deque<std::shared_ptr<Peer>> ConnectionManager::connectedPeers() const
 {
     std::unique_lock<std::mutex> lock(m_lock);
-    std::deque<Peer *> answer;
+    std::deque<std::shared_ptr<Peer>> answer;
     if (m_shuttingDown)
         return answer;
     for (auto i : m_connectedPeers) {
@@ -305,7 +307,7 @@ std::deque<Peer *> ConnectionManager::connectedPeers() const
     return answer;
 }
 
-Peer *ConnectionManager::peer(int connectionId) const
+std::shared_ptr<Peer> ConnectionManager::peer(int connectionId) const
 {
     std::unique_lock<std::mutex> lock(m_lock);
     auto i = m_peers.find(connectionId);
@@ -366,7 +368,7 @@ void ConnectionManager::cron(const boost::system::error_code &error)
     std::unique_lock<std::mutex> lock(m_lock);
     auto iter = m_peers.begin();
     while (iter != m_peers.end()) {
-        Peer *peer = iter->second;
+        Peer *peer = iter->second.get();
         logInfo() << "   " << iter->first << peer->userAgent() << (peer->status() == Peer::Connected ? "connected" : "connecting")
                              << "Wallet:" << (peer->privacySegment() ? peer->privacySegment()->segmentId() : 0);
         if ((peer->status() == Peer::Connecting || peer->status() == Peer::Connected)
@@ -419,7 +421,7 @@ void ConnectionManager::handleError_impl(int remoteId, const boost::system::erro
         std::unique_lock<std::mutex> lock(m_lock);
         auto iter = m_peers.find(remoteId);
         if (iter == m_peers.end())
-            removePeer(iter->second);
+            removePeer(iter->second.get());
     }
 }
 
@@ -455,7 +457,7 @@ void ConnectionManager::shutdown()
 
     auto copy(m_peers);
     for (auto peer : copy) {
-        removePeer(peer.second);
+        removePeer(peer.second.get());
     }
     assert(m_peers.empty());
 
