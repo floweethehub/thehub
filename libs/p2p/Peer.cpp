@@ -91,7 +91,7 @@ void Peer::connected(const EndPoint &endPoint)
 
     // version is always the first thing they expect on connect
     Message message = builder.message(Api::P2P::Version);
-    logDebug().nospace() << "peer: " << connectionId() << ", sending message (" << message.body().size() << "bytes)";
+    logDebug().nospace() << "peer: " << connectionId() << ", sending message (" << message.body().size() << " bytes)";
     m_con.send(message);
     m_con.send(Message(Api::LegacyP2P, Api::P2P::PreferHeaders));
 }
@@ -109,7 +109,7 @@ void Peer::processMessage(const Message &message)
     if (m_peerStatus == ShuttingDown)
         return;
     try {
-        logCritical() << ((void*)this) << "Peer:" << connectionId() << "messageId:"
+        logInfo() << "Peer:" << connectionId() << "messageId:"
                              << message.header().constData() << "of" << message.body().size() << "bytes";
         if (message.messageId() == Api::P2P::Version) {
             Streaming::P2PParser parser(message);
