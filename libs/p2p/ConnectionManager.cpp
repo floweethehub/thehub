@@ -176,7 +176,7 @@ void ConnectionManager::connectionEstablished(Peer *peer)
     assert(m_peers.find(peer->connectionId()) != m_peers.end());
     m_connectedPeers.insert(peer->connectionId());
 
-    if (!peer->peerAddress().hasEverConnected()
+    if (!peer->peerAddress().hasEverGotGoodHeaders()
             || time(nullptr) - peer->peerAddress().lastConnected() > 3600 * 36) {
         // check if this peer is using the same chain as us.
         requestHeaders(peer);

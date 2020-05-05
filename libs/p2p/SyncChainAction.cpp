@@ -112,7 +112,9 @@ void SyncChainAction::execute(const boost::system::error_code &error)
     std::set<int> existingPeersToAsk;
     int goodPeers = 0;
     for (auto peer: m_dlm->connectionManager().connectedPeers()) {
-        if (peer->receivedHeaders()) {
+        if (peer->receivedHeaders()
+                // or we did that recently anyway.
+                || (peer->peerAddress().hasEverGotGoodHeaders() && peer->peerAddress().punishment() <= 300)) {
             auto i = m_doubtfulPeers.find(peer->connectionId());
             if (i != m_doubtfulPeers.end())
                 m_doubtfulPeers.erase(i);

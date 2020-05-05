@@ -34,6 +34,7 @@ public:
     const EndPoint &peerAddress() const;
 
     void successfullyConnected();
+    void gotGoodHeaders();
     short punishPeer(short amount);
     short punishment() const;
     void resetPunishment();
@@ -42,6 +43,7 @@ public:
     bool askedAddresses() const;
     void setAskedAddresses(bool on);
     bool hasEverConnected() const;
+    bool hasEverGotGoodHeaders() const;
 
     uint16_t segment() const;
     void setSegment(uint16_t segment);
@@ -93,6 +95,7 @@ private:
         bool inUse = false;
         bool askedAddr = false;
         bool everConnected = false; // if false, lastConnected comes from untrusted peers
+        bool everReceivedGoodHeaders = false;
     };
     void insert(const PeerInfo &pi);
 

@@ -53,6 +53,10 @@ void DownloadManager::headersDownloadFinished(int newBlockHeight, int peerId)
     if (m_peerDownloadingHeaders == peerId)
         m_peerDownloadingHeaders = -1;
 
+    Peer *peer = m_connectionManager.peer(peerId);
+    if (peer)
+        peer->peerAddress().gotGoodHeaders();
+
     if (m_peerDownloadingHeaders == -1) { // check if we need to download more of them.
         // TODO use the fastest peer.
         for (auto p : m_connectionManager.connectedPeers()) {

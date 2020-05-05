@@ -40,6 +40,18 @@ void PeerAddress::successfullyConnected()
     i->second.everConnected = true;
 }
 
+void PeerAddress::gotGoodHeaders()
+{
+    auto i = d->m_peers.find(m_id);
+    assert(d->m_peers.end() != i);
+    time_t now = time(NULL);
+    assert(now > 0);
+    i->second.lastConnected = static_cast<uint32_t>(now);
+    if (i->second.punishment > 500)
+        i->second.punishment -= 200;
+    i->second.everReceivedGoodHeaders = true;
+}
+
 short PeerAddress::punishPeer(short amount)
 {
     auto i = d->m_peers.find(m_id);
@@ -93,6 +105,13 @@ bool PeerAddress::hasEverConnected() const
     auto i = d->m_peers.find(m_id);
     assert(d->m_peers.end() != i);
     return i->second.everConnected;
+}
+
+bool PeerAddress::hasEverGotGoodHeaders() const
+{
+    auto i = d->m_peers.find(m_id);
+    assert(d->m_peers.end() != i);
+    return i->second.everReceivedGoodHeaders;
 }
 
 uint16_t PeerAddress::segment() const
