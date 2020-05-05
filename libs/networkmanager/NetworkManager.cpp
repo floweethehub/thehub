@@ -418,8 +418,9 @@ Streaming::ConstBuffer NetworkManagerConnection::createHeader(const Message &mes
             logCritical() << "createHeader[legacy]: P2P message Id unknown:" << message.messageId();
         assert(messageId.size() <= 12);
         memcpy(m_sendHelperBuffer.data(), messageId.c_str(), messageId.size());
-        if (messageId.size() < 12) // ensure it has a trailing zero, if it fits
-            m_sendHelperBuffer.data()[messageId.size()] = 0;
+        for (size_t i = messageId.size(); i < 12; ++i) { // rest of version is zero-filled
+            m_sendHelperBuffer.data()[i] = 0;
+        }
         m_sendHelperBuffer.markUsed(12);
         const uint32_t messageSize = body.size();
         WriteLE32(reinterpret_cast<uint8_t*>(m_sendHelperBuffer.data()), messageSize);
