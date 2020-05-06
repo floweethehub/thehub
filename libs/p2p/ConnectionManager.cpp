@@ -105,7 +105,7 @@ void ConnectionManager::connect(PeerAddress &address)
     }
 }
 
-void ConnectionManager::disconnect(Peer *peer)
+void ConnectionManager::disconnect(const std::shared_ptr<Peer> &peer)
 {
     assert(peer);
     if (m_shuttingDown)
@@ -153,7 +153,7 @@ uint64_t ConnectionManager::appNonce() const
     return m_appNonce;
 }
 
-void ConnectionManager::connectionEstablished(Peer *peer)
+void ConnectionManager::connectionEstablished(const std::shared_ptr<Peer> &peer)
 {
     if (m_shuttingDown)
         return;
@@ -244,7 +244,7 @@ void ConnectionManager::addAddresses(const Message &message, int sourcePeerId)
                                          &m_peerAddressDb, message, sourcePeerId));
 }
 
-void ConnectionManager::punish(std::shared_ptr<Peer> peer, int amount)
+void ConnectionManager::punish(const std::shared_ptr<Peer> &peer, int amount)
 {
     assert(peer);
     if (m_shuttingDown)
@@ -266,7 +266,7 @@ void ConnectionManager::punish(std::shared_ptr<Peer> peer, int amount)
             iface->lostPeer(peer->connectionId());
         }
         std::unique_lock<std::mutex> lock(m_lock);
-        removePeer(peer.get());
+        removePeer(peer);
     }
 }
 
@@ -283,7 +283,7 @@ void ConnectionManager::punish(int connectionId, int amount)
     punish(p, amount);
 }
 
-void ConnectionManager::requestHeaders(std::shared_ptr<Peer> peer)
+void ConnectionManager::requestHeaders(const std::shared_ptr<Peer> &peer)
 {
     if (m_shuttingDown)
         return;
@@ -421,15 +421,14 @@ void ConnectionManager::handleError_impl(int remoteId, const boost::system::erro
         std::unique_lock<std::mutex> lock(m_lock);
         auto iter = m_peers.find(remoteId);
         if (iter == m_peers.end())
-            removePeer(iter->second.get());
+            removePeer(iter->second);
     }
 }
 
-void ConnectionManager::removePeer(Peer *p)
+void ConnectionManager::removePeer(const std::shared_ptr<Peer> &p)
 {
     const int id = p->connectionId();
-    p->shutdown(); // shutdown takes ownership of peer and deletes it safely
-    p = nullptr;
+    p->shutdown();
 
     auto i = m_connectedPeers.find(id);
     if (i != m_connectedPeers.end()) {
@@ -457,7 +456,7 @@ void ConnectionManager::shutdown()
 
     auto copy(m_peers);
     for (auto peer : copy) {
-        removePeer(peer.second.get());
+        removePeer(peer.second);
     }
     assert(m_peers.empty());
 

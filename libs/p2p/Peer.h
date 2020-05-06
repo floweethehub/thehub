@@ -48,73 +48,95 @@ public:
     void connect(NetworkConnection && server);
 
     /**
-     * @brief shutdown will cause this peer to be shut down and deleted.
-     * You should not use this peer object after calling this method anymore.
+     * @brief shutdown will cause this peer stop processing network request.
+     *
+     * Calling this is required for the shared_ptr based peer to be deletable.
+     * Specificially: it breaks a cyclic loop with the network layer.
      */
     void shutdown();
 
+    /// Returns the services bitfield of the remote peer.
     uint64_t services() const;
 
+    /// Returns the amount of seconds that this peer is ahead/behind us.
     int timeOffset() const;
 
+    /// Return the protocol version the remote peer reported.
     int protocolVersion() const;
 
+    /// Returns the internal ID our network connection is on.
     inline int connectionId() const {
         return m_con.connectionId();
     }
 
+    /// Returns the user-agent of the remote peer.
     std::string userAgent() const;
 
+    /// Returns the blockheight the peer reported at connection time.
     int startHeight() const;
 
+    /// Returns if the remote peer is willing to relay transactions.
     bool relaysTransactions() const;
 
+    /// Returns if the remote peer prefers headers over INV messages for new block announcements.
     bool preferHeaders() const;
 
+    /// Return the current connection status of this peer.
     PeerStatus status() const {
         return m_peerStatus;
     }
 
+    /// Returns true if the peers services indicate it supplies serving blockdata over the network.
     bool supplies_network() {
         return (m_services & 1) == 1;
     }
     // bip 159
+    /// Returns true if the peer services indicate it is partial (pruned) blockdata it serves over the net.
     bool supplies_partialNetwork() {
         return (m_services & 2) != 0;
     }
 
+    /// Returns true if the peer supplies bloom services.
     bool supplies_bloom() {
         return (m_services & 4) != 0;
     }
 
+    /// Sends a message to the remote peer.
     inline void sendMessage(const Message &message) {
         m_con.send(message);
     }
 
+    /// Returns the address of the remote peer.
     inline PeerAddress& peerAddress() { return m_peerAddress; }
+    /// Returns the address of the remote peer.
     inline const PeerAddress& peerAddress() const { return m_peerAddress; }
 
-    // peer has received the response to 'getheaders', implying it is following the same chain as us.
+    /// peer has received the response to 'getheaders', implying it is following the same chain as us.
+    /// @see PeerAddress::gotGoodHeaders() for a historical one.
     bool receivedHeaders() const;
 
+    /// Assigns this peer a wallet in the shape of a PrivacySegment.
     void setPrivacySegment(PrivacySegment *ps);
+    /// Return the set privacy segment, if any.
     inline PrivacySegment *privacySegment() const {
         return m_segment;
     }
 
-    // the blockHeight we were at when we send the bloom filter to the peer
+    /// the blockHeight we were at when we send the bloom filter to the peer
     int bloomUploadHeight() const;
 
-    // the blockheight of the last merkle block we received.
+    /// the blockheight of the last merkle block we received.
     int lastReceivedMerkle() const;
 
+    /// Return true if the merkle-block based fetches are in-progress.
     bool merkleDownloadInProgress() const;
 
-    // start downloads of merkle (aka SPV) blocks to the current height
+    /// start downloads of merkle (aka SPV) blocks to the current height
     void startMerkleDownload(int from);
     /// send to the peer the bloom filter arg, with the promise that that it looked like that at \a blockHeight
     void sendFilter(const CBloomFilter &bloom, int blockHeight);
 
+    /// Return the timestamp of first-connection time.
     uint32_t connectTime() const;
 
 private:
@@ -124,6 +146,7 @@ private:
     void processTransaction(const Tx &tx);
     void requestMerkleBlocks();
 
+    /// sends the bloom filter to peer.
     void sendFilter();
 
     uint64_t m_services = 0;

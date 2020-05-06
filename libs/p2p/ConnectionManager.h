@@ -50,7 +50,7 @@ public:
     Streaming::BufferPool &pool(int reserveSize);
 
     void connect(PeerAddress &address);
-    void disconnect(Peer *peer);
+    void disconnect(const std::shared_ptr<Peer> &peer);
 
     uint64_t servicesBitfield() const;
     void setServicesBitfield(const uint64_t &servicesBitfield);
@@ -62,7 +62,7 @@ public:
 
     uint64_t appNonce() const;
 
-    void connectionEstablished(Peer *peer);
+    void connectionEstablished(const std::shared_ptr<Peer> &peer);
 
     void addBlockHeaders(const Message &message, int sourcePeerId);
     void addAddresses(const Message &message, int sourcePeerId);
@@ -73,9 +73,9 @@ public:
         return m_ioService;
     }
 
-    void punish(std::shared_ptr<Peer> peer, int amount = 250);
+    void punish(const std::shared_ptr<Peer> &peer, int amount = 250);
     void punish(int connectionId, int amount = 250);
-    void requestHeaders(std::shared_ptr<Peer> peer);
+    void requestHeaders(const std::shared_ptr<Peer> &peer);
 
     std::deque<std::shared_ptr<Peer> > connectedPeers() const;
 
@@ -109,7 +109,7 @@ private:
     void handleError_impl(int remoteId, const boost::system::error_code &error);
 
     // m_lock should already be taken by caller
-    void removePeer(Peer *peer);
+    void removePeer(const std::shared_ptr<Peer> &peer);
 
     uint64_t m_appNonce;
     uint64_t m_servicesBitfield = 0;

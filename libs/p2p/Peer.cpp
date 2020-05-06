@@ -102,7 +102,7 @@ void Peer::disconnected(const EndPoint &)
     logDebug() << "Disconnected. Peer:" << connectionId();
     if (m_peerStatus == ShuttingDown)
         return;
-    m_connectionManager->disconnect(this); // will cause us to be deleted.
+    m_connectionManager->disconnect(shared_from_this()); // will cause us to be deleted.
 }
 
 void Peer::processMessage(const Message &message)
@@ -130,7 +130,7 @@ void Peer::processMessage(const Message &message)
 
             logInfo() << "Peer:" << connectionId() << "is connected to" << m_userAgent << m_peerAddress.peerAddress();
             m_con.send(Message(Api::LegacyP2P, Api::P2P::VersionAck));
-            m_connectionManager->connectionEstablished(this);
+            m_connectionManager->connectionEstablished(shared_from_this());
             m_peerAddress.successfullyConnected();
         }
         else if (message.messageId() == Api::P2P::Ping) {
@@ -194,7 +194,7 @@ void Peer::processMessage(const Message &message)
     } catch (const Streaming::ParsingException &e) {
         logCritical() << "Parsing failure" << e << "peer=" << m_con.connectionId();
         m_peerAddress.punishPeer(200);
-        m_connectionManager->disconnect(this); // will cause us to be deleted.
+        m_connectionManager->disconnect(shared_from_this()); // will cause us to be deleted.
     }
 }
 
