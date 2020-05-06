@@ -1,0 +1,11 @@
+webcore-proxy
+
+#webcore-proxy example config file
+Found in flowe/bitcore-proxy/bitcore-proxy.conf
+Basedir would be $HOME/.config/ or similar $XDG_DATA_HOME dir.
+###########################
+
+[services]
+hub=192.168.178.2
+indexer=192.168.178.2
+
