@@ -95,7 +95,6 @@ void Peer::connected(const EndPoint &endPoint)
     Message message = builder.message(Api::P2P::Version);
     logDebug().nospace() << "peer: " << connectionId() << ", sending message (" << message.body().size() << " bytes)";
     m_con.send(message);
-    m_con.send(Message(Api::LegacyP2P, Api::P2P::PreferHeaders));
 }
 
 void Peer::disconnected(const EndPoint &)
@@ -131,6 +130,7 @@ void Peer::processMessage(const Message &message)
 
             logInfo() << "Peer:" << connectionId() << "is connected to" << m_userAgent << m_peerAddress.peerAddress();
             m_con.send(Message(Api::LegacyP2P, Api::P2P::VersionAck));
+            m_con.send(Message(Api::LegacyP2P, Api::P2P::PreferHeaders));
             m_connectionManager->connectionEstablished(shared_from_this());
             m_peerAddress.successfullyConnected();
         }
