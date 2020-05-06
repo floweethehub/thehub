@@ -333,6 +333,6 @@ void DownloadManager::runQueue()
 
 void DownloadManager::start()
 {
-    // addAction<SyncChainAction>();
-    // addAction<FillAddressDBAction>();
+    addAction<SyncChainAction>();
+    addAction<FillAddressDBAction>();
 }
