@@ -53,6 +53,7 @@ void Peer::connect(NetworkConnection && server)
     m_con.setOnDisconnected(std::bind(&Peer::disconnected, shared_from_this(), std::placeholders::_1));
     m_con.setOnIncomingMessage(std::bind(&Peer::processMessage, shared_from_this(), std::placeholders::_1));
     m_con.setMessageHeaderLegacy(true);
+    m_con.connect();
 }
 
 void Peer::shutdown()
