@@ -73,8 +73,8 @@ public:
         return m_ioService;
     }
 
-    void punish(const std::shared_ptr<Peer> &peer, int amount = 250);
-    void punish(int connectionId, int amount = 250);
+    bool punish(const std::shared_ptr<Peer> &peer, int amount = 250);
+    bool punish(int connectionId, int amount = 250);
     void requestHeaders(const std::shared_ptr<Peer> &peer);
 
     std::deque<std::shared_ptr<Peer> > connectedPeers() const;

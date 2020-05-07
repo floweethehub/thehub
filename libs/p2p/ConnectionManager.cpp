@@ -244,11 +244,11 @@ void ConnectionManager::addAddresses(const Message &message, int sourcePeerId)
                                          &m_peerAddressDb, message, sourcePeerId));
 }
 
-void ConnectionManager::punish(const std::shared_ptr<Peer> &peer, int amount)
+bool ConnectionManager::punish(const std::shared_ptr<Peer> &peer, int amount)
 {
     assert(peer);
     if (m_shuttingDown)
-        return;
+        return false;
     auto address = peer->peerAddress();
     short total = PUNISHMENT_MAX;
     short previous = total;
@@ -267,20 +267,22 @@ void ConnectionManager::punish(const std::shared_ptr<Peer> &peer, int amount)
         }
         std::unique_lock<std::mutex> lock(m_lock);
         removePeer(peer);
+        return true;
     }
+    return false;
 }
 
-void ConnectionManager::punish(int connectionId, int amount)
+bool ConnectionManager::punish(int connectionId, int amount)
 {
     std::shared_ptr<Peer> p;
     {
         std::unique_lock<std::mutex> lock(m_lock);
         auto peerIter = m_peers.find(connectionId);
         if (peerIter == m_peers.end())
-            return;
+            return false;
         p = peerIter->second;
     }
-    punish(p, amount);
+    return punish(p, amount);
 }
 
 void ConnectionManager::requestHeaders(const std::shared_ptr<Peer> &peer)
@@ -395,33 +397,26 @@ void ConnectionManager::handleError_impl(int remoteId, const boost::system::erro
     if (m_shuttingDown)
         return;
     bool remove = false;
-    int punish = 0;
-    if (error ==  boost::asio::error::host_unreachable || error == boost::asio::error::network_unreachable) {
+    int punishment = 180; // unknown error
+    if (error ==  boost::asio::error::host_unreachable || error == boost::asio::error::network_unreachable
+            || error.value() == EADDRNOTAVAIL) {
         remove = true;
-        punish = 100; // likely ipv6 while we don't have that.
+        punishment = 900; // likely ipv6 while we don't have that.
     }
-    if (error ==  boost::asio::error::host_not_found) {
+    else if (error ==  boost::asio::error::host_not_found) {
         remove = true;
-        punish = 500; // faulty DNS name.
+        punishment  = 450; // faulty DNS name.
     }
-    if (punish > 0) {
-        std::unique_lock<std::mutex> lock(m_lock);
-        auto iter = m_peers.find(remoteId);
-        if (iter == m_peers.end())
-            return;
-        if (iter != m_peers.end()) {
-            auto address = iter->second->peerAddress();
-            if (address.isValid())
-                address.punishPeer(punish);
-        }
-    }
+    auto remotePeer = peer(remoteId);
+    bool removed = punish(remotePeer, punishment);
 
-    if (remove) {
+    if (remove && !removed) {
         logDebug() << "removing" << remoteId;
+        for (auto iface : m_dlManager->p2pNetListeners()) {
+            iface->lostPeer(remotePeer->connectionId());
+        }
         std::unique_lock<std::mutex> lock(m_lock);
-        auto iter = m_peers.find(remoteId);
-        if (iter == m_peers.end())
-            removePeer(iter->second);
+        removePeer(remotePeer);
     }
 }
 

@@ -346,7 +346,7 @@ void NetworkManagerConnection::onAddressResolveComplete(const boost::system::err
     if (m_isClosingDown)
         return;
     if (error) {
-        logWarning(Log::NWM).nospace() << "connect[" << m_remote << "] " << error.message();
+        logWarning(Log::NWM).nospace() << "connect[" << m_remote << "] " << error.message() << error.value();
         m_isConnecting = false;
         m_reconnectDelay.expires_from_now(boost::posix_time::seconds(45));
         m_reconnectDelay.async_wait(m_strand.wrap(std::bind(&NetworkManagerConnection::reconnectWithCheck,
