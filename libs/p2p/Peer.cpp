@@ -59,7 +59,7 @@ void Peer::connect(NetworkConnection && server)
 void Peer::shutdown()
 {
     m_peerStatus = ShuttingDown;
-    m_con.clear(); // forgets callbacks (shared ptrs) to us.
+    m_con.shutdown(); // forgets callbacks (shared ptrs) to us.
 }
 
 void Peer::connected(const EndPoint &endPoint)

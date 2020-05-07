@@ -144,7 +144,7 @@ void NetworkConnection::shutdown()
     if (d) {
         boost::recursive_mutex::scoped_lock lock(d->d->mutex); // protects 'connections' map
         d->d->connections.erase(m_id); // stop referring to the connection.
-        d->shutdown(d); // shutdown the connection.
+        d->shutdown();
         m_parent.reset(); // instantly make this one invalid.
     }
 }

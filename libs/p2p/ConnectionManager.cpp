@@ -393,7 +393,6 @@ void ConnectionManager::handleError(int remoteId, const boost::system::error_cod
 
 void ConnectionManager::handleError_impl(int remoteId, const boost::system::error_code &error)
 {
-    logDebug() << "on error" << remoteId << error.message();
     if (m_shuttingDown)
         return;
     bool remove = false;
@@ -410,6 +409,7 @@ void ConnectionManager::handleError_impl(int remoteId, const boost::system::erro
     auto remotePeer = peer(remoteId);
     if (!remotePeer)
         return;
+    logInfo() << "on error" << remoteId << error.message() << "Punishment:" << punishment;
     bool removed = punish(remotePeer, punishment);
 
     if (remove && !removed) {

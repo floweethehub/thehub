@@ -188,16 +188,16 @@ public:
     }
 
     /// add callback, calls have to be on the strand.
-    void addOnConnectedCallback(int id, const std::function<void(const EndPoint&)> &callback);
+    void addOnConnectedCallback(int id, std::function<void(const EndPoint&)> callback);
     /// add callback, calls have to be on the strand.
-    void addOnDisconnectedCallback(int id, const std::function<void(const EndPoint&)> &callback);
+    void addOnDisconnectedCallback(int id, std::function<void(const EndPoint&)> callback);
     /// add callback, calls have to be on the strand.
-    void addOnIncomingMessageCallback(int id, const std::function<void(const Message&)> &callback);
+    void addOnIncomingMessageCallback(int id, std::function<void(const Message&)> callback);
     /// add callback, calls have to be on the strand.
-    void addOnError(int id, const std::function<void(int,const boost::system::error_code&)> &callback);
+    void addOnError(int id, std::function<void(int,const boost::system::error_code&)> callback);
 
     /// forcably shut down the connection, soon you should no longer reference this object
-    void shutdown(std::shared_ptr<NetworkManagerConnection> me);
+    void shutdown();
 
     /// only incoming connections need accepting.
     void accept();
@@ -245,7 +245,7 @@ private:
     void close(bool reconnect = true); // close down connection
     void connect_priv(); // thread-unsafe version of connect
     void reconnectWithCheck(const boost::system::error_code& error); // called from the m_reconectDelay timer
-    void finalShutdown(std::shared_ptr<NetworkManagerConnection>);
+    void finalShutdown();
     void sendPing(const boost::system::error_code& error);
     void pingTimeout(const boost::system::error_code& error);
 

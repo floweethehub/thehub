@@ -72,7 +72,7 @@ NetworkManager::~NetworkManager()
         server->shutdown();
     }
     for (auto it = d->connections.begin(); it != d->connections.end(); ++it) {
-        it->second->shutdown(it->second);
+        it->second->shutdown();
     }
     d->connections.clear(); // invalidate NetworkConnection references
     for (auto service : d->services) {
@@ -216,7 +216,7 @@ void NetworkManagerPrivate::punishNode(int connectionId, int punishScore)
         logInfo(Log::NWM) << "Banned node for 24 hours due to excessive bad behavior" << bn.endPoint.hostname;
         banned.push_back(bn);
         connections.erase(connectionId);
-        con->second->shutdown(con->second);
+        con->second->shutdown();
     }
 }
 
@@ -346,7 +346,7 @@ void NetworkManagerConnection::onAddressResolveComplete(const boost::system::err
     if (m_isClosingDown)
         return;
     if (error) {
-        logWarning(Log::NWM).nospace() << "connect[" << m_remote << "] " << error.message() << error.value();
+        logWarning(Log::NWM).nospace() << "connect[" << m_remote << "] " << error.message() << " (" << error.value() << ")";
         m_isConnecting = false;
         m_reconnectDelay.expires_from_now(boost::posix_time::seconds(45));
         m_reconnectDelay.async_wait(m_strand.wrap(std::bind(&NetworkManagerConnection::reconnectWithCheck,
@@ -369,7 +369,8 @@ void NetworkManagerConnection::onConnectComplete(const boost::system::error_code
         return;
     m_isConnecting = false;
     if (error) {
-        logInfo(Log::NWM).nospace() << "connect[" << m_remote.hostname.c_str() << ":" << m_remote.announcePort << "] " << error.message();
+        logWarning(Log::NWM).nospace() << "connect[" << m_remote.hostname.c_str() << ":" << m_remote.announcePort
+                                    << "] (" << error.message() << ")";
         if (m_remote.peerPort != m_remote.announcePort) // incoming connection
             return;
         m_reconnectDelay.expires_from_now(boost::posix_time::seconds(reconnectTimeoutForStep(++m_reconnectStep)));
@@ -984,25 +985,25 @@ bool NetworkManagerConnection::processLegacyPacket(const std::shared_ptr<char> &
     return m_socket.is_open(); // if the user called disconnect, then stop processing packages
 }
 
-void NetworkManagerConnection::addOnConnectedCallback(int id, const std::function<void(const EndPoint&)> &callback)
+void NetworkManagerConnection::addOnConnectedCallback(int id, std::function<void(const EndPoint&)> callback)
 {
     assert(m_strand.running_in_this_thread());
     m_onConnectedCallbacks.insert(std::make_pair(id, callback));
 }
 
-void NetworkManagerConnection::addOnDisconnectedCallback(int id, const std::function<void(const EndPoint&)> &callback)
+void NetworkManagerConnection::addOnDisconnectedCallback(int id, std::function<void(const EndPoint&)> callback)
 {
     assert(m_strand.running_in_this_thread());
     m_onDisConnectedCallbacks.insert(std::make_pair(id, callback));
 }
 
-void NetworkManagerConnection::addOnIncomingMessageCallback(int id, const std::function<void(const Message&)> &callback)
+void NetworkManagerConnection::addOnIncomingMessageCallback(int id, std::function<void(const Message&)> callback)
 {
     assert(m_strand.running_in_this_thread());
     m_onIncomingMessageCallbacks.insert(std::make_pair(id, callback));
 }
 
-void NetworkManagerConnection::addOnError(int id, const std::function<void (int, const boost::system::error_code &)> &callback)
+void NetworkManagerConnection::addOnError(int id, std::function<void (int, const boost::system::error_code &)> callback)
 {
     assert(m_strand.running_in_this_thread());
     m_onErrorCallbacks.insert(std::make_pair(id, callback));
@@ -1046,7 +1047,7 @@ void NetworkManagerConnection::close(bool reconnect)
     assert(m_strand.running_in_this_thread());
     if (!isOutgoing()) {
         boost::recursive_mutex::scoped_lock lock(d->mutex);
-        shutdown(d->connections.at(m_remote.connectionId));
+        shutdown();
         d->connections.erase(m_remote.connectionId);
         return;
     }
@@ -1134,7 +1135,7 @@ void NetworkManagerConnection::removeAllCallbacksFor(int id)
     m_onErrorCallbacks.erase(id);
 }
 
-void NetworkManagerConnection::shutdown(std::shared_ptr<NetworkManagerConnection> me)
+void NetworkManagerConnection::shutdown()
 {
     m_isClosingDown = true;
     if (m_strand.running_in_this_thread()) {
@@ -1146,9 +1147,9 @@ void NetworkManagerConnection::shutdown(std::shared_ptr<NetworkManagerConnection
             m_socket.close();
         m_resolver.cancel();
         m_reconnectDelay.cancel();
-        m_strand.post(std::bind(&NetworkManagerConnection::finalShutdown, this, me));
+        m_strand.post(std::bind(&NetworkManagerConnection::finalShutdown, shared_from_this()));
     } else {
-        m_strand.post(std::bind(&NetworkManagerConnection::shutdown, this, me));
+        m_strand.post(std::bind(&NetworkManagerConnection::shutdown, shared_from_this()));
     }
 }
 
@@ -1201,7 +1202,7 @@ void NetworkManagerConnection::setMessageHeaderType(MessageHeaderType messageHea
     }
 }
 
-void NetworkManagerConnection::finalShutdown(std::shared_ptr<NetworkManagerConnection>)
+void NetworkManagerConnection::finalShutdown()
 {
 }
 
