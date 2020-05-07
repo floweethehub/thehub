@@ -25,6 +25,7 @@ add_library(flowee_networkmanager STATIC
     NetworkException.cpp
     NetworkQueueFullError.cpp
 )
+target_link_libraries(flowee_networkmanager flowee_utils)
 
 # allow usage in dlls
 set(CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS} -fPIC")
