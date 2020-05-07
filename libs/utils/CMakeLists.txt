@@ -100,6 +100,7 @@ install(FILES
     #primitives/block.h
     primitives/key.h
     primitives/pubkey.h
+    primitives/pubkey_utils.h
     primitives/script.h
     #primitives/transaction.h
 DESTINATION include/flowee/utils/primitives)
