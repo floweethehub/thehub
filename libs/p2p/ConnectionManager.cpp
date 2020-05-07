@@ -408,6 +408,8 @@ void ConnectionManager::handleError_impl(int remoteId, const boost::system::erro
         punishment  = 450; // faulty DNS name.
     }
     auto remotePeer = peer(remoteId);
+    if (!remotePeer)
+        return;
     bool removed = punish(remotePeer, punishment);
 
     if (remove && !removed) {
