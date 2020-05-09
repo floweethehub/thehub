@@ -63,7 +63,7 @@ void TestNWM::testBigMessage()
 
 void TestNWM::testRingBuffer()
 {
-    RingBuffer<int> buf;
+    RingBuffer<int> buf(2000);
 
     QCOMPARE(buf.reserved(), 2000); // this makes sure the tests follows the implementation
     QCOMPARE(buf.isEmpty(), true);

@@ -55,6 +55,10 @@ public:
         m_connection.setOnIncomingMessage(std::bind(&MyServiceHandler::onIncomingMessage, this, std::placeholders::_1));
     }
 
+    ~MyServiceHandler() {
+        m_connection.shutdown();
+    }
+
 private:
     void onConnected();
     void onDisconnected();
@@ -166,6 +170,15 @@ public:
      * @param on Set to true when using to connect to the p2p network.
      */
     void setMessageHeaderLegacy(bool on);
+
+    /**
+     * @brief setMessageQueueSize allows a pre-connect configuration of how many buffers this connection should have.
+     * @param main the amount of messages we queue. The variable should be positive and fit in a `short` integer.
+     * @param priority the amount of priority-messages we queue. The variable should be positive and fit in a `short` integer.
+     *
+     * Notice that this should be called before connect() or send() to be honored.
+     */
+    void setMessageQueueSizes(int main, int priority);
 
 private:
     NetworkConnection(const NetworkConnection&);

@@ -249,8 +249,10 @@ void PeerAddressDB::addOne(const EndPoint &endPoint)
     insert(info);
 }
 
-void PeerAddressDB::insert(const PeerAddressDB::PeerInfo &pi)
+void PeerAddressDB::insert(PeerInfo &pi)
 {
+    if (pi.address.ipAddress.is_unspecified()) // try to see if hostname is an IP. If so, bypass DNS lookup
+        try { pi.address.ipAddress = boost::asio::ip::address::from_string(pi.address.hostname); } catch (...) {}
     for (auto i = m_peers.begin(); i != m_peers.end(); ++i) {
         if (i->second.address.ipAddress == pi.address.ipAddress)
             return;

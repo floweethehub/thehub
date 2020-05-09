@@ -67,11 +67,13 @@ void SyncChainAction::execute(const boost::system::error_code &error)
         uint32_t oldestTime = 0;
         for (int i = m_stateIndex + 1; i != m_stateIndex; ++i) {
             if (prevHeight == 0) {
-                prevHeight = m_states[i].height;
-                if (prevHeight == 0) // when no measurements present, allow starting
-                    score += 100;
-                else
-                    oldestTime = m_states[i].timestamp;
+                if (i < RINGBUF_SIZE) {
+                    prevHeight = m_states[i].height;
+                    if (prevHeight == 0) // when no measurements present, allow starting
+                        score += 100;
+                    else
+                        oldestTime = m_states[i].timestamp;
+                }
             } else {
                 int diff = m_states[i].height - prevHeight;
                 if (diff > 900)

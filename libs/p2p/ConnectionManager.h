@@ -21,7 +21,6 @@
 #include "PeerAddressDB.h"
 
 #include <networkmanager/NetworkManager.h>
-#include <NetworkEndPoint.h>
 #include <primitives/FastTransaction.h>
 
 #include <boost/asio/deadline_timer.hpp>
@@ -103,6 +102,16 @@ public:
 
     void shutdown();
 
+    /**
+     * @brief setMessageQueueSize allows a configuration of how many buffers a connection should have.
+     * @param size the amount of messages we queue. The variable should be positive and fit in a `short` integer.
+     *
+     * @see NetworkConnection::setMessageQueueSizes
+     *
+     * Notice that this only affects newly created connections.
+     */
+    void setMessageQueueSize(int size);
+
 private:
     void cron(const boost::system::error_code &error);
     void handleError(int remoteId, const boost::system::error_code &error);
@@ -115,6 +124,8 @@ private:
     uint64_t m_servicesBitfield = 0;
     int m_blockHeight = 0;
 
+    short m_queueSize = 200; // config setting for the NetworkConnection buffer-size
+
     mutable std::mutex m_lock;
     std::atomic<bool> m_shuttingDown;
     std::map<int, std::shared_ptr<Peer>> m_peers;
@@ -122,8 +133,8 @@ private:
 
     boost::asio::io_service &m_ioService;
     boost::asio::deadline_timer m_cronTimer;
-    NetworkManager m_network;
     PeerAddressDB m_peerAddressDb;
+    NetworkManager m_network;
     DownloadManager *m_dlManager; // parent
     std::string m_userAgent;
 

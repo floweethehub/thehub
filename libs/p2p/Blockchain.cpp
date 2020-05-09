@@ -18,8 +18,9 @@
 #include "Blockchain.h"
 #include "DownloadManager.h"
 
-#include <utils/utiltime.h>
+#include <streaming/P2PBuilder.h>
 #include <streaming/P2PParser.h>
+#include <utils/utiltime.h>
 
 Blockchain::Blockchain(DownloadManager *downloadManager)
     : m_dlmanager(downloadManager)
@@ -197,7 +198,7 @@ void Blockchain::processBlockHeaders(Message message, int peerId)
     m_tip.tip = prevHash;
     m_tip.chainWork= chainWork;
     newTip = m_tip.height;
-    logInfo() << "Headers now at" << newTip << m_tip.tip <<
+    logCritical() << "Headers now at" << newTip << m_tip.tip <<
                  DateTimeStrFormat("%Y-%m-%d %H:%M:%S", m_longestChain.back().nTime).c_str();
     } // lock-scope
 

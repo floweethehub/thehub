@@ -1,6 +1,6 @@
 /*
  * This file is part of the Flowee project
- * Copyright (C) 2016, 2019 Tom Zander <tomz@freedommail.ch>
+ * Copyright (C) 2016, 2019-2020 Tom Zander <tomz@freedommail.ch>
  *
  * This program is free software: you can redistribute it and/or modify
  * it under the terms of the GNU General Public License as published by
@@ -230,4 +230,15 @@ void NetworkConnection::setMessageHeaderLegacy(bool on)
     if (d)
         d->setMessageHeaderType(on ? NetworkManagerConnection::LegacyP2P : NetworkManagerConnection::FloweeNative);
 
+}
+
+void NetworkConnection::setMessageQueueSizes(int main, int priority)
+{
+    assert(main >= 1);
+    assert(main <= 0xeFFF);
+    assert(priority >= 1);
+    assert(priority <= 0xeFFF);
+    auto d = m_parent.lock();
+    if (d)
+        d->setMessageQueueSizes(static_cast<short>(main), static_cast<short>(priority));
 }

@@ -23,11 +23,9 @@
 
 #include <streaming/BufferPool.h>
 #include <streaming/P2PBuilder.h>
-#include <streaming/P2PParser.h>
 #include <APIProtocol.h>
 #include <version.h> // for PROTOCOL_VERSION
 
-#include <map>
 #include <random>
 
 
@@ -35,8 +33,8 @@ ConnectionManager::ConnectionManager(boost::asio::io_service &service, DownloadM
     : m_shuttingDown(false),
     m_ioService(service),
     m_cronTimer(m_ioService),
-    m_network(service),
     m_peerAddressDb(this),
+    m_network(service),
     m_dlManager(parent)
 {
     // The nonce is used in the status message to allow detection of connect-to-self.
@@ -65,7 +63,7 @@ ConnectionManager::ConnectionManager(boost::asio::io_service &service, DownloadM
     m_cronTimer.expires_from_now(boost::posix_time::seconds(20));
     m_cronTimer.async_wait(parent->strand().wrap(std::bind(&ConnectionManager::cron, this, std::placeholders::_1)));
 
-    m_userAgent = "Flowee Super thingy";
+    m_userAgent = "Flowee-P2PNet-based app";
 }
 
 void ConnectionManager::addInvMessage(const Message &message, int sourcePeerId)
@@ -99,6 +97,7 @@ void ConnectionManager::connect(PeerAddress &address)
     if (m_peers.find(con.connectionId()) == m_peers.end()) {
         address.punishPeer(100); // when the connection succeeds, we remove the 100 again.
         con.setOnError(std::bind(&ConnectionManager::handleError, this, std::placeholders::_1, std::placeholders::_2));
+        con.setMessageQueueSizes(m_queueSize, 0);
         auto p = std::make_shared<Peer>(this, address);
         p->connect(std::move(con));
         m_peers.insert(std::make_pair(p->connectionId(), p));
@@ -406,10 +405,16 @@ void ConnectionManager::handleError_impl(int remoteId, const boost::system::erro
         remove = true;
         punishment  = 450; // faulty DNS name.
     }
+    else if (error == boost::asio::error::connection_refused
+             || error == boost::asio::error::connection_aborted
+             || error == boost::asio::error::connection_reset) {
+        remove = true;
+        punishment = 0;
+    }
     auto remotePeer = peer(remoteId);
     if (!remotePeer)
         return;
-    logInfo() << "on error" << remoteId << error.message() << "Punishment:" << punishment;
+    logInfo() << "on error" << remoteId << error.message() << error.value() << "Punishment:" << punishment;
     bool removed = punish(remotePeer, punishment);
 
     if (remove && !removed) {
@@ -458,4 +463,11 @@ void ConnectionManager::shutdown()
     assert(m_peers.empty());
 
     // TODO m_peerAddressDb.save();
+}
+
+void ConnectionManager::setMessageQueueSize(int size)
+{
+    assert(size >= 1);
+    assert(size <= 0xeFFF);
+    m_queueSize = static_cast<short>(size);
 }

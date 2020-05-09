@@ -22,10 +22,7 @@
 #include "BlockHeader.h"
 
 #include <networkmanager/NetworkConnection.h>
-#include <streaming/BufferPool.h>
 #include <uint256.h>
-
-#include <deque>
 
 class PrivacySegment;
 class Blockchain;

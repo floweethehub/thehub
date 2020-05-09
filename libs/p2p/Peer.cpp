@@ -18,17 +18,12 @@
 #include "Peer.h"
 #include "ConnectionManager.h"
 #include "PrivacySegment.h"
-#include "Blockchain.h"
-#include "BlockHeader.h"
 
+#include <version.h>
 #include <streaming/P2PParser.h>
 #include <streaming/P2PBuilder.h>
 
-#include <hash.h>
-
-#include <streaming/MessageBuilder.h>
 #include <boost/asio/error.hpp>
-#include <primitives/FastTransaction.h>
 
 Peer::Peer(ConnectionManager *parent, const PeerAddress &address)
     : m_peerAddress(address),
@@ -53,6 +48,7 @@ void Peer::connect(NetworkConnection && server)
     m_con.setOnDisconnected(std::bind(&Peer::disconnected, shared_from_this(), std::placeholders::_1));
     m_con.setOnIncomingMessage(std::bind(&Peer::processMessage, shared_from_this(), std::placeholders::_1));
     m_con.setMessageHeaderLegacy(true);
+    m_con.setMessageQueueSizes(10, 1);
     m_con.connect();
 }
 

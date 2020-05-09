@@ -39,6 +39,12 @@ constexpr int LEGACY_HEADER_SIZE = 24;
 
 namespace {
 
+thread_local Streaming::BufferPool m_buffer(10240); // used only really for message-headers
+inline Streaming::BufferPool &pool(int reserveSize) {
+    m_buffer.reserve(reserveSize);
+    return m_buffer;
+}
+
 int reconnectTimeoutForStep(short step) {
     if (step < 5)
         return step*step*step / 2;
@@ -252,63 +258,40 @@ void NetworkManagerPrivate::cronHourly(const boost::system::error_code &error)
 
 NetworkManagerConnection::NetworkManagerConnection(const std::shared_ptr<NetworkManagerPrivate> &parent, tcp::socket socket, int connectionId)
     : m_strand(parent->ioService),
-    m_punishment(0),
     d(parent),
     m_socket(std::move(socket)),
     m_resolver(parent->ioService),
-    m_messageBytesSend(0),
-    m_messageBytesSent(0),
-    m_receiveStream(RECEIVE_STREAM_SIZE),
     m_lastCallbackId(1),
     m_isClosingDown(false),
-    m_firstPacket(true),
-    m_isConnecting(false),
     m_isConnected(true),
-    m_sendingInProgress(false),
-    m_acceptedConnection(false),
-    m_reconnectStep(0),
     m_reconnectDelay(parent->ioService),
     m_pingTimer(parent->ioService),
     m_sendTimer(parent->ioService),
-    m_chunkedServiceId(-1),
-    m_chunkedMessageId(-1)
+    m_chunkedMessageBuffer(0)
 {
     m_remote.ipAddress = m_socket.remote_endpoint().address();
     m_remote.announcePort = m_socket.remote_endpoint().port();
     m_remote.hostname = m_remote.ipAddress.to_string();
     m_remote.peerPort = 0;
     m_remote.connectionId = connectionId;
-
-    m_pingMessage = buildPingMessage(m_remote.peerPort == m_remote.announcePort);
 }
 
 NetworkManagerConnection::NetworkManagerConnection(const std::shared_ptr<NetworkManagerPrivate> &parent, const EndPoint &remote)
     : m_strand(parent->ioService),
-    m_punishment(0),
     d(parent),
     m_remote(remote),
     m_socket(parent->ioService),
     m_resolver(parent->ioService),
-    m_messageBytesSend(0),
-    m_messageBytesSent(0),
     m_receiveStream(RECEIVE_STREAM_SIZE),
     m_lastCallbackId(1),
     m_isClosingDown(false),
-    m_firstPacket(true),
-    m_isConnecting(false),
     m_isConnected(false),
-    m_sendingInProgress(false),
-    m_acceptedConnection(false),
-    m_reconnectStep(0),
     m_reconnectDelay(parent->ioService),
     m_pingTimer(parent->ioService),
-    m_sendTimer(parent->ioService),
-    m_chunkedServiceId(-1),
-    m_chunkedMessageId(-1)
+    m_sendTimer(parent->ioService)
 {
     if (m_remote.peerPort == 0)
         m_remote.peerPort = m_remote.announcePort;
-    m_pingMessage = buildPingMessage(m_remote.peerPort == m_remote.announcePort);
 }
 
 void NetworkManagerConnection::connect()
@@ -326,6 +309,7 @@ void NetworkManagerConnection::connect_priv()
     if (m_isClosingDown)
         return;
     m_isConnecting = true;
+    allocateBuffers();
 
     if (m_remote.ipAddress.is_unspecified()) {
         tcp::resolver::query query(m_remote.hostname, boost::lexical_cast<std::string>(m_remote.announcePort));
@@ -408,9 +392,9 @@ Streaming::ConstBuffer NetworkManagerConnection::createHeader(const Message &mes
     if (message.serviceId() == Api::LegacyP2P) {
         const auto body = message.body();
 
-        m_sendHelperBuffer.reserve(4 + 12 + 4 + 4);
-        memcpy(m_sendHelperBuffer.data(), d->networkId, 4);
-        m_sendHelperBuffer.markUsed(4);
+        auto &sendHelperBuffer = pool(4 + 12 + 4 + 4);
+        memcpy(sendHelperBuffer.data(), d->networkId, 4);
+        sendHelperBuffer.markUsed(4);
         auto m = d->messageIds.find(message.messageId());
         std::string messageId;
         if (m != d->messageIds.end())
@@ -418,25 +402,25 @@ Streaming::ConstBuffer NetworkManagerConnection::createHeader(const Message &mes
         else
             logCritical() << "createHeader[legacy]: P2P message Id unknown:" << message.messageId();
         assert(messageId.size() <= 12);
-        memcpy(m_sendHelperBuffer.data(), messageId.c_str(), messageId.size());
+        memcpy(sendHelperBuffer.data(), messageId.c_str(), messageId.size());
         for (size_t i = messageId.size(); i < 12; ++i) { // rest of version is zero-filled
-            m_sendHelperBuffer.data()[i] = 0;
+            sendHelperBuffer.data()[i] = 0;
         }
-        m_sendHelperBuffer.markUsed(12);
+        sendHelperBuffer.markUsed(12);
         const uint32_t messageSize = body.size();
-        WriteLE32(reinterpret_cast<uint8_t*>(m_sendHelperBuffer.data()), messageSize);
-        m_sendHelperBuffer.markUsed(4);
+        WriteLE32(reinterpret_cast<uint8_t*>(sendHelperBuffer.data()), messageSize);
+        sendHelperBuffer.markUsed(4);
 
         uint256 hash = Hash(body.begin(), body.end());
         unsigned int checksum = 0;
         memcpy(&checksum, &hash, 4);
-        WriteLE32(reinterpret_cast<uint8_t*>(m_sendHelperBuffer.data()), checksum);
-        return m_sendHelperBuffer.commit(4);
+        WriteLE32(reinterpret_cast<uint8_t*>(sendHelperBuffer.data()), checksum);
+        return sendHelperBuffer.commit(4);
     }
     else {
         const auto map = message.headerData();
-        m_sendHelperBuffer.reserve(10 * static_cast<int>(map.size()));
-        Streaming::MessageBuilder builder(m_sendHelperBuffer, Streaming::HeaderOnly);
+        auto &sendHelperBuffer = pool(10 * static_cast<int>(map.size()));
+        Streaming::MessageBuilder builder(sendHelperBuffer, Streaming::HeaderOnly);
         auto iter = map.begin();
         while (iter != map.end()) {
             assert(iter->first >= 0);
@@ -444,9 +428,9 @@ Streaming::ConstBuffer NetworkManagerConnection::createHeader(const Message &mes
             ++iter;
         }
         builder.add(Network::HeaderEnd, true);
-        assert(m_sendHelperBuffer.size() + message.size() < MAX_MESSAGE_SIZE);
-        builder.setMessageSize(m_sendHelperBuffer.size() + message.size());
-        logDebug(Log::NWM) << "createHeader of message of length;" << m_sendHelperBuffer.size() << '+' << message.size();
+        assert(sendHelperBuffer.size() + message.size() < MAX_MESSAGE_SIZE);
+        builder.setMessageSize(sendHelperBuffer.size() + message.size());
+        logDebug(Log::NWM) << "createHeader of message of length;" << sendHelperBuffer.size() << '+' << message.size();
         return builder.buffer();
     }
 }
@@ -470,7 +454,7 @@ void NetworkManagerConnection::errorDetected(const boost::system::error_code &er
 void NetworkManagerConnection::runMessageQueue()
 {
     assert(m_strand.running_in_this_thread());
-    if (m_sendingInProgress || (m_messageQueue.isRead() && m_priorityMessageQueue.isRead()) || !isConnected())
+    if (m_sendingInProgress || (m_messageQueue->isRead() && m_priorityMessageQueue->isRead()) || !isConnected())
         return;
 
     m_sendingInProgress = true;
@@ -491,32 +475,32 @@ void NetworkManagerConnection::runMessageQueue()
     int bytesLeft = 250*1024;
     std::vector<Streaming::ConstBuffer> socketQueue; // the stuff we will send over the socket
 
-    while (m_priorityMessageQueue.hasUnread()) {
-        const Message &message = m_priorityMessageQueue.unreadTip();
+    while (m_priorityMessageQueue->hasUnread()) {
+        const Message &message = m_priorityMessageQueue->unreadTip();
         int headerSize = message.header().size();
-        if (m_sendQHeaders.isFull())
+        if (m_sendQHeaders->isFull())
             break;
         if (!message.hasHeader()) { // build a simple header
             const Streaming::ConstBuffer constBuf = createHeader(message);
             headerSize = constBuf.size();
             bytesLeft -= headerSize;
             socketQueue.push_back(constBuf);
-            m_sendQHeaders.append(constBuf);
+            m_sendQHeaders->append(constBuf);
         }
         assert(message.body().size() + headerSize < MAX_MESSAGE_SIZE);
         socketQueue.push_back(message.rawData());
         bytesLeft -= message.rawData().size();
-        m_priorityMessageQueue.markRead();
+        m_priorityMessageQueue->markRead();
         if (bytesLeft <= 0)
             break;
     }
 
-    while (m_messageQueue.hasUnread()) {
+    while (m_messageQueue->hasUnread()) {
         if (bytesLeft <= 0)
             break;
-        if (m_sendQHeaders.isFull())
+        if (m_sendQHeaders->isFull())
             break;
-        const Message &message = m_messageQueue.unreadTip();
+        const Message &message = m_messageQueue->unreadTip();
         if (message.rawData().size() > CHUNK_SIZE && message.serviceId() != Api::LegacyP2P) {
             assert(!message.hasHeader()); // should have been blocked from entering in queueMessage();
 
@@ -528,7 +512,6 @@ void NetworkManagerConnection::runMessageQueue()
             Streaming::ConstBuffer body(message.body());
             const char *begin = body.begin() + m_messageBytesSend;
             const char *end = body.end();
-            Streaming::MessageBuilder headerBuilder(m_sendHelperBuffer, Streaming::HeaderOnly);
             Streaming::ConstBuffer chunkHeader;// the first and last are different, but all the ones in the middle are duplicates.
             bool first = m_messageBytesSend == 0;
             while (begin < end) {
@@ -542,7 +525,8 @@ void NetworkManagerConnection::runMessageQueue()
                 Streaming::ConstBuffer header;
                 if (first || begin == end || !chunkHeader.isValid()) {
                     const auto headerData = message.headerData();
-                    m_sendHelperBuffer.reserve(20 + 8 * headerData.size());
+                    auto &sendHelperBuffer = pool(20 + 8 * headerData.size());
+                    Streaming::MessageBuilder headerBuilder(sendHelperBuffer, Streaming::HeaderOnly);
                     headerBuilder.add(Network::ServiceId, message.serviceId());
                     if (first) {
                         for (auto iter = headerData.begin(); iter != headerData.end(); ++iter) {
@@ -556,8 +540,8 @@ void NetworkManagerConnection::runMessageQueue()
                     }
                     headerBuilder.add(Network::LastInSequence, (begin == end));
                     headerBuilder.add(Network::HeaderEnd, true);
-                    assert(m_sendHelperBuffer.size() + bodyChunk.size() < MAX_MESSAGE_SIZE);
-                    headerBuilder.setMessageSize(m_sendHelperBuffer.size() + bodyChunk.size());
+                    assert(sendHelperBuffer.size() + bodyChunk.size() < MAX_MESSAGE_SIZE);
+                    headerBuilder.setMessageSize(sendHelperBuffer.size() + bodyChunk.size());
 
                     header = headerBuilder.buffer();
                     if (!first)
@@ -568,7 +552,7 @@ void NetworkManagerConnection::runMessageQueue()
                 }
                 bytesLeft -= header.size();
                 socketQueue.push_back(header);
-                m_sendQHeaders.append(header);
+                m_sendQHeaders->append(header);
 
                 socketQueue.push_back(bodyChunk);
                 bytesLeft -= bodyChunk.size();
@@ -578,7 +562,7 @@ void NetworkManagerConnection::runMessageQueue()
             }
             if (begin >= end) { // done with message.
                 m_messageBytesSend = 0;
-                m_messageQueue.markRead();
+                m_messageQueue->markRead();
             }
         }
         else {
@@ -586,11 +570,11 @@ void NetworkManagerConnection::runMessageQueue()
                 const Streaming::ConstBuffer constBuf = createHeader(message);
                 bytesLeft -= constBuf.size();
                 socketQueue.push_back(constBuf);
-                m_sendQHeaders.append(constBuf);
+                m_sendQHeaders->append(constBuf);
             }
             socketQueue.push_back(message.rawData());
             bytesLeft -= message.rawData().size();
-            m_messageQueue.markRead();
+            m_messageQueue->markRead();
         }
     }
     assert(m_messageBytesSend >= 0);
@@ -610,9 +594,9 @@ void NetworkManagerConnection::sentSomeBytes(const boost::system::error_code& er
         logWarning(Log::NWM) << "send received error" << error.message();
         m_messageBytesSend = 0;
         m_messageBytesSent = 0;
-        m_sendQHeaders.clear();
-        m_messageQueue.markAllUnread();
-        m_priorityMessageQueue.markAllUnread();
+        m_sendQHeaders->clear();
+        m_messageQueue->markAllUnread();
+        m_priorityMessageQueue->markAllUnread();
         runOnStrand(std::bind(&NetworkManagerConnection::connect, shared_from_this()));
         return;
     }
@@ -622,9 +606,9 @@ void NetworkManagerConnection::sentSomeBytes(const boost::system::error_code& er
     logDebug(Log::NWM) << "Managed to send" << bytes_transferred << "bytes";
     m_reconnectStep = 0;
 
-    m_messageQueue.removeAllRead();
-    m_priorityMessageQueue.removeAllRead();
-    m_sendQHeaders.clear();
+    m_messageQueue->removeAllRead();
+    m_priorityMessageQueue->removeAllRead();
+    m_sendQHeaders->clear();
 
     runMessageQueue();
 }
@@ -731,7 +715,7 @@ void NetworkManagerConnection::requestMoreBytes_callback(const boost::system::er
     if (error)
         return;
 
-    const int backlog = m_messageQueue.size() + m_priorityMessageQueue.size();
+    const int backlog = m_messageQueue->size() + m_priorityMessageQueue->size();
     if (backlog < 1000)
         requestMoreBytes();
     else if (isConnected()) {
@@ -847,7 +831,7 @@ bool NetworkManagerConnection::processPacket(const std::shared_ptr<char> &buffer
                 return false;
             }
             m_pingTimer.cancel();
-            if (!m_messageQueue.isFull()) {
+            if (!m_messageQueue->isFull()) {
                 queueMessage(m_pingMessage, NetworkConnection::NormalPriority);
                 m_pingTimer.expires_from_now(boost::posix_time::seconds(120));
                 m_pingTimer.async_wait(m_strand.wrap(std::bind(&NetworkManagerConnection::pingTimeout, this, std::placeholders::_1)));
@@ -1024,14 +1008,15 @@ void NetworkManagerConnection::queueMessage(const Message &message, NetworkConne
         NetworkException("queueMessage: Can't send message with too much header items");
 
     if (m_strand.running_in_this_thread()) {
+        allocateBuffers();
         if (priority == NetworkConnection::NormalPriority) {
-            if (m_messageQueue.isFull())
+            if (m_messageQueue->isFull())
                 throw NetworkQueueFullError("MessageQueue full");
-            m_messageQueue.append(message);
+            m_messageQueue->append(message);
         } else {
-            if (m_priorityMessageQueue.isFull())
+            if (m_priorityMessageQueue->isFull())
                 throw NetworkQueueFullError("PriorityMessageQueue full");
-            m_priorityMessageQueue.append(message);
+            m_priorityMessageQueue->append(message);
         }
         if (isConnected())
             runMessageQueue();
@@ -1055,7 +1040,6 @@ void NetworkManagerConnection::close(bool reconnect)
         m_isClosingDown = true;
 
     m_receiveStream.clear();
-    m_sendHelperBuffer.clear();
     m_chunkedMessageBuffer.clear();
     m_chunkedMessageId = -1;
     m_chunkedServiceId = -1;
@@ -1064,7 +1048,7 @@ void NetworkManagerConnection::close(bool reconnect)
     m_messageBytesSent = 0;
     m_reconnectDelay.cancel();
     m_resolver.cancel();
-    m_sendQHeaders.clear();
+    m_sendQHeaders->clear();
     m_socket.close();
     m_pingTimer.cancel();
     m_firstPacket = true;
@@ -1092,8 +1076,8 @@ void NetworkManagerConnection::sendPing(const boost::system::error_code &error)
     if (!m_socket.is_open())
         return;
     int time = 90;
-    if (m_messageQueue.isFull()) {
-        if (m_priorityMessageQueue.isFull())
+    if (m_messageQueue->isFull()) {
+        if (m_priorityMessageQueue->isFull())
             time = 2; // delay sending ping
         else
             queueMessage(m_pingMessage, NetworkConnection::HighPriority);
@@ -1110,6 +1094,17 @@ void NetworkManagerConnection::pingTimeout(const boost::system::error_code &erro
     if (!error) {
         logWarning(Log::NWM) << "Didn't receive a ping from peer for too long, disconnecting dead connection";
         disconnect();
+    }
+}
+
+void NetworkManagerConnection::allocateBuffers()
+{
+    if (m_messageQueue.get() == nullptr) {
+        m_messageQueue.reset(new RingBuffer<Message>(m_queueSizeMain));
+        m_priorityMessageQueue.reset(new RingBuffer<Message>(m_priorityQueueSize));
+        m_sendQHeaders.reset(new RingBuffer<Streaming::ConstBuffer>(m_queueSizeMain));
+
+        m_pingMessage = buildPingMessage(m_remote.peerPort == m_remote.announcePort);
     }
 }
 
@@ -1158,6 +1153,7 @@ void NetworkManagerConnection::accept()
     if (m_acceptedConnection)
         return;
     m_acceptedConnection = true;
+    allocateBuffers();
 
     // setup a callback for receiving.
     m_socket.async_receive(boost::asio::buffer(m_receiveStream.data(), static_cast<size_t>(m_receiveStream.capacity())),

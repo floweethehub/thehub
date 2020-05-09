@@ -97,7 +97,7 @@ private:
         bool everConnected = false; // if false, lastConnected comes from untrusted peers
         bool everReceivedGoodHeaders = false;
     };
-    void insert(const PeerInfo &pi);
+    void insert(PeerInfo &pi);
 
     std::map<int, PeerInfo> m_peers;
     int m_nextPeerId = 0;

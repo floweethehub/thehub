@@ -48,6 +48,8 @@ template<class V>
 class RingBuffer
 {
 public:
+    RingBuffer(short size) : m_array(size), NumItems(size) { }
+
     void append(const V &v) {
         m_array[m_next] = v;
         if (++m_next >= NumItems)
@@ -136,10 +138,6 @@ public:
     }
 
 private:
-    enum BufferSize {
-        NumItems = 2000
-    };
-
     /* We append at 'next', increasing it to point to the first unused one.
      * As this is a FIFO, we move the m_first and m_readIndex as we process (and remove) items,
      * if we reach the 'next' position we have an empty buffer.
@@ -153,10 +151,11 @@ private:
      *                               last-item
      * append()   ->  m_next     ->   nullptr
      */
-    V m_array[NumItems];
+    std::vector<V> m_array;
     int m_first = 0;
     int m_readIndex = 0;
     int m_next = 0; // last plus one
+    const short NumItems;
 };
 
 class NetworkManagerConnection : public std::enable_shared_from_this<NetworkManagerConnection>
@@ -204,8 +203,10 @@ public:
 
     inline void disconnect() {
         close(false);
-        m_priorityMessageQueue.clear();
-        m_messageQueue.clear();
+        assert(m_priorityMessageQueue);
+        m_priorityMessageQueue->clear();
+        assert(m_messageQueue);
+        m_messageQueue->clear();
     }
 
     boost::asio::io_context::strand m_strand;
@@ -220,8 +221,12 @@ public:
     void setMessageHeaderType(MessageHeaderType messageHeaderType);
 
     void punish(int amount);
+    inline void setMessageQueueSizes(short main, short priority) {
+        m_queueSizeMain = main;
+        m_priorityQueueSize = priority;
+    }
 
-    short m_punishment; // aka ban-sore
+    short m_punishment = 0; // aka ban-sore
     // used to check incoming messages being actually for us
     MessageHeaderType m_messageHeaderType = FloweeNative;
 
@@ -248,6 +253,7 @@ private:
     void finalShutdown();
     void sendPing(const boost::system::error_code& error);
     void pingTimeout(const boost::system::error_code& error);
+    void allocateBuffers();
 
     inline bool isOutgoing() const {
         return m_remote.announcePort == m_remote.peerPort;
@@ -265,23 +271,25 @@ private:
     tcp::socket m_socket;
     tcp::resolver m_resolver;
 
-    RingBuffer<Message> m_messageQueue;
-    RingBuffer<Message> m_priorityMessageQueue;
-    RingBuffer<Streaming::ConstBuffer> m_sendQHeaders;
-    int m_messageBytesSend; // future tense
-    int m_messageBytesSent; // past tense
+    std::unique_ptr<RingBuffer<Message> > m_messageQueue;
+    std::unique_ptr<RingBuffer<Message> > m_priorityMessageQueue;
+    std::unique_ptr<RingBuffer<Streaming::ConstBuffer> > m_sendQHeaders;
+    int m_messageBytesSend = 0; // future tense
+    int m_messageBytesSent = 0; // past tense
 
     Streaming::BufferPool m_receiveStream;
-    Streaming::BufferPool m_sendHelperBuffer;
     mutable std::atomic<int> m_lastCallbackId;
     std::atomic<bool> m_isClosingDown;
-    bool m_firstPacket;
-    bool m_isConnecting;
+    bool m_firstPacket = true;
+    bool m_isConnecting = false;
     bool m_isConnected;
-    bool m_sendingInProgress;
-    bool m_acceptedConnection;
+    bool m_sendingInProgress = false;
+    bool m_acceptedConnection = false;
 
-    short m_reconnectStep;
+    short m_queueSizeMain = 2000; // config setting for the ringbuffers sizes
+    short m_priorityQueueSize = 20; // ditto
+
+    short m_reconnectStep = 0;
     boost::asio::deadline_timer m_reconnectDelay;
 
     // for these I write 'ping' but its 'pong' for server (incoming) connections.
@@ -291,8 +299,8 @@ private:
 
     // chunked messages can be recombined.
     Streaming::BufferPool m_chunkedMessageBuffer;
-    int m_chunkedServiceId;
-    int m_chunkedMessageId;
+    int m_chunkedServiceId = -1;
+    int m_chunkedMessageId = -1;
     std::map<int, int> m_chunkedHeaderData;
 };
 
@@ -346,7 +354,6 @@ public:
     std::list<BannedNode> banned;
     std::list<NetworkServiceBase*> services;
     boost::asio::deadline_timer m_cronHourly;
-
 
     // support for the p2p legacy envelope design
     uint8_t networkId[4] = { 0xE3, 0xE1, 0xF3, 0xE8};

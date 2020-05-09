@@ -20,7 +20,6 @@
 
 #include "BlockHeader.h"
 
-#include <streaming/P2PBuilder.h>
 #include <Message.h>
 #include <arith_uint256.h>
 #include <uint256.h>
@@ -29,6 +28,9 @@
 #include <mutex>
 
 class DownloadManager;
+namespace Streaming {
+class P2PBuilder;
+}
 
 class Blockchain
 {

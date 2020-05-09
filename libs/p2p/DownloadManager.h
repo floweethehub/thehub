@@ -23,11 +23,11 @@
 #include "Blockchain.h"
 #include "InventoryItem.h"
 #include "DataListenerInterface.h"
-#include "uint256.h"
-#include <primitives/FastTransaction.h>
+#include <uint256.h>
 
 #include <condition_variable>
 #include <deque>
+#include <vector>
 #include <boost/asio/io_context_strand.hpp>
 #include <boost/unordered_map.hpp>
 
