@@ -95,7 +95,9 @@ void SyncChainAction::execute(const boost::system::error_code &error)
                 auto &cm = m_dlm->connectionManager();
                 if (cm.connectedPeers().size() > 1) { // only if we actually have another
                     logInfo() << "SyncChain disconnects peer that is holding up downloads" << m_dlm->peerDownloadingHeaders();
-                    cm.punish(m_dlm->peerDownloadingHeaders(), PUNISHMENT_MAX);
+                    auto p = cm.peer(m_dlm->peerDownloadingHeaders());
+                    if (p)
+                        cm.disconnect(p);
                 } else if (canAddNewPeer()){
                     logInfo() << "SyncChain would like a faster peer. Connecting to new one";
                     connectToNextPeer();
