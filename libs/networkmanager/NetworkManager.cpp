@@ -109,8 +109,17 @@ NetworkConnection NetworkManager::connection(const EndPoint &remote, ConnectionE
             if (ep.ipAddress.is_unspecified()) // try to see if hostname is an IP. If so, bypass DNS lookup
                 try { ep.ipAddress = boost::asio::ip::address::from_string(ep.hostname); } catch (...) {}
             ep.peerPort = ep.announcePort; // outgoing connections always have those the same.
+
             ep.connectionId = ++d->lastConnectionId;
-            d->connections.insert(std::make_pair(ep.connectionId, std::make_shared<NetworkManagerConnection>(d, ep)));
+            if (d->unusedConnections.empty()) {
+                d->connections.insert(std::make_pair(ep.connectionId, std::make_shared<NetworkManagerConnection>(d, ep)));
+            } else {
+                auto con = d->unusedConnections.front();
+                d->unusedConnections.pop_front();
+                con->setEndPoint(ep);
+                d->connections.insert(std::make_pair(ep.connectionId, con));
+            }
+
             return NetworkConnection(this, ep.connectionId);
         }
     }
@@ -673,7 +682,7 @@ void NetworkManagerConnection::receivedSomeBytes(const boost::system::error_code
             if (bodyLength > 32000000) {
                 logWarning(Log::NWM).nospace() << "receive; Data error from server - stream is corrupt ("
                                      << "bl=" << bodyLength << ")";
-                close();
+                close(false);
                 return;
             }
             if (data.size() < LEGACY_HEADER_SIZE + static_cast<int>(bodyLength)) // do we have all data for this one?
@@ -1049,7 +1058,8 @@ void NetworkManagerConnection::close(bool reconnect)
     m_reconnectDelay.cancel();
     m_resolver.cancel();
     m_sendQHeaders->clear();
-    m_socket.close();
+    if (m_isConnected)
+        m_socket.close();
     m_pingTimer.cancel();
     m_firstPacket = true;
     m_isConnected = false;
@@ -1099,7 +1109,7 @@ void NetworkManagerConnection::pingTimeout(const boost::system::error_code &erro
 
 void NetworkManagerConnection::allocateBuffers()
 {
-    if (m_messageQueue.get() == nullptr) {
+    if (m_messageQueue.get() == nullptr || m_messageQueue->reserved() != m_queueSizeMain) {
         m_messageQueue.reset(new RingBuffer<Message>(m_queueSizeMain));
         m_priorityMessageQueue.reset(new RingBuffer<Message>(m_priorityQueueSize));
         m_sendQHeaders.reset(new RingBuffer<Streaming::ConstBuffer>(m_queueSizeMain));
@@ -1163,6 +1173,21 @@ void NetworkManagerConnection::accept()
     // for incoming connections, take action when no ping comes in.
     m_pingTimer.expires_from_now(boost::posix_time::seconds(120));
     m_pingTimer.async_wait(m_strand.wrap(std::bind(&NetworkManagerConnection::pingTimeout, this, std::placeholders::_1)));
+}
+
+void NetworkManagerConnection::recycleConnection()
+{
+    assert(m_strand.running_in_this_thread());
+    m_onConnectedCallbacks.clear();
+    m_onDisConnectedCallbacks.clear();
+    m_onIncomingMessageCallbacks.clear();
+    m_onErrorCallbacks.clear();
+    setMessageQueueSizes(2000, 20); // set back to defaults.
+    m_punishment = 0;
+    close(false);
+    boost::recursive_mutex::scoped_lock lock(d->mutex); // protects connections maps
+    if (d->connections.erase(m_remote.connectionId))
+        d->unusedConnections.push_back(shared_from_this());
 }
 
 void NetworkManagerConnection::runOnStrand(const std::function<void()> &function)

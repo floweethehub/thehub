@@ -97,7 +97,7 @@ void ConnectionManager::connect(PeerAddress &address)
     if (m_peers.find(con.connectionId()) == m_peers.end()) {
         address.punishPeer(100); // when the connection succeeds, we remove the 100 again.
         con.setOnError(std::bind(&ConnectionManager::handleError, this, std::placeholders::_1, std::placeholders::_2));
-        con.setMessageQueueSizes(m_queueSize, 0);
+        con.setMessageQueueSizes(m_queueSize, 1);
         auto p = std::make_shared<Peer>(this, address);
         p->connect(std::move(con));
         m_peers.insert(std::make_pair(p->connectionId(), p));

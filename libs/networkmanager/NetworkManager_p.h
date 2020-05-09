@@ -34,6 +34,7 @@
 #include <streaming/BufferPool.h>
 
 #include <list>
+#include <deque>
 #include <atomic>
 #include <boost/thread/recursive_mutex.hpp>
 #include <boost/date_time/posix_time/ptime.hpp>
@@ -186,6 +187,10 @@ public:
         return m_remote;
     }
 
+    void setEndPoint(const EndPoint &ep) {
+        m_remote = ep;
+    }
+
     /// add callback, calls have to be on the strand.
     void addOnConnectedCallback(int id, std::function<void(const EndPoint&)> callback);
     /// add callback, calls have to be on the strand.
@@ -209,6 +214,8 @@ public:
         m_messageQueue->clear();
     }
 
+    void recycleConnection();
+
     boost::asio::io_context::strand m_strand;
 
     /// move a call to the thread that the strand represents
@@ -225,6 +232,7 @@ public:
         m_queueSizeMain = main;
         m_priorityQueueSize = priority;
     }
+    void close(bool reconnect = true); // close down connection
 
     short m_punishment = 0; // aka ban-sore
     // used to check incoming messages being actually for us
@@ -247,7 +255,6 @@ private:
 
     bool processPacket(const std::shared_ptr<char> &buffer, const char *data);
     bool processLegacyPacket(const std::shared_ptr<char> &buffer, const char *data);
-    void close(bool reconnect = true); // close down connection
     void connect_priv(); // thread-unsafe version of connect
     void reconnectWithCheck(const boost::system::error_code& error); // called from the m_reconectDelay timer
     void finalShutdown();
@@ -344,6 +351,7 @@ public:
     boost::asio::io_service& ioService;
 
     std::map<int, std::shared_ptr<NetworkManagerConnection> > connections;
+    std::deque<std::shared_ptr<NetworkManagerConnection> > unusedConnections;
     int lastConnectionId;
 
     boost::recursive_mutex mutex; // to lock access to things like the connections map

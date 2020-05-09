@@ -141,12 +141,8 @@ void NetworkConnection::disconnect()
 void NetworkConnection::shutdown()
 {
     auto d = m_parent.lock();
-    if (d) {
-        boost::recursive_mutex::scoped_lock lock(d->d->mutex); // protects 'connections' map
-        d->d->connections.erase(m_id); // stop referring to the connection.
-        d->shutdown();
-        m_parent.reset(); // instantly make this one invalid.
-    }
+    if (d)
+        d->m_strand.post(std::bind(&NetworkManagerConnection::recycleConnection, d));
 }
 
 void NetworkConnection::send(const Message &message, MessagePriority priority)

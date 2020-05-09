@@ -253,8 +253,13 @@ void PeerAddressDB::insert(PeerInfo &pi)
 {
     if (pi.address.ipAddress.is_unspecified()) // try to see if hostname is an IP. If so, bypass DNS lookup
         try { pi.address.ipAddress = boost::asio::ip::address::from_string(pi.address.hostname); } catch (...) {}
+    const bool hasIp = !pi.address.ipAddress.is_unspecified();
+    if (!hasIp && pi.address.hostname.empty())
+        return;
     for (auto i = m_peers.begin(); i != m_peers.end(); ++i) {
-        if (i->second.address.ipAddress == pi.address.ipAddress)
+        if (hasIp && i->second.address.ipAddress == pi.address.ipAddress)
+            return;
+        if (!hasIp && i->second.address.hostname == pi.address.hostname)
             return;
     }
 
