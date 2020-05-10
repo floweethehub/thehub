@@ -1063,6 +1063,7 @@ void NetworkManagerConnection::close(bool reconnect)
     m_pingTimer.cancel();
     m_firstPacket = true;
     m_isConnected = false;
+    m_isConnecting = false;
     if (reconnect && !m_isClosingDown) { // auto reconnect.
         if (m_firstPacket) { // this means the network is there, someone is listening. They just don't speak our language.
             // slow down reconnect due to bad peer.
