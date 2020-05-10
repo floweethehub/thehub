@@ -123,6 +123,15 @@ void AddressIndexer::loadSetting(const QSettings &settings)
         m_selectDb.setPassword(valueFromSettings(settings, "db_password"));
         m_selectDb.setHostName(valueFromSettings(settings, "db_hostname"));
         m_spec = new PostgresTables();
+    } else if (db == "QMYSQL") {
+        m_insertDb.setDatabaseName(valueFromSettings(settings, "db_database"));
+        m_insertDb.setUserName(valueFromSettings(settings, "db_username"));
+        m_insertDb.setPassword(valueFromSettings(settings, "db_password"));
+        m_insertDb.setHostName(valueFromSettings(settings, "db_hostname"));
+        m_selectDb.setDatabaseName(valueFromSettings(settings, "db_database"));
+        m_selectDb.setUserName(valueFromSettings(settings, "db_username"));
+        m_selectDb.setPassword(valueFromSettings(settings, "db_password"));
+        m_selectDb.setHostName(valueFromSettings(settings, "db_hostname"));
     } else if (db == "QSQLITE") {
         m_insertDb.setDatabaseName(m_basedir + "/addresses.db");
         m_selectDb.setDatabaseName(m_basedir + "/addresses.db");
