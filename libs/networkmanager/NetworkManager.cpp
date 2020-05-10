@@ -85,6 +85,7 @@ NetworkManager::~NetworkManager()
         service->setManager(nullptr);
     }
     d->services.clear();
+    d->unusedConnections.clear();
 }
 
 NetworkConnection NetworkManager::connection(const EndPoint &remote, ConnectionEnum connect)
