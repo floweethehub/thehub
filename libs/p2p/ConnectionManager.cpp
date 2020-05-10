@@ -164,7 +164,8 @@ void ConnectionManager::connectionEstablished(const std::shared_ptr<Peer> &peer)
     std::unique_lock<std::mutex> lock(m_lock);
     // don't use if the client doesn't support any usable services.
     if (!peer->supplies_bloom() || !peer->supplies_network()) {
-        logDebug() << "Node does not support bloom or network" << peer->connectionId() << peer->userAgent();
+        logWarning() << "Rejecting node, does not support bloom or network" << peer->connectionId() << peer->userAgent()
+                     << peer->peerAddress();
         removePeer(peer);
         return;
     }
@@ -260,7 +261,8 @@ bool ConnectionManager::punish(const std::shared_ptr<Peer> &peer, int amount)
         }
     }
     if (total >= PUNISHMENT_MAX) { // too much punishment leads to a ban
-        logInfo() << "Ban peer" << peer->connectionId() << previous << "=>" << total;
+        logWarning() << "Ban peer:" << peer->connectionId() << previous << "=>" << total
+                     << "Address:" << peer->peerAddress();
         for (auto iface : m_dlManager->p2pNetListeners()) {
             iface->lostPeer(peer->connectionId());
         }
@@ -370,16 +372,22 @@ void ConnectionManager::cron(const boost::system::error_code &error)
     auto iter = m_peers.begin();
     while (iter != m_peers.end()) {
         Peer *peer = iter->second.get();
-        logInfo() << "   " << iter->first << peer->userAgent() << (peer->status() == Peer::Connected ? "connected" : "connecting")
-                             << "Wallet:" << (peer->privacySegment() ? peer->privacySegment()->segmentId() : 0);
+        // if it actually connected, take that time. If it never even connected, then take the
+        // peer-construction time.
+        const int connectTime = peer->connectTime() == 0 ? peer->timeOffset() : peer->connectTime();
         if ((peer->status() == Peer::Connecting || peer->status() == Peer::Connected)
-                && peer->protocolVersion() == 0 && now - peer->connectTime() > 30) {
+                && peer->protocolVersion() == 0 && now - connectTime > 30) {
             // after 30 seconds of connects, give up.
-            logInfo() << "   kicking dead connection" << peer->connectionId();
+            auto peerAddress = peer->peerAddress();
+            logInfo() << iter->first << "kicking. Address:" << peerAddress;
             iter = m_peers.erase(iter);
-            peer->shutdown(); // shutdown takes ownership of peer and deletes it safely
+            peer->shutdown();
         }
         else {
+            auto log = logInfo() << iter->first << peer->userAgent()
+                                 << (peer->status() == Peer::Connected ? "connected" : "connecting");
+            if (peer->privacySegment())
+                log <<  "Wallet:" << peer->privacySegment()->segmentId();
             ++iter;
         }
     }
@@ -390,7 +398,7 @@ void ConnectionManager::handleError(int remoteId, const boost::system::error_cod
     m_dlManager->strand().post(std::bind(&ConnectionManager::handleError_impl, this, remoteId, error));
 }
 
-void ConnectionManager::handleError_impl(int remoteId, const boost::system::error_code &error)
+void ConnectionManager::handleError_impl(int peerId, const boost::system::error_code &error)
 {
     if (m_shuttingDown)
         return;
@@ -411,14 +419,15 @@ void ConnectionManager::handleError_impl(int remoteId, const boost::system::erro
         remove = true;
         punishment = 0;
     }
-    auto remotePeer = peer(remoteId);
+    auto remotePeer = peer(peerId);
     if (!remotePeer)
         return;
-    logInfo() << "on error" << remoteId << error.message() << error.value() << "Punishment:" << punishment;
+    logWarning().nospace() << "peer: " << peerId << " Got error: (" << error.value() << ") " << error.message()
+                           << " Punishment:" << punishment;
     bool removed = punish(remotePeer, punishment);
 
     if (remove && !removed) {
-        logDebug() << "removing" << remoteId;
+        logDebug() << "removing" << peerId;
         for (auto iface : m_dlManager->p2pNetListeners()) {
             iface->lostPeer(remotePeer->connectionId());
         }

@@ -117,7 +117,7 @@ void Blockchain::processBlockHeaders(Message message, int peerId)
 
         // timestamp not more than 2h in the future.
         if (header.nTime > maxFuture) {
-            logInfo() << "Peer" << peerId << "sent bogus headers. Too far in future";
+            logWarning() << "Peer" << peerId << "sent bogus headers. Too far in future";
             m_dlmanager->reportDataFailure(peerId);
             return;
         }
@@ -125,7 +125,7 @@ void Blockchain::processBlockHeaders(Message message, int peerId)
         if (startHeight == -1) { // first header in the sequence.
             auto iter = m_blockHeight.find(header.hashPrevBlock);
             if (iter == m_blockHeight.end()) {
-                logInfo() << "Peer" << peerId << "is on a different chain, headers don't extend ours";
+                logWarning() << "Peer" << peerId << "is on a different chain, headers don't extend ours";
                 m_dlmanager->reportDataFailure(peerId);
                 return;
             }
@@ -134,7 +134,7 @@ void Blockchain::processBlockHeaders(Message message, int peerId)
                 chainWork = m_tip.chainWork;
                 previousTime = m_longestChain.end()->nTime;
             } else if (m_tip.height - startHeight > (int) count) {
-                logInfo() << "Peer" << peerId << "is on a different chain, headers don't extend ours";
+                logWarning() << "Peer" << peerId << "is on a different chain, headers don't extend ours";
                 m_dlmanager->reportDataFailure(peerId);
                 return;
             } else {
@@ -148,7 +148,7 @@ void Blockchain::processBlockHeaders(Message message, int peerId)
             }
         }
         else if (prevHash != header.hashPrevBlock) { // check if we are really a sequence.
-            logInfo() << "Peer" << peerId << "Sent bogus headers. Not in sequence";
+            logWarning() << "Peer" << peerId << "Sent bogus headers. Not in sequence";
             m_dlmanager->reportDataFailure(peerId);
             return;
         }
@@ -161,7 +161,7 @@ void Blockchain::processBlockHeaders(Message message, int peerId)
             bnTarget.SetCompact(header.nBits, &fNegative, &fOverflow);
             if (fNegative || bnTarget == 0 || fOverflow || bnTarget > UintToArith256(powLimit)
                     || UintToArith256(hash) > bnTarget) {// Check proof of work matches claimed amount
-                logInfo() << "Peer" << peerId << "sent bogus headers. POW failed" << height;
+                logWarning() << "Peer" << peerId << "sent bogus headers. POW failed" << height;
                 m_dlmanager->reportDataFailure(peerId);
                 return;
             }
@@ -171,7 +171,7 @@ void Blockchain::processBlockHeaders(Message message, int peerId)
         auto cpIter = checkpoints.find(height);
         if (cpIter != checkpoints.end()) {
             if (cpIter->second != hash) {
-                logInfo() << "Peer" << peerId << "is on a different chain, checkpoint failure:" << height;
+                logWarning() << "Peer" << peerId << "is on a different chain, checkpoint failure:" << height;
                 m_dlmanager->reportDataFailure(peerId);
                 return;
             }

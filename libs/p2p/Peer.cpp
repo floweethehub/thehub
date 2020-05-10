@@ -124,7 +124,8 @@ void Peer::processMessage(const Message &message)
             m_startHeight = parser.readInt();
             m_relaysTransactions = parser.readBool();
 
-            logInfo() << "Peer:" << connectionId() << "is connected to" << m_userAgent << m_peerAddress.peerAddress();
+            logCritical() << "Peer:" << connectionId() << "is connected to" << m_userAgent
+                          << "Address:" << m_peerAddress;
             m_con.send(Message(Api::LegacyP2P, Api::P2P::VersionAck));
             m_con.send(Message(Api::LegacyP2P, Api::P2P::PreferHeaders));
             m_connectionManager->connectionEstablished(shared_from_this());

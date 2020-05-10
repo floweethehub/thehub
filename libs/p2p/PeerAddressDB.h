@@ -106,4 +106,23 @@ private:
     ConnectionManager *m_parent;
 };
 
+inline Log::Item operator<<(Log::Item item, const PeerAddress &pa) {
+    if (item.isEnabled()) {
+        const bool old = item.useSpace();
+        item.nospace() << pa.id() << "-{";
+        const EndPoint &ep = pa.peerAddress();
+        if (ep.ipAddress.is_unspecified())
+            item << ep.hostname;
+        else
+            item << ep.ipAddress.to_string().c_str();
+        if (ep.announcePort != 8333)
+            item << ':' << ep.announcePort;
+        item << '}';
+        if (old)
+            return item.space();
+    }
+    return item;
+}
+inline Log::SilentItem operator<<(Log::SilentItem item, const PeerAddress&) { return item; }
+
 #endif
