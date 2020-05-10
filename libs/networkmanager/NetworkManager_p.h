@@ -36,7 +36,6 @@
 #include <list>
 #include <deque>
 #include <atomic>
-#include <boost/thread/recursive_mutex.hpp>
 #include <boost/date_time/posix_time/ptime.hpp>
 #include <boost/asio.hpp>
 
@@ -354,7 +353,8 @@ public:
     std::deque<std::shared_ptr<NetworkManagerConnection> > unusedConnections;
     int lastConnectionId;
 
-    boost::recursive_mutex mutex; // to lock access to things like the connections map
+    std::recursive_mutex mutex; // to lock access to things like the connections map
+    std::mutex connectionMutex;
     bool isClosingDown;
 
     std::vector<NetworkManagerServer *> servers;

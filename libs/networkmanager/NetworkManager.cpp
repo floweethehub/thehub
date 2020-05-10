@@ -72,7 +72,7 @@ NetworkManager::NetworkManager(boost::asio::io_service &service)
 
 NetworkManager::~NetworkManager()
 {
-    boost::recursive_mutex::scoped_lock lock(d->mutex);
+    std::lock_guard<std::recursive_mutex> lock(d->mutex);
     d->isClosingDown = true;
     for (auto server : d->servers) {
         server->shutdown();
@@ -93,7 +93,7 @@ NetworkConnection NetworkManager::connection(const EndPoint &remote, ConnectionE
     const bool hasHostname = (!remote.ipAddress.is_unspecified() || !remote.hostname.empty()) && remote.announcePort > 0;
 
     if (hasHostname) {
-        boost::recursive_mutex::scoped_lock lock(d->mutex);
+        std::lock_guard<std::recursive_mutex> lock(d->mutex);
         for (auto iter1 = d->connections.begin(); iter1 != d->connections.end(); ++iter1) {
             EndPoint endPoint = iter1->second->endPoint();
             if (!remote.hostname.empty() && endPoint.hostname != remote.hostname)
@@ -129,7 +129,7 @@ NetworkConnection NetworkManager::connection(const EndPoint &remote, ConnectionE
 
 EndPoint NetworkManager::endPoint(int remoteId) const
 {
-    boost::recursive_mutex::scoped_lock lock(d->mutex);
+    std::lock_guard<std::recursive_mutex> lock(d->mutex);
     NetworkManagerConnection *con = d->connections.at(remoteId).get();
     if (con)
         return con->endPoint();
@@ -143,7 +143,7 @@ void NetworkManager::punishNode(int remoteId, int punishment)
 
 void NetworkManager::bind(const tcp::endpoint &endpoint, const std::function<void(NetworkConnection&)> &callback)
 {
-    boost::recursive_mutex::scoped_lock lock(d->mutex);
+    std::lock_guard<std::recursive_mutex> lock(d->mutex);
     try {
         NetworkManagerServer *server = new NetworkManagerServer(d, endpoint, callback);
         d->servers.push_back(server);
@@ -165,7 +165,7 @@ void NetworkManager::addService(NetworkServiceBase *service)
 {
     assert(service);
     if (!service) return;
-    boost::recursive_mutex::scoped_lock lock(d->mutex);
+    std::lock_guard<std::recursive_mutex> lock(d->mutex);
     d->services.push_back(service);
     service->setManager(this);
 }
@@ -174,7 +174,7 @@ void NetworkManager::removeService(NetworkServiceBase *service)
 {
     assert(service);
     if (!service) return;
-    boost::recursive_mutex::scoped_lock lock(d->mutex);
+    std::lock_guard<std::recursive_mutex> lock(d->mutex);
     d->services.remove(service);
     service->setManager(nullptr);
 }
@@ -219,7 +219,7 @@ NetworkManagerPrivate::~NetworkManagerPrivate()
 
 void NetworkManagerPrivate::punishNode(int connectionId, int punishScore)
 {
-    boost::recursive_mutex::scoped_lock lock(mutex);
+    std::lock_guard<std::recursive_mutex> lock(mutex);
     auto con = connections.find(connectionId);
     if (con == connections.end())
         return;
@@ -242,7 +242,7 @@ void NetworkManagerPrivate::cronHourly(const boost::system::error_code &error)
         return;
 
     logDebug(Log::NWM) << "cronHourly";
-    boost::recursive_mutex::scoped_lock lock(mutex);
+    std::lock_guard<std::recursive_mutex> lock(mutex);
     if (isClosingDown)
         return;
 
@@ -329,6 +329,7 @@ void NetworkManagerConnection::connect_priv()
         if (m_remote.hostname.empty())
             m_remote.hostname = m_remote.ipAddress.to_string();
         boost::asio::ip::tcp::endpoint endpoint(m_remote.ipAddress, m_remote.announcePort);
+        std::lock_guard<std::mutex> lock(d->connectionMutex);
         m_socket = boost::asio::ip::tcp::socket(d->ioService);
         m_socket.async_connect(endpoint, m_strand.wrap(
            std::bind(&NetworkManagerConnection::onConnectComplete, shared_from_this(), std::placeholders::_1)));
@@ -349,10 +350,12 @@ void NetworkManagerConnection::onAddressResolveComplete(const boost::system::err
         return;
     }
     assert(m_strand.running_in_this_thread());
+    // Notice that we always only use the first reported DNS entry. Which is likely Ok.
     m_remote.ipAddress = iterator->endpoint().address();
     logInfo(Log::NWM) << "Outgoing connection to" << m_remote.hostname << "resolved to:" << m_remote.ipAddress.to_string();
 
-    // Notice that we always only use the first reported DNS entry. Which is likely Ok.
+    std::lock_guard<std::mutex> lock(d->connectionMutex);
+    m_socket = boost::asio::ip::tcp::socket(d->ioService);
     m_socket.async_connect(*iterator, m_strand.wrap(
        std::bind(&NetworkManagerConnection::onConnectComplete, shared_from_this(), std::placeholders::_1)));
 }
@@ -363,6 +366,7 @@ void NetworkManagerConnection::onConnectComplete(const boost::system::error_code
         return;
     m_isConnecting = false;
     if (error) {
+        if (error == boost::asio::error::operation_aborted) return;
         logWarning(Log::NWM).nospace() << "connect[" << m_remote.hostname.c_str() << ":" << m_remote.announcePort
                                     << "] (" << error.message() << ")";
         if (m_remote.peerPort != m_remote.announcePort) // incoming connection
@@ -447,6 +451,8 @@ Streaming::ConstBuffer NetworkManagerConnection::createHeader(const Message &mes
 
 void NetworkManagerConnection::errorDetected(const boost::system::error_code &error)
 {
+    if (error == boost::asio::error::operation_aborted || !error) // no need to push those up the stack
+        return;
     std::vector<std::function<void(int,const boost::system::error_code& error)> > callbacks;
     callbacks.reserve(m_onErrorCallbacks.size());
     for (auto it = m_onErrorCallbacks.begin(); it != m_onErrorCallbacks.end(); ++it) {
@@ -919,7 +925,7 @@ bool NetworkManagerConnection::processPacket(const std::shared_ptr<char> &buffer
     }
     std::list<NetworkServiceBase*> servicesCopy;
     {
-        boost::recursive_mutex::scoped_lock lock(d->mutex);
+        std::lock_guard<std::recursive_mutex> lock(d->mutex);
         servicesCopy = d->services;
     }
     for (auto service : servicesCopy) {
@@ -1041,7 +1047,7 @@ void NetworkManagerConnection::close(bool reconnect)
 {
     assert(m_strand.running_in_this_thread());
     if (!isOutgoing()) {
-        boost::recursive_mutex::scoped_lock lock(d->mutex);
+        std::lock_guard<std::recursive_mutex> lock(d->mutex);
         shutdown();
         d->connections.erase(m_remote.connectionId);
         return;
@@ -1187,7 +1193,7 @@ void NetworkManagerConnection::recycleConnection()
     setMessageQueueSizes(2000, 20); // set back to defaults.
     m_punishment = 0;
     close(false);
-    boost::recursive_mutex::scoped_lock lock(d->mutex); // protects connections maps
+    std::lock_guard<std::recursive_mutex> lock(d->mutex); // protects connections maps
     if (d->connections.erase(m_remote.connectionId))
         d->unusedConnections.push_back(shared_from_this());
 }
@@ -1261,7 +1267,7 @@ void NetworkManagerServer::acceptConnection(boost::system::error_code error)
     if (!priv.get())
         return;
 
-    boost::recursive_mutex::scoped_lock lock(priv->mutex);
+    std::lock_guard<std::recursive_mutex> lock(priv->mutex);
     if (priv->isClosingDown)
         return;
 
