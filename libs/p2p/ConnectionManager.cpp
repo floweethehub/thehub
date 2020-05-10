@@ -134,6 +134,7 @@ int ConnectionManager::blockHeight() const
 
 void ConnectionManager::setBlockHeight(int blockHeight)
 {
+    assert(blockHeight > 0);
     m_blockHeight = blockHeight;
 }
 

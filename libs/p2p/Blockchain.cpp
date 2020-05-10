@@ -22,6 +22,8 @@
 #include <streaming/P2PParser.h>
 #include <utils/utiltime.h>
 
+#include <stdexcept>
+
 Blockchain::Blockchain(DownloadManager *downloadManager)
     : m_dlmanager(downloadManager)
 {
@@ -95,112 +97,104 @@ void Blockchain::processBlockHeaders(Message message, int peerId)
 {
     int newTip;
 
-    {
-    std::unique_lock<std::mutex> lock(m_lock);
-    Streaming::P2PParser parser(message);
-    auto count = parser.readCompactInt();
-    if (count > 2000) {
-        logInfo() << "Peer" << peerId << "Sent too many headers" << count << "p2p protocol violation";
+    try {
+        std::unique_lock<std::mutex> lock(m_lock);
+        Streaming::P2PParser parser(message);
+        auto count = parser.readCompactInt();
+        if (count > 2000) {
+            logInfo() << "Peer" << peerId << "Sent too many headers" << count << "p2p protocol violation";
+            m_dlmanager->reportDataFailure(peerId);
+            return;
+        }
+        const uint32_t maxFuture = time(nullptr) + 7200; // headers can not be more than 2 hours in the future.
+
+        uint256 prevHash;
+        int startHeight = -1;
+        int height = 0;
+        int64_t previousTime = 0;
+        arith_uint256 chainWork;
+        for (size_t i = 0; i < count; ++i) {
+            BlockHeader header = BlockHeader::fromMessage(parser);
+            /*int txCount =*/ parser.readCompactInt(); // always zero
+
+            // timestamp not more than 2h in the future.
+            if (header.nTime > maxFuture) {
+                logWarning() << "Peer" << peerId << "sent bogus headers. Too far in future";
+                m_dlmanager->reportDataFailure(peerId);
+                return;
+            }
+
+            if (startHeight == -1) { // first header in the sequence.
+                auto iter = m_blockHeight.find(header.hashPrevBlock);
+                if (iter == m_blockHeight.end())
+                    throw std::runtime_error("is on a different chain, headers don't extend ours");
+                height = startHeight = iter->second + 1;
+                if (m_tip.height + 1 == startHeight) {
+                    chainWork = m_tip.chainWork;
+                    previousTime = m_longestChain.end()->nTime;
+                } else if (m_tip.height - startHeight > (int) count) {
+                    throw std::runtime_error("is on a different chain, headers don't extend ours");
+                } else {
+                    // rollback the chainWork to branch-point
+                    assert(m_tip.height == (int) m_longestChain.size() - 1);
+                    chainWork = m_tip.chainWork;
+                    for (int height = m_tip.height; height >= startHeight; --height) {
+                        chainWork -= m_longestChain.at(height).blockProof();
+                    }
+                    previousTime = m_longestChain.at(startHeight - 1).nTime;
+                }
+            }
+            else if (prevHash != header.hashPrevBlock) { // check if we are really a sequence.
+                throw std::runtime_error("sent bogus headers. Not in sequence");
+            }
+            uint256 hash = header.createHash();
+            // check POW
+            {
+                bool fNegative;
+                bool fOverflow;
+                arith_uint256 bnTarget;
+                bnTarget.SetCompact(header.nBits, &fNegative, &fOverflow);
+                if (fNegative || bnTarget == 0 || fOverflow || bnTarget > UintToArith256(powLimit)
+                        || UintToArith256(hash) > bnTarget) {// Check proof of work matches claimed amount
+                    throw std::runtime_error("sent bogus headers. POW failed");
+                }
+            }
+            chainWork += header.blockProof();
+
+            auto cpIter = checkpoints.find(height);
+            if (cpIter != checkpoints.end()) {
+                if (cpIter->second != hash)
+                    throw std::runtime_error("is on a different chain, checkpoint failure");
+            }
+            prevHash = std::move(hash);
+            ++height;
+        }
+
+        if (chainWork <= m_tip.chainWork)
+            return;
+
+        // The new chain has more PoW, apply it.
+        parser = Streaming::P2PParser(message);
+        count = parser.readCompactInt();
+        height = startHeight;
+        m_longestChain.resize(startHeight + count);
+        for (size_t i = 0; i < count; ++i) {
+            BlockHeader header = BlockHeader::fromMessage(parser);
+            /*int txCount =*/ parser.readCompactInt(); // always zero
+            m_blockHeight.insert(std::make_pair(header.createHash(), height));
+            m_longestChain[height++] = header;
+        }
+        m_tip.height = height - 1;
+        m_tip.tip = prevHash;
+        m_tip.chainWork= chainWork;
+        newTip = m_tip.height;
+        logCritical() << "Headers now at" << newTip << m_tip.tip <<
+                     DateTimeStrFormat("%Y-%m-%d %H:%M:%S", m_longestChain.back().nTime).c_str();
+    } catch (const std::runtime_error &err) {
+        logWarning() << "Peer" << peerId << "is" << err.what();
         m_dlmanager->reportDataFailure(peerId);
         return;
     }
-    const uint32_t maxFuture = time(nullptr) + 7200; // headers can not be more than 2 hours in the future.
-
-    uint256 prevHash;
-    int startHeight = -1;
-    int height = 0;
-    int64_t previousTime = 0;
-    arith_uint256 chainWork;
-    for (size_t i = 0; i < count; ++i) {
-        BlockHeader header = BlockHeader::fromMessage(parser);
-        /*int txCount =*/ parser.readCompactInt(); // always zero
-
-        // timestamp not more than 2h in the future.
-        if (header.nTime > maxFuture) {
-            logWarning() << "Peer" << peerId << "sent bogus headers. Too far in future";
-            m_dlmanager->reportDataFailure(peerId);
-            return;
-        }
-
-        if (startHeight == -1) { // first header in the sequence.
-            auto iter = m_blockHeight.find(header.hashPrevBlock);
-            if (iter == m_blockHeight.end()) {
-                logWarning() << "Peer" << peerId << "is on a different chain, headers don't extend ours";
-                m_dlmanager->reportDataFailure(peerId);
-                return;
-            }
-            height = startHeight = iter->second + 1;
-            if (m_tip.height + 1 == startHeight) {
-                chainWork = m_tip.chainWork;
-                previousTime = m_longestChain.end()->nTime;
-            } else if (m_tip.height - startHeight > (int) count) {
-                logWarning() << "Peer" << peerId << "is on a different chain, headers don't extend ours";
-                m_dlmanager->reportDataFailure(peerId);
-                return;
-            } else {
-                // rollback the chainWork to branch-point
-                assert(m_tip.height == (int) m_longestChain.size() - 1);
-                chainWork = m_tip.chainWork;
-                for (int height = m_tip.height; height >= startHeight; --height) {
-                    chainWork -= m_longestChain.at(height).blockProof();
-                }
-                previousTime = m_longestChain.at(startHeight - 1).nTime;
-            }
-        }
-        else if (prevHash != header.hashPrevBlock) { // check if we are really a sequence.
-            logWarning() << "Peer" << peerId << "Sent bogus headers. Not in sequence";
-            m_dlmanager->reportDataFailure(peerId);
-            return;
-        }
-        uint256 hash = header.createHash();
-        // check POW
-        {
-            bool fNegative;
-            bool fOverflow;
-            arith_uint256 bnTarget;
-            bnTarget.SetCompact(header.nBits, &fNegative, &fOverflow);
-            if (fNegative || bnTarget == 0 || fOverflow || bnTarget > UintToArith256(powLimit)
-                    || UintToArith256(hash) > bnTarget) {// Check proof of work matches claimed amount
-                logWarning() << "Peer" << peerId << "sent bogus headers. POW failed" << height;
-                m_dlmanager->reportDataFailure(peerId);
-                return;
-            }
-        }
-        chainWork += header.blockProof();
-
-        auto cpIter = checkpoints.find(height);
-        if (cpIter != checkpoints.end()) {
-            if (cpIter->second != hash) {
-                logWarning() << "Peer" << peerId << "is on a different chain, checkpoint failure:" << height;
-                m_dlmanager->reportDataFailure(peerId);
-                return;
-            }
-        }
-        prevHash = std::move(hash);
-        ++height;
-    }
-
-    if (chainWork <= m_tip.chainWork)
-        return;
-
-    // The new chain has more PoW, apply it.
-    parser = Streaming::P2PParser(message);
-    count = parser.readCompactInt();
-    height = startHeight;
-    m_longestChain.resize(startHeight + count);
-    for (size_t i = 0; i < count; ++i) {
-        BlockHeader header = BlockHeader::fromMessage(parser);
-        /*int txCount =*/ parser.readCompactInt(); // always zero
-        m_blockHeight.insert(std::make_pair(header.createHash(), height));
-        m_longestChain[height++] = header;
-    }
-    m_tip.height = height - 1;
-    m_tip.tip = prevHash;
-    m_tip.chainWork= chainWork;
-    newTip = m_tip.height;
-    logCritical() << "Headers now at" << newTip << m_tip.tip <<
-                 DateTimeStrFormat("%Y-%m-%d %H:%M:%S", m_longestChain.back().nTime).c_str();
-    } // lock-scope
 
     m_dlmanager->headersDownloadFinished(newTip, peerId);
 }
