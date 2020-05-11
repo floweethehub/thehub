@@ -106,7 +106,7 @@ void Blockchain::processBlockHeaders(Message message, int peerId)
         Streaming::P2PParser parser(message);
         auto count = parser.readCompactInt();
         if (count > 2000) {
-            logInfo() << "Peer" << peerId << "Sent too many headers" << count << "p2p protocol violation";
+            logInfo() << "Peer:" << peerId << "Sent too many headers" << count << "p2p protocol violation";
             m_dlmanager->reportDataFailure(peerId);
             return;
         }
@@ -123,7 +123,7 @@ void Blockchain::processBlockHeaders(Message message, int peerId)
 
             // timestamp not more than 2h in the future.
             if (header.nTime > maxFuture) {
-                logWarning() << "Peer" << peerId << "sent bogus headers. Too far in future";
+                logWarning() << "Peer:" << peerId << "sent bogus headers. Too far in future";
                 m_dlmanager->reportDataFailure(peerId);
                 return;
             }
@@ -195,7 +195,7 @@ void Blockchain::processBlockHeaders(Message message, int peerId)
         logCritical() << "Headers now at" << newTip << m_tip.tip <<
                      DateTimeStrFormat("%Y-%m-%d %H:%M:%S", m_longestChain.back().nTime).c_str();
     } catch (const std::runtime_error &err) {
-        logWarning() << "Peer" << peerId << "is" << err.what();
+        logWarning() << "Peer:" << peerId << "is" << err.what();
         m_dlmanager->reportDataFailure(peerId);
         return;
     }

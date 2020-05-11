@@ -168,7 +168,7 @@ void ConnectionManager::connectionEstablished(const std::shared_ptr<Peer> &peer)
     std::unique_lock<std::mutex> lock(m_lock);
     // don't use if the client doesn't support any usable services.
     if (!peer->supplies_bloom() || !peer->supplies_network()) {
-        logWarning() << "Rejecting node, does not support bloom or network" << peer->connectionId() << peer->userAgent()
+        logWarning() << "Rejecting. Need BLOOM and NETWORK. Peer:" << peer->connectionId() << peer->userAgent()
                      << peer->peerAddress();
         removePeer(peer);
         return;
@@ -383,15 +383,20 @@ void ConnectionManager::cron(const boost::system::error_code &error)
             kick &= now - peer->connectTime() > 20; // no more than  20 seconds for version handshake.
         if (kick) {
             auto peerAddress = peer->peerAddress();
-            logInfo() << iter->first << "kicking. Address:" << peerAddress;
+            logInfo() << "peer:" << iter->first << "kicking. Address:" << peerAddress;
             iter = m_peers.erase(iter);
             peer->shutdown();
         }
         else {
-            auto log = logInfo() << iter->first << peer->userAgent()
-                                 << (peer->status() == Peer::Connected ? "connected" : "connecting");
+            auto log = logInfo() << "peer:" << iter->first;
+            if (peer->status() == Peer::Connecting)
+                log << "Address:" << peer->peerAddress() << "[connecting]";
+            else
+                log << peer->userAgent();
             if (peer->privacySegment())
                 log <<  "Wallet:" << peer->privacySegment()->segmentId();
+            if (peer->connectTime() > 0)
+                log.nospace() << "(" << now - peer->connectTime() << "s)";
             ++iter;
         }
     }
@@ -426,8 +431,8 @@ void ConnectionManager::handleError_impl(int peerId, const boost::system::error_
     auto remotePeer = peer(peerId);
     if (!remotePeer)
         return;
-    logWarning().nospace() << "peer: " << peerId << " Got error: (" << error.value() << ") " << error.message()
-                           << " Punishment:" << punishment;
+    logWarning().nospace() << "Peer: " << peerId << " got error. (" << error.value() << "=" << error.message()
+                           << ") Punishment: " << punishment;
     bool removed = punish(remotePeer, punishment);
 
     if (remove && !removed) {
