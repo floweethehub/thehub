@@ -71,6 +71,7 @@ public:
     inline int blockHeight() const {
         return m_connectionManager.blockHeight();
     }
+    /// called by the blockchain to let us know the blockchain changed size
     void headersDownloadFinished(int newBlockHeight, int peerId);
 
     inline boost::asio::io_context::strand &strand() {
@@ -87,15 +88,21 @@ public:
         return m_peerDownloadingHeaders;
     }
 
+    /// Handle INV messages a peer received.
     void parseInvMessage(Message message, int sourcePeerId);
+    /// Handle a transaction a peer received.
     void parseTransaction(Tx tx, int sourcePeerId);
 
+    /// notify that a peer is no longer connected.
     void peerDisconnected(int connectionId);
 
     // Callback to let us know the data is invalid.
     // This typically leads us to ban the peer.
     void reportDataFailure(int connectionId);
 
+    /// Create and run an action.
+    /// This will avoid duplicates by returning a running action if it already exists.
+    /// Actions are owned and deleted by the downloadmanager.
     template<class T>
     T* addAction() {
         T *t;
@@ -114,16 +121,25 @@ public:
         return t;
     }
 
+    /// called by an action when it finds itself out of work.
     void done(Action *action);
 
+    /// Observer pattern subscribe method.
     void addDataListener(DataListenerInterface *listener);
+    /// Observer pattern unsubscribe method.
     void removeDataListener(DataListenerInterface *listener);
 
+    /// Observer pattern subscribe method.
     void addP2PNetListener(P2PNetInterface *listener);
+    /// Observer pattern unsubscribe method.
     void removeP2PNetListener(P2PNetInterface *listener);
 
     const std::deque<P2PNetInterface*> &p2pNetListeners();
 
+    /// Shut down this download manager, the connection manager and others.
+    /// It is required to call this prior to calling the destructor in order to
+    /// cleanly shut down the system and stop all tasks in all threads.
+    /// This method is blocking and wont return until finished.
     void shutdown();
 
 private:

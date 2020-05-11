@@ -267,7 +267,7 @@ void Blockchain::load()
         pool.reserve(80);
         size_t need = 80;
         while (need > 0) {
-            auto readAmount = in.readsome(pool.begin(), need);
+            auto readAmount = in.readsome(pool.begin() + (80 - need), need);
             if (readAmount <= 0)
                 break;
             need -= readAmount;

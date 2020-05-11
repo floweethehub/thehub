@@ -40,6 +40,9 @@ namespace Streaming {
     class BufferPool;
 }
 
+/**
+ * @brief The ConnectionManager class owns all the Peer objects and handles their lifespan.
+ */
 class ConnectionManager
 {
 public:
@@ -48,58 +51,88 @@ public:
     // return a pool for the current thread;
     Streaming::BufferPool &pool(int reserveSize);
 
+    /// create a new Peer for address, if it isn't already connected.
     void connect(PeerAddress &address);
+    /// disconnect this peer.
     void disconnect(const std::shared_ptr<Peer> &peer);
 
+    /// the network services we support.
     uint64_t servicesBitfield() const;
+    /// set the network services we support.
     void setServicesBitfield(const uint64_t &servicesBitfield);
 
+    /// Sync-height, cached.
     int blockHeight() const;
+    /// You probably should not call this. Its for the Blockchain
     void setBlockHeight(int blockHeight);
+    /// Return the blockheight for the argument block-hash.
     int blockHeightFor(const uint256 &blockId);
+    /// return the blockhash for a certain block-height.
     uint256 blockHashFor(int height);
 
+    /// a randomly generated nonce, to avoid connecting to self.
     uint64_t appNonce() const;
 
+    /// slot that peers call to notify us they connected and finished handshake.
     void connectionEstablished(const std::shared_ptr<Peer> &peer);
 
+    /// A peer sends us blockheaders it received.
     void addBlockHeaders(const Message &message, int sourcePeerId);
+    /// A peer sends up addresses it receved.
     void addAddresses(const Message &message, int sourcePeerId);
+    // A peer sends us INV messages it received.
     void addInvMessage(const Message &message, int sourcePeerId);
+    /// A peer sends us a Transaction it received
     void addTransaction(const Tx &message, int sourcePeerId);
 
     inline boost::asio::io_service &service() {
         return m_ioService;
     }
 
+    /// Punish a peer after detecting misbehavior.
     bool punish(const std::shared_ptr<Peer> &peer, int amount = 250);
+    /// conveninience overload
     bool punish(int connectionId, int amount = 250);
+    /// Send a request to peer for headers, to identify their chain.
     void requestHeaders(const std::shared_ptr<Peer> &peer);
 
+    /// returns a list of connected peers.
     std::deque<std::shared_ptr<Peer> > connectedPeers() const;
 
+    /// Share the peer addresses DB
     inline const PeerAddressDB &peerAddressDb() const {
         return m_peerAddressDb;
     }
+    /// Share the peer addresses DB
     inline PeerAddressDB &peerAddressDb() {
         return m_peerAddressDb;
     }
 
+    /// Return a peer by connection-id.
     std::shared_ptr<Peer> peer(int connectionId) const;
 
+    /// register a privacy segment to be assigned to peers.
     void addPrivacySegment(PrivacySegment *ps);
+    /// remove a privacy segment from our list. No existing peers will be affected.
     void removePrivacySegment(PrivacySegment *ps);
 
+    /// Note the network-identifying string we will announce ourself as.
     void setUserAgent(const std::string &userAgent);
 
+    /// returns our network-identifying string we will announce ourself as.
     inline const std::string &userAgent() const {
         return m_userAgent;
     }
 
+    /// returns the amount of peers we currently have. Even unconnected ones.
     int peerCount() const;
 
+    /// returns a copy of the segments list we hold.
     std::deque<PrivacySegment *> segments() const;
 
+    /// Shut down this connection manager, and the peers as well as connections.
+    /// It is required to call this prior to calling the destructor in order to
+    /// cleanly shut down the system and stop all tasks in all threads.
     void shutdown();
 
     /**

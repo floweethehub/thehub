@@ -376,12 +376,12 @@ void ConnectionManager::cron(const boost::system::error_code &error)
     auto iter = m_peers.begin();
     while (iter != m_peers.end()) {
         Peer *peer = iter->second.get();
-        // if it actually connected, take that time. If it never even connected, then take the
-        // peer-construction time.
-        const int connectTime = peer->connectTime() == 0 ? peer->timeOffset() : peer->connectTime();
-        if ((peer->status() == Peer::Connecting || peer->status() == Peer::Connected)
-                && peer->protocolVersion() == 0 && now - connectTime > 30) {
-            // after 30 seconds of connects, give up.
+        bool kick = peer->status() != Peer::Connected || peer->protocolVersion() == 0;
+        if (peer->connectTime() == 0) // not connected yet
+            kick &= now - peer->timeOffset() > 10; // no more than 10 sec to try to connect
+        else
+            kick &= now - peer->connectTime() > 20; // no more than  20 seconds for version handshake.
+        if (kick) {
             auto peerAddress = peer->peerAddress();
             logInfo() << iter->first << "kicking. Address:" << peerAddress;
             iter = m_peers.erase(iter);
