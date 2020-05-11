@@ -39,3 +39,26 @@ EndPoint EndPoint::fromAddr(const std::vector<char> &addr, int16_t port)
 
     return EndPoint(boost::asio::ip::address_v6(ipv6), port);
 }
+
+void EndPoint::toAddr(char *addr) const
+{
+    for (size_t i = 0; i < 16; ++i) {
+        addr[i] = 0;
+    }
+
+    if (ipAddress.is_v4()) {
+        addr[10] = addr[11] = -1;
+        size_t index = 12;
+        for (auto byte : ipAddress.to_v4().to_bytes()) {
+            assert(index <= 16);
+            addr[index++] = byte;
+        }
+    }
+    else if (ipAddress.is_v6()) {
+        size_t index = 0;
+        for (auto byte : ipAddress.to_v6().to_bytes()) {
+            assert(index <= 16);
+            addr[index++] = byte;
+        }
+    }
+}

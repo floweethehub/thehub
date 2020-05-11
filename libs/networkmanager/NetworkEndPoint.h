@@ -1,6 +1,6 @@
 /*
  * This file is part of the Flowee project
- * Copyright (C) 2016, 2019 Tom Zander <tomz@freedommail.ch>
+ * Copyright (C) 2016, 2019-2020 Tom Zander <tomz@freedommail.ch>
  *
  * This program is free software: you can redistribute it and/or modify
  * it under the terms of the GNU General Public License as published by
@@ -49,6 +49,9 @@ struct EndPoint
 
     /// Implement the P2P format 'addr' of a 16-byte vector encoding the address
     static EndPoint fromAddr(const std::vector<char> &addr, int16_t port);
+
+    /// write address to a bytearray of 16 bytes.
+    void toAddr(char *addr) const;
 
     boost::asio::ip::address ipAddress;
     std::string hostname;
