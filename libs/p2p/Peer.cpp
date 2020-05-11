@@ -206,6 +206,16 @@ void Peer::sendFilter()
     m_bloomUploadHeight = m_segment->lastBlockSynched();
 }
 
+void Peer::setRequestedHeader(bool requestedHeader)
+{
+    m_requestedHeader = requestedHeader;
+}
+
+bool Peer::requestedHeader() const
+{
+    return m_requestedHeader;
+}
+
 uint32_t Peer::connectTime() const
 {
     return m_connectTime;

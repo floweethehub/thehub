@@ -110,7 +110,14 @@ public:
 
     /// peer has received the response to 'getheaders', implying it is following the same chain as us.
     /// @see PeerAddress::gotGoodHeaders() for a historical one.
+    /// @see requestedHeaders()
     bool receivedHeaders() const;
+
+    /// Peer asked for getheaders, see @receivedHeaders()
+    bool requestedHeader() const;
+
+    /// set if the peer requested headers.
+    void setRequestedHeader(bool requestedHeader);
 
     /// Assigns this peer a wallet in the shape of a PrivacySegment.
     void setPrivacySegment(PrivacySegment *ps);
@@ -154,6 +161,7 @@ private:
     int m_startHeight = 0;
     bool m_relaysTransactions = false;
     bool m_preferHeaders = false;
+    bool m_requestedHeader = false;
     bool m_receivedHeaders = false;
 
     PeerAddress m_peerAddress;

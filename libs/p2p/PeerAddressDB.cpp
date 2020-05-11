@@ -33,7 +33,7 @@ enum SavingTags {
     Punishment,
     Segment,
     EverConnected,
-    EverReceivedGoodHeaders
+    LastReceivedGoodHeaders
     // AskedAddr?
 };
 
@@ -61,12 +61,12 @@ void PeerAddress::gotGoodHeaders()
 {
     auto i = d->m_peers.find(m_id);
     assert(d->m_peers.end() != i);
-    time_t now = time(NULL);
+    time_t now = time(nullptr);
     assert(now > 0);
     i->second.lastConnected = static_cast<uint32_t>(now);
     if (i->second.punishment > 500)
         i->second.punishment -= 200;
-    i->second.everReceivedGoodHeaders = true;
+    i->second.lastReceivedGoodHeaders = now;
 }
 
 short PeerAddress::punishPeer(short amount)
@@ -124,11 +124,11 @@ bool PeerAddress::hasEverConnected() const
     return i->second.everConnected;
 }
 
-bool PeerAddress::hasEverGotGoodHeaders() const
+int PeerAddress::lastReceivedGoodHeaders() const
 {
     auto i = d->m_peers.find(m_id);
     assert(d->m_peers.end() != i);
-    return i->second.everReceivedGoodHeaders;
+    return i->second.lastReceivedGoodHeaders;
 }
 
 uint16_t PeerAddress::segment() const
@@ -288,8 +288,8 @@ void PeerAddressDB::saveDatabase(const boost::filesystem::path &basedir)
             builder.add(Segment, item.second.segment);
         if (item.second.everConnected)
             builder.add(EverConnected, true);
-        if (item.second.everReceivedGoodHeaders)
-            builder.add(EverReceivedGoodHeaders, true);
+        if (item.second.lastReceivedGoodHeaders)
+            builder.add(LastReceivedGoodHeaders, uint64_t(item.second.lastReceivedGoodHeaders));
 
         builder.add(Separator, true); // separator
     }
@@ -324,7 +324,6 @@ void PeerAddressDB::loadDatabase(const boost::filesystem::path &basedir)
                 insert(info);
             info = PeerInfo();
             info.everConnected = true; // defaults in saving that differ from struct defaults
-            info.everReceivedGoodHeaders = true;
         }
         else if (parser.tag() == IPAddress) {
             info.address = EndPoint::fromAddr(parser.bytesData(), 8333);
@@ -350,8 +349,8 @@ void PeerAddressDB::loadDatabase(const boost::filesystem::path &basedir)
         else if (parser.tag() == EverConnected) {
             info.everConnected = parser.boolData();
         }
-        else if (parser.tag() == EverReceivedGoodHeaders) {
-            info.everReceivedGoodHeaders = parser.boolData();
+        else if (parser.tag() == LastReceivedGoodHeaders) {
+            info.lastReceivedGoodHeaders = parser.longData();
         }
     }
 }

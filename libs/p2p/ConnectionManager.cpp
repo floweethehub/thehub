@@ -182,8 +182,7 @@ void ConnectionManager::connectionEstablished(const std::shared_ptr<Peer> &peer)
     assert(peerIter != m_peers.end());
     m_connectedPeers.insert(peer->connectionId());
 
-    if (!peer->peerAddress().hasEverGotGoodHeaders()
-            || time(nullptr) - peer->peerAddress().lastConnected() > 3600 * 36) {
+    if (time(nullptr) - peer->peerAddress().lastReceivedGoodHeaders() > 3600 * 36) {
         // check if this peer is using the same chain as us.
         requestHeaders(peerIter->second);
     }
@@ -297,6 +296,7 @@ void ConnectionManager::requestHeaders(const std::shared_ptr<Peer> &peer)
     Streaming::P2PBuilder builder(pool(4 + 32 * 10));
     builder.writeInt(PROTOCOL_VERSION);
     auto message = m_dlManager->blockchain().createGetHeadersRequest(builder);
+    peer->setRequestedHeader(true);
     peer->sendMessage(message);
 }
 
