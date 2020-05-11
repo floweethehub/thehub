@@ -41,7 +41,12 @@ class P2PNetInterface;
 class DownloadManager
 {
 public:
-    DownloadManager(boost::asio::io_service &service);
+    /**
+     * @brief DownloadManager constructor.
+     * @param service the IO-service. See WorkerThreads
+     * @param basedir the directory to load and save state data.
+     */
+    DownloadManager(boost::asio::io_service &service, const boost::filesystem::path &basedir);
 
     // start reaching out and synchronizing.
     void start();

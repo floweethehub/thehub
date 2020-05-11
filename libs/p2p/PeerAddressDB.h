@@ -20,6 +20,8 @@
 
 #include <NetworkEndPoint.h>
 
+#include <boost/filesystem.hpp>
+
 #include <map>
 
 class PeerAddressDB;
@@ -82,6 +84,9 @@ public:
         assert(0 <= id);
         return PeerAddress(this, id);
     }
+
+    void saveDatabase(const boost::filesystem::path &basedir);
+    void loadDatabase(const boost::filesystem::path &basedir);
 
 private:
     friend class PeerAddress;

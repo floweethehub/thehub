@@ -43,7 +43,7 @@ namespace Streaming {
 class ConnectionManager
 {
 public:
-    ConnectionManager(boost::asio::io_service &service, DownloadManager *parent);
+    ConnectionManager(boost::asio::io_service &service, const boost::filesystem::path &basedir, DownloadManager *parent);
 
     // return a pool for the current thread;
     Streaming::BufferPool &pool(int reserveSize);
@@ -137,6 +137,7 @@ private:
     NetworkManager m_network;
     DownloadManager *m_dlManager; // parent
     std::string m_userAgent;
+    boost::filesystem::path m_basedir;
 
     std::deque<PrivacySegment*> m_segments;
 };

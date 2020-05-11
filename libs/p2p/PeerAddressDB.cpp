@@ -18,7 +18,24 @@
 #include "PeerAddressDB.h"
 #include "ConnectionManager.h"
 #include <Message.h>
+#include <streaming/BufferPool.h>
+#include <streaming/MessageBuilder.h>
+#include <streaming/MessageParser.h>
 #include <streaming/P2PParser.h>
+
+enum SavingTags {
+    Separator = 0,
+    Hostname,
+    IPAddress,
+    Port,
+    Services,
+    LastConnected,
+    Punishment,
+    Segment,
+    EverConnected,
+    EverReceivedGoodHeaders
+    // AskedAddr?
+};
 
 const EndPoint &PeerAddress::peerAddress() const
 {
@@ -247,6 +264,96 @@ void PeerAddressDB::addOne(const EndPoint &endPoint)
     info.address = endPoint;
     info.services = 5;
     insert(info);
+}
+
+void PeerAddressDB::saveDatabase(const boost::filesystem::path &basedir)
+{
+    Streaming::BufferPool pool(m_peers.size() * 40);
+    Streaming::MessageBuilder builder(pool);
+    char ip[16];
+    for (const auto &item : m_peers) {
+        if (item.second.address.ipAddress.is_unspecified()) {
+            builder.add(Hostname, item.second.address.hostname);
+        } else {
+            item.second.address.toAddr(ip);
+            builder.addByteArray(IPAddress, ip, 16);
+        }
+        if (item.second.address.announcePort != 8333)
+            builder.add(Port, item.second.address.announcePort);
+        builder.add(Services, item.second.services);
+        builder.add(LastConnected, uint64_t(item.second.lastConnected));
+        if (item.second.punishment > 0)
+            builder.add(Punishment, item.second.punishment);
+        if (item.second.segment != 0)
+            builder.add(Segment, item.second.segment);
+        if (item.second.everConnected)
+            builder.add(EverConnected, true);
+        if (item.second.everReceivedGoodHeaders)
+            builder.add(EverReceivedGoodHeaders, true);
+
+        builder.add(Separator, true); // separator
+    }
+    auto data = builder.buffer();
+
+    try {
+        boost::filesystem::create_directories(basedir);
+        boost::filesystem::remove(basedir / "peers.dat~");
+
+        std::ofstream outFile((basedir / "peers.dat~").string());
+        outFile.write(data.begin(), data.size());
+
+        boost::filesystem::rename(basedir / "peers.dat~", basedir / "peers.dat");
+    } catch (const std::exception &e) {
+        logFatal() << "Failed to save the database. Reason:" << e.what();
+    }
+}
+
+void PeerAddressDB::loadDatabase(const boost::filesystem::path &basedir)
+{
+    std::ifstream in((basedir / "peers.dat").string());
+    if (!in.is_open())
+        return;
+    const auto dataSize = boost::filesystem::file_size(basedir / "peers.dat");
+    Streaming::BufferPool pool(dataSize);
+    in.read(pool.begin(), dataSize);
+    Streaming::MessageParser parser(pool.commit(dataSize));
+    PeerInfo info;
+    while (parser.next() == Streaming::FoundTag) {
+        if (parser.tag() == Separator) {
+            if (info.address.isValid())
+                insert(info);
+            info = PeerInfo();
+            info.everConnected = true; // defaults in saving that differ from struct defaults
+            info.everReceivedGoodHeaders = true;
+        }
+        else if (parser.tag() == IPAddress) {
+            info.address = EndPoint::fromAddr(parser.bytesData(), 8333);
+        }
+        else if (parser.tag() == Hostname) {
+            info.address = EndPoint(parser.stringData(), 8333);
+        }
+        else if (parser.tag() == Port) {
+            info.address.announcePort = info.address.peerPort = parser.intData();
+        }
+        else if (parser.tag() == Services) {
+            info.services = parser.longData();
+        }
+        else if (parser.tag() == LastConnected) {
+            info.lastConnected = parser.longData();
+        }
+        else if (parser.tag() == Punishment) {
+            info.punishment = parser.intData();
+        }
+        else if (parser.tag() == Segment) {
+            info.segment = parser.intData();
+        }
+        else if (parser.tag() == EverConnected) {
+            info.everConnected = parser.boolData();
+        }
+        else if (parser.tag() == EverReceivedGoodHeaders) {
+            info.everReceivedGoodHeaders = parser.boolData();
+        }
+    }
 }
 
 void PeerAddressDB::insert(PeerInfo &pi)

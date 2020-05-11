@@ -29,13 +29,14 @@
 #include <random>
 
 
-ConnectionManager::ConnectionManager(boost::asio::io_service &service, DownloadManager *parent)
+ConnectionManager::ConnectionManager(boost::asio::io_service &service, const boost::filesystem::path &basedir, DownloadManager *parent)
     : m_shuttingDown(false),
     m_ioService(service),
     m_cronTimer(m_ioService),
     m_peerAddressDb(this),
     m_network(service),
-    m_dlManager(parent)
+    m_dlManager(parent),
+    m_basedir(basedir)
 {
     // The nonce is used in the status message to allow detection of connect-to-self.
     m_appNonce = (random() << 32) | random();
@@ -64,6 +65,8 @@ ConnectionManager::ConnectionManager(boost::asio::io_service &service, DownloadM
     m_cronTimer.async_wait(parent->strand().wrap(std::bind(&ConnectionManager::cron, this, std::placeholders::_1)));
 
     m_userAgent = "Flowee-P2PNet-based app";
+
+    m_peerAddressDb.loadDatabase(m_basedir);
 }
 
 void ConnectionManager::addInvMessage(const Message &message, int sourcePeerId)
@@ -472,7 +475,7 @@ void ConnectionManager::shutdown()
     }
     assert(m_peers.empty());
 
-    // TODO m_peerAddressDb.save();
+    m_peerAddressDb.saveDatabase(m_basedir);
 }
 
 void ConnectionManager::setMessageQueueSize(int size)

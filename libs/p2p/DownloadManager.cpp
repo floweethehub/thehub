@@ -27,9 +27,9 @@
 #include <streaming/P2PParser.h>
 #include <streaming/P2PBuilder.h>
 
-DownloadManager::DownloadManager(boost::asio::io_service &service)
+DownloadManager::DownloadManager(boost::asio::io_service &service, const boost::filesystem::path &basedir)
     : m_strand(service),
-      m_connectionManager(service, this),
+      m_connectionManager(service, basedir, this),
       m_blockchain(this),
       m_shuttingDown(false)
 {
