@@ -19,6 +19,7 @@
 
 #include <utils/streaming/P2PParser.h>
 #include <utils/hash.h>
+#include <streaming/P2PBuilder.h>
 
 BlockHeader BlockHeader::fromMessage(Streaming::P2PParser &parser)
 {
@@ -31,6 +32,12 @@ BlockHeader BlockHeader::fromMessage(Streaming::P2PParser &parser)
     answer.nNonce = parser.readInt();
 
     return answer;
+}
+
+BlockHeader BlockHeader::fromMessage(const Streaming::ConstBuffer &buffer)
+{
+    Streaming::P2PParser parser(buffer);
+    return fromMessage(parser);
 }
 
 uint256 BlockHeader::createHash() const
@@ -57,4 +64,17 @@ arith_uint256 BlockHeader::blockProof() const
     // as bnTarget+1, it is equal to ((2**256 - bnTarget - 1) / (bnTarget+1)) + 1,
     // or ~bnTarget / (nTarget+1) + 1.
     return (~bnTarget / (bnTarget + 1)) + 1;
+}
+
+Streaming::ConstBuffer BlockHeader::write(Streaming::BufferPool &pool) const
+{
+    pool.reserve(80);
+    Streaming::P2PBuilder builder(pool);
+    builder.writeInt(nVersion);
+    builder.writeByteArray(hashPrevBlock, Streaming::RawBytes);
+    builder.writeByteArray(hashMerkleRoot, Streaming::RawBytes);
+    builder.writeInt(nTime);
+    builder.writeInt(nBits);
+    builder.writeInt(nNonce);
+    return builder.buffer();
 }

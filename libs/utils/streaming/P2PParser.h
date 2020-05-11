@@ -34,6 +34,7 @@ class P2PParser
 {
 public:
     P2PParser(const Message &message);
+    P2PParser(const ConstBuffer &data);
 
     double readDouble();
     std::string readString();

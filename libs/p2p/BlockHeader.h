@@ -24,14 +24,19 @@
 
 namespace Streaming {
     class P2PParser;
+    class BufferPool;
+    class ConstBuffer;
 }
 
 struct BlockHeader
 {
     static BlockHeader fromMessage(Streaming::P2PParser &parser);
+    static BlockHeader fromMessage(const Streaming::ConstBuffer &buffer);
 
     uint256 createHash() const;
     arith_uint256 blockProof() const;
+    // write the header in P2P syntax (just like on the blockchain)
+    Streaming::ConstBuffer write(Streaming::BufferPool &pool) const;
 
     int32_t nVersion;
     uint256 hashPrevBlock;

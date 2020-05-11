@@ -25,6 +25,7 @@
 #include <uint256.h>
 
 #include <boost/unordered_map.hpp>
+#include <boost/filesystem.hpp>
 #include <mutex>
 
 class DownloadManager;
@@ -35,7 +36,7 @@ class P2PBuilder;
 class Blockchain
 {
 public:
-    Blockchain(DownloadManager *downloadManager);
+    Blockchain(DownloadManager *downloadManager, const boost::filesystem::path &basedir);
 
     Message createGetHeadersRequest(Streaming::P2PBuilder &builder);
 
@@ -48,8 +49,14 @@ public:
 
     BlockHeader block(int height) const;
 
+    /// re-load the chain. Also called from the constructor.
+    void load();
+    /// save the chain
+    void save();
+
 private:
     mutable std::mutex m_lock;
+    const boost::filesystem::path m_basedir;
     std::vector<BlockHeader> m_longestChain;
     struct ChainTip {
         uint256 tip;

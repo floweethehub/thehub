@@ -33,6 +33,14 @@ Streaming::P2PParser::P2PParser(const Message &message)
 {
 }
 
+Streaming::P2PParser::P2PParser(const Streaming::ConstBuffer &data)
+    : m_constBuffer(data),
+      m_privData(m_constBuffer.begin()),
+      m_data(m_privData),
+      m_end(m_constBuffer.end())
+{
+}
+
 std::string Streaming::P2PParser::readString()
 {
     // first read a varint for size then return the string of that size

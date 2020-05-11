@@ -30,7 +30,7 @@
 DownloadManager::DownloadManager(boost::asio::io_service &service, const boost::filesystem::path &basedir)
     : m_strand(service),
       m_connectionManager(service, basedir, this),
-      m_blockchain(this),
+      m_blockchain(this, basedir),
       m_shuttingDown(false)
 {
 }
@@ -239,6 +239,7 @@ void DownloadManager::shutdown()
         a->cancel();
     }
     m_connectionManager.shutdown();
+    m_blockchain.save();
 
     m_strand.post(std::bind(&DownloadManager::finishShutdown, this));
     m_waitVariable.wait(lock);

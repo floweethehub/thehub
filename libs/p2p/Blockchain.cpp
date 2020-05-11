@@ -18,31 +18,35 @@
 #include "Blockchain.h"
 #include "DownloadManager.h"
 
+#include <streaming/BufferPool.h>
 #include <streaming/P2PBuilder.h>
 #include <streaming/P2PParser.h>
 #include <utils/utiltime.h>
 
 #include <stdexcept>
 
-Blockchain::Blockchain(DownloadManager *downloadManager)
-    : m_dlmanager(downloadManager)
+Blockchain::Blockchain(DownloadManager *downloadManager, const boost::filesystem::path &basedir)
+    : m_basedir(basedir), m_dlmanager(downloadManager)
 {
     assert(m_dlmanager);
     m_longestChain.reserve(650000); // pre-allocate
+    load();
+    if (m_longestChain.empty()) {
+        BlockHeader genesis;
+        genesis.nBits = 0x1d00ffff;
+        genesis.nTime = 1231006505;
+        genesis.nNonce = 2083236893;
+        genesis.nVersion = 1;
+        genesis.hashMerkleRoot = uint256S("4a5e1e4baab89f3a32518a88c31bc87f618f76673e2cc77ab2127b7afdeda33b");
 
-    BlockHeader genesis;
-    genesis.nBits = 0x1d00ffff;
-    genesis.nTime = 1231006505;
-    genesis.nNonce = 2083236893;
-    genesis.nVersion = 1;
-    genesis.hashMerkleRoot = uint256S("4a5e1e4baab89f3a32518a88c31bc87f618f76673e2cc77ab2127b7afdeda33b");
+        m_longestChain.push_back(genesis);
 
-    m_longestChain.push_back(genesis);
-    uint256 genesisHash = genesis.createHash();
-    m_blockHeight.insert(std::make_pair(genesisHash, 0));
-    m_tip.tip = genesisHash;
-    m_tip.height = 0;
-    m_tip.chainWork += genesis.blockProof();
+        const uint256 genesisHash = genesis.createHash();
+        m_blockHeight.insert(std::make_pair(genesisHash, 0));
+        m_tip.tip = genesisHash;
+        m_tip.height = 0;
+        m_tip.chainWork += genesis.blockProof();
+    }
 
     checkpoints.insert(std::make_pair( 11111, uint256S("0000000069e244f73d78e8fd29ba2fd2ed618bd6fa2ee92559f542fdb26e7c1d")));
     checkpoints.insert(std::make_pair( 33333, uint256S("000000002dd5588a74784eaa7ab0507a18ad16a236e7b1ce69f00d7ddfb5d0a6")));
@@ -233,4 +237,51 @@ BlockHeader Blockchain::block(int height) const
     if (int(m_longestChain.size()) <= height)
         return BlockHeader();
     return m_longestChain.at(height);
+}
+
+void Blockchain::save()
+{
+    boost::filesystem::create_directories(m_basedir);
+    std::unique_lock<std::mutex> lock(m_lock);
+
+    std::ofstream out((m_basedir / "blockchain").string());
+    Streaming::BufferPool pool;
+    for (const auto &header : m_longestChain) {
+        auto cd = header.write(pool);
+        assert(cd.size() == 80);
+        out.write(cd.begin(), cd.size());
+    }
+}
+
+void Blockchain::load()
+{
+    std::unique_lock<std::mutex> lock(m_lock);
+
+    std::ifstream in((m_basedir / "blockchain").string());
+    if (!in.is_open())
+        return;
+
+    logInfo() << "Starting to load the blockchain";
+    Streaming::BufferPool pool;
+    while (true) {
+        pool.reserve(80);
+        size_t need = 80;
+        while (need > 0) {
+            auto readAmount = in.readsome(pool.begin(), need);
+            if (readAmount <= 0)
+                break;
+            need -= readAmount;
+        }
+        if (need != 0)
+            break;
+
+        BlockHeader header = BlockHeader::fromMessage(pool.commit(80));
+        m_blockHeight.insert(std::make_pair(header.createHash(), m_longestChain.size()));
+        m_tip.chainWork += header.blockProof();
+        m_longestChain.push_back(header);
+    }
+
+    m_tip.tip = m_longestChain.back().createHash();
+    m_tip.height = m_longestChain.size() - 1;
+    logInfo() << "  done. Tip:" << m_tip.height << m_tip.tip;
 }
