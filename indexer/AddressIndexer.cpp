@@ -78,6 +78,21 @@ public:
     }
 };
 
+class MySQLTables : public TableSpecification
+{
+public:
+    bool queryTableExists(QSqlQuery &query, const QString &tableName) const override {
+	query.exec("SELECT COUNT(table_name) FROM information_schema.tables WHERE table_schema=DATABASE() AND table_name='"+tableName+"'");
+	query.first();
+	return query.value(0).toInt() == 1;
+    }
+
+    bool createIndexIfNotExists(QSqlQuery &query, const QString &tableName) const override {
+        QString createIndexString("CREATE INDEX %1_index ON %1 (address_row)");
+        return query.exec(createIndexString.arg(tableName.toLower()));
+    }
+};
+
 AddressIndexer::AddressIndexer(const boost::filesystem::path &basedir, Indexer *datasource)
     : m_addresses(basedir),
       m_basedir(QString::fromStdWString(basedir.wstring())),
@@ -132,6 +147,7 @@ void AddressIndexer::loadSetting(const QSettings &settings)
         m_selectDb.setUserName(valueFromSettings(settings, "db_username"));
         m_selectDb.setPassword(valueFromSettings(settings, "db_password"));
         m_selectDb.setHostName(valueFromSettings(settings, "db_hostname"));
+	m_spec = new MySQLTables();
     } else if (db == "QSQLITE") {
         m_insertDb.setDatabaseName(m_basedir + "/addresses.db");
         m_selectDb.setDatabaseName(m_basedir + "/addresses.db");
