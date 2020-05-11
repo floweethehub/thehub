@@ -33,6 +33,7 @@ DownloadManager::DownloadManager(boost::asio::io_service &service, const boost::
       m_blockchain(this, basedir),
       m_shuttingDown(false)
 {
+    m_connectionManager.setBlockHeight(m_blockchain.height());
 }
 
 const ConnectionManager &DownloadManager::connectionManager() const

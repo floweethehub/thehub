@@ -42,6 +42,7 @@ public:
 
     void processBlockHeaders(Message message, int peerId);
 
+    int height() const;
     int expectedBlockHeight() const;
 
     bool isKnown(const uint256 &blockId) const;

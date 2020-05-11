@@ -203,6 +203,11 @@ void Blockchain::processBlockHeaders(Message message, int peerId)
     m_dlmanager->headersDownloadFinished(newTip, peerId);
 }
 
+int Blockchain::height() const
+{
+    return m_tip.height;
+}
+
 int Blockchain::expectedBlockHeight() const
 {
     std::unique_lock<std::mutex> lock(m_lock);
