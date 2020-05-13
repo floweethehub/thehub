@@ -52,10 +52,12 @@ enabled=true
 [addressdb]
 enabled=false
 # Indexer 'addressdb' requires a SQL server.
-db_driver=QSQLITE
+db_driver=QSQLITE # QPSQL / QMYSQL
 db_hostname=myServer
 db_database=flowee
 db_username=flowee_indexer
+db_password=s3cr3t
+db_port=5432
 
 # The Hub server address, with optional port.
 [services]

@@ -31,10 +31,10 @@
 
 namespace {
 
-QString valueFromSettings(const QSettings &settings, const QString &key) {
+QString valueFromSettings(const QSettings &settings, const QString &key, const QString &defvalue=QString()) {
     QVariant x = settings.value(QString("addressdb/") + key);
-    if (x.isNull())
-        x = settings.value(key);
+    if (x.isNull()) x = settings.value(key);
+    if (x.isNull()) return defvalue;
     return x.toString();
 }
 
@@ -133,20 +133,24 @@ void AddressIndexer::loadSetting(const QSettings &settings)
         m_insertDb.setUserName(valueFromSettings(settings, "db_username"));
         m_insertDb.setPassword(valueFromSettings(settings, "db_password"));
         m_insertDb.setHostName(valueFromSettings(settings, "db_hostname"));
+        m_insertDb.setPort(valueFromSettings(settings, "db_port", "5432").toInt());
         m_selectDb.setDatabaseName(valueFromSettings(settings, "db_database"));
         m_selectDb.setUserName(valueFromSettings(settings, "db_username"));
         m_selectDb.setPassword(valueFromSettings(settings, "db_password"));
         m_selectDb.setHostName(valueFromSettings(settings, "db_hostname"));
+        m_selectDb.setPort(valueFromSettings(settings, "db_port", "5432").toInt());
         m_spec = new PostgresTables();
     } else if (db == "QMYSQL") {
         m_insertDb.setDatabaseName(valueFromSettings(settings, "db_database"));
         m_insertDb.setUserName(valueFromSettings(settings, "db_username"));
         m_insertDb.setPassword(valueFromSettings(settings, "db_password"));
         m_insertDb.setHostName(valueFromSettings(settings, "db_hostname"));
+        m_insertDb.setPort(valueFromSettings(settings, "db_port", "3306").toInt());
         m_selectDb.setDatabaseName(valueFromSettings(settings, "db_database"));
         m_selectDb.setUserName(valueFromSettings(settings, "db_username"));
         m_selectDb.setPassword(valueFromSettings(settings, "db_password"));
         m_selectDb.setHostName(valueFromSettings(settings, "db_hostname"));
+        m_selectDb.setPort(valueFromSettings(settings, "db_port", "3306").toInt());
 	m_spec = new MySQLTables();
     } else if (db == "QSQLITE") {
         m_insertDb.setDatabaseName(m_basedir + "/addresses.db");
