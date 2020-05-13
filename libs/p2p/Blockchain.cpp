@@ -288,5 +288,5 @@ void Blockchain::load()
 
     m_tip.tip = m_longestChain.back().createHash();
     m_tip.height = m_longestChain.size() - 1;
-    logInfo() << "  done. Tip:" << m_tip.height << m_tip.tip;
+    logCritical() << "Blockchain loading completed. Tip:" << m_tip.height << m_tip.tip;
 }
