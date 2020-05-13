@@ -1,0 +1,9 @@
+# This file helps to know how to link this static library 
+if (@GMP_FOUND@)
+  if (_FloweeSecp256k1)
+    set_property(TARGET secp256k1 PROPERTY IMPORTED_LINK_INTERFACE_LIBRARIES
+        ${IMPORTED_LINK_INTERFACE_LIBRARIES}
+        @GMP_LIBRARY@
+    )
+  endif ()
+endif ()

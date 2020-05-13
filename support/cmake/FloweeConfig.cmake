@@ -30,6 +30,7 @@ if (_FloweeSecp256k1)
     set_target_properties(secp256k1 PROPERTIES IMPORTED_LOCATION ${_FloweeSecp256k1})
     set (__libsFound "secp256k1")
 endif()
+include (${CMAKE_CURRENT_LIST_DIR}/secp256k1.cmake)
 
 find_library(_floweeInterfaces libflowee_interfaces.a ${FLOWEE_INCLUDE_DIR}/..)
 if (_floweeInterfaces)

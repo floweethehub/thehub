@@ -39,7 +39,7 @@ add_custom_command (
 
 find_package(GMP)
 if(GMP_FOUND)
-	set(USE_NUM_GMP 1)
+	set(USE_NUM_GMP 3)
 	set(USE_FIELD_INV_NUM 1)
 	set(USE_SCALAR_INV_NUM 1)
 else()
@@ -92,7 +92,11 @@ set(ENABLE_MODULE_SCHNORR 1)
 set(USE_ECMULT_STATIC_PRECOMPUTATION 1)
 
 configure_file(src/libsecp256k1-config.h.cmake.in src/libsecp256k1-config.h ESCAPE_QUOTES)
-
+configure_file (
+    "${CMAKE_SOURCE_DIR}/libs/config/secp256k1.cmake.in"
+    ${CMAKE_CURRENT_BINARY_DIR}/secp256k1.cmake
+    @ONLY
+)
 
 ## Last, actually compile our library.
 
