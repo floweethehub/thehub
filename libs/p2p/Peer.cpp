@@ -177,6 +177,7 @@ void Peer::processMessage(const Message &message)
                 m_merkleBlockHeight = -1;
                 throw Streaming::ParsingException("Bad merkle tree received");
             }
+            m_merkleHeader = header;
             m_merkleBlockHeight = blockHeight;
             m_lastReceivedMerkle = blockHeight;
             m_segment->blockSynched(blockHeight);
