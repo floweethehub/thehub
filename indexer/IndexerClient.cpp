@@ -1,6 +1,6 @@
 /*
  * This file is part of the Flowee project
- * Copyright (C) 2019 Tom Zander <tomz@freedommail.ch>
+ * Copyright (C) 2019-2020 Tom Zander <tomz@freedommail.ch>
  *
  * This program is free software: you can redistribute it and/or modify
  * it under the terms of the GNU General Public License as published by
@@ -117,11 +117,18 @@ void IndexerClient::onIncomingHubMessage(const Message &message)
                 if (parser.tag() == Api::BlockChain::GenericByteData) {
                     auto blob = parser.bytesDataBuffer();
                     QByteArray tx(blob.begin(), blob.size());
-                    logFatal() << tx.toHex().constData();
+                    logCritical() << "Transaction follows. Tx-Size:" << tx.size() << "bytes";
+                    if (tx.size() > 1500) {
+                        logCritical() << "Large transaction. Use -v to display";
+                        logInfo() << tx.toHex().constData();
+                    }
+                    else {
+                        logCritical() << tx.toHex().constData();
+                    }
                     QCoreApplication::quit();
                 }
                 else if (parser.tag() == Api::BlockChain::TxId) {
-                    logFatal() << message.headerInt(Api::RequestId) << " -> " << parser.uint256Data();
+                    logCritical() << message.headerInt(Api::RequestId) << " -> " << parser.uint256Data();
                     if (--m_txIdsRequested == 0)
                         QCoreApplication::quit();
                 }
@@ -155,7 +162,7 @@ void IndexerClient::onIncomingIndexerMessage(const Message &message)
                     offsetInBlock = parser.intData();
             }
 
-            logFatal().nospace() << "Transaction location is: [block=" << blockHeight << "+" << offsetInBlock << "]";
+            logCritical().nospace() << "Transaction location is: [block=" << blockHeight << "+" << offsetInBlock << "]";
             if (blockHeight > 0 && offsetInBlock > 80 && m_hubConnection.isValid()) {
                 Streaming::MessageBuilder builder(Streaming::NoHeader, 20);
                 builder.add(Api::BlockChain::BlockHeight, blockHeight);
@@ -177,7 +184,7 @@ void IndexerClient::onIncomingIndexerMessage(const Message &message)
                 else if (parser.tag() == Api::Indexer::OutIndex)
                     index = parser.intData();
                 else if (parser.tag() == Api::Indexer::Separator) {
-                    logFatal().nospace() << ++usageId << "] Address touches [block=" << blockHeight << "+" << offsetInBlock
+                    logCritical().nospace() << ++usageId << "] Address touches [block=" << blockHeight << "+" << offsetInBlock
                                          << "|" << index << "]";
                     if (blockHeight > 0 && offsetInBlock > 80 && m_hubConnection.isValid()) {
                         Streaming::MessageBuilder builder(Streaming::NoHeader, 20);
@@ -192,30 +199,20 @@ void IndexerClient::onIncomingIndexerMessage(const Message &message)
             }
             if (!m_hubConnection.isValid() || (blockHeight == -1))
                 QCoreApplication::quit();
-            m_txIdsRequested = usageId;
+            m_txIdsRequested += usageId;
         }
         else if (message.messageId() == Api::Indexer::GetAvailableIndexersReply) {
             Streaming::MessageParser parser(message);
             while (parser.next() == Streaming::FoundTag) {
                 if (parser.tag() == Api::Indexer::AddressIndexer)
-                    logCritical() << "Info: remote indexer has Address Index";
+                    logInfo() << "Info: remote indexer has Address Index";
                 else if (parser.tag() == Api::Indexer::TxIdIndexer)
-                    logCritical() << "Info: remote indexer has TXID Index";
+                    logInfo() << "Info: remote indexer has TXID Index";
                 else if (parser.tag() == Api::Indexer::SpentOutputIndexer)
-                    logCritical() << "Info: remote indexer has SpentOutput Index";
+                    logInfo() << "Info: remote indexer has SpentOutput Index";
             }
         } else
             Streaming::MessageParser::debugMessage(message);
-    }
-    else if (message.serviceId() == Api::BlockChainService && message.messageId() == Api::BlockChain::GetTransactionReply) {
-        Streaming::MessageParser parser(message);
-        while (parser.next() == Streaming::FoundTag) {
-            if (parser.tag() == Api::BlockChain::GenericByteData) {
-                logFatal() << parser.unsignedBytesData();
-                QCoreApplication::quit();
-                return;
-            }
-        }
     }
     else
         Streaming::MessageParser::debugMessage(message);
