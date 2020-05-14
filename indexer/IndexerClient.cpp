@@ -28,6 +28,17 @@
 #include <base58.h>
 #include <cashaddr.h>
 
+namespace {
+int digits(int number) {
+    int rc = 1;
+    while (number >= 10) {
+        number /= 10;
+        rc++;
+    }
+    return rc;
+}
+}
+
 IndexerClient::IndexerClient()
     : m_network(m_workers.ioService())
 {
@@ -173,9 +184,17 @@ void IndexerClient::onIncomingIndexerMessage(const Message &message)
                 QCoreApplication::quit();
         }
         else if (message.messageId() == Api::Indexer::FindAddressReply) {
-            int blockHeight = -1, offsetInBlock = 0, index = 0;
             int usageId = 0;
             Streaming::MessageParser parser(message);
+            while (parser.next() == Streaming::FoundTag) {
+                if (parser.tag() == Api::Indexer::Separator)
+                    usageId++;
+            }
+            const int width = digits(usageId);
+
+            usageId = 0;
+            int blockHeight = -1, offsetInBlock = 0, index = 0;
+            parser = Streaming::MessageParser(message);
             while (parser.next() == Streaming::FoundTag) {
                 if (parser.tag() == Api::Indexer::BlockHeight)
                     blockHeight = parser.intData();
@@ -184,8 +203,12 @@ void IndexerClient::onIncomingIndexerMessage(const Message &message)
                 else if (parser.tag() == Api::Indexer::OutIndex)
                     index = parser.intData();
                 else if (parser.tag() == Api::Indexer::Separator) {
-                    logCritical().nospace() << ++usageId << "] Address touches [block=" << blockHeight << "+" << offsetInBlock
-                                         << "|" << index << "]";
+                    auto log = logCritical().nospace();
+                    for (auto i = digits(++usageId); i < width; ++i)
+                        log << 0;
+                    log << usageId;
+                    log << "] Address touches [block=" << blockHeight << "+" << offsetInBlock;
+                    log << "|" << index << "]";
                     if (blockHeight > 0 && offsetInBlock > 80 && m_hubConnection.isValid()) {
                         Streaming::MessageBuilder builder(Streaming::NoHeader, 20);
                         builder.add(Api::BlockChain::BlockHeight, blockHeight);
