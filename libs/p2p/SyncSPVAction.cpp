@@ -44,6 +44,10 @@ void SyncSPVAction::execute(const boost::system::error_code &error)
     uint32_t nowInSec = time(nullptr);
 
     std::map<PrivacySegment*, WalletInfo> wallets;
+    /*
+     * Privacy Segments are assigned to a number of peers, make an inventory of each segment.
+     * For ease, segments are the same thing as wallets here.
+     */
     for (auto peer : m_dlm->connectionManager().connectedPeers()) {
         auto *ps = peer->privacySegment();
         if (ps) {

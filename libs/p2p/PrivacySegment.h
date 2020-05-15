@@ -23,6 +23,7 @@
 #include <utils/PartialMerkleTree.h>
 #include <utils/bloom.h>
 
+class CKeyID;
 class Tx;
 class Message;
 class DataListenerInterface;
@@ -48,6 +49,9 @@ public:
 
     uint16_t segmentId() const;
 
+    /// clears the bloom filter, to allow adding addresses and outputs to it again.
+    void clearFilter();
+
     void addToFilter(const uint256 &prevHash, uint32_t outIndex);
     /**
      * @brief addToFilter allows you to get updates for a specific address.
@@ -55,6 +59,10 @@ public:
      * @param blockHeight the blockHeight the address was created at, first one we look at to get updates for data.
      */
     void addToFilter(const std::string &address, int blockHeight);
+    /**
+     * Convenience overload for the above method.
+     */
+    void addToFilter(const CKeyID &address, int blockHeight);
 
     Streaming::ConstBuffer writeFilter(Streaming::BufferPool &pool) const;
 

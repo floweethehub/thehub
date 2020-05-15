@@ -21,6 +21,7 @@
 #include <streaming/P2PBuilder.h>
 #include <streaming/P2PParser.h>
 #include <primitives/FastTransaction.h>
+#include <primitives/pubkey.h>
 #include <cashaddr.h>
 #include <base58.h>
 
@@ -35,6 +36,11 @@ PrivacySegment::PrivacySegment(uint16_t id, DataListenerInterface *parent)
 uint16_t PrivacySegment::segmentId() const
 {
     return m_segmentId;
+}
+
+void PrivacySegment::clearFilter()
+{
+    m_bloom.clear();
 }
 
 void PrivacySegment::addToFilter(const uint256 &prevHash, uint32_t outIndex)
@@ -60,6 +66,18 @@ void PrivacySegment::addToFilter(const std::string &address, int blockHeight)
         }
     }
     m_bloom.insert(c.hash);
+
+    if (blockHeight > 0) {
+        if (m_firstBlock == -1)
+            m_firstBlock = blockHeight;
+        else
+            m_firstBlock = std::min(m_firstBlock, blockHeight);
+    }
+}
+
+void PrivacySegment::addToFilter(const CKeyID &address, int blockHeight)
+{
+    m_bloom.insert(std::vector<uint8_t>(address.begin(), address.end()));
 
     if (blockHeight > 0) {
         if (m_firstBlock == -1)
