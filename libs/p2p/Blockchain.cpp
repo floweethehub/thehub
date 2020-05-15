@@ -65,6 +65,7 @@ Blockchain::Blockchain(DownloadManager *downloadManager, const boost::filesystem
     checkpoints.insert(std::make_pair(556767, uint256S("0000000000000000004626ff6e3b936941d341c5932ece4357eeccac44e6d56c")));
     checkpoints.insert(std::make_pair(582680, uint256S("000000000000000001b4b8e36aec7d4f9671a47872cb9a74dc16ca398c7dcc18")));
     checkpoints.insert(std::make_pair(609136, uint256S("000000000000000000b48bb207faac5ac655c313e41ac909322eaa694f5bc5b1")));
+    checkpoints.insert(std::make_pair(635259, uint256S("00000000000000000033dfef1fc2d6a5d5520b078c55193a9bf498c5b27530f7")));
 }
 
 Message Blockchain::createGetHeadersRequest(Streaming::P2PBuilder &builder)
