@@ -108,7 +108,7 @@ void SyncSPVAction::execute(const boost::system::error_code &error)
     for (auto w = wallets.begin(); w != wallets.end(); ++w) {
         PrivacySegment *privSegment = w->first;
         auto infoIter = m_segmentInfos.find(privSegment);
-        if (infoIter == m_segmentInfos.end())
+        if (infoIter == m_segmentInfos.end())  // wallet doesn't care about the current blockheight yet.
             continue;
         Info &info = infoIter->second;
 
