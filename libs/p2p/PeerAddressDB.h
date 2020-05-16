@@ -23,6 +23,7 @@
 #include <boost/filesystem.hpp>
 
 #include <map>
+#include <mutex>
 
 class PeerAddressDB;
 class Message;
@@ -104,6 +105,7 @@ private:
     };
     void insert(PeerInfo &pi);
 
+    mutable std::mutex m_lock;
     std::map<int, PeerInfo> m_peers;
     int m_nextPeerId = 0;
     int m_disabledPeerCount = 0; // amount of peers with punishment >= 1000

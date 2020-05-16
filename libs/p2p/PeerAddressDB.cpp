@@ -187,6 +187,7 @@ PeerAddressDB::PeerAddressDB(ConnectionManager *parent)
 
 PeerAddress PeerAddressDB::findBest(uint64_t requiredServices, uint16_t segment)
 {
+    std::unique_lock<std::mutex> lock(m_lock);
     if (m_nextPeerId == 0)
         return PeerAddress(this, -1);
     std::array<int, 10> good;
@@ -230,11 +231,13 @@ PeerAddress PeerAddressDB::findBest(uint64_t requiredServices, uint16_t segment)
 
 int PeerAddressDB::peerCount() const
 {
+    std::unique_lock<std::mutex> lock(m_lock);
     return static_cast<int>(m_peers.size()) - m_disabledPeerCount;
 }
 
 void PeerAddressDB::processAddressMessage(const Message &message, int sourcePeerId)
 {
+    std::unique_lock<std::mutex> lock(m_lock);
     size_t oldCount = m_peers.size();
     try {
         Streaming::P2PParser parser(message);
@@ -260,6 +263,7 @@ void PeerAddressDB::processAddressMessage(const Message &message, int sourcePeer
 
 void PeerAddressDB::addOne(const EndPoint &endPoint)
 {
+    std::unique_lock<std::mutex> lock(m_lock);
     PeerInfo info;
     info.address = endPoint;
     info.services = 5;
@@ -268,6 +272,7 @@ void PeerAddressDB::addOne(const EndPoint &endPoint)
 
 void PeerAddressDB::saveDatabase(const boost::filesystem::path &basedir)
 {
+    std::unique_lock<std::mutex> lock(m_lock);
     Streaming::BufferPool pool(m_peers.size() * 40);
     Streaming::MessageBuilder builder(pool);
     char ip[16];
@@ -310,6 +315,7 @@ void PeerAddressDB::saveDatabase(const boost::filesystem::path &basedir)
 
 void PeerAddressDB::loadDatabase(const boost::filesystem::path &basedir)
 {
+    std::unique_lock<std::mutex> lock(m_lock);
     std::ifstream in((basedir / "peers.dat").string());
     if (!in.is_open())
         return;
