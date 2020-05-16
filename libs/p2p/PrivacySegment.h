@@ -23,6 +23,8 @@
 #include <utils/PartialMerkleTree.h>
 #include <utils/bloom.h>
 
+#include <deque>
+
 class CKeyID;
 class Tx;
 class Message;
@@ -75,7 +77,14 @@ public:
     /// a backup peer doing a second sync has reached this height
     int backupSyncHeight() const;
 
-    void newTransaction(const BlockHeader &header, int blockHeight, const Tx &tx);
+    /**
+     * @brief newTransactions announces a list of transactions pushed to us from a peer.
+     * @param header the block header these transactions appeared in.
+     * @param blockHeight the blockheight we know the header under.
+     * @param blockTransactions The actual transactions.
+     */
+    void newTransactions(const BlockHeader &header, int blockHeight, const std::deque<Tx> &blockTransactions);
+    /// A single transaction that matches our filters, forwarded to us as it hits a mempool.
     void newTransaction(const Tx &tx);
 
     int filterChangedHeight() const;

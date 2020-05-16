@@ -18,6 +18,8 @@
 #ifndef DATALISTENERINTERFACE_H
 #define DATALISTENERINTERFACE_H
 
+#include <deque>
+
 class Tx;
 // class DoubleSpendProof;
 class BlockHeader;
@@ -28,8 +30,14 @@ public:
     DataListenerInterface();
     virtual ~DataListenerInterface();
 
-    virtual void newTransaction(const BlockHeader &header, int blockHeight, const Tx &tx) = 0;
-    // unconfirmed Tx
+    /**
+     * @brief newTransactions announces a list of transactions pushed to us from a peer.
+     * @param header the block header these transactions appeared in.
+     * @param blockHeight the blockheight we know the header under.
+     * @param blockTransactions The actual transactions.
+     */
+    virtual void newTransactions(const BlockHeader &header, int blockHeight, const std::deque<Tx> &blockTransactions) = 0;
+    /// A single transaction that matches our filters, forwarded to us as it hits a mempool.
     virtual void newTransaction(const Tx &tx) = 0;
 };
 

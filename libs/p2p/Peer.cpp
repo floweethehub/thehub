@@ -177,6 +177,8 @@ void Peer::processMessage(const Message &message)
                 m_merkleBlockHeight = -1;
                 throw Streaming::ParsingException("Bad merkle tree received");
             }
+            if (!m_blockTransactions.empty())
+                throw Streaming::ParsingException("Did not receive all promised Txs for MerkleBlock");
             m_merkleHeader = header;
             m_merkleBlockHeight = blockHeight;
             m_lastReceivedMerkle = blockHeight;
@@ -306,12 +308,15 @@ void Peer::processTransaction(const Tx &tx)
         for (auto iter = m_transactionHashes.begin(); iter != m_transactionHashes.end(); ++iter) {
             if (txHash == *iter) {
                 m_transactionHashes.erase(iter);
-                int bh = m_merkleBlockHeight;
+                const int bh = m_merkleBlockHeight;
+                m_blockTransactions.push_back(tx);
                 if (m_transactionHashes.empty()) {
+                    // done with this block
                     m_merkleBlockHeight = -1;
+                    assert(m_segment);
+                    m_segment->newTransactions(m_merkleHeader, bh, m_blockTransactions);
+                    m_blockTransactions.clear();
                 }
-                assert(m_segment);
-                m_segment->newTransaction(m_merkleHeader, bh, tx);
                 return;
             }
         }
@@ -354,3 +359,8 @@ uint64_t Peer::services() const
 {
     return m_services;
 }
+
+/*
+ * It would be useful to add a timeout for merkleblock and transactions. So if the peer doesn't deliver in
+ * the set time we move to another peer less busy (or less evil).
+ */

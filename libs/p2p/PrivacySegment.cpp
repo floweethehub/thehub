@@ -122,16 +122,16 @@ int PrivacySegment::backupSyncHeight() const
     return m_softMerkleBlockHeight;
 }
 
-void PrivacySegment::newTransaction(const BlockHeader &header, int blockHeight, const Tx &tx)
+void PrivacySegment::newTransactions(const BlockHeader &header, int blockHeight, const std::deque<Tx> &blockTransactions)
 {
 /*
- * Notice that the transaction just hit our filter, that doesn't mean it actually matched the
+ * Notice that the transactions match hit our filter, that doesn't mean it actually matched the
  * address or output that the wallet owns.
  * The wallet should thus test this and make sure that our filter is updated continuesly
  * with new outputs and replaced with a new filter when many outputs are already spent (which
  * we then want to push to peers to avoid them sending us some false-positives).
  */
-    m_parent->newTransaction(header, blockHeight, tx);
+    m_parent->newTransactions(header, blockHeight, blockTransactions);
 }
 
 void PrivacySegment::newTransaction(const Tx &tx)

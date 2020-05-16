@@ -23,6 +23,7 @@
 
 #include <networkmanager/NetworkConnection.h>
 #include <uint256.h>
+#include <deque>
 
 class PrivacySegment;
 class Blockchain;
@@ -180,6 +181,7 @@ private:
     // SPV merkle block data
     int m_merkleBlockHeight = -1;
     std::vector<uint256> m_transactionHashes;
+    std::deque<Tx> m_blockTransactions;
     BlockHeader m_merkleHeader;
 };
 
