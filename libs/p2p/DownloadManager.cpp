@@ -337,4 +337,5 @@ void DownloadManager::start()
 {
     addAction<SyncChainAction>();
     addAction<FillAddressDBAction>();
+    addAction<SyncSPVAction>();
 }
