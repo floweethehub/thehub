@@ -67,8 +67,7 @@ void FillAddressDBAction::execute(const boost::system::error_code &error)
         return;
     }
 
-    if (m_dlm->connectionManager().peerAddressDb().peerCount() > 200) { // lower this due to no persistance yet
-    // if (m_dlm->connectionManager().peerAddressDb().peerCount() > 2000) {
+    if (m_dlm->connectionManager().peerAddressDb().peerCount() > 2000) {
         logDebug() << "FillAddressDb done";
         m_dlm->done(this);
         return;
