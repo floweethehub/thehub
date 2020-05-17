@@ -96,6 +96,9 @@ void PeerAddress::resetPunishment()
     auto i = d->m_peers.find(m_id);
     assert(d->m_peers.end() != i);
     i->second.punishment = 0;
+    // update lastConnected to now without setting 'everConnected' to
+    // at least remember when we reset the punishment.
+    i->second.lastConnected = static_cast<uint32_t>(time(nullptr));
 }
 
 bool PeerAddress::isValid() const
