@@ -39,6 +39,8 @@ Peer::~Peer()
 {
     assert(m_peerAddress.isValid());
     m_peerAddress.setInUse(false);
+    if (m_segment)
+        m_segment->removeListener(this);
 }
 
 void Peer::connect(NetworkConnection && server)
@@ -199,7 +201,7 @@ void Peer::processMessage(const Message &message)
     }
 }
 
-void Peer::sendFilter()
+void Peer::sendFilter_priv()
 {
     if (m_peerStatus == ShuttingDown)
         return;
@@ -252,7 +254,7 @@ void Peer::startMerkleDownload(int from)
     assert(m_segment);
     if (m_bloomUploadHeight < m_segment->filterChangedHeight() // filter changed since we uploaded it.
             && m_merkleDownloadFrom >= m_segment->filterChangedHeight()) // unless I'm the one that changed it
-        sendFilter(); // then send updated filter
+        sendFilter_priv(); // then send updated filter
 
     m_merkleDownloadFrom = from;
     // we limit our INVs to 100 per message.  Notice that the protocol allows for 50000
@@ -293,9 +295,9 @@ void Peer::setPrivacySegment(PrivacySegment *ps)
     if (ps != m_segment) {
         assert(m_segment == nullptr);
         m_segment = ps;
-        // TODO subscribe to segment callbacks
+        m_segment->addListener(this);
     }
-    sendFilter();
+    sendFilter_priv();
 }
 
 void Peer::processTransaction(const Tx &tx)
@@ -358,6 +360,11 @@ int Peer::timeOffset() const
 uint64_t Peer::services() const
 {
     return m_services;
+}
+
+void Peer::filterUpdated()
+{
+    m_con.postOnStrand(std::bind(&Peer::sendFilter_priv, shared_from_this()));
 }
 
 /*

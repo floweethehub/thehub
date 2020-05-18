@@ -51,6 +51,7 @@ install(FILES
     Peer.h
     PeerAddressDB.h
     PrivacySegment.h
+    PrivacySegmentListener.h
     SyncChainAction.h
     SyncSPVAction.h
 DESTINATION include/flowee/p2p)

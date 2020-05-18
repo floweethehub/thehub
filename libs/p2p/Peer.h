@@ -20,6 +20,7 @@
 
 #include "PeerAddressDB.h"
 #include "BlockHeader.h"
+#include "PrivacySegmentListener.h"
 
 #include <networkmanager/NetworkConnection.h>
 #include <uint256.h>
@@ -31,7 +32,7 @@ class Tx;
 class ConnectionManager;
 class CBloomFilter;
 
-class Peer : public std::enable_shared_from_this<Peer>
+class Peer : public std::enable_shared_from_this<Peer>, private PrivacySegmentListener
 {
 public:
     enum PeerStatus {
@@ -152,7 +153,10 @@ private:
     void requestMerkleBlocks();
 
     /// sends the bloom filter to peer.
-    void sendFilter();
+    void sendFilter_priv();
+
+    // PrivacySegmentListener interface
+    void filterUpdated();
 
     uint64_t m_services = 0;
     int m_timeOffset = 0;
