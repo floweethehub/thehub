@@ -39,7 +39,12 @@ private slots:
     void restart();
     void commit();
 
+    void saveInfo();
+
     void cowList();
+
+    void restore_data();
+    void restore();
 
 private:
     void insertTransactions(UnspentOutputDatabase &db, int number);

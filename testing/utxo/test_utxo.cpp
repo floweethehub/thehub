@@ -315,6 +315,19 @@ void TestUtxo::commit()
     }
 }
 
+void TestUtxo::saveInfo()
+{
+    boost::asio::io_service ioService;
+    {
+        UnspentOutputDatabase db(ioService, m_testPath);
+        db.blockFinished(10, uint256());
+    }
+    QFileInfo info(QString::fromStdString((m_testPath / "data-1.2.info").string()));
+    QVERIFY(info.exists());
+    UnspentOutputDatabase db(ioService, m_testPath);
+    QCOMPARE(db.blockheight(), 10);
+}
+
 void TestUtxo::cowList()
 {
     DataFileList list;
@@ -334,6 +347,67 @@ void TestUtxo::cowList()
     QVERIFY(nullptr == copy.at(0));
 
     delete x;
+}
+
+void TestUtxo::restore_data()
+{
+    QTest::addColumn<int>("cycles");
+    QTest::addColumn<int>("dbFiles");
+    QTest::addColumn<QStringList>("filesToDelete");
+    QTest::addColumn<int>("result");
+
+    // delete some files in the beginning of the sequence, which should have zero effect.
+    QStringList files;
+    files << "data-4.2.info" << "data-3.2.info";
+    QTest::newRow("lostFirst")
+            << 3 << 4 << files << 3;
+
+    // delete an info file at the end, causing us to go back one block.
+    files = QStringList() << "data-2.4.info";
+    QTest::newRow("lostFirst")
+            << 3 << 4 << files  << 2;
+
+
+    // numbering in the .info files, as defined in the cpp file of the UTXO
+    constexpr int MAX_INFO_NUM = 20;
+    files = QStringList() << "data-1.1.info";
+    QTest::newRow("goingRound")
+            << MAX_INFO_NUM << 1 << files  << 20;
+}
+
+void TestUtxo::restore()
+{
+    QFETCH(int, cycles);
+    QFETCH(int, dbFiles);
+    QFETCH(QStringList, filesToDelete);
+    QFETCH(int, result);
+
+    boost::asio::io_service ioService;
+    for (int cycle = 0; cycle < cycles; ++cycle) {
+        UnspentOutputDatabase db(ioService, m_testPath);
+        logDebug() << cycle << db.blockheight();
+        UODBPrivate *d = db.priv();
+        QVERIFY(d->dataFiles.last());
+        while (d->dataFiles.size() < dbFiles) {
+            d->dataFiles.last()->m_fileFull = 1;
+            insertTransactions(db, 1);
+        }
+        db.blockFinished(db.blockheight() + 1, uint256());
+    }
+
+    QString testPath = QString::fromStdString(m_testPath.string()) + "/";
+    logDebug() << testPath;
+    QVERIFY(testPath.endsWith("/"));
+    for (auto filename : filesToDelete) {
+        bool ok = QFile::remove(testPath + filename);
+        if (!ok)
+            logCritical() << "Failed to delete" << filename;
+        QVERIFY(ok);
+    }
+
+    UnspentOutputDatabase db(ioService, m_testPath);
+    logDebug() << db.blockheight();
+    QCOMPARE(db.blockheight(), result);
 }
 
 QTEST_MAIN(TestUtxo)
