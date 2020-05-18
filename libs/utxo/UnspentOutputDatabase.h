@@ -216,6 +216,9 @@ public:
     /// return the last committed blockId
     uint256 blockId() const;
 
+    /// \internal
+    inline UODBPrivate *priv() { return d; }
+
 private:
     UODBPrivate *d;
 };

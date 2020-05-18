@@ -292,6 +292,7 @@ bool UnspentOutputDatabase::blockFinished(int blockheight, const uint256 &blockI
         std::lock_guard<std::recursive_mutex> lock(df->m_lock);
         df->m_lastBlockHash = blockId;
         df->m_lastBlockHeight = blockheight;
+        df->m_needsSave = true;
         totalChanges += df->m_changesSinceJumptableWritten;
         df->commit(d);
         if (!d->memOnly && !df->m_dbIsTip) {
@@ -1543,7 +1544,20 @@ std::string DataFileCache::writeInfoFile(DataFile *source)
         newIndex = std::max(newIndex, i.index);
     }
     if (++newIndex >= MAX_INFO_NUM) {
+        // ah, we have to loop around and start from 1.
         newIndex = 1;
+        bool found;
+        do {
+            found = false;
+            // then find the first unused index
+            for (auto i : m_validInfoFiles) {
+                if (i.index == newIndex) {
+                    found = true;
+                    ++newIndex;
+                    break;
+                }
+            }
+        } while (found);
     }
     assert(newIndex > 0);
     assert(newIndex < MAX_INFO_NUM);
