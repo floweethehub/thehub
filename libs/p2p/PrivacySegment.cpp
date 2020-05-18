@@ -25,10 +25,11 @@
 #include <primitives/pubkey.h>
 #include <cashaddr.h>
 #include <base58.h>
+#include <random.h>
 
 PrivacySegment::PrivacySegment(uint16_t id, DataListenerInterface *parent)
     : m_segmentId(id),
-    m_bloom(10000, 0.001, rand(), BLOOM_UPDATE_ALL),
+    m_bloom(10000, 0.001, GetRandInt(INT_MAX), BLOOM_UPDATE_ALL),
     m_parent(parent)
 {
     assert(m_segmentId > 0); // zero is not allowed, that is the 'unset' value elsewhere

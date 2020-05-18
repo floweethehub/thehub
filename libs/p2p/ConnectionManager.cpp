@@ -21,12 +21,11 @@
 #include "Peer.h"
 #include "PrivacySegment.h"
 
+#include <random.h>
 #include <streaming/BufferPool.h>
 #include <streaming/P2PBuilder.h>
 #include <APIProtocol.h>
 #include <version.h> // for PROTOCOL_VERSION
-
-#include <random>
 
 
 ConnectionManager::ConnectionManager(boost::asio::io_service &service, const boost::filesystem::path &basedir, DownloadManager *parent)
@@ -39,7 +38,7 @@ ConnectionManager::ConnectionManager(boost::asio::io_service &service, const boo
     m_basedir(basedir)
 {
     // The nonce is used in the status message to allow detection of connect-to-self.
-    m_appNonce = (random() << 32) | random();
+    m_appNonce = GetRand(-1);
 
     std::map<int, std::string> table;
     table.insert(std::make_pair(Api::P2P::Version, "version"));

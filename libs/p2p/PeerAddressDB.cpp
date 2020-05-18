@@ -22,6 +22,7 @@
 #include <streaming/MessageBuilder.h>
 #include <streaming/MessageParser.h>
 #include <streaming/P2PParser.h>
+#include <random.h>
 
 enum SavingTags {
     Separator = 0,
@@ -196,7 +197,7 @@ PeerAddress PeerAddressDB::findBest(uint64_t requiredServices, uint16_t segment)
     std::array<int, 10> good;
     int goodIndex = 0;
     for (int attempts = 0; attempts < 500 && goodIndex < 10; ++attempts) {
-        const int i = rand() % m_nextPeerId;
+        const int i = GetRandInt(m_nextPeerId - 1);
         PeerInfo &info = m_peers[i];
         if (!info.inUse && (info.services & requiredServices) == requiredServices
                 && info.punishment < PUNISHMENT_MAX
