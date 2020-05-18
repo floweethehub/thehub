@@ -16,6 +16,7 @@
  * along with this program.  If not, see <http://www.gnu.org/licenses/>.
  */
 #include "PrivacySegment.h"
+#include "PrivacySegmentListener.h"
 #include "DataListenerInterface.h"
 
 #include <streaming/P2PBuilder.h>
@@ -38,13 +39,16 @@ uint16_t PrivacySegment::segmentId() const
     return m_segmentId;
 }
 
-void PrivacySegment::clearFilter()
+PrivacySegment::FilterLock PrivacySegment::clearFilter()
 {
+    FilterLock lock(this);
     m_bloom.clear();
+    return lock;
 }
 
 void PrivacySegment::addToFilter(const uint256 &prevHash, uint32_t outIndex)
 {
+    std::unique_lock<std::recursive_mutex> lock(m_lock);
     std::vector<unsigned char> data;
     data.resize(36);
     memcpy(data.data(), prevHash.begin(), 32);
@@ -54,6 +58,7 @@ void PrivacySegment::addToFilter(const uint256 &prevHash, uint32_t outIndex)
 
 void PrivacySegment::addToFilter(const std::string &address, int blockHeight)
 {
+    std::unique_lock<std::recursive_mutex> lock(m_lock);
     CashAddress::Content c = CashAddress::decodeCashAddrContent(address, "bitcoincash");
     if (c.hash.empty()) {
         CBase58Data old; // legacy address encoding
@@ -77,6 +82,7 @@ void PrivacySegment::addToFilter(const std::string &address, int blockHeight)
 
 void PrivacySegment::addToFilter(const CKeyID &address, int blockHeight)
 {
+    std::unique_lock<std::recursive_mutex> lock(m_lock);
     m_bloom.insert(std::vector<uint8_t>(address.begin(), address.end()));
 
     if (blockHeight > 0) {
@@ -89,6 +95,7 @@ void PrivacySegment::addToFilter(const CKeyID &address, int blockHeight)
 
 Streaming::ConstBuffer PrivacySegment::writeFilter(Streaming::BufferPool &pool) const
 {
+    std::unique_lock<std::recursive_mutex> lock(m_lock);
     pool.reserve(m_bloom.GetSerializeSize(0, 0));
     Streaming::P2PBuilder builder(pool);
     m_bloom.store(builder);
@@ -97,11 +104,13 @@ Streaming::ConstBuffer PrivacySegment::writeFilter(Streaming::BufferPool &pool) 
 
 int PrivacySegment::firstBlock() const
 {
+    std::unique_lock<std::recursive_mutex> lock(m_lock);
     return m_firstBlock;
 }
 
 void PrivacySegment::blockSynched(int height)
 {
+    std::unique_lock<std::recursive_mutex> lock(m_lock);
     if (height <= m_merkleBlockHeight)
         m_softMerkleBlockHeight = height;
     else
@@ -110,6 +119,7 @@ void PrivacySegment::blockSynched(int height)
 
 int PrivacySegment::lastBlockSynched() const
 {
+    std::unique_lock<std::recursive_mutex> lock(m_lock);
     if (m_merkleBlockHeight == -1)
         return m_firstBlock - 1;
     return m_merkleBlockHeight;
@@ -117,6 +127,7 @@ int PrivacySegment::lastBlockSynched() const
 
 int PrivacySegment::backupSyncHeight() const
 {
+    std::unique_lock<std::recursive_mutex> lock(m_lock);
     if (m_softMerkleBlockHeight == -1)
         return m_firstBlock - 1;
     return m_softMerkleBlockHeight;
@@ -141,10 +152,52 @@ void PrivacySegment::newTransaction(const Tx &tx)
 
 int PrivacySegment::filterChangedHeight() const
 {
+    std::unique_lock<std::recursive_mutex> lock(m_lock);
     return m_filterChangedHeight;
 }
 
 CBloomFilter PrivacySegment::bloomFilter() const
 {
+    std::unique_lock<std::recursive_mutex> lock(m_lock);
     return m_bloom;
+}
+
+void PrivacySegment::addListener(PrivacySegmentListener *listener)
+{
+    std::unique_lock<std::recursive_mutex> lock(m_lock);
+    m_listeners.push_back(listener);
+}
+
+void PrivacySegment::removeListener(PrivacySegmentListener *listener)
+{
+    std::unique_lock<std::recursive_mutex> lock(m_lock);
+    auto iter = m_listeners.begin();
+    while (iter != m_listeners.end()) {
+        if (*iter == listener)
+            iter = m_listeners.erase(iter);
+        else
+            ++iter;
+    }
+}
+
+
+// ///////////////////////////////////////////////////////////////////
+
+PrivacySegment::FilterLock::FilterLock(PrivacySegment *parent)
+    : parent(parent)
+{
+    parent->m_lock.lock();
+}
+
+PrivacySegment::FilterLock::FilterLock(PrivacySegment::FilterLock && other)
+    : parent(other.parent)
+{
+}
+
+PrivacySegment::FilterLock::~FilterLock()
+{
+    parent->m_lock.unlock();
+    for (auto l : parent->m_listeners) {
+        l->filterUpdated();
+    }
 }

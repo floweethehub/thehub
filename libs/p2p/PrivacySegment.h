@@ -24,11 +24,13 @@
 #include <utils/bloom.h>
 
 #include <deque>
+#include <mutex>
 
 class CKeyID;
 class Tx;
 class Message;
 class DataListenerInterface;
+class PrivacySegmentListener;
 
 /**
  * A wallet can split its funds into different privacy segments.
@@ -51,16 +53,39 @@ public:
 
     uint16_t segmentId() const;
 
-    /// clears the bloom filter, to allow adding addresses and outputs to it again.
-    void clearFilter();
+    struct FilterLock {
+        FilterLock(FilterLock && other);
+        ~FilterLock();
+    private:
+        friend class PrivacySegment;
+        FilterLock(PrivacySegment *parent);
+        PrivacySegment *parent;
+    };
+
+    /* clears the bloom filter, to allow adding addresses and outputs to it again.
+     * This returns a FilterLock that will keep the mutex locked for the duration
+     * of its scope.
+     *
+     * The safe way to update the filter is something like this:
+     * @code
+     *  { // lock scope
+     *     auto lock = segment->clearFilter(),
+     *     segment->addToFilter(something);
+     *  }
+     *
+     * Additionally, as the FilterLock destructor is called it will push out an update to any listeners.
+     */
+    FilterLock clearFilter();
 
     void addToFilter(const uint256 &prevHash, uint32_t outIndex);
+
     /**
      * @brief addToFilter allows you to get updates for a specific address.
      * @param address The address to add.
      * @param blockHeight the blockHeight the address was created at, first one we look at to get updates for data.
      */
     void addToFilter(const std::string &address, int blockHeight);
+
     /**
      * Convenience overload for the above method.
      */
@@ -91,8 +116,13 @@ public:
 
     CBloomFilter bloomFilter() const;
 
+    void addListener(PrivacySegmentListener *listener);
+    void removeListener(PrivacySegmentListener *listener);
+
 private:
-    uint16_t m_segmentId = 0;
+    const uint16_t m_segmentId = 0;
+    mutable std::recursive_mutex m_lock;
+    std::deque<PrivacySegmentListener*> m_listeners;
     int m_firstBlock = -1; ///< first block we need to investigate
     CBloomFilter m_bloom;
     DataListenerInterface *m_parent;

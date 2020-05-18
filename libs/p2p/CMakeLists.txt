@@ -29,6 +29,7 @@ add_library(flowee_p2p STATIC
     Peer.cpp
     PeerAddressDB.cpp
     PrivacySegment.cpp
+    PrivacySegmentListener.cpp
     SyncChainAction.cpp
     SyncSPVAction.cpp
 )
