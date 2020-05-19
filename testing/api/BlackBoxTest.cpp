@@ -40,7 +40,7 @@ void BlackBoxTest::startHubs(int amount, Connect connect)
 {
     Q_ASSERT(m_hubs.empty());
     Q_ASSERT(amount > 0);
-    Q_ASSERT(m_onConnectCallbacks.size() <= amount);
+    Q_ASSERT(int(m_onConnectCallbacks.size()) <= amount);
     m_onConnectCallbacks.resize(amount);
     m_hubs.reserve(amount + 1);
     m_currentTest = QString(QTest::currentTestFunction());
@@ -171,14 +171,20 @@ void BlackBoxTest::feedDefaultBlocksToHub(int hubIndex)
 
 Message BlackBoxTest::waitForReply(int hubId, const Message &message, int messageId, int timeout)
 {
+    return waitForReply(hubId, message,
+                        static_cast<Api::ServiceIds>(message.serviceId()), messageId, timeout);
+}
+
+Message BlackBoxTest::waitForReply(int hubId, const Message &message, Api::ServiceIds serviceId, int messageId, int timeout)
+{
     Q_ASSERT(hubId >= 0);
-    Q_ASSERT(hubId < m_hubs.size());
-    QTime timer;
+    Q_ASSERT(hubId < int(m_hubs.size()));
+    QElapsedTimer timer;
     timer.start();
     Hub &hub = m_hubs[hubId];
     hub.m_waitForMessageId = messageId;
-    hub.m_waitForServiceId = message.serviceId();
-    hub.m_waitForMessageId2 = message.messageId();
+    hub.m_waitForServiceId = serviceId;
+    hub.m_waitForMessageId2 = serviceId == message.serviceId() ? message.messageId() : INT_MAX;
     hub.m_foundMessage.store(nullptr);
     con[hubId].send(message);
 
@@ -203,7 +209,7 @@ bool BlackBoxTest::waitForHeight(int height)
     for (int i = 0; i < (int) con.size(); ++i)
         nodes.insert(i);
 
-    QTime timer;
+    QElapsedTimer timer;
     timer.start();
     while (!nodes.isEmpty() && timer.elapsed() < 30000) {
         MilliSleep(100);
@@ -223,7 +229,7 @@ bool BlackBoxTest::waitForHeight(int height)
 
 void BlackBoxTest::cleanup()
 {
-    for (int i = 0; i < con.size(); ++i) {
+    for (size_t i = 0; i < con.size(); ++i) {
         con[i].disconnect();
     }
     con.clear();
@@ -239,7 +245,7 @@ void BlackBoxTest::cleanup()
         else
             hub.proc->kill();
     }
-    for (int i = 0; i < m_hubs.size(); ++i) {
+    for (size_t i = 0; i < m_hubs.size(); ++i) {
         const auto &hub = m_hubs[i];
         hub.proc->waitForFinished(10000);
         if (hub.proc->state() != QProcess::NotRunning) {
@@ -260,7 +266,7 @@ void BlackBoxTest::cleanup()
     if (allOk) {
         QDir(m_baseDir).removeRecursively();
     } else {
-        for (int i = 0; i < m_hubs.size(); ++i) {
+        for (size_t i = 0; i < m_hubs.size(); ++i) {
             QFile log(m_baseDir + QString("/node%1/regtest/hub.log").arg(i));
             if (log.open(QIODevice::ReadOnly)) {
                 QTextStream in(&log);

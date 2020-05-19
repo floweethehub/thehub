@@ -1,6 +1,6 @@
 /*
  * This file is part of the Flowee project
- * Copyright (C) 2018-2019 Tom Zander <tomz@freedommail.ch>
+ * Copyright (C) 2018-2020 Tom Zander <tomz@freedommail.ch>
  *
  * This program is free software: you can redistribute it and/or modify
  * it under the terms of the GNU General Public License as published by
@@ -148,7 +148,7 @@ void AddressMonitorService::DoubleSpendFound(const Tx &first, const Tx &duplicat
         for (auto amount : match.amounts)
             builder.add(Api::AddressMonitor::Amount, amount);
         builder.add(Api::AddressMonitor::TxId, first.createHash());
-        builder.add(Api::AddressMonitor::GenericByteData, duplicate.data());
+        builder.add(Api::AddressMonitor::TransactionData, duplicate.data());
         rem[i->first]->connection.send(builder.message(Api::AddressMonitorService, Api::AddressMonitor::DoubleSpendFound));
     }
 }
@@ -176,7 +176,7 @@ void AddressMonitorService::DoubleSpendFound(const Tx &txInMempool, const Double
         for (auto amount : match.amounts)
             builder.add(Api::AddressMonitor::Amount, amount);
         builder.add(Api::AddressMonitor::TxId, txInMempool.createHash());
-        builder.addByteArray(Api::AddressMonitor::GenericByteData, &serializedProof[0], serializedProof.size());
+        builder.addByteArray(Api::AddressMonitor::DoubleSpendProofData, &serializedProof[0], serializedProof.size());
         rem[i->first]->connection.send(builder.message(Api::AddressMonitorService, Api::AddressMonitor::DoubleSpendFound));
     }
 }

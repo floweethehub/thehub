@@ -118,9 +118,12 @@ void NetworkPaymentProcessor::onIncomingMessage(const Message &message)
             if (parser.tag() == Api::AddressMonitor::TxId) {
                 assert(parser.isByteArray());
                 txid = parser.bytesDataBuffer();
-            } else if (parser.tag() == Api::AddressMonitor::GenericByteData) {
+            } else if (parser.tag() == Api::AddressMonitor::TransactionData) {
                 assert(parser.isByteArray());
                 duplicateTx = parser.bytesDataBuffer();
+            } else if (parser.tag() == Api::AddressMonitor::DoubleSpendProofData) {
+                assert(parser.isByteArray());
+                // duplicateTx = parser.bytesDataBuffer(); // TODO
             } else if (parser.tag() == Api::AddressMonitor::BitcoinScriptHashed) {
                 assert(parser.isByteArray());
                 QByteArray bytes(parser.bytesDataBuffer().begin(), parser.dataLength());

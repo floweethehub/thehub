@@ -39,8 +39,6 @@ TransactionMonitorService::TransactionMonitorService()
     : NetworkService(Api::TransactionMonitorService)
 {
     ValidationNotifier().addListener(this);
-    
-    logFatal(Log::MonitorService) << "Transaction monitor created.";
 }
 
 TransactionMonitorService::~TransactionMonitorService()
@@ -87,7 +85,7 @@ void TransactionMonitorService::SyncAllTransactionsInBlock(const FastBlock &bloc
     std::vector<std::deque<Match> > matches;
     matches.resize(remotes.size());
     bool seenOneEnd = false;
-    while (type != Tx::End) {
+    while (true) {
         if (type == Tx::End) {
             if (seenOneEnd)
                 break; // block done.
@@ -96,9 +94,8 @@ void TransactionMonitorService::SyncAllTransactionsInBlock(const FastBlock &bloc
             auto txId = iter.prevTx().createHash();
             for (size_t i = 0; i < remotes.size(); ++i) {
                 auto remote = static_cast<RemoteWithHashes*>(remotes[i]);
-                if (remote->hashes.find(txId) == remote->hashes.end()) {
+                if (remote->hashes.find(txId) != remote->hashes.end())
                     matches[i].push_back({iter.prevTx().offsetInBlock(block), txId});
-                }
             }
         }
         else {
@@ -108,7 +105,7 @@ void TransactionMonitorService::SyncAllTransactionsInBlock(const FastBlock &bloc
     }
 
     for (size_t i = 0; i < matches.size(); ++i) {
-        const std::deque<Match> matchesForRemote = matches[i];
+        const std::deque<Match> &matchesForRemote = matches[i];
         if (!matchesForRemote.empty()) {
             assert(remotes.size() > i);
             auto remote = remotes[i];
@@ -127,64 +124,64 @@ void TransactionMonitorService::SyncAllTransactionsInBlock(const FastBlock &bloc
 
 void TransactionMonitorService::DoubleSpendFound(const Tx &first, const Tx &duplicate)
 {
-#if 0
-    logDebug(Log::MonitorService) << "Double spend found" << first.createHash() << duplicate.createHash();
-    const auto rem = remotes();
-    std::map<int, Match> matches;
-    Tx::Iterator iter(first);
-    if (!match(iter, rem, matches))
-        return; // returns false if no listeners
-
-    Tx::Iterator iter2(duplicate);
-    bool m = match(iter2, rem, matches);
-    assert(m); // our duplicate tx object should have data
-
-    for (auto i = matches.begin(); i != matches.end(); ++i) {
-        Match &match = i->second;
-        std::lock_guard<std::mutex> guard(m_poolMutex);
-        m_pool.reserve(match.hashes.size() * 35 + 30 + duplicate.size());
-        Streaming::MessageBuilder builder(m_pool);
-        for (auto hash : match.hashes)
-            builder.add(Api::TransactionMonitor::TxId, hash);
-        builder.add(Api::AddressMonitor::TxId, first.createHash());
-        builder.add(Api::AddressMonitor::GenericByteData, duplicate.data());
-        rem[i->first]->connection.send(builder.message(Api::TransactionMonitorService, Api::TransactionMonitor::DoubleSpendFound));
+    logFatal() << "DoubleSpendFound one";
+    if (!m_findByHash)
+        return;
+    auto tx1Hash = first.createHash();
+    auto tx2Hash = duplicate.createHash();
+    for (auto remote_ : remotes()) {
+        auto remote = dynamic_cast<RemoteWithHashes*>(remote_);
+        assert(remote);
+        bool match1 = remote->hashes.find(tx1Hash) != remote->hashes.end();
+        bool match2 = remote->hashes.find(tx2Hash) != remote->hashes.end();
+        if (match1 || match2) {
+            logFatal() << "DoubleSpendFound one. Its a match!!" << match1 << match2;
+            remote->pool.reserve(duplicate.size() + 70);
+            Streaming::MessageBuilder builder(remote->pool);
+            if (match1) {
+                builder.add(Api::TxId, tx1Hash); // txid subscribed to
+            } else {
+                assert(match2);
+                builder.add(Api::TxId, tx2Hash); // txid subscribed to
+                builder.add(Api::TxId, tx1Hash);
+            }
+            builder.add(Api::TransactionMonitor::TransactionData, duplicate.data());
+            logDebug(Log::MonitorService) << "Remote gets tx notification for" << (match1 ? tx1Hash : tx2Hash);
+            remote->connection.send(builder.message(Api::TransactionMonitorService, Api::TransactionMonitor::DoubleSpendFound));
+        }
     }
-#endif
 }
 
 void TransactionMonitorService::DoubleSpendFound(const Tx &txInMempool, const DoubleSpendProof &proof)
 {
-#if 0
-    logDebug(Log::MonitorService) << "Double spend proof found. TxId:" << txInMempool.createHash();
-    const auto rem = remotes();
-    std::map<int, Match> matches;
-    Tx::Iterator iter(txInMempool);
-    if (!match(iter, rem, matches))
-        return; // returns false if no listeners
+    logFatal() << "DoubleSpendFound two";
+    if (!m_findByHash)
+        return;
+    auto txHash = txInMempool.createHash();
+    std::vector<uint8_t> serializedProof;
 
-    CDataStream stream(SER_NETWORK, PROTOCOL_VERSION);
-    stream << proof;
-    const std::vector<uint8_t> serializedProof(stream.begin(), stream.end());
-
-    for (auto i = matches.begin(); i != matches.end(); ++i) {
-        Match &match = i->second;
-        std::lock_guard<std::mutex> guard(m_poolMutex);
-        m_pool.reserve(match.hashes.size() * 35 + 35 + serializedProof.size());
-        Streaming::MessageBuilder builder(m_pool);
-        for (auto hash : match.hashes)
-            builder.add(Api::AddressMonitor::BitcoinScriptHashed, hash);
-        builder.add(Api::AddressMonitor::TxId, txInMempool.createHash());
-        builder.addByteArray(Api::AddressMonitor::GenericByteData, &serializedProof[0], serializedProof.size());
-        rem[i->first]->connection.send(builder.message(Api::TransactionMonitorService, Api::AddressMonitor::DoubleSpendFound));
+    for (auto remote_ : remotes()) {
+        auto remote = dynamic_cast<RemoteWithHashes*>(remote_);
+        assert(remote);
+        if (remote->hashes.find(txHash) != remote->hashes.end()) {
+    logFatal() << "DoubleSpendFound two. It a match!";
+            if (serializedProof.empty()) {
+                CDataStream stream(SER_NETWORK, PROTOCOL_VERSION);
+                stream << proof;
+                serializedProof = std::vector<uint8_t>(stream.begin(), stream.end());
+            }
+            remote->pool.reserve(serializedProof.size() + 40);
+            Streaming::MessageBuilder builder(remote->pool);
+            builder.add(Api::TxId, txHash); // txid subscribed to
+            builder.addByteArray(Api::TransactionMonitor::DoubleSpendProofData, &serializedProof[0], serializedProof.size());
+            logDebug(Log::MonitorService) << "Remote gets DSP notification for" << txHash;
+            remote->connection.send(builder.message(Api::TransactionMonitorService, Api::TransactionMonitor::DoubleSpendFound));
+        }
     }
-#endif
 }
 
 void TransactionMonitorService::onIncomingMessage(Remote *remote_, const Message &message, const EndPoint &ep)
 {
-logFatal(Log::MonitorService) << "Subscribe message received.";
-  
     assert(dynamic_cast<RemoteWithHashes*>(remote_));
     RemoteWithHashes *remote = static_cast<RemoteWithHashes*>(remote_);
 
@@ -227,7 +224,6 @@ logFatal(Log::MonitorService) << "Subscribe message received.";
         updateBools();
     }
 }
-
 
 void TransactionMonitorService::updateBools()
 {
@@ -272,7 +268,7 @@ void TransactionMonitorService::findTxInMempool(int connectionId, const uint256 
         m_pool.reserve(50 + serializedProof.size());
         Streaming::MessageBuilder builder(m_pool);
         builder.add(Api::TransactionMonitor::TxId, hash);
-        builder.addByteArray(Api::AddressMonitor::GenericByteData, &serializedProof[0], serializedProof.size());
+        builder.addByteArray(Api::TransactionMonitor::DoubleSpendProofData, &serializedProof[0], serializedProof.size());
         connection.send(builder.message(Api::TransactionMonitorService, Api::AddressMonitor::DoubleSpendFound));
     }
 }

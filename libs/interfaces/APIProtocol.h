@@ -45,7 +45,7 @@ enum ServiceIds {
     // waits for specific TxIds
     TransactionMonitorService,
 
-    // <--  new services go here --> 
+    // <--  new services go here -->
 
 
     LegacyP2P = 0x1000
@@ -311,7 +311,6 @@ enum MessageIds {
 };
 
 enum Tags {
-    GenericByteData = Api::GenericByteData,
     /// A bytearray for a full sha256 txid
     TxId = Api::TxId,
     /// An unsigned 64 bit number for the amount of satshi you received
@@ -325,7 +324,11 @@ enum Tags {
     ErrorMessage = 20,
 
     /// positive-number. the amount of addresses found in the subscribe/unsubscribe message
-    Result
+    Result,
+    /// A bytearray with a double-spend-proof object
+    DoubleSpendProofData,
+    /// A bytearray with a Transaction
+    TransactionData
 };
 }
 
@@ -360,7 +363,11 @@ enum Tags {
     ErrorMessage = 20,
 
     /// positive-number. the amount of TxIds found in the subscribe/unsubscribe message
-    Result
+    Result,
+    /// A bytearray with a double-spend-proof object
+    DoubleSpendProofData,
+    /// A bytearray with a Transaction
+    TransactionData
 };
 }
 

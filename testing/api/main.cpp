@@ -18,6 +18,7 @@
 #include "TestLive.h"
 #include "TestBlockchain.h"
 #include "TestAddressMonitor.h"
+#include "TestTxIdMonitor.h"
 
 #include <QTest>
 
@@ -39,6 +40,10 @@ int main(int x, char **y)
     }
     if (!rc) {
         TestAddressMonitor test;
+        rc = QTest::qExec(&test);
+    }
+    if (!rc) {
+        TestTxIdMonitor test;
         rc = QTest::qExec(&test);
     }
     return rc;

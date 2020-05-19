@@ -44,6 +44,9 @@ protected:
      */
     void feedDefaultBlocksToHub(int hubIndex);
 
+    /// overloaded convenience call mirring the serviceId fromt the \a message
+    Message waitForReply(int hub, const Message &message, int messageId, int timeout = 30000);
+
     /**
      * Send a message to hub-by-index and wait for a reply.
      * Note that the reply can be of the API service error message type as well as the
@@ -54,7 +57,7 @@ protected:
      * \param messageId the reply-message-id we expect.
      * \param timeout max waiting time in milliseconds.
      */
-    Message waitForReply(int hub, const Message &message, int messageId, int timeout = 30000);
+    Message waitForReply(int hubId, const Message &message, Api::ServiceIds serviceId, int messageId, int timeout = 30000);
 
     /// Checks if all hubs reached at least the designated height
     bool waitForHeight(int height);

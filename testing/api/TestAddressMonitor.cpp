@@ -201,7 +201,7 @@ void TestAddressMonitor::testDoubleSpendProof()
     QCOMPARE(p.tag(), (uint32_t) Api::AddressMonitor::TxId);
     QCOMPARE(p.dataLength(), 32);
     p.next();
-    QCOMPARE(p.tag(), (uint32_t) Api::AddressMonitor::GenericByteData); // the transaction.
+    QCOMPARE(p.tag(), (uint32_t) Api::AddressMonitor::TransactionData); // the transaction.
     QCOMPARE(p.dataLength(), 192);
 
 
@@ -220,6 +220,6 @@ void TestAddressMonitor::testDoubleSpendProof()
     QCOMPARE(p.tag(), (uint32_t) Api::AddressMonitor::TxId);
     QCOMPARE(p.dataLength(), 32);
     p.next();
-    QCOMPARE(p.tag(), (uint32_t) Api::AddressMonitor::GenericByteData); // the proof
+    QCOMPARE(p.tag(), (uint32_t) Api::AddressMonitor::DoubleSpendProofData); // the proof
     QCOMPARE(p.dataLength(), 400);
 }
