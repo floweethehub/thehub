@@ -323,6 +323,7 @@ void PeerAddressDB::loadDatabase(const boost::filesystem::path &basedir)
     std::ifstream in((basedir / "peers.dat").string());
     if (!in.is_open())
         return;
+    m_nextPeerId = 0;
     const auto dataSize = boost::filesystem::file_size(basedir / "peers.dat");
     Streaming::BufferPool pool(dataSize);
     in.read(pool.begin(), dataSize);
@@ -331,7 +332,7 @@ void PeerAddressDB::loadDatabase(const boost::filesystem::path &basedir)
     while (parser.next() == Streaming::FoundTag) {
         if (parser.tag() == Separator) {
             if (info.address.isValid())
-                insert(info);
+                m_peers.insert(std::make_pair(m_nextPeerId++, info));
             info = PeerInfo();
             info.everConnected = true; // defaults in saving that differ from struct defaults
         }
