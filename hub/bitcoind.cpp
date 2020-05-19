@@ -37,6 +37,7 @@
 #include <boost/thread.hpp>
 
 #include <AddressMonitorService.h>
+#include <TransactionMonitorService.h>
 #include <BlockNotificationService.h>
 #include <cstdio>
 
@@ -110,6 +111,7 @@ bool AppInit(int argc, char* argv[])
     }
 
     std::unique_ptr<Api::Server> apiServer;
+    std::unique_ptr<TransactionMonitorService> transactionMonitorService;
     std::unique_ptr<AddressMonitorService> addressMonitorService;
     std::unique_ptr<BlockNotificationService> blockNotificationService;
     try
@@ -179,10 +181,13 @@ bool AppInit(int argc, char* argv[])
             if (GetBoolArg("-api", true)) {
                 apiServer.reset(new Api::Server(Application::instance()->ioService()));
                 addressMonitorService.reset(new AddressMonitorService());
+                transactionMonitorService.reset(new TransactionMonitorService());
                 blockNotificationService.reset(new BlockNotificationService());
                 extern CTxMemPool mempool;
                 addressMonitorService->setMempool(&mempool);
+                transactionMonitorService->setMempool(&mempool);
                 apiServer->addService(addressMonitorService.get());
+                apiServer->addService(transactionMonitorService.get());
                 apiServer->addService(blockNotificationService.get());
             }
         }
@@ -203,6 +208,7 @@ bool AppInit(int argc, char* argv[])
         WaitForShutdown(&threadGroup);
     }
     addressMonitorService.reset();
+    transactionMonitorService.reset();
     apiServer.reset();
     Shutdown();
 

@@ -70,6 +70,7 @@
 #include <APIServer.h>
 #include <Application.h>
 #include <AddressMonitorService.h>
+#include <TransactionMonitorService.h>
 #include <BlockNotificationService.h>
 
 #if defined(QT_STATICPLUGIN)
@@ -216,6 +217,7 @@ private:
     CScheduler scheduler;
     std::unique_ptr<Api::Server> apiServer;
     std::unique_ptr<AddressMonitorService> addressMonitorService;
+    std::unique_ptr<TransactionMonitorService> transactionMonitorService;
     std::unique_ptr<BlockNotificationService> blockNotificationService;
 
     /// Pass fatal exception message to UI thread
@@ -307,10 +309,13 @@ void BitcoinCore::initialize()
         if (GetBoolArg("-api", true)) {
             apiServer.reset(new Api::Server(Application::instance()->ioService()));
             addressMonitorService.reset(new AddressMonitorService());
+            transactionMonitorService.reset(new TransactionMonitorService());
             blockNotificationService.reset(new BlockNotificationService());
             extern CTxMemPool mempool;
             addressMonitorService->setMempool(&mempool);
+            transactionMonitorService->setMempool(&mempool);
             apiServer->addService(addressMonitorService.get());
+            apiServer->addService(transactionMonitorService.get());
             apiServer->addService(blockNotificationService.get());
         }
     } catch (const std::exception& e) {
@@ -326,6 +331,7 @@ void BitcoinCore::shutdown()
     {
         qDebug() << __func__ << ": Running Shutdown in thread";
         blockNotificationService.reset();
+        transactionMonitorService.reset();
         addressMonitorService.reset();
         apiServer.reset();
         Interrupt(threadGroup);

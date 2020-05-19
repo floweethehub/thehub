@@ -42,6 +42,10 @@ enum ServiceIds {
 
     /// The service ID reserved for the Flowee Indexer. Runs as a stand-alone cloud-server.
     IndexerService,
+    // waits for specific TxIds
+    TransactionMonitorService,
+
+    // <--  new services go here --> 
 
 
     LegacyP2P = 0x1000
@@ -324,6 +328,42 @@ enum Tags {
     Result
 };
 }
+
+namespace TransactionMonitor {
+enum MessageIds {
+    /// Client sents a message to the hub to subscribe to a BitcoinAddress
+    Subscribe,
+    /// reply with Result and maybe ErrorMessage
+    SubscribeReply,
+    /// Client sents a message to the hub to unsubscribe a BitcoinAddress
+    Unsubscribe,
+    /**
+     * When the Hub finds a match, it sends this message to the client.
+     * We send only the txid and the OffsetInBlock/BlockHeight if mined.
+     */
+    TransactionFound,
+    /**
+     * Notify of a douple spend on one of the subscribed transactions.
+     */
+    DoubleSpendFound
+};
+
+enum Tags {
+    GenericByteData = Api::GenericByteData,
+    /// A bytearray for a full sha256 txid
+    TxId = Api::TxId,
+    BlockHeight = Api::BlockHeight,
+    /// If a transaction is added in a block, this is the offset-in-block
+    OffsetInBlock = Api::OffsetInBlock,
+
+    /// A string giving a human (or, at least, developer) readable error message
+    ErrorMessage = 20,
+
+    /// positive-number. the amount of TxIds found in the subscribe/unsubscribe message
+    Result
+};
+}
+
 
 namespace BlockNotification {
 enum MessageIds {
