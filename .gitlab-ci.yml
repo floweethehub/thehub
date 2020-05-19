@@ -31,12 +31,6 @@ test_utxo:
   dependencies:
   - build-debian-stable
 
-test_api:
-  stage: test
-  script: build/testing/api/test_api bin/hub
-  dependencies:
-  - build-debian-stable
-
 test_prevector:
   stage: test
   script: build/testing/prevector/test_prevector
