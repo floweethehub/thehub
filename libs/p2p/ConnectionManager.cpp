@@ -425,7 +425,7 @@ void ConnectionManager::handleError_impl(int peerId, const boost::system::error_
              || error == boost::asio::error::connection_aborted
              || error == boost::asio::error::connection_reset) {
         remove = true;
-        punishment = 0;
+        punishment = 1; // to down-prioritize it on random connects
     }
     auto remotePeer = peer(peerId);
     if (!remotePeer)

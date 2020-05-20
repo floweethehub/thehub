@@ -54,6 +54,8 @@ void PeerAddress::successfullyConnected()
     i->second.lastConnected = static_cast<uint32_t>(now);
     if (i->second.punishment > 500)
         i->second.punishment -= 125;
+    else if (i->second.punishment < 20) // the 'never connected' punishment.
+        i->second.punishment = 0;
     i->second.inUse = true;
     i->second.everConnected = true;
 }
@@ -254,6 +256,7 @@ void PeerAddressDB::processAddressMessage(const Message &message, int sourcePeer
             auto ip = parser.readBytes(16);
             auto port = parser.readWordBE();
             info.address = EndPoint::fromAddr(ip, port);
+            info.punishment = 10; // this makes us prioritize previously connected IPs over unknown ones
             insert(info);
         }
     } catch (const std::runtime_error &err) {
