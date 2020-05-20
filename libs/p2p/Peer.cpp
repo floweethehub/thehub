@@ -108,7 +108,7 @@ void Peer::processMessage(const Message &message)
     if (m_peerStatus == ShuttingDown)
         return;
     try {
-        logInfo() << "Peer:" << connectionId() << "messageId:"
+        logDebug() << "Peer:" << connectionId() << "messageId:"
                              << message.header().constData() << "of" << message.body().size() << "bytes";
         if (message.messageId() == Api::P2P::Version) {
             Streaming::P2PParser parser(message);
@@ -145,7 +145,7 @@ void Peer::processMessage(const Message &message)
         }
         else if (message.messageId() == Api::P2P::RejectData) {
             Streaming::P2PParser parser(message);
-            logFatal() << "Reject received for" << parser.readString() // TODO
+            logWarning() << "Reject received for" << parser.readString()
                        << parser.readByte() << parser.readString();
         }
         else if (message.messageId() == Api::P2P::Addresses) {
