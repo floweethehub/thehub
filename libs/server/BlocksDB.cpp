@@ -79,7 +79,7 @@ bool LoadExternalBlockFile(const CDiskBlockPos &pos)
     auto validation = Application::instance()->validation();
     const int blockHeaderMessage = *reinterpret_cast<const int*>(Params().MessageStart());
     const char *buf = dataFile.begin();
-    while (buf < dataFile.end() && !Application::closingDown()) {
+    while (buf < dataFile.end() && !Application::isClosingDown()) {
         buf = reinterpret_cast<const char*>(memchr(buf, blockHeaderMessage, dataFile.end() - buf));
         if (buf == nullptr) {
             // no valid block header found; don't complain
@@ -120,14 +120,14 @@ void reimportBlockFiles()
         while (true) {
             if (!LoadExternalBlockFile(CDiskBlockPos(nFile, 0)))
                 break;
-            if (Application::closingDown())
+            if (Application::isClosingDown())
                 return;
             nFile++;
         }
         Blocks::DB::instance()->setReindexing(Blocks::ParsingBlocks);
     }
     Application::instance()->validation()->waitValidationFinished();
-    if (!Application::closingDown()) // waitValidationFinished may not have finished then
+    if (!Application::isClosingDown()) // waitValidationFinished may not have finished then
         Blocks::DB::instance()->setReindexing(Blocks::NoReindex);
     FlushStateToDisk();
     logCritical(Log::Bitcoin) << "Reindexing finished";

@@ -76,7 +76,7 @@ public:
         return instance()->createNewThread(threadfunc);
     }
 
-    static bool closingDown();
+    static bool isClosingDown();
 
 protected:
     void init();
@@ -84,7 +84,7 @@ protected:
 
 private:
     int m_returnCode;
-    bool m_closingDown;
+    std::atomic_bool m_closingDown;
 };
 
 #endif

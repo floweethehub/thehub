@@ -119,7 +119,7 @@ const char *Application::clientName()
     return "Flowee";
 }
 
-bool Application::closingDown()
+bool Application::isClosingDown()
 {
     return instance()->m_closingDown;
 }
