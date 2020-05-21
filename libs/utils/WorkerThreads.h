@@ -30,7 +30,7 @@ public:
     void stopThreads();
     void joinAll();
 
-    boost::asio::io_service& ioService();
+    boost::asio::io_service& ioService() const;
 
     /**
      * Wrapper function that allows users to create a thread on our thread-group.

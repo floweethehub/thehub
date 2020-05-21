@@ -71,7 +71,7 @@ void WorkerThreads::joinAll()
     m_ioservice.reset(); // tasks don't get garbage-collected until the destructor is ran
 }
 
-boost::asio::io_service& WorkerThreads::ioService()
+boost::asio::io_service& WorkerThreads::ioService() const
 {
     return *m_ioservice;
 }
