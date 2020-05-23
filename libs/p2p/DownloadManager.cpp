@@ -240,7 +240,11 @@ void DownloadManager::shutdown()
         a->cancel();
     }
     m_connectionManager.shutdown();
-    m_blockchain.save();
+    try {
+        m_blockchain.save();
+    } catch (const std::exception &e) {
+        logFatal() << "P2PNet: blockchain-saving during shutdown failed" << e;
+    }
 
     m_strand.post(std::bind(&DownloadManager::finishShutdown, this));
     m_waitVariable.wait(lock);
