@@ -1,6 +1,6 @@
 /*
  * This file is part of the Flowee project
- * Copyright (C) 2016,2018-2019 Tom Zander <tomz@freedommail.ch>
+ * Copyright (C) 2016,2018-2020 Tom Zander <tomz@freedommail.ch>
  *
  * This program is free software: you can redistribute it and/or modify
  * it under the terms of the GNU General Public License as published by
@@ -76,9 +76,16 @@ public:
      */
     void setMessageSize(int size);
 
+    /**
+     * @brief buffer returns a buffer object for the message we've built.
+     * This is an alternative to the message() call, subsequent calls to either
+     * buffer() or message() will refer to data added after this call.
+     */
     ConstBuffer buffer();
     /**
      * Create a message based on the build data and the argument header-data.
+     * This is an alternative to the buffer() call, subsequent calls to either
+     * buffer() or message() will refer to data added after this call.
      */
     Message message(int serviceId = -1, int messageId = -1, int requestId = -1);
 
