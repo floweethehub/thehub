@@ -25,7 +25,7 @@ set(HUB_SERIES 1)
 
 # ------------------------------------------------------------------------------------
 
-set(CLIENT_VERSION_IS_RELEASE 1)
+set(CLIENT_VERSION_IS_RELEASE 0)
 set(CMAKE_CXX_STANDARD 11)
 set(CMAKE_CXX_STANDARD_REQUIRED ON)
 set(CMAKE_MODULE_PATH ${CMAKE_MODULE_PATH} ${CMAKE_SOURCE_DIR}/support/cmake)
@@ -82,7 +82,7 @@ if (build_tests)
     set (boost_test_lib "unit_test_framework")
 endif ()
 
-option(enable_gui "Compile the GUI client (hub-qt)" ON)
+option(enable_gui "Compile the GUI client (hub-qt)" OFF)
 
 option(mark_release "If true, remove the pre-release warning from the app" OFF)
 if (mark_release)
