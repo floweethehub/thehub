@@ -211,7 +211,9 @@ namespace boost {
 template <>
 struct hash<Tx::Input> {
     std::size_t operator()(const Tx::Input& k) const {
-        uint64_t x = k.index << 32 + k.dataFile;
+        uint64_t x = k.index;
+        x = x << 32;
+        x += k.dataFile;
         return k.txid.GetCheapHash() ^ x;
     }
 };
