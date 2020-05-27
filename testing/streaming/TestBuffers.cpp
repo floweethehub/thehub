@@ -105,7 +105,7 @@ void TestBuffers::testParser()
     data.push_back(5);
     data.push_back(0);
     data.push_back(8);
-    data.push_back(254);
+    data.push_back(-2);
     builder.add(6, data);
     builder.add(9, 15.5);
     uint256 origHash;
