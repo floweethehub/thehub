@@ -1,6 +1,6 @@
 /*
  * This file is part of the Flowee project
- * Copyright (C) 2019 Tom Zander <tomz@freedommail.ch>
+ * Copyright (C) 2019-2020 Tom Zander <tomz@freedommail.ch>
  *
  * This program is free software: you can redistribute it and/or modify
  * it under the terms of the GNU General Public License as published by
@@ -18,11 +18,14 @@
 #ifndef TRANSACTIONBUILDER_H
 #define TRANSACTIONBUILDER_H
 
-#include "primitives/transaction.h"
 #include "primitives/FastTransaction.h"
 #include "primitives/key.h"
+#include "primitives/script.h"
+#include "uint256.h"
 
 class CPubKey;
+class CTransaction;
+class TransactionBuilderPrivate;
 
 /**
  * This class allows anyone to create or extend Bitcoin (BCH) transactions.
@@ -43,6 +46,7 @@ public:
     TransactionBuilder();
     TransactionBuilder(const Tx &existingTx);
     TransactionBuilder(const CTransaction &existingTx);
+    ~TransactionBuilder();
 
     /**
      * Add a new input and select it.
@@ -225,20 +229,7 @@ public:
     // mergeTransaction(const Tx &tx);
 
 private:
-    void checkCurInput();
-    void checkCurOutput();
-    CMutableTransaction m_transaction;
-
-    LockingOptions m_defaultLocking = NoLocking;
-    int m_curInput = -1, m_curOutput = -1;
-
-    struct SignInfo {
-        uint8_t hashType = 0;
-        int64_t amount = 0;
-        CKey privKey;
-        CScript prevOutScript;
-    };
-    std::vector<SignInfo> m_signInfo;
+    TransactionBuilderPrivate *d;
 };
 
 #endif

@@ -81,6 +81,7 @@ install(FILES
     compat.h
     serialize.h
     prevector.h
+    TransactionBuilder.h
     uint256.h
     base58.h
     cashaddr.h

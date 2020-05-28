@@ -1,6 +1,6 @@
 /*
  * This file is part of the Flowee project
- * Copyright (C) 2019 Tom Zander <tomz@freedommail.ch>
+ * Copyright (C) 2019-2020 Tom Zander <tomz@freedommail.ch>
  *
  * This program is free software: you can redistribute it and/or modify
  * it under the terms of the GNU General Public License as published by
@@ -18,35 +18,65 @@
 #include "TransactionBuilder.h"
 
 #include <primitives/pubkey.h>
-#include <primitives/key.h>
+#include <primitives/transaction.h>
+
+
+class TransactionBuilderPrivate
+{
+public:
+    void checkCurInput();
+    void checkCurOutput();
+
+    CMutableTransaction transaction;
+
+    TransactionBuilder::LockingOptions defaultLocking = TransactionBuilder::NoLocking;
+    int curInput = -1, curOutput = -1;
+
+    struct SignInfo {
+        uint8_t hashType = 0;
+        int64_t amount = 0;
+        CKey privKey;
+        CScript prevOutScript;
+    };
+    std::vector<SignInfo> signInfo;
+};
+
 
 TransactionBuilder::TransactionBuilder()
+    : d(new TransactionBuilderPrivate())
 {
 }
 
 TransactionBuilder::TransactionBuilder(const Tx &existingTx)
-    : m_transaction(existingTx.createOldTransaction())
+    : d(new TransactionBuilderPrivate())
 {
-    m_signInfo.resize(m_transaction.vin.size());
+    d->transaction = CTransaction(existingTx.createOldTransaction());
+    d->signInfo.resize(d->transaction.vin.size());
 }
 
 TransactionBuilder::TransactionBuilder(const CTransaction &existingTx)
-    : m_transaction(existingTx)
+    : d(new TransactionBuilderPrivate())
 {
-    m_signInfo.resize(m_transaction.vin.size());
+    d->transaction = CTransaction(existingTx);
+    d->signInfo.resize(d->transaction.vin.size());
+}
+
+TransactionBuilder::~TransactionBuilder()
+{
+    delete d;
 }
 
 int TransactionBuilder::appendInput(const uint256 &txid, int outputIndex)
 {
-    const size_t pos = m_transaction.vin.size();
+    const size_t pos = d->transaction.vin.size();
     if (pos > 1000) // kind of random large number
         throw std::runtime_error("Too many inputs");
-    m_transaction.vin.resize(pos + 1);
-    m_signInfo.resize(pos + 1);
-    CTxIn &in = m_transaction.vin[pos];
+    d->transaction.vin.resize(pos + 1);
+    d->signInfo.resize(pos + 1);
+    CTxIn &in = d->transaction.vin[pos];
     in.prevout.hash = txid;
     in.prevout.n = outputIndex;
-    switch (m_defaultLocking) {
+    switch (d->defaultLocking) {
     case TransactionBuilder::LockMiningOnTime:
     case TransactionBuilder::LockMiningOnBlock:
         in.nSequence = in.SEQUENCE_LOCKTIME_DISABLE_FLAG;
@@ -54,22 +84,22 @@ int TransactionBuilder::appendInput(const uint256 &txid, int outputIndex)
     default: // default of the instance is fine
         break;
     }
-    m_curInput = static_cast<int>(pos);
-    return m_curInput;
+    d->curInput = static_cast<int>(pos);
+    return d->curInput;
 }
 
 int TransactionBuilder::selectInput(int index)
 {
     assert(index >= 0);
     if (index < 0) throw std::runtime_error("Index is a natural number");
-    m_curInput = std::min(static_cast<int>(m_transaction.vin.size()) -1, index);
-    return m_curInput;
+    d->curInput = std::min(static_cast<int>(d->transaction.vin.size()) -1, index);
+    return d->curInput;
 }
 
 void TransactionBuilder::pushInputSignature(const CKey &privKey, const CScript &prevOutScript, int64_t amount, SignInputs inputs, SignOutputs outputs)
 {
-    checkCurInput();
-    SignInfo &si = m_signInfo[m_curInput];
+    d->checkCurInput();
+    TransactionBuilderPrivate::SignInfo &si = d->signInfo[d->curInput];
     si.hashType = inputs == SignOnlyThisInput ? 0xC0 : 0x40;
     switch (outputs) {
     case SignAllOuputs: si.hashType += 1; break;
@@ -85,43 +115,43 @@ void TransactionBuilder::pushInputSignature(const CKey &privKey, const CScript &
 void TransactionBuilder::deleteInput(int index)
 {
     assert(index >= 0);
-    assert(index < m_transaction.vin.size());
-    assert(index < m_signInfo.size());
-    auto iter = m_transaction.vin.begin();
+    assert(size_t(index) < d->transaction.vin.size());
+    assert(size_t(index) < d->signInfo.size());
+    auto iter = d->transaction.vin.begin();
     iter += index;
-    m_transaction.vin.erase(iter);
+    d->transaction.vin.erase(iter);
 
-    auto iter2 = m_signInfo.begin();
+    auto iter2 = d->signInfo.begin();
     iter2 += index;
-    m_signInfo.erase(iter2);
+    d->signInfo.erase(iter2);
 
     selectInput(index);
 }
 
 int TransactionBuilder::appendOutput(int64_t amount)
 {
-    const size_t pos = m_transaction.vout.size();
+    const size_t pos = d->transaction.vout.size();
     if (pos > 1000) // kind of random large number
         throw std::runtime_error("Too many outputs");
-    m_transaction.vout.resize(pos + 1);
-    CTxOut &out = m_transaction.vout[pos];
+    d->transaction.vout.resize(pos + 1);
+    CTxOut &out = d->transaction.vout[pos];
     out.nValue = amount;
 
-    m_curOutput = static_cast<int>(pos);
-    return m_curOutput;
+    d->curOutput = static_cast<int>(pos);
+    return d->curOutput;
 }
 
 int TransactionBuilder::selectOutput(int index)
 {
     assert(index >= 0);
     if (index < 0) throw std::runtime_error("Index is a natural number");
-    m_curOutput = std::min(static_cast<int>(m_transaction.vout.size()) -1, index);
-    return m_curOutput;
+    d->curOutput = std::min(static_cast<int>(d->transaction.vout.size()) -1, index);
+    return d->curOutput;
 }
 
 void TransactionBuilder::pushOutputPay2Address(const CKeyID &address)
 {
-    checkCurOutput();
+    d->checkCurOutput();
     CScript outScript;
     outScript << OP_DUP << OP_HASH160;
     std::vector<unsigned char> data(address.begin(), address.end());
@@ -132,35 +162,35 @@ void TransactionBuilder::pushOutputPay2Address(const CKeyID &address)
 
 void TransactionBuilder::pushOutputScript(const CScript &script)
 {
-    assert(m_curOutput >= 0);
-    assert(static_cast<size_t>(m_curOutput) < m_transaction.vout.size());
-    m_transaction.vout[static_cast<size_t>(m_curOutput)].scriptPubKey = script;
+    assert(d->curOutput >= 0);
+    assert(static_cast<size_t>(d->curOutput) < d->transaction.vout.size());
+    d->transaction.vout[static_cast<size_t>(d->curOutput)].scriptPubKey = script;
 }
 
 void TransactionBuilder::deleteOutput(int index)
 {
     assert(index >= 0);
-    assert(index < m_transaction.vout.size());
-    auto iter = m_transaction.vout.begin();
+    assert(size_t(index) < d->transaction.vout.size());
+    auto iter = d->transaction.vout.begin();
     iter+=index;
-    m_transaction.vout.erase(iter);
+    d->transaction.vout.erase(iter);
     selectOutput(index);
 }
 
 Tx TransactionBuilder::createTransaction(Streaming::BufferPool *pool)
 {
     // sign all inputs we can.
-    assert(m_transaction.vin.size() == m_signInfo.size());
-    for (size_t i = 0; i < m_transaction.vin.size(); ++i) {
-        const SignInfo &si = m_signInfo[i];
+    assert(d->transaction.vin.size() == d->signInfo.size());
+    for (size_t i = 0; i < d->transaction.vin.size(); ++i) {
+        const TransactionBuilderPrivate::SignInfo &si = d->signInfo[i];
         if (si.prevOutScript.empty())
             continue;
 
         uint256 hashPrevouts;
         if (!(si.hashType & SignOnlyThisInput)) {
             CHashWriter ss(SER_GETHASH, 0);
-            for (size_t n = 0; n < m_transaction.vin.size(); ++n) {
-                ss << m_transaction.vin[n].prevout;
+            for (size_t n = 0; n < d->transaction.vin.size(); ++n) {
+                ss << d->transaction.vin[n].prevout;
             }
             hashPrevouts = ss.GetHash();
         }
@@ -168,31 +198,31 @@ Tx TransactionBuilder::createTransaction(Streaming::BufferPool *pool)
         if (!(si.hashType & SignOnlyThisInput) && (si.hashType & 0x1f) != SignSingleOutput
                 && (si.hashType & 0x1f) != SignNoOutputs) {
             CHashWriter ss(SER_GETHASH, 0);
-            for (size_t n = 0; n < m_transaction.vin.size(); ++n) {
-                ss << m_transaction.vin[n].nSequence;
+            for (size_t n = 0; n < d->transaction.vin.size(); ++n) {
+                ss << d->transaction.vin[n].nSequence;
             }
             hashSequence = ss.GetHash();
         }
         uint256 hashOutputs;
         if ((si.hashType & 0x1f) != SignSingleOutput && (si.hashType & 0x1f) != SignNoOutputs) {
             CHashWriter ss(SER_GETHASH, 0);
-            for (size_t n = 0; n < m_transaction.vout.size(); ++n) {
-                ss << m_transaction.vout[n];
+            for (size_t n = 0; n < d->transaction.vout.size(); ++n) {
+                ss << d->transaction.vout[n];
             }
             hashOutputs = ss.GetHash();
-        } else if ((si.hashType & 0x1f) == SignSingleOutput && i < m_transaction.vout.size()) {
+        } else if ((si.hashType & 0x1f) == SignSingleOutput && i < d->transaction.vout.size()) {
             CHashWriter ss(SER_GETHASH, 0);
-            ss << m_transaction.vout[i];
+            ss << d->transaction.vout[i];
             hashOutputs = ss.GetHash();
         }
 
         // use FORKID based creation of the hash we will sign.
         CHashWriter ss(SER_GETHASH, 0);
-        ss << m_transaction.nVersion << hashPrevouts << hashSequence;
-        ss << m_transaction.vin[i].prevout;
+        ss << d->transaction.nVersion << hashPrevouts << hashSequence;
+        ss << d->transaction.vin[i].prevout;
         ss << static_cast<const CScriptBase &>(si.prevOutScript);
-        ss << si.amount << m_transaction.vin[i].nSequence << hashOutputs;
-        ss << m_transaction.nLockTime << (int) si.hashType;
+        ss << si.amount << d->transaction.vin[i].nSequence << hashOutputs;
+        ss << d->transaction.nLockTime << (int) si.hashType;
         const uint256 hash = ss.GetHash();
 
         // the rest assumes P2PKH for now.
@@ -200,24 +230,24 @@ Tx TransactionBuilder::createTransaction(Streaming::BufferPool *pool)
         si.privKey.Sign(hash, vchSig);
         vchSig.push_back((uint8_t) si.hashType);
 
-        m_transaction.vin[i].scriptSig = CScript();
-        m_transaction.vin[i].scriptSig << vchSig;
-        m_transaction.vin[i].scriptSig << ToByteVector(si.privKey.GetPubKey());
+        d->transaction.vin[i].scriptSig = CScript();
+        d->transaction.vin[i].scriptSig << vchSig;
+        d->transaction.vin[i].scriptSig << ToByteVector(si.privKey.GetPubKey());
     }
 
-    return Tx::fromOldTransaction(m_transaction, pool);
+    return Tx::fromOldTransaction(d->transaction, pool);
 }
 
-void TransactionBuilder::checkCurInput()
+void TransactionBuilderPrivate::checkCurInput()
 {
-    assert(0 <= m_curInput);
-    assert(m_transaction.vin.size() > m_curInput);
-    if (0 > m_curInput || m_transaction.vin.size() <= m_curInput)
+    assert(0 <= curInput);
+    assert(transaction.vin.size() > size_t(curInput));
+    if (0 > curInput || transaction.vin.size() <= size_t(curInput))
         throw std::runtime_error("current input out of range");
 }
 
-void TransactionBuilder::checkCurOutput()
+void TransactionBuilderPrivate::checkCurOutput()
 {
-    assert(m_curOutput >= 0);
-    assert(m_curOutput < m_transaction.vout.size());
+    assert(curOutput >= 0);
+    assert(size_t(curOutput) < transaction.vout.size());
 }
