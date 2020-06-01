@@ -208,7 +208,7 @@ void TestTxIdMonitor::testDoubleSpend()
     QCOMPARE(p.tag(), (uint32_t) Api::TransactionMonitor::TransactionData); // the transaction.
     QCOMPARE(p.dataLength(), tx2.size());
 
-    QTRY_VERIFY(m_hubs[1].m_foundMessage != nullptr); // this waits until its arrived.
+    QTRY_VERIFY_WITH_TIMEOUT(m_hubs[1].m_foundMessage != nullptr, 30000); // this waits until its arrived.
     Message *m2 = m_hubs[1].m_foundMessage.load();
     assert(m2); // the qtry should have failed.
 
