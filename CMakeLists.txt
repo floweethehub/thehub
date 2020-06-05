@@ -45,6 +45,11 @@ if (GIT_SHA1 AND GIT_BRANCH)
     set(FLOWEE_GIT_BRANCH_STRING ${GIT_BRANCH})
 endif ()
 
+# starting with Qt5.15 we have a lot of deprecation warnings,
+# likely to make porting to Qt6 easier.
+# as long as we require linking to older Qt versions those warnings
+# are clutter. Remove this define when we start porting to Qt6.
+add_definitions(-DQT_NO_DEPRECATED_WARNINGS)
 
  ############
 #############
