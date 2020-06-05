@@ -1,6 +1,7 @@
 /* This file is part of Flowee
  *
  * Copyright (C) 2017 Nathan Osman
+ * Copyright (C) 2020 Tom Zander <tomz@freedommail.ch>
  *
  * This library is free software; you can redistribute it and/or
  * modify it under the terms of the GNU Library General Public
@@ -23,6 +24,8 @@
 #include "socket.h"
 
 #include "localauthmiddleware_p.h"
+
+#include <qdebug.h>
 
 using namespace HttpEngine;
 
@@ -65,6 +68,20 @@ QString LocalAuthMiddleware::filename() const
 
 void LocalAuthMiddleware::setData(const QVariantMap &data)
 {
+#ifndef NDEBUG
+    for (auto i = data.begin(); i != data.end(); ++i) {
+        switch (i.value().type()) {
+        case QVariant::String:
+        case QVariant::LongLong:
+        case QVariant::Int:
+        case QVariant::Bool:
+        case QVariant::Double:
+            break;
+        default:
+            qWarning() << "WARN: setData: of type QJSonValue does not support, this will fail later. key:" << i.key();
+        }
+    }
+#endif
     d->data = data;
     d->data.insert("token", d->token);
     d->updateFile();
