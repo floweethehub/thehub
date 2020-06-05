@@ -41,7 +41,7 @@ LocalAuthMiddlewarePrivate::~LocalAuthMiddlewarePrivate()
 
 void LocalAuthMiddlewarePrivate::updateFile()
 {
-    if (file.open()) {
+    if (file.openLocalFile()) {
         file.write(QJsonDocument(QJsonObject::fromVariantMap(data)).toJson());
         file.close();
     }

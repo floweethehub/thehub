@@ -65,7 +65,7 @@ public:
      * will return false if the underlying file could not be opened or if this
      * class was unable to set the appropriate file permissions.
      */
-    bool open();
+    bool openLocalFile();
 
 private:
 

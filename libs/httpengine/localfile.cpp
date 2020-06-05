@@ -103,7 +103,7 @@ LocalFile::LocalFile(QObject *parent)
 {
 }
 
-bool LocalFile::open()
+bool LocalFile::openLocalFile()
 {
     return QFile::open(QIODevice::WriteOnly) && d->setPermission() && d->setHidden();
 }

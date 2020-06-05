@@ -35,7 +35,7 @@ void TestLocalFile::initTestCase()
 void TestLocalFile::testOpen()
 {
     HttpEngine::LocalFile file;
-    QVERIFY(file.open());
+    QVERIFY(file.openLocalFile());
     QVERIFY(file.remove());
 }
 
