@@ -28,13 +28,16 @@
 #endif
 
 QRCreator::QRCreator(PaymentDataProvider *provider)
-    : QQuickImageProvider(QQmlImageProviderBase::Image, 0),
+    : QQuickImageProvider(QQmlImageProviderBase::Image),
       m_provider(provider)
 {
 }
 
 QImage QRCreator::requestImage(const QString &id, QSize *size, const QSize &requestedSize)
 {
+    Q_UNUSED(id)
+    Q_UNUSED(size)
+    Q_UNUSED(requestedSize)
     const Payment *payment = m_provider->payment();
     if (!payment)
         return QImage();
