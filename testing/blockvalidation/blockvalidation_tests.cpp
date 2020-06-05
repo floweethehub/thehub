@@ -20,6 +20,7 @@
 
 #include <TransactionBuilder.h>
 #include <util.h>
+#include <random.h>
 #include <validation/BlockValidation_p.h>
 #include <server/BlocksDB.h>
 #include <server/script/interpreter.h>
@@ -369,7 +370,7 @@ void TestBlockValidation::rollback()
             builder.pushOutputPay2Address(bitcoinAddress);
             txs.push_back(builder.createTransaction().createOldTransaction());
         }
-        for (int x = qrand() % 4; x > 0; --x) {
+        for (int x = GetRandInt(4); x > 0; --x) {
             TransactionBuilder builder;
             auto lastTx = txs.back();
             builder.appendInput(lastTx.GetHash(), 0);
