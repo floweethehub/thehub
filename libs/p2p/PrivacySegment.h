@@ -77,7 +77,7 @@ public:
      */
     FilterLock clearFilter();
 
-    void addToFilter(const uint256 &prevHash, uint32_t outIndex);
+    void addToFilter(const uint256 &prevHash, int outIndex);
 
     /**
      * @brief addToFilter allows you to get updates for a specific address.
@@ -87,9 +87,9 @@ public:
     void addToFilter(const std::string &address, int blockHeight);
 
     /**
-     * Convenience overload for the above method.
+     * Add public-key-hash directly instead of an address.
      */
-    void addToFilter(const CKeyID &address, int blockHeight);
+    void addKeyToFilter(const CKeyID &address, int blockHeight);
 
     Streaming::ConstBuffer writeFilter(Streaming::BufferPool &pool) const;
 

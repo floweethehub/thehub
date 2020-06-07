@@ -47,8 +47,9 @@ PrivacySegment::FilterLock PrivacySegment::clearFilter()
     return lock;
 }
 
-void PrivacySegment::addToFilter(const uint256 &prevHash, uint32_t outIndex)
+void PrivacySegment::addToFilter(const uint256 &prevHash, int outIndex)
 {
+    assert(outIndex >= 0);
     std::unique_lock<std::recursive_mutex> lock(m_lock);
     std::vector<unsigned char> data;
     data.resize(36);
@@ -81,7 +82,7 @@ void PrivacySegment::addToFilter(const std::string &address, int blockHeight)
     }
 }
 
-void PrivacySegment::addToFilter(const CKeyID &address, int blockHeight)
+void PrivacySegment::addKeyToFilter(const CKeyID &address, int blockHeight)
 {
     std::unique_lock<std::recursive_mutex> lock(m_lock);
     m_bloom.insert(std::vector<uint8_t>(address.begin(), address.end()));
