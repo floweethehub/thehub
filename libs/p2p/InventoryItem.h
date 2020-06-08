@@ -28,6 +28,7 @@ public:
     enum Types {
         TransactionType = 1,
         BlockType = 2,
+        MerkleBlock = 3, // aka Filtered Block
         DoubleSpendType = 0x94a0
     };
 

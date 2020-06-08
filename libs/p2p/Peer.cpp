@@ -273,7 +273,7 @@ void Peer::requestMerkleBlocks()
     builder.writeCompactSize(count);
     for (int i = m_merkleDownloadFrom; i < m_merkleDownloadTo; ++i) {
         // write INV data-type
-        builder.writeInt(3); // MSG_FILTERED_BLOCK aka MSG_MERKLEBLOCK
+        builder.writeInt(InventoryItem::MerkleBlock);
         builder.writeByteArray(m_connectionManager->blockHashFor(i), Streaming::RawBytes);
     }
     m_con.send(builder.message(Api::P2P::GetData));
