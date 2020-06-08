@@ -32,6 +32,7 @@ add_library(flowee_p2p STATIC
     PrivacySegmentListener.cpp
     SyncChainAction.cpp
     SyncSPVAction.cpp
+    BroadcastTxData.cpp
 )
 
 target_link_libraries(flowee_p2p flowee_networkmanager)
@@ -54,4 +55,5 @@ install(FILES
     PrivacySegmentListener.h
     SyncChainAction.h
     SyncSPVAction.h
+    BroadcastTxData.h
 DESTINATION include/flowee/p2p)

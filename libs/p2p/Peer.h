@@ -31,6 +31,7 @@ class Blockchain;
 class Tx;
 class ConnectionManager;
 class CBloomFilter;
+class BroadcastTxData;
 
 class Peer : public std::enable_shared_from_this<Peer>, private PrivacySegmentListener
 {
@@ -128,6 +129,9 @@ public:
         return m_segment;
     }
 
+    // request this peer to please broadcast this Tx.
+    void sendTx(const std::shared_ptr<BroadcastTxData> &txOwner);
+
     /// the blockHeight we were at when we send the bloom filter to the peer
     int bloomUploadHeight() const;
 
@@ -158,6 +162,8 @@ private:
     // PrivacySegmentListener interface
     void filterUpdated();
 
+    void registerTxToSend(std::shared_ptr<BroadcastTxData> txOwner);
+
     uint64_t m_services = 0;
     int m_timeOffset = 0;
     uint32_t m_connectTime = 0;
@@ -187,6 +193,8 @@ private:
     std::vector<uint256> m_transactionHashes;
     std::deque<Tx> m_blockTransactions;
     BlockHeader m_merkleHeader;
+
+    std::deque<std::weak_ptr<BroadcastTxData> > m_transactions;
 };
 
 #endif

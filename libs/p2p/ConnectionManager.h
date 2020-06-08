@@ -35,6 +35,7 @@ class DownloadManager;
 class PrivacySegment;
 class Peer;
 class uint256;
+class BroadcastTxData;
 
 namespace Streaming {
     class BufferPool;
@@ -124,6 +125,8 @@ public:
         return m_userAgent;
     }
 
+    void broadcastTransaction(const std::shared_ptr<BroadcastTxData> &txOwner);
+
     /// returns the amount of peers we currently have. Even unconnected ones.
     int peerCount() const;
 
@@ -173,6 +176,7 @@ private:
     boost::filesystem::path m_basedir;
 
     std::deque<PrivacySegment*> m_segments;
+    std::deque<std::weak_ptr<BroadcastTxData> > m_transactionsToBroadcast;
 };
 
 #endif

@@ -20,6 +20,7 @@
 #include "P2PNetInterface.h"
 #include "Peer.h"
 #include "PrivacySegment.h"
+#include "BroadcastTxData.h"
 
 #include <random.h>
 #include <streaming/BufferPool.h>
@@ -226,6 +227,14 @@ void ConnectionManager::connectionEstablished(const std::shared_ptr<Peer> &peer)
             }
         }
     }
+    if (peer->privacySegment()) {
+        for (auto weakTx : m_transactionsToBroadcast) {
+            auto tx = weakTx.lock();
+            if (tx && peer->privacySegment()->segmentId() == tx->privSegment()) {
+                peer->sendTx(tx);
+            }
+        }
+    }
 }
 
 void ConnectionManager::addBlockHeaders(const Message &message, int sourcePeerId)
@@ -352,6 +361,19 @@ void ConnectionManager::setUserAgent(const std::string &userAgent)
     m_userAgent = userAgent;
 }
 
+void ConnectionManager::broadcastTransaction(const std::shared_ptr<BroadcastTxData> &txOwner)
+{
+    const auto id = txOwner->privSegment();
+    std::unique_lock<std::mutex> lock(m_lock);
+    for (auto iter = m_peers.begin(); iter != m_peers.end(); ++iter) {
+        Peer *peer = iter->second.get();
+        if (peer->privacySegment() && peer->privacySegment()->segmentId() == id) {
+            peer->sendTx(txOwner);
+        }
+    }
+    m_transactionsToBroadcast.push_back(txOwner);
+}
+
 int ConnectionManager::peerCount() const
 {
     assert(m_peers.size() <= INT_MAX);
@@ -372,8 +394,7 @@ void ConnectionManager::cron(const boost::system::error_code &error)
     int now = static_cast<uint32_t>(time(nullptr));
     // check for connections that don't seem to connect.
     std::unique_lock<std::mutex> lock(m_lock);
-    auto iter = m_peers.begin();
-    while (iter != m_peers.end()) {
+    for (auto iter = m_peers.begin(); iter != m_peers.end();) {
         Peer *peer = iter->second.get();
         bool kick = peer->status() != Peer::Connected || peer->protocolVersion() == 0;
         if (peer->connectTime() == 0) // not connected yet
@@ -396,6 +417,16 @@ void ConnectionManager::cron(const boost::system::error_code &error)
                 log <<  "Wallet:" << peer->privacySegment()->segmentId();
             if (peer->connectTime() > 0)
                 log.nospace() << "(" << now - peer->connectTime() << "s)";
+            ++iter;
+        }
+    }
+
+    for (auto iter = m_transactionsToBroadcast.begin(); iter != m_transactionsToBroadcast.end();) {
+        auto locked = iter->lock();
+        if (!locked.get()) { // expired
+            logDebug() << "Transaction broadcast struct has expired.";
+            iter = m_transactionsToBroadcast.erase(iter);
+        } else {
             ++iter;
         }
     }

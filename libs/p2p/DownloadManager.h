@@ -32,6 +32,7 @@
 #include <boost/unordered_map.hpp>
 
 class P2PNetInterface;
+class TransactionBroadcastListener;
 
 /**
  * A download manager as its name implies should manage what is to be downloaded.

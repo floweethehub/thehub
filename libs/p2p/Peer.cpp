@@ -18,6 +18,8 @@
 #include "Peer.h"
 #include "ConnectionManager.h"
 #include "PrivacySegment.h"
+#include "InventoryItem.h"
+#include "BroadcastTxData.h"
 
 #include <version.h>
 #include <streaming/P2PParser.h>
@@ -145,8 +147,37 @@ void Peer::processMessage(const Message &message)
         }
         else if (message.messageId() == Api::P2P::RejectData) {
             Streaming::P2PParser parser(message);
-            logWarning() << "Reject received for" << parser.readString()
-                       << parser.readByte() << parser.readString();
+            const std::string messageType = parser.readString();
+            const int errorCode = parser.readByte() ;
+            const std::string errorMessage = parser.readString();
+            logWarning() << "Reject received for" << messageType
+                       << errorCode << errorMessage;
+
+             // check m_transactions to call callback.
+            if (messageType == "tx") {
+                // we can only forward it if the additional info is a txid
+                uint256 txid;
+                try {
+                    txid = parser.readUint256();
+                }  catch (...) {
+                    logDebug() << "No txid present in the reject message";
+                    return;
+                }
+                for (auto i = m_transactions.begin(); i != m_transactions.end();) {
+                    auto txOwner = i->lock();
+                    if (txOwner) {
+                        if (txOwner->hash() == txid) {
+                            txOwner->txRejected(
+                                static_cast<BroadcastTxData::RejectReason>(errorCode),
+                                errorMessage);
+                            m_transactions.erase(i); // it can only be rejected once...
+                            return;
+                        }
+                    } else {
+                        i = m_transactions.erase(i);
+                    }
+                }
+            }
         }
         else if (message.messageId() == Api::P2P::Addresses) {
             m_connectionManager->addAddresses(message, connectionId());
@@ -192,6 +223,34 @@ void Peer::processMessage(const Message &message)
                 // we limit our INVs to 100 per request.  Notice that the protocol allows for 50000
                 m_merkleDownloadTo = std::min(m_merkleDownloadFrom + 100, m_connectionManager->blockHeight() + 1);
                 requestMerkleBlocks();
+            }
+        }
+        else if (message.messageId() == Api::P2P::GetData) {
+            Streaming::P2PParser parser(message);
+            const size_t count = parser.readCompactInt();
+            logDebug() << "Received" << count << "Inv requests using GetData";
+            for (size_t i = 0; i < count; ++i) {
+                const uint32_t type = parser.readInt();
+                auto inv = InventoryItem(parser.readUint256(), type);
+                if (type != InventoryItem::TransactionType) { // ignore stupid question
+                    m_connectionManager->punish(connectionId(), 10);
+                    continue;
+                }
+                for (auto i = m_transactions.begin(); i != m_transactions.end();) {
+                    auto tx = i->lock();
+                    if (tx.get()) {
+                        if (tx->hash() == inv.hash()) {
+                            Streaming::P2PBuilder builder(m_connectionManager->pool(tx->transaction().size()));
+                            builder.writeByteArray(tx->transaction().data(), Streaming::RawBytes);
+                            m_con.send(builder.message(Api::P2P::Data_Transaction));
+                            tx->sentOne();
+                            break;
+                        }
+                        ++i;
+                    } else {
+                        i = m_transactions.erase(i);
+                    }
+                }
             }
         }
     } catch (const Streaming::ParsingException &e) {
@@ -300,6 +359,19 @@ void Peer::setPrivacySegment(PrivacySegment *ps)
     sendFilter_priv();
 }
 
+void Peer::sendTx(const std::shared_ptr<BroadcastTxData> &txOwner)
+{
+    // move to our thread to avoid concurrency issues with the deque
+    m_con.postOnStrand(std::bind(&Peer::registerTxToSend, this, txOwner));
+
+    // send INV
+    Streaming::P2PBuilder builder(m_connectionManager->pool(40));
+    builder.writeCompactSize(1); // inv-count
+    builder.writeInt(InventoryItem::TransactionType);
+    builder.writeByteArray(txOwner->transaction().createHash(), Streaming::RawBytes);
+    m_con.send(builder.message(Api::P2P::Inventory));
+}
+
 void Peer::processTransaction(const Tx &tx)
 {
     if (m_peerStatus == ShuttingDown)
@@ -365,6 +437,11 @@ uint64_t Peer::services() const
 void Peer::filterUpdated()
 {
     m_con.postOnStrand(std::bind(&Peer::sendFilter_priv, shared_from_this()));
+}
+
+void Peer::registerTxToSend(std::shared_ptr<BroadcastTxData> txOwner)
+{
+    m_transactions.push_back(txOwner);
 }
 
 /*
