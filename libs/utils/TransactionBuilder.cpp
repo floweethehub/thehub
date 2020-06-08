@@ -149,6 +149,14 @@ int TransactionBuilder::selectOutput(int index)
     return d->curOutput;
 }
 
+void TransactionBuilder::setOutputValue(int64_t value)
+{
+    assert(value >= 0);
+    assert(d->curOutput >= 0);
+    assert(int(d->transaction.vout.size()) > d->curOutput);
+    d->transaction.vout[d->curOutput].nValue = value;
+}
+
 void TransactionBuilder::pushOutputPay2Address(const CKeyID &address)
 {
     d->checkCurOutput();

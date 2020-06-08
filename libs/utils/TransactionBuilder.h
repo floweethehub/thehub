@@ -189,6 +189,9 @@ public:
     /// selects an output
     int selectOutput(int index);
 
+    /// update the output value on the selected output
+    void setOutputValue(int64_t value);
+
     /**
      * For the selected output a standard output script will be generated
      * that sends the funds to the public-key-hash (aka bitcoin-address) passed.
