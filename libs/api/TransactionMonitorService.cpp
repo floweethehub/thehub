@@ -124,7 +124,6 @@ void TransactionMonitorService::SyncAllTransactionsInBlock(const FastBlock &bloc
 
 void TransactionMonitorService::DoubleSpendFound(const Tx &first, const Tx &duplicate)
 {
-    logFatal() << "DoubleSpendFound one";
     if (!m_findByHash)
         return;
     auto tx1Hash = first.createHash();
@@ -135,7 +134,6 @@ void TransactionMonitorService::DoubleSpendFound(const Tx &first, const Tx &dupl
         bool match1 = remote->hashes.find(tx1Hash) != remote->hashes.end();
         bool match2 = remote->hashes.find(tx2Hash) != remote->hashes.end();
         if (match1 || match2) {
-            logFatal() << "DoubleSpendFound one. Its a match!!" << match1 << match2;
             remote->pool.reserve(duplicate.size() + 70);
             Streaming::MessageBuilder builder(remote->pool);
             if (match1) {
@@ -154,7 +152,6 @@ void TransactionMonitorService::DoubleSpendFound(const Tx &first, const Tx &dupl
 
 void TransactionMonitorService::DoubleSpendFound(const Tx &txInMempool, const DoubleSpendProof &proof)
 {
-    logFatal() << "DoubleSpendFound two";
     if (!m_findByHash)
         return;
     auto txHash = txInMempool.createHash();
@@ -164,7 +161,6 @@ void TransactionMonitorService::DoubleSpendFound(const Tx &txInMempool, const Do
         auto remote = dynamic_cast<RemoteWithHashes*>(remote_);
         assert(remote);
         if (remote->hashes.find(txHash) != remote->hashes.end()) {
-    logFatal() << "DoubleSpendFound two. It a match!";
             if (serializedProof.empty()) {
                 CDataStream stream(SER_NETWORK, PROTOCOL_VERSION);
                 stream << proof;
