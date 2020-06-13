@@ -73,7 +73,7 @@ void DoubleSpendProofTest::basic()
 
     auto s1 = dsp.firstSpender();
     QCOMPARE(s1.lockTime, (uint32_t) 0);
-    QCOMPARE(s1.txVersion, (uint32_t) 1);
+    QCOMPARE(s1.txVersion, (uint32_t) 2);
     QCOMPARE(s1.outSequence, (uint32_t) 0xFFFFFFFF);
     QVERIFY(s1.pushData.size() == 1);
     QVERIFY(s1.pushData.front().size() >= 70);
@@ -84,7 +84,7 @@ void DoubleSpendProofTest::basic()
 
     auto s2 = dsp.doubleSpender();
     QCOMPARE(s2.lockTime, (uint32_t) 0);
-    QCOMPARE(s2.txVersion, (uint32_t) 1);
+    QCOMPARE(s2.txVersion, (uint32_t) 2);
     QCOMPARE(s2.outSequence, (uint32_t) 0xFFFFFFFF);
     QVERIFY(s2.pushData.size() == 1);
     QVERIFY(s2.pushData.front().size() >= 70);
