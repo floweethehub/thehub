@@ -1,6 +1,6 @@
 /*
  * This file is part of the Flowee project
- * Copyright (C) 2019 Tom Zander <tomz@freedommail.ch>
+ * Copyright (C) 2019-2020 Tom Zander <tomz@freedommail.ch>
  *
  * This program is free software: you can redistribute it and/or modify
  * it under the terms of the GNU General Public License as published by
@@ -50,7 +50,8 @@ Blockchain::Transaction fillTx(Streaming::MessageParser &parser, const Blockchai
             tx.inputs.back().prevTxId = parser.bytesDataBuffer();
         }
         else if (parser.tag() == Api::BlockChain::Tx_InputScript) {
-            assert (tx.inputs.size() != 0);
+            if (tx.inputs.empty()) // needed because for coinbase there is no Tx_IN_TxId
+                tx.inputs.resize(1);
             tx.inputs.back().inputScript = parser.bytesDataBuffer();
         }
         else if (parser.tag() == Api::BlockChain::Tx_IN_OutIndex) {
@@ -292,7 +293,7 @@ void Blockchain::SearchEnginePrivate::hubSentMessage(const Message &message)
 {
     const int id = message.headerInt(SearchRequestId);
     if (id > 0) {
-        logDebug(Log::SearchEngine) << "Received hub message for job-id:" << id;
+        logDebug(Log::SearchEngine) << "Received hub message for search:" << id;
         std::lock_guard<std::mutex> lock_(lock);
         auto searcher = searchers.find(id);
         if (searcher != searchers.end()) {
@@ -300,6 +301,7 @@ void Blockchain::SearchEnginePrivate::hubSentMessage(const Message &message)
             searcher->second->dataAdded(message);
             searcher->second->policy->parseMessageFromHub(searcher->second, message);
         }
+        else logDebug() << "No searcher matching the job";
         return;
     }
     if (message.serviceId() == Api::APIService && message.messageId() == Api::Meta::VersionReply) {
@@ -486,7 +488,7 @@ void Blockchain::SearchPolicy::parseMessageFromHub(Search *request, const Messag
             }
         }
         else {
-            logDebug(Log::SearchEngine) << "Unknown message from Hub";
+            logDebug(Log::SearchEngine) << "Unknown message from Hub" << message.serviceId() << message.messageId();
         }
     }
     } // jobsLock scope
@@ -526,7 +528,7 @@ void Blockchain::SearchPolicy::parseMessageFromHub(Search *request, const Messag
             request->utxoLookup(jobId, blockHeight, offsetInBlock, outIndex, unspent, amount, outputScript);
         }
     }
-    else {
+    else if (message.serviceId() != Api::BlockChainService) {
         logDebug(Log::SearchEngine) << "Unknown message from Hub" << message.serviceId() << message.messageId();
     }
 
