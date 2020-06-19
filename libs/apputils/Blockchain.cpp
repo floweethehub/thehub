@@ -486,6 +486,7 @@ void Blockchain::SearchPolicy::parseMessageFromHub(Search *request, const Messag
                 if (!more)
                     break;
                 request->answer.push_back(fillTx(parser, job, jobId));
+                request->transactionAdded(request->answer.back());
             }
         }
         else {
