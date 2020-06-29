@@ -12,20 +12,22 @@ See more details on https://flowee.org/about/
 This repository contains
 
 * the Hub: the headless (server) Bitcoin Cash node software
-* Hub-qt: a GUI version of the Hub
 * Indexer: Provides various data-stores to speed up lookups on the blockchain.
-* pos / cachier: a beta version of the point-of-sale application.
 * Libraries shared between many of the Flowee applications.
+* hub-cli: the command-line interface to the Hub server.
+* bitcore-proxy: a client of hub+indexer to generate the bitcore APIs
+* txVulcano: Transaction generator testing application.
+* unspentdb: Application to introspect and optimize your UTXO database.
+* Hub-qt: a test (gui) version of the Hub
+* pos / cashier: a beta version of the point-of-sale application.
 
 # Building a Hub that connects you to Bitcoin Cash
 
-Bitcoin Cash is
-still a mysterious black box to most companies that would potentially want
-to use it, or build applications on top of.
+Bitcoin Cash is still a mysterious black box to most people and companies
+that would potentially want to use it, or build applications with.
 
-Flowee is being built to help you connect to the Bitcoin Cash network and handle all
-the validation, parsing and low level database access for all your Bitcoin
-needs. Including many needs you didn't even know you had!
+Flowee has been built to help you use Bitcoin Cash. Bring you a platform to
+stand on when you simply use or when you build with Bitcoin Cash.
 
 The codebase is derived from the one that originally was created by Satoshi
 Nakamoto, the inventor of Bitcoin. This way you know you won't get
@@ -33,18 +35,20 @@ compatibility issues. Flowee is adjusted for greatly increased speed and
 reliability as well as for scaling up to much larger blocks than the
 competition.
 
-The libs/httpengine directory is LGPL licensed as this is derived from the
-qhttpengine open source project.
-
-The original Satoshi codebase was MIT licensed. This has been combined with
-copyrighted works from Tom Zander which are GPLv3 licensed with the result
-that those files are new licensed under the GPLv3.
-
 # Installation
 
-The fastest way to try Flowee is by installing docker. See more details [here](support/docker/hub).
+Binary packages are build by the continues integration system from GitLab.
+Both debian packages and a simple zip file with executables are available
+as artifacts for each 'pipeline':
 
-To compile and install Flowee on Ubuntu, install the dependencies
+https://gitlab.com/FloweeTheHub/thehub/-/pipelines?scope=branches
+
+There is an ArchLinux AUR here: https://aur.archlinux.org/packages/flowee/
+
+The simplest way to compile is by doing so in a docker container:
+See more details [here](support/docker/hub).
+
+**To compile and install Flowee** on Ubuntu, install the dependencies
 
 `sudo apt install libevent-dev libboost-all-dev libminiupnpc-dev qt5-default libprotobuf-dev pkgconf`
 
@@ -61,6 +65,11 @@ cmake CMakeLists.txt ..
 make
 make install
 ```
+
+The fastest way to try Flowee is by running a pre-compiled docker
+container:
+https://flowee.org/docs/deployment/
+
 
 # More details
 
