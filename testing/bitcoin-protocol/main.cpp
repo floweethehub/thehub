@@ -28,6 +28,7 @@
 #include "DoubleSpendProofTest.h"
 #include "multisig_tests.h"
 #include "TestReverseBytes.h"
+#include "crypto_tests.h"
 
 int main(int, char **)
 {
@@ -82,6 +83,10 @@ int main(int, char **)
     }
     if (!rc) {
         TestReverseBytes test;
+        rc = QTest::qExec(&test);
+    }
+    if (!rc) {
+        CryptoTests test;
         rc = QTest::qExec(&test);
     }
     return rc;

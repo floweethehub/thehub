@@ -71,7 +71,6 @@ set (TEST_SOURCES
     blocksdb_tests.cpp
     Checkpoints_tests.cpp
     compress_tests.cpp
-    crypto_tests.cpp
     cuckoocache_tests.cpp
     dbwrapper_tests.cpp
     DoS_tests.cpp
