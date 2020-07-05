@@ -49,52 +49,6 @@ BOOST_AUTO_TEST_CASE(util_criticalsection)
     } while(0);
 }
 
-static const unsigned char ParseHex_expected[65] = {
-    0x04, 0x67, 0x8a, 0xfd, 0xb0, 0xfe, 0x55, 0x48, 0x27, 0x19, 0x67, 0xf1, 0xa6, 0x71, 0x30, 0xb7,
-    0x10, 0x5c, 0xd6, 0xa8, 0x28, 0xe0, 0x39, 0x09, 0xa6, 0x79, 0x62, 0xe0, 0xea, 0x1f, 0x61, 0xde,
-    0xb6, 0x49, 0xf6, 0xbc, 0x3f, 0x4c, 0xef, 0x38, 0xc4, 0xf3, 0x55, 0x04, 0xe5, 0x1e, 0xc1, 0x12,
-    0xde, 0x5c, 0x38, 0x4d, 0xf7, 0xba, 0x0b, 0x8d, 0x57, 0x8a, 0x4c, 0x70, 0x2b, 0x6b, 0xf1, 0x1d,
-    0x5f
-};
-BOOST_AUTO_TEST_CASE(util_ParseHex)
-{
-    std::vector<unsigned char> result;
-    std::vector<unsigned char> expected(ParseHex_expected, ParseHex_expected + sizeof(ParseHex_expected));
-    // Basic test vector
-    result = ParseHex("04678afdb0fe5548271967f1a67130b7105cd6a828e03909a67962e0ea1f61deb649f6bc3f4cef38c4f35504e51ec112de5c384df7ba0b8d578a4c702b6bf11d5f");
-    BOOST_CHECK_EQUAL_COLLECTIONS(result.begin(), result.end(), expected.begin(), expected.end());
-
-    // Spaces between bytes must be supported
-    result = ParseHex("12 34 56 78");
-    BOOST_CHECK(result.size() == 4 && result[0] == 0x12 && result[1] == 0x34 && result[2] == 0x56 && result[3] == 0x78);
-
-    // Stop parsing at invalid value
-    result = ParseHex("1234 invalid 1234");
-    BOOST_CHECK(result.size() == 2 && result[0] == 0x12 && result[1] == 0x34);
-}
-
-BOOST_AUTO_TEST_CASE(util_HexStr)
-{
-    BOOST_CHECK_EQUAL(
-        HexStr(ParseHex_expected, ParseHex_expected + sizeof(ParseHex_expected)),
-        "04678afdb0fe5548271967f1a67130b7105cd6a828e03909a67962e0ea1f61deb649f6bc3f4cef38c4f35504e51ec112de5c384df7ba0b8d578a4c702b6bf11d5f");
-
-    BOOST_CHECK_EQUAL(
-        HexStr(ParseHex_expected, ParseHex_expected + 5, true),
-        "04 67 8a fd b0");
-
-    BOOST_CHECK_EQUAL(
-        HexStr(ParseHex_expected, ParseHex_expected, true),
-        "");
-
-    std::vector<unsigned char> ParseHex_vec(ParseHex_expected, ParseHex_expected + 5);
-
-    BOOST_CHECK_EQUAL(
-        HexStr(ParseHex_vec, true),
-        "04 67 8a fd b0");
-}
-
-
 BOOST_AUTO_TEST_CASE(util_DateTimeStrFormat)
 {
     BOOST_CHECK_EQUAL(DateTimeStrFormat("%Y-%m-%d %H:%M:%S", 0), "1970-01-01 00:00:00");
@@ -230,21 +184,6 @@ BOOST_AUTO_TEST_CASE(util_ParseMoney)
     BOOST_CHECK(!ParseMoney("-1", ret));
 }
 
-BOOST_AUTO_TEST_CASE(util_IsHex)
-{
-    BOOST_CHECK(IsHex("00"));
-    BOOST_CHECK(IsHex("00112233445566778899aabbccddeeffAABBCCDDEEFF"));
-    BOOST_CHECK(IsHex("ff"));
-    BOOST_CHECK(IsHex("FF"));
-
-    BOOST_CHECK(!IsHex(""));
-    BOOST_CHECK(!IsHex("0"));
-    BOOST_CHECK(!IsHex("a"));
-    BOOST_CHECK(!IsHex("eleven"));
-    BOOST_CHECK(!IsHex("00xx00"));
-    BOOST_CHECK(!IsHex("0x0000"));
-}
-
 BOOST_AUTO_TEST_CASE(util_seed_insecure_rand)
 {
     int i;
@@ -286,126 +225,12 @@ BOOST_AUTO_TEST_CASE(util_TimingResistantEqual)
     BOOST_CHECK(!TimingResistantEqual(std::string("abc"), std::string("aba")));
 }
 
-/* Test strprintf formatting directives.
- * Put a string before and after to ensure sanity of element sizes on stack. */
-#define B "check_prefix"
-#define E "check_postfix"
-BOOST_AUTO_TEST_CASE(strprintf_numbers)
-{
-    int64_t s64t = -9223372036854775807LL; /* signed 64 bit test value */
-    uint64_t u64t = 18446744073709551615ULL; /* unsigned 64 bit test value */
-    BOOST_CHECK(strprintf("%s %d %s", B, s64t, E) == B" -9223372036854775807 " E);
-    BOOST_CHECK(strprintf("%s %u %s", B, u64t, E) == B" 18446744073709551615 " E);
-    BOOST_CHECK(strprintf("%s %x %s", B, u64t, E) == B" ffffffffffffffff " E);
-
-    size_t st = 12345678; /* unsigned size_t test value */
-    ssize_t sst = -12345678; /* signed size_t test value */
-    BOOST_CHECK(strprintf("%s %d %s", B, sst, E) == B" -12345678 " E);
-    BOOST_CHECK(strprintf("%s %u %s", B, st, E) == B" 12345678 " E);
-    BOOST_CHECK(strprintf("%s %x %s", B, st, E) == B" bc614e " E);
-
-    ptrdiff_t pt = 87654321; /* positive ptrdiff_t test value */
-    ptrdiff_t spt = -87654321; /* negative ptrdiff_t test value */
-    BOOST_CHECK(strprintf("%s %d %s", B, spt, E) == B" -87654321 " E);
-    BOOST_CHECK(strprintf("%s %u %s", B, pt, E) == B" 87654321 " E);
-    BOOST_CHECK(strprintf("%s %x %s", B, pt, E) == B" 5397fb1 " E);
-}
-#undef B
-#undef E
-
 /* Check for mingw/wine issue #3494
  * Remove this test before time.ctime(0xffffffff) == 'Sun Feb  7 07:28:15 2106'
  */
 BOOST_AUTO_TEST_CASE(gettime)
 {
     BOOST_CHECK((GetTime() & ~0xFFFFFFFFLL) == 0);
-}
-
-BOOST_AUTO_TEST_CASE(test_ParseInt32)
-{
-    int32_t n;
-    // Valid values
-    BOOST_CHECK(ParseInt32("1234", NULL));
-    BOOST_CHECK(ParseInt32("0", &n) && n == 0);
-    BOOST_CHECK(ParseInt32("1234", &n) && n == 1234);
-    BOOST_CHECK(ParseInt32("01234", &n) && n == 1234); // no octal
-    BOOST_CHECK(ParseInt32("2147483647", &n) && n == 2147483647);
-    BOOST_CHECK(ParseInt32("-2147483648", &n) && n == -2147483648);
-    BOOST_CHECK(ParseInt32("-1234", &n) && n == -1234);
-    // Invalid values
-    BOOST_CHECK(!ParseInt32("", &n));
-    BOOST_CHECK(!ParseInt32(" 1", &n)); // no padding inside
-    BOOST_CHECK(!ParseInt32("1 ", &n));
-    BOOST_CHECK(!ParseInt32("1a", &n));
-    BOOST_CHECK(!ParseInt32("aap", &n));
-    BOOST_CHECK(!ParseInt32("0x1", &n)); // no hex
-    BOOST_CHECK(!ParseInt32("0x1", &n)); // no hex
-    const char test_bytes[] = {'1', 0, '1'};
-    std::string teststr(test_bytes, sizeof(test_bytes));
-    BOOST_CHECK(!ParseInt32(teststr, &n)); // no embedded NULs
-    // Overflow and underflow
-    BOOST_CHECK(!ParseInt32("-2147483649", NULL));
-    BOOST_CHECK(!ParseInt32("2147483648", NULL));
-    BOOST_CHECK(!ParseInt32("-32482348723847471234", NULL));
-    BOOST_CHECK(!ParseInt32("32482348723847471234", NULL));
-}
-
-BOOST_AUTO_TEST_CASE(test_ParseInt64)
-{
-    int64_t n;
-    // Valid values
-    BOOST_CHECK(ParseInt64("1234", NULL));
-    BOOST_CHECK(ParseInt64("0", &n) && n == 0LL);
-    BOOST_CHECK(ParseInt64("1234", &n) && n == 1234LL);
-    BOOST_CHECK(ParseInt64("01234", &n) && n == 1234LL); // no octal
-    BOOST_CHECK(ParseInt64("2147483647", &n) && n == 2147483647LL);
-    BOOST_CHECK(ParseInt64("-2147483648", &n) && n == -2147483648LL);
-    BOOST_CHECK(ParseInt64("9223372036854775807", &n) && n == (int64_t)9223372036854775807);
-    BOOST_CHECK(ParseInt64("-9223372036854775808", &n) && n == (int64_t)-9223372036854775807-1);
-    BOOST_CHECK(ParseInt64("-1234", &n) && n == -1234LL);
-    // Invalid values
-    BOOST_CHECK(!ParseInt64("", &n));
-    BOOST_CHECK(!ParseInt64(" 1", &n)); // no padding inside
-    BOOST_CHECK(!ParseInt64("1 ", &n));
-    BOOST_CHECK(!ParseInt64("1a", &n));
-    BOOST_CHECK(!ParseInt64("aap", &n));
-    BOOST_CHECK(!ParseInt64("0x1", &n)); // no hex
-    const char test_bytes[] = {'1', 0, '1'};
-    std::string teststr(test_bytes, sizeof(test_bytes));
-    BOOST_CHECK(!ParseInt64(teststr, &n)); // no embedded NULs
-    // Overflow and underflow
-    BOOST_CHECK(!ParseInt64("-9223372036854775809", NULL));
-    BOOST_CHECK(!ParseInt64("9223372036854775808", NULL));
-    BOOST_CHECK(!ParseInt64("-32482348723847471234", NULL));
-    BOOST_CHECK(!ParseInt64("32482348723847471234", NULL));
-}
-
-BOOST_AUTO_TEST_CASE(test_ParseDouble)
-{
-    double n;
-    // Valid values
-    BOOST_CHECK(ParseDouble("1234", NULL));
-    BOOST_CHECK(ParseDouble("0", &n) && n == 0.0);
-    BOOST_CHECK(ParseDouble("1234", &n) && n == 1234.0);
-    BOOST_CHECK(ParseDouble("01234", &n) && n == 1234.0); // no octal
-    BOOST_CHECK(ParseDouble("2147483647", &n) && n == 2147483647.0);
-    BOOST_CHECK(ParseDouble("-2147483648", &n) && n == -2147483648.0);
-    BOOST_CHECK(ParseDouble("-1234", &n) && n == -1234.0);
-    BOOST_CHECK(ParseDouble("1e6", &n) && n == 1e6);
-    BOOST_CHECK(ParseDouble("-1e6", &n) && n == -1e6);
-    // Invalid values
-    BOOST_CHECK(!ParseDouble("", &n));
-    BOOST_CHECK(!ParseDouble(" 1", &n)); // no padding inside
-    BOOST_CHECK(!ParseDouble("1 ", &n));
-    BOOST_CHECK(!ParseDouble("1a", &n));
-    BOOST_CHECK(!ParseDouble("aap", &n));
-    BOOST_CHECK(!ParseDouble("0x1", &n)); // no hex
-    const char test_bytes[] = {'1', 0, '1'};
-    std::string teststr(test_bytes, sizeof(test_bytes));
-    BOOST_CHECK(!ParseDouble(teststr, &n)); // no embedded NULs
-    // Overflow and underflow
-    BOOST_CHECK(!ParseDouble("-1e10000", NULL));
-    BOOST_CHECK(!ParseDouble("1e10000", NULL));
 }
 
 BOOST_AUTO_TEST_CASE(test_FormatParagraph)

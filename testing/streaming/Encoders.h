@@ -24,6 +24,10 @@ class TestEncoders : public TestFloweeBase
 {
     Q_OBJECT
 private slots:
+    void testUtilParseHex();
+    void testUtilHexString();
+    void testUtilIsHex();
+
     void base32TestVectors();
     void base58Encode();
     void base58Decode();

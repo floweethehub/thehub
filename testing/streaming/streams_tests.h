@@ -16,16 +16,20 @@
  * along with this program.  If not, see <http://www.gnu.org/licenses/>.
  */
 
-#ifndef TEST_XOR_H
-#define TEST_XOR_H
+#ifndef TEST_STREAMS_H
+#define TEST_STREAMS_H
 
 #include <common/TestFloweeBase.h>
 
-class TestXor : public TestFloweeBase
+class TestStreams : public TestFloweeBase
 {
     Q_OBJECT
 private slots:
     void streams_serializedata_xor();
+    void testStrPrintf();
+    void testParseInt32();
+    void testParseInt64();
+    void testParseDouble();
 };
 
 

@@ -33,7 +33,7 @@ int main(int x, char **y)
         rc = QTest::qExec(&test);
     }
     if (!rc) {
-        TestXor test;
+        TestStreams test;
         rc = QTest::qExec(&test);
     }
     if (!rc) {
