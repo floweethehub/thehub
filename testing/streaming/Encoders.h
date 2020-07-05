@@ -1,6 +1,6 @@
 /*
  * This file is part of the Flowee project
- * Copyright (C) 2018 Tom Zander <tomz@freedommail.ch>
+ * Copyright (C) 2020 Tom Zander <tomz@freedommail.ch>
  *
  * This program is free software: you can redistribute it and/or modify
  * it under the terms of the GNU General Public License as published by
@@ -15,29 +15,19 @@
  * You should have received a copy of the GNU General Public License
  * along with this program.  If not, see <http://www.gnu.org/licenses/>.
  */
-#include "TestBuffers.h"
-#include "serialize_tests.h"
-#include "streams_tests.h"
-#include "Encoders.h"
+#ifndef TESTENCODERS_H
+#define TESTENCODERS_H
 
-int main(int x, char **y)
+#include <common/TestFloweeBase.h>
+
+class TestEncoders : public TestFloweeBase
 {
-    int rc = 0;
-    {
-        TestBuffers test;
-        rc = QTest::qExec(&test);
-    }
-    if (!rc) {
-        Test_Serialize test;
-        rc = QTest::qExec(&test);
-    }
-    if (!rc) {
-        TestXor test;
-        rc = QTest::qExec(&test);
-    }
-    if (!rc) {
-        TestEncoders test;
-        rc = QTest::qExec(&test);
-    }
-    return rc;
-}
+    Q_OBJECT
+private slots:
+    void base32TestVectors();
+    void base58Encode();
+    void base58Decode();
+    void base64TestVectors();
+};
+
+#endif

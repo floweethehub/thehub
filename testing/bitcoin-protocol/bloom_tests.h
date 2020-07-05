@@ -39,21 +39,6 @@ private slots:
     void merkle_block_4_test_p2pubkey_only();
     void merkle_block_4_test_update_none();
     void rolling_bloom();
-
-private:
-    template<class TARGET, class EXPECTED>
-    void compare(TARGET target, EXPECTED expected) {
-        auto iter = target.begin();
-        auto iter2 = expected.begin();
-        int x = 0;
-        while (iter != target.end()) {
-            QVERIFY(iter2 != expected.end());
-            QCOMPARE(*iter, *iter2);
-            ++iter;
-            ++iter2;
-        }
-        QVERIFY(iter2 == expected.end());
-    }
 };
 
 #endif

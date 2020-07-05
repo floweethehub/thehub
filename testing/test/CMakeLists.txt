@@ -23,7 +23,6 @@ find_program(HEXDUMP "hexdump")
 find_program(SED "sed")
 foreach (JSON_FILE
     data/base58_keys_valid.json
-    data/base58_encode_decode.json
     data/base58_keys_invalid.json
     data/sighash.json)
 
@@ -68,9 +67,7 @@ set (TEST_SOURCES
     alert_tests.cpp
     allocator_tests.cpp
     arith_uint256_tests.cpp
-    base32_tests.cpp
     base58_tests.cpp
-    base64_tests.cpp
     blocksdb_mapfile_tests.cpp
     blocksdb_tests.cpp
     bswap_tests.cpp

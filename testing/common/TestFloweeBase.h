@@ -1,6 +1,6 @@
 /*
  * This file is part of the Flowee project
- * Copyright (C) 2018 Tom Zander <tomz@freedommail.ch>
+ * Copyright (C) 2018-2020 Tom Zander <tomz@freedommail.ch>
  *
  * This program is free software: you can redistribute it and/or modify
  * it under the terms of the GNU General Public License as published by
@@ -25,6 +25,23 @@ class TestFloweeBase : public QObject {
     Q_OBJECT
 public:
     TestFloweeBase();
+
+protected:
+    /**
+     * Similar to BOOST_CHECK_EQUAL_COLLECTIONS, allow comparing of collections.
+     */
+    template<class TARGET, class EXPECTED>
+    void compare(TARGET target, EXPECTED expected) {
+        auto iter = target.begin();
+        auto iter2 = expected.begin();
+        while (iter != target.end()) {
+            QVERIFY(iter2 != expected.end());
+            QCOMPARE(*iter, *iter2);
+            ++iter;
+            ++iter2;
+        }
+        QVERIFY(iter2 == expected.end());
+    }
 
 private:
     const char *currentTestName();
