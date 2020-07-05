@@ -1,6 +1,6 @@
 /*
  * This file is part of the Flowee project
- * Copyright (C) 2018 Tom Zander <tomz@freedommail.ch>
+ * Copyright (C) 2020 Tom Zander <tomz@freedommail.ch>
  *
  * This program is free software: you can redistribute it and/or modify
  * it under the terms of the GNU General Public License as published by
@@ -15,34 +15,21 @@
  * You should have received a copy of the GNU General Public License
  * along with this program.  If not, see <http://www.gnu.org/licenses/>.
  */
-#include "TestBuffers.h"
-#include "serialize_tests.h"
-#include "streams_tests.h"
-#include "univalue_tests.h"
-#include "Encoders.h"
+#ifndef TESTUNIVALUE_H
+#define TESTUNIVALUE_H
 
-int main(int x, char **y)
+#include <common/TestFloweeBase.h>
+
+class TestUnivalue : public TestFloweeBase
 {
-    int rc = 0;
-    {
-        TestBuffers test;
-        rc = QTest::qExec(&test);
-    }
-    if (!rc) {
-        Test_Serialize test;
-        rc = QTest::qExec(&test);
-    }
-    if (!rc) {
-        TestXor test;
-        rc = QTest::qExec(&test);
-    }
-    if (!rc) {
-        TestEncoders test;
-        rc = QTest::qExec(&test);
-    }
-    if (!rc) {
-        TestUnivalue test;
-        rc = QTest::qExec(&test);
-    }
-    return rc;
-}
+    Q_OBJECT
+private slots:
+    void testConstructor();
+    void testTypecheck();
+    void testSet();
+    void testArray();
+    void testObject();
+    void testReadwrite();
+};
+
+#endif

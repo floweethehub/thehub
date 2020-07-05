@@ -96,7 +96,6 @@ set (TEST_SOURCES
     transaction_utils.cpp
     txvalidationcache_tests.cpp
     uahf_tests.cpp
-    univalue_tests.cpp
     util_tests.cpp
 )
 

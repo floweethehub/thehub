@@ -45,6 +45,7 @@ add_executable(test_streaming
     TestBuffers.cpp
     serialize_tests.cpp
     streams_tests.cpp
+    univalue_tests.cpp
     Encoders.cpp
     main.cpp
 )
