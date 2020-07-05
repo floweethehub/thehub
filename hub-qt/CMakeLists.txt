@@ -134,8 +134,6 @@ if ("${Qt5Widgets_FOUND}" AND "${Protobuf_FOUND}" AND "${Qt5Network_FOUND}")
     add_executable(hub-qt ${HUB_QT_FILES} ${HUB_QT_WIN_FILES} ${HUB_QT_WALLET_FILES} ${PROTO_SRCS} ${PROTO_HDRS})
     include_directories(${PROTOBUF_INCLUDE_DIRS})
     target_link_libraries(hub-qt ${HUB_QT_LIBS}  ${PROTOBUF_LIBRARIES} Qt5::Widgets Qt5::Network ${Qt5DBus_LIBRARIES})
-    add_dependencies(hub-qt univalue)
-    add_dependencies(hub-qt leveldb)
 
     install(PROGRAMS ${CMAKE_CURRENT_BINARY_DIR}/hub-qt DESTINATION bin)
 endif ()

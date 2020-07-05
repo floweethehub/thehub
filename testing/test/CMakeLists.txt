@@ -112,7 +112,5 @@ endif ()
 add_executable(test_hub ${TEST_SOURCES} ${TEST_SOURCES_WALLET})
 
 target_link_libraries(test_hub ${TEST_LIBS})
-add_dependencies(hub univalue)
-add_dependencies(hub leveldb)
 
 add_test(NAME HUB_tests COMMAND test_hub)

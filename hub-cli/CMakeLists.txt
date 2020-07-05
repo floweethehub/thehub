@@ -41,6 +41,5 @@ endif ()
 add_executable(hub-cli ${CLI_SOURCES})
 
 target_link_libraries(hub-cli ${CLI_LIBS})
-add_dependencies(hub univalue)
 
 install(PROGRAMS ${CMAKE_CURRENT_BINARY_DIR}/hub-cli DESTINATION bin)
