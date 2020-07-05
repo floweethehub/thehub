@@ -69,7 +69,6 @@ set (TEST_SOURCES
     base58_tests.cpp
     blocksdb_mapfile_tests.cpp
     blocksdb_tests.cpp
-    bswap_tests.cpp
     Checkpoints_tests.cpp
     compress_tests.cpp
     crypto_tests.cpp

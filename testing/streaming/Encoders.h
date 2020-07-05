@@ -28,6 +28,7 @@ private slots:
     void base58Encode();
     void base58Decode();
     void base64TestVectors();
+    void bswap();
 };
 
 #endif

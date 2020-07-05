@@ -1,6 +1,6 @@
 /*
  * This file is part of the Flowee project
- * Copyright (C) 2012-2015 The Bitcoin Core developers
+ * Copyright (C) 2012-2016 The Bitcoin Core developers
  * Copyright (C) 2020 Tom Zander <tomz@freedommail.ch>
  *
  * This program is free software: you can redistribute it and/or modify
@@ -99,4 +99,17 @@ void TestEncoders::base64TestVectors()
         std::string strDec = DecodeBase64(strEnc);
         QVERIFY(strDec == vstrIn[i]);
     }
+}
+
+void TestEncoders::bswap()
+{
+    uint16_t u1 = 0x1234;
+    uint32_t u2 = 0x56789abc;
+    uint64_t u3 = 0xdef0123456789abc;
+    uint16_t e1 = 0x3412;
+    uint32_t e2 = 0xbc9a7856;
+    uint64_t e3 = 0xbc9a78563412f0de;
+    QCOMPARE(bswap_16(u1), e1);
+    QCOMPARE(bswap_32(u2), e2);
+    QCOMPARE(bswap_64(u3), e3);
 }
