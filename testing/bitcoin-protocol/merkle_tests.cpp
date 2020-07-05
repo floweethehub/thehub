@@ -16,13 +16,11 @@
  * along with this program.  If not, see <http://www.gnu.org/licenses/>.
  */
 
+#include "merkle_tests.h"
+
 #include <merkle.h>
-#include "test/test_bitcoin.h"
-#include "random.h"
-
-#include <boost/test/unit_test.hpp>
-
-BOOST_FIXTURE_TEST_SUITE(merkle_tests, TestingSetup)
+#include <hash.h>
+#include <random.h>
 
 // Older version of the merkle root computation code, for comparison.
 static uint256 BlockBuildMerkleTree(const CBlock& block, bool* fMutated, std::vector<uint256>& vMerkleTree)
@@ -78,7 +76,7 @@ static inline int ctz(uint32_t i) {
     return j;
 }
 
-BOOST_AUTO_TEST_CASE(merkle_test)
+void TestMerkle::basic()
 {
     for (int i = 0; i < 32; i++) {
         // Try 32 block sizes: all sizes from 0 to 16 inclusive, and then 15 random sizes.
@@ -105,7 +103,7 @@ BOOST_AUTO_TEST_CASE(merkle_test)
             // Compute the root of the block before mutating it.
             bool unmutatedMutated = false;
             uint256 unmutatedRoot = BlockMerkleRoot(block, &unmutatedMutated);
-            BOOST_CHECK(unmutatedMutated == false);
+            QVERIFY(unmutatedMutated == false);
             // Optionally mutate by duplicating the last transactions, resulting in the same merkle root.
             block.vtx.resize(ntx3);
             for (int j = 0; j < duplicate1; j++) {
@@ -124,11 +122,11 @@ BOOST_AUTO_TEST_CASE(merkle_test)
             // Compute the merkle root using the new mechanism.
             bool newMutated = false;
             uint256 newRoot = BlockMerkleRoot(block, &newMutated);
-            BOOST_CHECK(oldRoot == newRoot);
-            BOOST_CHECK(newRoot == unmutatedRoot);
-            BOOST_CHECK((newRoot == uint256()) == (ntx == 0));
-            BOOST_CHECK(oldMutated == newMutated);
-            BOOST_CHECK(newMutated == !!mutate);
+            QVERIFY(oldRoot == newRoot);
+            QVERIFY(newRoot == unmutatedRoot);
+            QVERIFY((newRoot == uint256()) == (ntx == 0));
+            QVERIFY(oldMutated == newMutated);
+            QVERIFY(newMutated == !!mutate);
             // If no mutation was done (once for every ntx value), try up to 16 branches.
             if (mutate == 0) {
                 for (int loop = 0; loop < std::min(ntx, 16); loop++) {
@@ -139,12 +137,10 @@ BOOST_AUTO_TEST_CASE(merkle_test)
                     }
                     std::vector<uint256> newBranch = BlockMerkleBranch(block, mtx);
                     std::vector<uint256> oldBranch = BlockGetMerkleBranch(block, merkleTree, mtx);
-                    BOOST_CHECK(oldBranch == newBranch);
-                    BOOST_CHECK(ComputeMerkleRootFromBranch(block.vtx[mtx].GetHash(), newBranch, mtx) == oldRoot);
+                    QVERIFY(oldBranch == newBranch);
+                    QVERIFY(ComputeMerkleRootFromBranch(block.vtx[mtx].GetHash(), newBranch, mtx) == oldRoot);
                 }
             }
         }
     }
 }
-
-BOOST_AUTO_TEST_SUITE_END()

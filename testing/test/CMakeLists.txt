@@ -80,7 +80,6 @@ set (TEST_SOURCES
     limitedmap_tests.cpp
     main_tests.cpp
     mempool_tests.cpp
-    merkle_tests.cpp
     miner_tests.cpp
     netbase_tests.cpp
     rpc_tests.cpp

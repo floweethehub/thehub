@@ -51,6 +51,7 @@ add_executable(test_protocol
     bloom_tests.cpp
     checkdatasig_tests.cpp
     crypto_tests.cpp
+    merkle_tests.cpp
     multisig_tests.cpp
     pmt_tests.cpp
     pow_tests.cpp

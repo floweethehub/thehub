@@ -29,6 +29,7 @@
 #include "multisig_tests.h"
 #include "TestReverseBytes.h"
 #include "crypto_tests.h"
+#include "merkle_tests.h"
 
 int main(int, char **)
 {
@@ -87,6 +88,10 @@ int main(int, char **)
     }
     if (!rc) {
         CryptoTests test;
+        rc = QTest::qExec(&test);
+    }
+    if (!rc) {
+        TestMerkle test;
         rc = QTest::qExec(&test);
     }
     return rc;
