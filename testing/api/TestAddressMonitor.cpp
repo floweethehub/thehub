@@ -155,7 +155,7 @@ void TestAddressMonitor::testDoubleSpendProof()
     builder.add(Api::LiveTransactions::GenericByteData, tx1.data());
     con[0].send(builder.message(Api::LiveTransactionService, Api::LiveTransactions::SendTransaction));
 
-    QTRY_VERIFY_WITH_TIMEOUT(m_hubs[1].m_foundMessage.load() != nullptr, 15000);
+    QTRY_VERIFY_WITH_TIMEOUT(m_hubs[1].m_foundMessage.load() != nullptr, 50000);
     auto m = *m_hubs[1].m_foundMessage.load();
     QCOMPARE(m.serviceId(), (int) Api::AddressMonitorService);
     QCOMPARE(m.messageId(), (int) Api::AddressMonitor::TransactionFound);
