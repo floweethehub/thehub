@@ -30,3 +30,9 @@ if (${Qt5Core_FOUND})
         add_subdirectory(httpengine)
     endif ()
 endif ()
+
+# cmake install file
+install(FILES
+    ${CMAKE_SOURCE_DIR}/support/cmake/FloweeConfig.cmake
+    ${CMAKE_BINARY_DIR}/libs/3rdparty/secp256k1/secp256k1.cmake
+    DESTINATION lib/cmake/flowee/)

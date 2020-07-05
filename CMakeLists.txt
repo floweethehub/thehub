@@ -313,8 +313,3 @@ if (${Qt5Core_FOUND})
     endif ()
 endif ()
 
-# cmake install file
-install(FILES
-    support/cmake/FloweeConfig.cmake
-    ${CMAKE_BINARY_DIR}/libs/3rdparty/secp256k1/secp256k1.cmake
-    DESTINATION lib/cmake/flowee/)
