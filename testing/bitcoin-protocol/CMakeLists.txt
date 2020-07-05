@@ -46,6 +46,7 @@ endforeach ()
 
 
 add_executable(test_protocol
+    arith_uint256_tests.cpp
     bip32_tests.cpp
     bloom_tests.cpp
     checkdatasig_tests.cpp

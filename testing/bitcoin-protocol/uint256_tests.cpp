@@ -22,6 +22,7 @@
 #include "uint256.h"
 #include "version.h"
 
+namespace {
 const unsigned char R1Array[] =
     "\x9c\x52\x4a\xdb\xcf\x56\x11\x12\x2b\x29\x12\x5e\x5d\x35\xd2\xd2"
     "\x22\x81\xaa\xb5\x33\xf0\x08\x32\xd5\x56\xb1\xf9\xea\xe5\x1d\x7d";
@@ -76,6 +77,7 @@ inline uint160 uint160S(const std::string& str)
     uint160 rv;
     rv.SetHex(str);
     return rv;
+}
 }
 
 void TestUint256::basics()
