@@ -90,7 +90,7 @@ static const unsigned int DefaultMaxOrphanTransactions = 5000;
 static const unsigned int DefaultMaxMempoolSize = 300;
 
 /** Default for -mempoolexpiry, expiration time for mempool transactions in hours */
-static const unsigned int DefaultMempoolExpiry = 72;
+static const unsigned int DefaultMempoolExpiry = 5;
 
 /** Default for -permitbaremultisig */
 static const bool DefaultPermitBareMultisig = true;
