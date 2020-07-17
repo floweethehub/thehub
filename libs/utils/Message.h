@@ -133,7 +133,7 @@ public:
     }
 
     // Return all items to be put in a header.
-    std::map<int, int> headerData() const {
+    const std::map<int, int>& headerData() const {
         return m_headerData;
     }
 
