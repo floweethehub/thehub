@@ -169,8 +169,7 @@ const CBlockIndex *GetSuitableBlock(const CBlockIndex *pindex)
 
 uint32_t GetNextWorkRequired(const CBlockIndex *pindexPrev, const CBlockHeader *pblock, const Consensus::Params &params)
 {
-    if (pindexPrev == nullptr) // Genesis block
-        return UintToArith256(params.powLimit).GetCompact();
+    assert (pindexPrev); // Genesis block not allowed.
 
     // Special rule for regtest: we never retarget.
     if (params.fPowNoRetargeting)
