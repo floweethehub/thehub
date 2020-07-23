@@ -1,7 +1,7 @@
 /*
  * This file is part of the Flowee project
  * Copyright (C) 2011-2015 The Bitcoin Core developers
- * Copyright (C) 2015-2016 The Bitcoin Unlimited developers
+ * Copyright (C) 2020 Tom Zander <tomz@freedommail.ch>
  *
  * This program is free software: you can redistribute it and/or modify
  * it under the terms of the GNU General Public License as published by
@@ -27,7 +27,8 @@
 #include "script/sign.h"
 #include "serialize.h"
 #include "util.h"
-#include  <txorphancache.h>
+#include <txorphancache.h>
+#include <SettingsDefaults.h>
 
 #include "test/test_bitcoin.h"
 
@@ -247,13 +248,13 @@ BOOST_AUTO_TEST_CASE(DoS_mapOrphans)
         BOOST_CHECK(cache.mapOrphanTransactions().size() == 50);
 
         // Advance the clock 72 hours
-        SetMockTime(nStartTime+60*60*72);
+        SetMockTime(nStartTime+60*60*Settings::DefaultMempoolExpiry);
         cache.eraseOrphansByTime();
         BOOST_CHECK(cache.mapOrphanTransactions().size() == 50);
 
         /** Test the boundary where orphans should get purged. **/
         // Advance the clock 72 hours and 4 minutes 59 seconds
-        SetMockTime(nStartTime+60*60*72 + 299);
+        SetMockTime(nStartTime+60*60*Settings::DefaultMempoolExpiry+ 299);
         cache.eraseOrphansByTime();
         BOOST_CHECK(cache.mapOrphanTransactions().size() == 50);
 
