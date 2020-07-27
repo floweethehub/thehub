@@ -150,6 +150,7 @@ void IndexerClient::onIncomingHubMessage(const Message &message)
 
 void IndexerClient::indexerConnected(const EndPoint &)
 {
+    m_indexConnection.send(Message(Api::IndexerService, Api::Indexer::Version));
     m_indexConnection.send(Message(Api::IndexerService, Api::Indexer::GetAvailableIndexers));
     logDebug() << "Indexer connection established";
 }
@@ -233,6 +234,13 @@ void IndexerClient::onIncomingIndexerMessage(const Message &message)
                     logInfo() << "Info: remote indexer has TXID Index";
                 else if (parser.tag() == Api::Indexer::SpentOutputIndexer)
                     logInfo() << "Info: remote indexer has SpentOutput Index";
+            }
+        }
+        else if (message.messageId() == Api::Indexer::VersionReply) {
+            Streaming::MessageParser parser(message);
+            while (parser.next() == Streaming::FoundTag) {
+                if (parser.tag() == Api::Indexer::GenericByteData)
+                    logCritical() << "Info: remote indexer at version" << parser.stringData();
             }
         } else
             Streaming::MessageParser::debugMessage(message);

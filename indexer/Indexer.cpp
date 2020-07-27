@@ -40,7 +40,7 @@ static std::vector<std::atomic<int> > s_requestedHeights = std::vector<std::atom
 
 struct Token {
     Token(int wantedHeight) : m_wantedHeight(wantedHeight) {
-        for (int i = 0; i < s_requestedHeights.size(); ++i) {
+        for (int i = 0; i < int(s_requestedHeights.size()); ++i) {
             int expected = -1;
             if (s_requestedHeights[i].compare_exchange_strong(expected, wantedHeight)) {
                 m_token = i;
@@ -351,6 +351,17 @@ void Indexer::onIncomingMessage(NetworkService::Remote *con, const Message &mess
         con->pool.reserve(10);
         Streaming::MessageBuilder builder(con->pool);
         builder.add(Api::Indexer::BlockHeight, lastReceivedBlock);
+        con->connection.send(builder.reply(message));
+    }
+    else if (message.messageId() == Api::Indexer::Version) {
+        con->pool.reserve(50);
+        Streaming::MessageBuilder builder(con->pool);
+        std::ostringstream ss;
+        ss << "Flowee Indexer:" << HUB_SERIES << " (" << CLIENT_VERSION_MAJOR << "-";
+        ss.width(2);
+        ss.fill('0');
+        ss << CLIENT_VERSION_MINOR << ")";
+        builder.add(Api::Indexer::GenericByteData, ss.str());
         con->connection.send(builder.reply(message));
     }
 }

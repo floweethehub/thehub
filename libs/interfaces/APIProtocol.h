@@ -396,10 +396,13 @@ enum MessageIds {
     FindSpentOutput,
     FindSpentOutputReply,
     GetIndexerLastBlock,
-    GetIndexerLastBlockReply
+    GetIndexerLastBlockReply,
+    Version,
+    VersionReply
 };
 
 enum Tags {
+    GenericByteData = Api::GenericByteData,
     Separator = Api::Separator,
     BitcoinP2PKHAddress = Api::BitcoinP2PKHAddress,
     TxId = Api::TxId,
