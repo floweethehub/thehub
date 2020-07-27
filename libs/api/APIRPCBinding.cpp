@@ -738,9 +738,13 @@ public:
         if (offsetInBlock > block.size())
             throw Api::ParserException("OffsetInBlock larger than block");
         Tx::Iterator iter(block, offsetInBlock);
-        if (iter.next(Tx::End) != Tx::End)
-            throw Api::ParserException("Internal error (740)"); // 740 is the line this was on when I wrote this
-        return iter.prevTx().createHash();
+        try {
+            if (iter.next(Tx::End) == Tx::End)
+                return iter.prevTx().createHash();
+        } catch (const std::runtime_error &error) {
+            logDebug() << error;
+        }
+        throw Api::ParserException("Invalid data, is your offsetInBlock correct?");
     }
 
     int calculateMessageSize(const Message &request) override {
