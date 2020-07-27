@@ -1,6 +1,6 @@
 /*
  * This file is part of the Flowee project
- * Copyright (C) 2016-2017,2019 Tom Zander <tomz@freedommail.ch>
+ * Copyright (C) 2016-2017,2019-2020 Tom Zander <tomz@freedommail.ch>
  *
  * This program is free software: you can redistribute it and/or modify
  * it under the terms of the GNU General Public License as published by
@@ -510,6 +510,8 @@ public:
                     || parser.tag() == Api::LiveTransactions::GenericByteData)
                 txid = parser.uint256Data().ToString();
         }
+        if (txid.empty())
+            throw std::runtime_error("Missing or invalid parameter: TXID should be a sha256 (bytearray)");
         output.push_back(std::make_pair("parameter 1", UniValue(UniValue::VSTR, txid)));
     }
 
