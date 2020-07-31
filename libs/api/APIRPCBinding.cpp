@@ -544,7 +544,7 @@ class CreateAddress : public Api::DirectParser
 public:
     CreateAddress() : DirectParser(Api::Util::CreateAddressReply, 150) {}
 
-    virtual void buildReply(const Message &request, Streaming::MessageBuilder &builder) {
+    virtual void buildReply(const Message &, Streaming::MessageBuilder &builder) {
         CKey key;
         key.MakeNewKey();
         assert(key.IsCompressed());
@@ -609,7 +609,7 @@ public:
 
     void buildReply(Streaming::MessageBuilder &builder, const UniValue &result) {
         assert(result.getType() == UniValue::VARR);
-        for (int i = 0; i < result.size(); ++i) {
+        for (size_t i = 0; i < result.size(); ++i) {
             assert(result[i].get_str().size() == 64);
             addHash256ToBuilder(builder, Api::RegTest::BlockHash, result[i]);
         }
