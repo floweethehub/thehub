@@ -124,6 +124,9 @@ public:
     const CChain &headerChain();
     const std::list<CBlockIndex*> & headerChainTips();
 
+    /** Try to detect Partition (network isolation) attacks against us */
+    void partitionCheck(int64_t powTargetSpacing);
+
     void loadConfig();
 
     /// \internal

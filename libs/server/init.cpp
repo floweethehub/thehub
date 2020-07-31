@@ -1229,10 +1229,8 @@ bool AppInit2(boost::thread_group& threadGroup, CScheduler& scheduler)
     StartNode(threadGroup, scheduler);
 
     // Monitor the chain, and alert if we get blocks much quicker or slower than expected
-    int64_t nPowTargetSpacing = Params().GetConsensus().nPowTargetSpacing;
-    CScheduler::Function f = std::bind(&PartitionCheck, &IsInitialBlockDownload,
-                                         std::ref(cs_main), boost::cref(pindexBestHeader), nPowTargetSpacing);
-    scheduler.scheduleEvery(f, nPowTargetSpacing);
+    const int64_t nPowTargetSpacing = Params().GetConsensus().nPowTargetSpacing;
+    scheduler.scheduleEvery(std::bind(&Blocks::DB::partitionCheck, Blocks::DB::instance(), nPowTargetSpacing), nPowTargetSpacing);
 
     // Generate coins in the background
     try {

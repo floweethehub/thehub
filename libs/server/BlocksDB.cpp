@@ -25,18 +25,23 @@
 #include "init.h" // for StartShutdown
 #include "hash.h"
 #include "util.h"
+#include "timedata.h"
 #include <validation/Engine.h>
 
 #include "chain.h"
 #include "scheduler.h"
+#include "serverutil.h"
 #include "main.h"
 #include "uint256.h"
+#include "UiInterface.h"
 #include <SettingsDefaults.h>
 #include <primitives/FastBlock.h>
+#include <utxo/UnspentOutputDatabase.h>
+
 #include <boost/thread.hpp>
 #include <boost/filesystem.hpp>
 #include <boost/filesystem/fstream.hpp>
-#include <utxo/UnspentOutputDatabase.h>
+#include <boost/math/distributions/poisson.hpp>
 
 static const char DB_BLOCK_FILES = 'f';
 static const char DB_TXINDEX = 't';
@@ -545,6 +550,64 @@ void Blocks::DB::loadConfig()
         }
     }
 }
+
+//
+// Called periodically asynchronously; alerts if it smells like
+// we're being fed a bad chain (blocks being generated much
+// too slowly or too quickly).
+//
+void Blocks::DB::partitionCheck(int64_t powTargetSpacing)
+{
+logFatal() << "PartitionCheck";
+    static int64_t lastAlertTime = 0;
+    int64_t now = GetAdjustedTime();
+    if (lastAlertTime > now - 60 * 60 * 6) // Alert at most 4 times per day
+        return;
+
+    const int SPAN_HOURS = 4;
+    const int SPAN_SECONDS = SPAN_HOURS * 60 * 60;
+    int BLOCKS_EXPECTED = SPAN_SECONDS / powTargetSpacing;
+
+    boost::math::poisson_distribution<double> poisson(BLOCKS_EXPECTED);
+
+    std::string strWarning;
+    int64_t startTime = GetAdjustedTime()-SPAN_SECONDS;
+
+    const CBlockIndex* i = headerChain().Tip();
+    int nBlocks = 0;
+    while (i->GetBlockTime() >= startTime) {
+        ++nBlocks;
+        i = i->pprev;
+        if (i == nullptr) return; // Ran out of chain, we must not be fully sync'ed
+    }
+    // How likely is it to find that many by chance?
+    double p = boost::math::pdf(poisson, nBlocks);
+
+    logInfo(Log::Bitcoin) << "PartitionCheck: Found" << nBlocks << "blocks in the last" << SPAN_HOURS << "hours";
+    logInfo(Log::Bitcoin) << "PartitionCheck: likelihood:" << p;
+
+    // Aim for one false-positive about every fifty years of normal running:
+    const int FIFTY_YEARS = 50*365*24*60*60;
+    double alertThreshold = 1.0 / (FIFTY_YEARS / SPAN_SECONDS);
+
+    if (p <= alertThreshold && nBlocks < BLOCKS_EXPECTED) {
+        // Many fewer blocks than expected: alert!
+        strWarning = strprintf(_("WARNING: check your network connection, %d blocks received in the last %d hours (%d expected)"),
+                               nBlocks, SPAN_HOURS, BLOCKS_EXPECTED);
+    }
+    else if (p <= alertThreshold && nBlocks > BLOCKS_EXPECTED) {
+        // Many more blocks than expected: alert!
+        strWarning = strprintf(_("WARNING: abnormally high number of blocks generated, %d blocks received in the last %d hours (%d expected)"),
+                               nBlocks, SPAN_HOURS, BLOCKS_EXPECTED);
+    }
+    if (!strWarning.empty()) {
+        strMiscWarning = strWarning;
+        AlertNotify(strWarning, true);
+        lastAlertTime = now;
+        uiInterface.NotifyAlertChanged();
+    }
+}
+
 
 ///////////////////////////////////////////////
 
