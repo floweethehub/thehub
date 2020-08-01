@@ -69,7 +69,7 @@ void DoubleSpendProofStorage::addOrphan(const DoubleSpendProof &proof, int peerI
     m_prevTxIdLookupTable[proof.prevTxId().GetCheapHash()].push_back(id);
 }
 
-std::list<std::pair<int, int> > DoubleSpendProofStorage::findOrphans(const COutPoint &prevOut)
+std::list<std::pair<int, int> > DoubleSpendProofStorage::findOrphans(const COutPoint &prevOut) const
 {
     std::list<std::pair<int, int> > answer;
     std::lock_guard<std::recursive_mutex> lock(m_lock);
@@ -77,7 +77,7 @@ std::list<std::pair<int, int> > DoubleSpendProofStorage::findOrphans(const COutP
     if (iter == m_prevTxIdLookupTable.end())
         return answer;
 
-    std::deque<int> &q = iter->second;
+    const std::deque<int> &q = iter->second;
     for (auto proofId = q.begin(); proofId != q.end(); ++proofId) {
         auto proofIter = m_proofs.find(*proofId);
         assert (proofIter != m_proofs.end());

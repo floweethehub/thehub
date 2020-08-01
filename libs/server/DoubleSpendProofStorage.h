@@ -46,7 +46,7 @@ public:
     void addOrphan(const DoubleSpendProof &proof, int peerId);
     /// Returns all (not yet verified) orphans matching prevOut.
     /// Each item is a pair of a proofId and the nodeId that send the proof to us
-    std::list<std::pair<int, int> > findOrphans(const COutPoint &prevOut);
+    std::list<std::pair<int, int> > findOrphans(const COutPoint &prevOut) const;
 
     void claimOrphan(int proofId);
 
