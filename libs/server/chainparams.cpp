@@ -125,7 +125,6 @@ public:
 
         vSeeds.push_back(CDNSSeedData("flowee", "seed.flowee.cash"));
         vSeeds.push_back(CDNSSeedData("bchd", "seed.bchd.cash"));
-        vSeeds.push_back(CDNSSeedData("abc", "seed.bitcoinabc.org"));
 
         base58Prefixes[PUBKEY_ADDRESS] = std::vector<unsigned char>(1,0);
         base58Prefixes[SCRIPT_ADDRESS] = std::vector<unsigned char>(1,5);
@@ -221,9 +220,8 @@ public:
 
         vFixedSeeds.clear();
         vSeeds.clear();
-        vSeeds.push_back(CDNSSeedData("ABC", "testnet-seed.bitcoinabc.org"));
+        vSeeds.push_back(CDNSSeedData("bchd", "testnet-seed.bchd.cash"));
         vSeeds.push_back(CDNSSeedData("bitcoinforks.org", "testnet-seed-bch.bitcoinforks.org"));
-        vSeeds.push_back(CDNSSeedData("Amaury", "testnet-seed.deadalnix.me"));
 
         base58Prefixes[PUBKEY_ADDRESS] = std::vector<unsigned char>(1,111);
         base58Prefixes[SCRIPT_ADDRESS] = std::vector<unsigned char>(1,196);
