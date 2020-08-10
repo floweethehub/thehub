@@ -51,14 +51,21 @@ struct Params {
     bool fPowNoRetargeting;
     int64_t nPowTargetSpacing;
     int64_t nPowTargetTimespan;
+    int64_t nASERTHalfLife;
     int64_t DifficultyAdjustmentInterval() const { return nPowTargetTimespan / nPowTargetSpacing; }
-    int hf201708Height;
-    int hf201711Height; // daa3 got enabled here
+
+
+    // BCH Protocol upgrades.
+    int hf201708Height; // EDA
+    int hf201711Height; // cw144 DAA got enabled here
     int hf201805Height;
     int hf201811Height;
     int hf201905Height;
     int64_t hf201911Time;
     int64_t hf202005Time;
+    int64_t hf202011Time; // asert DAA
+
+
 };
 } // namespace Consensus
 

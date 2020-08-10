@@ -98,6 +98,11 @@ public:
         consensus.nRuleChangeActivationThreshold = 1916; // 95% of 2016
         consensus.nMinerConfirmationWindow = 2016; // nPowTargetTimespan / nPowTargetSpacing
 
+        // The half life for the ASERT DAA. For every (nASERTHalfLife) seconds behind schedule the blockchain gets,
+        // difficulty is cut in half. Doubled if blocks are ahead of schedule.
+        // Two days
+        consensus.nASERTHalfLife = 2 * 24 * 60 * 60;
+
         /**
          * The message start string is designed to be unlikely to occur in normal data.
          * The characters are rarely used upper ASCII, not valid as UTF-8, and produce
@@ -147,6 +152,7 @@ public:
         consensus.hf201905Height = 582680;
         consensus.hf201911Time = 1573819200;
         consensus.hf202005Time = 1589544000;
+        consensus.hf202011Time = 1605441600;
 
         checkpointData = CCheckpointData {
             boost::assign::map_list_of
@@ -197,6 +203,11 @@ public:
         consensus.nRuleChangeActivationThreshold = 1512; // 75% for testchains
         consensus.nMinerConfirmationWindow = 2016; // nPowTargetTimespan / nPowTargetSpacing
 
+        // The half life for the ASERT DAA. For every (nASERTHalfLife) seconds behind schedule the blockchain gets,
+        // difficulty is cut in half. Doubled if blocks are ahead of schedule.
+        // One hour
+        consensus.nASERTHalfLife = 60 * 60;
+
         pchMessageStart[0] = 0x0B;
         pchMessageStart[1] = 0x11;
         pchMessageStart[2] = 0x09;
@@ -244,6 +255,7 @@ public:
         consensus.hf201905Height = 1303885;
         consensus.hf201911Time = 1573819200;
         consensus.hf202005Time = 1589544000;
+        consensus.hf202011Time = GetArg("-axionactivationtime", 1605441600);;
 
         checkpointData = CCheckpointData {
             boost::assign::map_list_of
@@ -282,6 +294,7 @@ public:
         consensus.fPowNoRetargeting = true;
         consensus.nRuleChangeActivationThreshold = 108; // 75% for testchains
         consensus.nMinerConfirmationWindow = 144; // Faster than normal for regtest (144 instead of 2016)
+        consensus.nASERTHalfLife = 0; // not used in regtest.
 
         pchMessageStart[0] = 0xfa;
         pchMessageStart[1] = 0xbf;
@@ -318,6 +331,7 @@ public:
         consensus.hf201905Height = 1;
         consensus.hf201911Time = 1;
         consensus.hf202005Time = 1;
+        consensus.hf202011Time = 1;
 
         checkpointData = CCheckpointData {
             boost::assign::map_list_of

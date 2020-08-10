@@ -222,6 +222,7 @@ struct CNodeState {
         hashLastUnknownBlock.SetNull();
         pindexLastCommonBlock = nullptr;
         pindexBestHeaderSent = nullptr;
+        ResetASERTAnchorBlockCache();
         fSyncStarted = false;
         nStallingSince = 0;
         nDownloadingSince = 0;

@@ -1,7 +1,7 @@
 /*
  * This file is part of the Flowee project
  * Copyright (C) 2017 Stephen McCarthy
- * Copyright (C) 2017 Tom Zander <tomz@freedommail.ch>
+ * Copyright (C) 2017-2020 Tom Zander <tomz@freedommail.ch>
  *
  * This program is free software: you can redistribute it and/or modify
  * it under the terms of the GNU General Public License as published by
@@ -368,6 +368,7 @@ static void addDebuggingOptions(AllowedArgs& allowedArgs, HelpMessageMode)
 #endif
         .addArg("shrinkdebugfile", optionalBool, _("Shrink hub.log file on client startup (default: true when no -debug)"))
         .addDebugArg("catch-crash", optionalBool, "Enable the crash-catcher which creates a backtrace file on segfault")
+        .addArg("axionactivationtime", requiredInt, "Activation time of the November 2020 Bitcoin Cash Network Upgrade (only honored on TestNet)")
         ;
 }
 

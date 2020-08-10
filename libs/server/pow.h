@@ -30,10 +30,29 @@ class CBlockIndex;
 class uint256;
 class arith_uint256;
 
-uint32_t GetNextWorkRequired(const CBlockIndex* pindexLast, const CBlockHeader *pblock, const Consensus::Params&);
-uint32_t CalculateNextWorkRequired(const CBlockIndex* pindexLast, int64_t nFirstBlockTime, const Consensus::Params&);
-uint32_t CalculateNextCashWorkRequired(const CBlockIndex *pindexPrev, const CBlockHeader *pblock, const Consensus::Params &params);
+uint32_t CalculateNextWorkRequired(const CBlockIndex* pindexLast, const CBlockHeader *pblock, const Consensus::Params&);
+// Satoshi's algo. The 2016 block one.
+uint32_t Calculate2016NextWorkRequired(const CBlockIndex* pindexLast, int64_t nFirstBlockTime, const Consensus::Params&);
+// the difficulty algo we used in BCH from 15 November 2017 till, 15 Nov 2020.
+uint32_t CalculateNextCW144WorkRequired(const CBlockIndex *pindexPrev, const CBlockHeader *pblock, const Consensus::Params &params);
 
+// \internal
+arith_uint256 CalculateASERT(const arith_uint256 &refTarget, const int64_t nPowTargetSpacing, const int64_t nTimeDiff,
+        const int64_t nHeightDiff, const arith_uint256 &powLimit, const int64_t nHalfLife) noexcept;
+// temporary hackish method until we have an actual blockheight for the anchor block, after the actual fork.
+void ResetASERTAnchorBlockCache();
+
+/**
+ * Compute the next required proof of work using an absolutely scheduled
+ * exponentially weighted target (ASERT).
+ *
+ * With ASERT, we define an ideal schedule for block issuance (e.g. 1 block every 600 seconds), and we calculate the
+ * difficulty based on how far the most recent block's timestamp is ahead of or behind that schedule.
+ * We set our targets (difficulty) exponentially. For every [nHalfLife] seconds ahead of or behind schedule we get, we
+ * double or halve the difficulty.
+ */
+uint32_t CalculateNextASERTWorkRequired(const CBlockIndex *pindexPrev, const CBlockHeader *pblock,
+        const Consensus::Params &params, const CBlockIndex *pindexAnchorBlock);
 /**
  * Check whether a block hash satisfies the proof-of-work requirement specified by nBits
  */
@@ -42,5 +61,4 @@ arith_uint256 GetBlockProof(const CBlockIndex& block);
 
 /** Return the time it would take to redo the work difference between from and to, assuming the current hashrate corresponds to the difficulty at tip, in seconds. */
 int64_t GetBlockProofEquivalentTime(const CBlockIndex& to, const CBlockIndex& from, const CBlockIndex& tip, const Consensus::Params&);
-
 #endif

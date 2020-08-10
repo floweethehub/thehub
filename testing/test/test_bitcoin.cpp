@@ -184,7 +184,7 @@ FastBlock MockBlockValidation::createBlock(CBlockIndex *parent, const CScript& s
     block.nNonce = 0;
 
     // don't call this in testNet, it will crash due to that null
-    block.nBits = GetNextWorkRequired(parent, nullptr, Params().GetConsensus());
+    block.nBits = CalculateNextWorkRequired(parent, nullptr, Params().GetConsensus());
 
     for (const CTransaction &tx : txns) {
         block.vtx.push_back(tx);

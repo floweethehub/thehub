@@ -98,7 +98,7 @@ int64_t Mining::UpdateTime(CBlockHeader* pblock, const Consensus::Params& consen
 
     // Updating time can change work required on testnet:
     if (consensusParams.fPowAllowMinDifficultyBlocks)
-        pblock->nBits = GetNextWorkRequired(pindexPrev, pblock, consensusParams);
+        pblock->nBits = CalculateNextWorkRequired(pindexPrev, pblock, consensusParams);
 
     return nNewTime - nOldTime;
 }
@@ -328,7 +328,7 @@ CBlockTemplate* Mining::CreateNewBlock(Validation::Engine &validationEngine) con
         // Fill in header
         pblock->hashPrevBlock  = pindexPrev->GetBlockHash();
         UpdateTime(pblock, Params().GetConsensus(), pindexPrev);
-        pblock->nBits          = GetNextWorkRequired(pindexPrev, pblock, Params().GetConsensus());
+        pblock->nBits          = CalculateNextWorkRequired(pindexPrev, pblock, Params().GetConsensus());
         pblock->nNonce         = 0;
     }
     if (validationEngine.priv().lock()->tipFlags.hf201811Active) {

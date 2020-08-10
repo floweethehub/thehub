@@ -509,12 +509,20 @@ bool Blocks::DB::appendHeader(CBlockIndex *block)
     }
     assert(d->headersChain.Tip());
     assert(validPrev);
-    for (auto tip : d->headerChainTips) { // find the longest chain
-        if (d->headersChain.Tip()->nChainWork < tip->nChainWork) {
-            // we changed what is to be considered the main-chain. Update the CChain instance.
-            d->headersChain.SetTip(tip);
-            pindexBestHeader = tip;
-            modifyingMainChain = true;
+
+    if (d->headerChainTips.size() > 1) {
+        // with fast changing DAAs, based on timestamps, we can have siblings that have only a fraction of
+        // a block more work, instead of the old system where you'd always have whole blocks more work.
+        // As a result we need to be smart when checking chain-length to avoid swapping a lot.
+        // Here we add 25% of the tip work as a requirement to overcome for sibling chains.
+        const auto beachHead = d->headersChain.Tip()->nChainWork + GetBlockProof(*d->headersChain.Tip()) / 4;
+        for (auto tip : d->headerChainTips) { // find the longest chain
+            if (beachHead < tip->nChainWork) {
+                // we changed what is to be considered the main-chain. Update the CChain instance.
+                d->headersChain.SetTip(tip);
+                pindexBestHeader = tip;
+                modifyingMainChain = true;
+            }
         }
     }
     return modifyingMainChain;

@@ -1,6 +1,6 @@
 /*
  * This file is part of the Flowee project
- * Copyright (C) 2018 Tom Zander <tomz@freedommail.ch>
+ * Copyright (C) 2018-2020 Tom Zander <tomz@freedommail.ch>
  *
  * This program is free software: you can redistribute it and/or modify
  * it under the terms of the GNU General Public License as published by
@@ -20,9 +20,16 @@
 
 #include <common/TestFloweeBase.h>
 
+class CBlockIndex;
+
 class POWTests : public TestFloweeBase
 {
     Q_OBJECT
+private:
+    double TargetFromBits(const uint32_t nBits) const;
+
+    double GetASERTApproximationError(const CBlockIndex *pindexPrev, const uint32_t finalBits,
+                                      const CBlockIndex *pindexReferenceBlock) const;
 private slots:
     void get_next_work();
     void get_next_work_pow_limit();
@@ -31,6 +38,11 @@ private slots:
     void GetBlockProofEquivalentTime_test();
     void retargeting_test();
     void cash_difficulty_test();
+
+    // asert (from 2020)
+    void asert_difficulty_test();
+    void calculate_asert_test();
+    void asert_activation_anchor_test();
 };
 
 #endif
