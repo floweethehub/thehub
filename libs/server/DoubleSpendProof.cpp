@@ -155,10 +155,10 @@ DoubleSpendProof DoubleSpendProof::create(const Tx &tx1, const Tx &tx2)
                     throw std::runtime_error("scriptSig has no signature");
                 auto hashType = s1.pushData.front().back();
                 if (!(hashType & SIGHASH_FORKID))
-                    throw std::runtime_error("Tx1 Not a Bitcoin Cash transaction");
+                    throw std::runtime_error("Tx1 Not a Bitcoin Cash P2PKH transaction");
                 hashType = s2.pushData.front().back();
                 if (!(hashType & SIGHASH_FORKID))
-                    throw std::runtime_error("Tx2 Not a Bitcoin Cash transaction");
+                    throw std::runtime_error("Tx2 Not a Bitcoin Cash P2PKH transaction");
 
                 break;
             }

@@ -474,7 +474,7 @@ bool CTxMemPool::insertTx(CTxMemPoolEntry &entry)
                 }
             } catch (const std::runtime_error &e) {
                 // we don't support 100% of the types of transactions yet, failures are possible.
-                logInfo(Log::DSProof) << "Failed creating a proof:" << e;
+                logWarning(Log::DSProof) << "Failed creating a proof:" << e;
                 throw Validation::Exception("Tx double spends another", 0);
             }
             throw Validation::DoubleSpendException(oldTx->second.tx, newProofId);
