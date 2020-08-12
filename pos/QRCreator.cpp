@@ -62,6 +62,9 @@ QImage QRCreator::requestImage(const QString &id, QSize *size, const QSize &requ
         }
     }
     QRcode_free(code);
+#else
+    QImage result = QImage(8,8, QImage::Format_RGB32);
+    result.fill(0xffffff);
 #endif
     return result;
 }
