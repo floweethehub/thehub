@@ -999,13 +999,16 @@ void Blocks::DBPrivate::pruneFiles()
             // if any of them have been saved on this blk file (and thus need access to this rev file)
             // we can't delete it yet.
             for (int height = currentHeight - 2000; deleteOk && height < currentHeadersTip; ++height) {
-                deleteOk = headersChain[height]->nFile != static_cast<int>(i);
+                const auto index = headersChain[height];
+                if (i == 0 && index->nDataPos == 0) // item is not saved yet. (don't we just love stupid defaults!)
+                    continue;
+                deleteOk = index->nFile != static_cast<int>(i);
             }
             if (deleteOk) {
                 logInfo(Log::DB) << "Deleting no longer useful revert file" << path.string();
                 boost::filesystem::remove(path);
             }
-            break; // only check one file every call (which is every 15 min)
+            break; // only check (/delete) one file
         }
     }
 
