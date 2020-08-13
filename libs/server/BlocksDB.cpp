@@ -68,6 +68,18 @@ CBlockIndex * insertBlockIndex(const uint256 &hash)
     return pindexNew;
 }
 
+const char *findHeader(const char *hayStack, const CMessageHeader::MessageStartChars& needle, const char *end) {
+    end -= 3; // needle is 4 bytes long
+    while (hayStack != end) {
+        if (*hayStack == needle[0] && hayStack[1] == needle[1]
+                && hayStack[2] == needle[2] && hayStack[3] == needle[3]) {
+            return hayStack;
+        }
+        ++hayStack;
+    }
+    return nullptr;
+}
+
 bool LoadExternalBlockFile(const CDiskBlockPos &pos)
 {
     static_assert(MESSAGE_START_SIZE == 4, "We assume 4");
@@ -82,10 +94,9 @@ bool LoadExternalBlockFile(const CDiskBlockPos &pos)
     CBlockFileInfo info;
 
     auto validation = Application::instance()->validation();
-    const int blockHeaderMessage = *reinterpret_cast<const int*>(Params().MessageStart());
     const char *buf = dataFile.begin();
     while (buf < dataFile.end() && !Application::isClosingDown()) {
-        buf = reinterpret_cast<const char*>(memchr(buf, blockHeaderMessage, dataFile.end() - buf));
+        buf = findHeader(buf, Params().MessageStart(), dataFile.end());
         if (buf == nullptr) {
             // no valid block header found; don't complain
             break;
