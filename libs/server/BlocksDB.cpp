@@ -981,24 +981,32 @@ void Blocks::DBPrivate::closeFiles()
         logInfo(Log::DB).nospace() << "Close block files unmapped " << (before - after) << "/" << before << " files";
 }
 
+extern CChain chainActive;
 // remove old revert files and snip off the zero's from the blk files (which makes them larger when copied)
 void Blocks::DBPrivate::pruneFiles()
 {
     std::lock_guard<std::recursive_mutex> lock_(lock);
-    std::map<int, boost::filesystem::path> existingRevertFiles;
-    for (int i = static_cast<int>(revertDatafiles.size()) - 1; i >= 0 ; --i) {
+    for (size_t i = 0; i < revertDatafiles.size(); ++i) {
         boost::filesystem::path path = Blocks::getFilepathForIndex(i, "rev", false);
-        if (boost::filesystem::exists(path))
-            existingRevertFiles.insert(std::make_pair(i, path));
-        else if (!existingRevertFiles.empty())
-            break;
-    }
-    while (existingRevertFiles.size() > 3) {
-        auto iter = existingRevertFiles.begin();
-        auto path = iter->second;
-        logInfo(Log::DB) << "Deleting no longer useful revert file" << path.string();
-        boost::filesystem::remove(path);
-        existingRevertFiles.erase(iter);
+        if (boost::filesystem::exists(path)) {
+            // first one I find is the oldest, I test if its eligable for delete.
+            const int currentHeight = chainActive.Height();
+            if (currentHeight < 2000)
+                break;
+            const int currentHeadersTip = headersChain.Height();
+            bool deleteOk = true;
+            // check blocks from 2000 blocks ago till the header-tip
+            // if any of them have been saved on this blk file (and thus need access to this rev file)
+            // we can't delete it yet.
+            for (int height = currentHeight - 2000; deleteOk && height < currentHeadersTip; ++height) {
+                deleteOk = headersChain[height]->nFile != static_cast<int>(i);
+            }
+            if (deleteOk) {
+                logInfo(Log::DB) << "Deleting no longer useful revert file" << path.string();
+                boost::filesystem::remove(path);
+            }
+            break; // only check one file every call (which is every 15 min)
+        }
     }
 
     if (reindexing == ScanningFiles || datafiles.size() < 3)
