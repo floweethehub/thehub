@@ -71,8 +71,10 @@ CBlockIndex * insertBlockIndex(const uint256 &hash)
 const char *findHeader(const char *hayStack, const CMessageHeader::MessageStartChars& needle, const char *end) {
     end -= 3; // needle is 4 bytes long
     while (hayStack != end) {
-        if (*hayStack == needle[0] && hayStack[1] == needle[1]
-                && hayStack[2] == needle[2] && hayStack[3] == needle[3]) {
+        if (static_cast<uint8_t>(hayStack[0]) == needle[0]
+                && static_cast<uint8_t>(hayStack[1]) == needle[1]
+                && static_cast<uint8_t>(hayStack[2]) == needle[2]
+                && static_cast<uint8_t>(hayStack[3]) == needle[3]) {
             return hayStack;
         }
         ++hayStack;
