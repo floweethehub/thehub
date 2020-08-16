@@ -22,6 +22,7 @@
 
 #include <cassert>
 #include <stdexcept>
+#include <Logger.h>
 
 class uint256;
 
@@ -297,4 +298,14 @@ public:
 uint256 ArithToUint256(const arith_uint256 &);
 arith_uint256 UintToArith256(const uint256 &);
 
+template<unsigned int BITS>
+inline Log::Item operator<<(Log::Item item, const base_uint<BITS> &data) {
+    if (item.isEnabled())
+        item << data.ToString().c_str();
+    return item;
+}
+template<unsigned int BITS>
+inline Log::SilentItem operator<<(Log::SilentItem item, const base_uint<BITS>&) {
+    return item;
+}
 #endif
