@@ -71,8 +71,10 @@ CBlockIndex * insertBlockIndex(const uint256 &hash)
 const char *findHeader(const char *hayStack, const CMessageHeader::MessageStartChars& needle, const char *end) {
     end -= 3; // needle is 4 bytes long
     while (hayStack != end) {
-        if (*hayStack == needle[0] && hayStack[1] == needle[1]
-                && hayStack[2] == needle[2] && hayStack[3] == needle[3]) {
+        if (static_cast<uint8_t>(hayStack[0]) == needle[0]
+                && static_cast<uint8_t>(hayStack[1]) == needle[1]
+                && static_cast<uint8_t>(hayStack[2]) == needle[2]
+                && static_cast<uint8_t>(hayStack[3]) == needle[3]) {
             return hayStack;
         }
         ++hayStack;
@@ -521,19 +523,12 @@ bool Blocks::DB::appendHeader(CBlockIndex *block)
     assert(d->headersChain.Tip());
     assert(validPrev);
 
-    if (d->headerChainTips.size() > 1) {
-        // with fast changing DAAs, based on timestamps, we can have siblings that have only a fraction of
-        // a block more work, instead of the old system where you'd always have whole blocks more work.
-        // As a result we need to be smart when checking chain-length to avoid swapping a lot.
-        // Here we add 25% of the tip work as a requirement to overcome for sibling chains.
-        const auto beachHead = d->headersChain.Tip()->nChainWork + GetBlockProof(*d->headersChain.Tip()) / 4;
-        for (auto tip : d->headerChainTips) { // find the longest chain
-            if (beachHead < tip->nChainWork) {
-                // we changed what is to be considered the main-chain. Update the CChain instance.
-                d->headersChain.SetTip(tip);
-                pindexBestHeader = tip;
-                modifyingMainChain = true;
-            }
+    for (auto tip : d->headerChainTips) { // find the longest chain
+        if (d->headersChain.Tip()->nChainWork < tip->nChainWork) {
+            // we changed what is to be considered the main-chain. Update the CChain instance.
+            d->headersChain.SetTip(tip);
+            pindexBestHeader = tip;
+            modifyingMainChain = true;
         }
     }
     return modifyingMainChain;
