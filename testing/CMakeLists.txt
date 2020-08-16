@@ -29,6 +29,7 @@ if (${Qt5Core_FOUND})
         add_subdirectory(networkmanager)
         add_subdirectory(hashstorage)
         add_subdirectory(blockvalidation)
+        add_subdirectory(hub)
         add_subdirectory(api)
 
         find_package(Qt5Network)
@@ -48,6 +49,7 @@ if (${Qt5Core_FOUND})
             test_hashstorage
             test_blockvalidation
             test_api
+            test_hub
             ${testHttp}
         )
     else ()

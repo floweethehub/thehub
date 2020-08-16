@@ -1,6 +1,6 @@
 /*
  * This file is part of the Flowee project
- * Copyright (C) 2017-2018 Tom Zander <tomz@freedommail.ch>
+ * Copyright (C) 2017-2020 Tom Zander <tomz@freedommail.ch>
  *
  * This program is free software: you can redistribute it and/or modify
  * it under the terms of the GNU General Public License as published by
@@ -16,14 +16,10 @@
  * along with this program.  If not, see <http://www.gnu.org/licenses/>.
  */
 
-#include "test_bitcoin.h"
-
+#include "blocksdb_tests.h"
 #include <BlocksDB.h>
+#include <primitives/FastBlock.h>
 #include <chain.h>
-#include <boost/test/unit_test.hpp>
-
-BOOST_FIXTURE_TEST_SUITE(blocksdb, TestingSetup)
-
 
 static bool contains(const std::list<CBlockIndex*> &haystack, CBlockIndex *needle)
 {
@@ -32,7 +28,7 @@ static bool contains(const std::list<CBlockIndex*> &haystack, CBlockIndex *needl
     return (std::find(haystack.begin(), haystack.end(), needle) != haystack.end());
 }
 
-BOOST_AUTO_TEST_CASE(headersChain)
+void TestBlocksDB::headersChain()
 {
     uint256 dummyHash;
     CBlockIndex root;
@@ -79,82 +75,82 @@ BOOST_AUTO_TEST_CASE(headersChain)
         Blocks::DB *db = Blocks::DB::instance();
         bool changed = db->appendHeader(&root);
 
-        BOOST_CHECK_EQUAL(changed, true);
-        BOOST_CHECK_EQUAL(db->headerChain().Tip(), &root);
-        BOOST_CHECK_EQUAL(db->headerChainTips().size(), 1);
-        BOOST_CHECK_EQUAL(db->headerChainTips().front(), &root);
+        QCOMPARE(changed, true);
+        QCOMPARE(db->headerChain().Tip(), &root);
+        QCOMPARE(db->headerChainTips().size(), 1);
+        QCOMPARE(db->headerChainTips().front(), &root);
 
         changed = db->appendHeader(&b1);
-        BOOST_CHECK_EQUAL(changed, true);
-        BOOST_CHECK_EQUAL(db->headerChain().Tip(), &b1);
-        BOOST_CHECK_EQUAL(db->headerChainTips().size(), 1);
-        BOOST_CHECK_EQUAL(db->headerChainTips().front(), &b1);
+        QCOMPARE(changed, true);
+        QCOMPARE(db->headerChain().Tip(), &b1);
+        QCOMPARE(db->headerChainTips().size(), 1);
+        QCOMPARE(db->headerChainTips().front(), &b1);
 
         changed = db->appendHeader(&b4);
-        BOOST_CHECK_EQUAL(changed, true);
-        BOOST_CHECK_EQUAL(db->headerChain().Tip(), &b4);
-        BOOST_CHECK_EQUAL(db->headerChain().Height(), 4);
-        BOOST_CHECK_EQUAL(db->headerChainTips().size(), 1);
-        BOOST_CHECK_EQUAL(db->headerChainTips().front(), &b4);
+        QCOMPARE(changed, true);
+        QCOMPARE(db->headerChain().Tip(), &b4);
+        QCOMPARE(db->headerChain().Height(), 4);
+        QCOMPARE(db->headerChainTips().size(), 1);
+        QCOMPARE(db->headerChainTips().front(), &b4);
 
         changed = db->appendHeader(&bp3);
-        BOOST_CHECK_EQUAL(changed, false);
-        BOOST_CHECK_EQUAL(db->headerChain().Tip(), &b4);
-        BOOST_CHECK_EQUAL(db->headerChain().Height(), 4);
-        BOOST_CHECK_EQUAL(db->headerChainTips().size(), 2);
-        BOOST_CHECK(contains(db->headerChainTips(), &b4));
-        BOOST_CHECK(contains(db->headerChainTips(), &bp3));
+        QCOMPARE(changed, false);
+        QCOMPARE(db->headerChain().Tip(), &b4);
+        QCOMPARE(db->headerChain().Height(), 4);
+        QCOMPARE(db->headerChainTips().size(), 2);
+        QVERIFY(contains(db->headerChainTips(), &b4));
+        QVERIFY(contains(db->headerChainTips(), &bp3));
 
         changed = db->appendHeader(&bp4);
-        BOOST_CHECK_EQUAL(changed, true);
-        BOOST_CHECK_EQUAL(db->headerChain().Tip(), &bp4);
-        BOOST_CHECK_EQUAL(db->headerChain().Height(), 4);
-        BOOST_CHECK_EQUAL(db->headerChainTips().size(), 2);
-        BOOST_CHECK(contains(db->headerChainTips(), &b4));
-        BOOST_CHECK(contains(db->headerChainTips(), &bp4));
+        QCOMPARE(changed, true);
+        QCOMPARE(db->headerChain().Tip(), &bp4);
+        QCOMPARE(db->headerChain().Height(), 4);
+        QCOMPARE(db->headerChainTips().size(), 2);
+        QVERIFY(contains(db->headerChainTips(), &b4));
+        QVERIFY(contains(db->headerChainTips(), &bp4));
 
 
-        BOOST_CHECK_EQUAL(db->headerChain()[0], &root);
-        BOOST_CHECK_EQUAL(db->headerChain()[1], &b1);
-        BOOST_CHECK_EQUAL(db->headerChain()[2], &b2);
-        BOOST_CHECK_EQUAL(db->headerChain()[3], &bp3);
-        BOOST_CHECK_EQUAL(db->headerChain()[4], &bp4);
+        QCOMPARE(db->headerChain()[0], &root);
+        QCOMPARE(db->headerChain()[1], &b1);
+        QCOMPARE(db->headerChain()[2], &b2);
+        QCOMPARE(db->headerChain()[3], &bp3);
+        QCOMPARE(db->headerChain()[4], &bp4);
     }
 
     {
         Blocks::DB::createTestInstance(100);
         Blocks::DB *db = Blocks::DB::instance();
         bool changed = db->appendHeader(&bp3);
-        BOOST_CHECK_EQUAL(changed, true);
-        BOOST_CHECK_EQUAL(db->headerChain().Tip(), &bp3);
-        BOOST_CHECK_EQUAL(db->headerChain().Height(), 3);
-        BOOST_CHECK_EQUAL(db->headerChainTips().size(), 1);
-        BOOST_CHECK_EQUAL(db->headerChainTips().front(), &bp3);
+        QCOMPARE(changed, true);
+        QCOMPARE(db->headerChain().Tip(), &bp3);
+        QCOMPARE(db->headerChain().Height(), 3);
+        QCOMPARE(db->headerChainTips().size(), 1);
+        QCOMPARE(db->headerChainTips().front(), &bp3);
 
         changed = db->appendHeader(&b3);
-        BOOST_CHECK_EQUAL(changed, false);
-        BOOST_CHECK_EQUAL(db->headerChain().Tip(), &bp3);
-        BOOST_CHECK_EQUAL(db->headerChain().Height(), 3);
-        BOOST_CHECK_EQUAL(db->headerChainTips().size(), 2);
-        BOOST_CHECK(contains(db->headerChainTips(), &bp3));
-        BOOST_CHECK(contains(db->headerChainTips(), &b3));
+        QCOMPARE(changed, false);
+        QCOMPARE(db->headerChain().Tip(), &bp3);
+        QCOMPARE(db->headerChain().Height(), 3);
+        QCOMPARE(db->headerChainTips().size(), 2);
+        QVERIFY(contains(db->headerChainTips(), &bp3));
+        QVERIFY(contains(db->headerChainTips(), &b3));
 
-        BOOST_CHECK_EQUAL(db->headerChain()[0], &root);
-        BOOST_CHECK_EQUAL(db->headerChain()[1], &b1);
-        BOOST_CHECK_EQUAL(db->headerChain()[2], &b2);
-        BOOST_CHECK_EQUAL(db->headerChain()[3], &bp3);
+        QCOMPARE(db->headerChain()[0], &root);
+        QCOMPARE(db->headerChain()[1], &b1);
+        QCOMPARE(db->headerChain()[2], &b2);
+        QCOMPARE(db->headerChain()[3], &bp3);
     }
     {
         Blocks::DB::createTestInstance(100);
         Blocks::DB *db = Blocks::DB::instance();
         bool changed = db->appendHeader(&b3);
-        BOOST_CHECK_EQUAL(changed, true);
+        QCOMPARE(changed, true);
         changed = db->appendHeader(&b2);
-        BOOST_CHECK_EQUAL(changed, false);
-        BOOST_CHECK_EQUAL(db->headerChain().Tip(), &b3);
-        BOOST_CHECK_EQUAL(db->headerChain().Height(), 3);
-        BOOST_CHECK_EQUAL(db->headerChainTips().size(), 1);
-        BOOST_CHECK_EQUAL(db->headerChainTips().front(), &b3);
+        QCOMPARE(changed, false);
+        QCOMPARE(db->headerChain().Tip(), &b3);
+        QCOMPARE(db->headerChain().Height(), 3);
+        QCOMPARE(db->headerChainTips().size(), 1);
+        QCOMPARE(db->headerChainTips().front(), &b3);
     }
 
     {
@@ -166,14 +162,14 @@ BOOST_AUTO_TEST_CASE(headersChain)
         changed = db->appendHeader(&b3);
         bp3.nChainWork = b3.nChainWork;
         changed = db->appendHeader(&bp3);
-        BOOST_CHECK_EQUAL(changed, false);
-        BOOST_CHECK_EQUAL(db->headerChain().Tip(), &b3);
-        BOOST_CHECK_EQUAL(db->headerChain().Height(), 3);
-        BOOST_CHECK_EQUAL(db->headerChainTips().size(), 2);
+        QCOMPARE(changed, false);
+        QCOMPARE(db->headerChain().Tip(), &b3);
+        QCOMPARE(db->headerChain().Height(), 3);
+        QCOMPARE(db->headerChainTips().size(), 2);
     }
 }
 
-BOOST_AUTO_TEST_CASE(headersChain2)
+void TestBlocksDB::headersChain2()
 {
     uint256 dummyHash;
     CBlockIndex root;
@@ -208,11 +204,11 @@ BOOST_AUTO_TEST_CASE(headersChain2)
         b3.nStatus |= BLOCK_FAILED_VALID;
 
         changed = db->appendHeader(&b3);
-        BOOST_CHECK_EQUAL(changed, true);
-        BOOST_CHECK_EQUAL(db->headerChain().Tip(), &b2);
-        BOOST_CHECK_EQUAL(db->headerChain().Height(), 2);
-        BOOST_CHECK_EQUAL(db->headerChainTips().size(), 1);
-        BOOST_CHECK_EQUAL(db->headerChainTips().front(), &b2);
+        QCOMPARE(changed, true);
+        QCOMPARE(db->headerChain().Tip(), &b2);
+        QCOMPARE(db->headerChain().Height(), 2);
+        QCOMPARE(db->headerChainTips().size(), 1);
+        QCOMPARE(db->headerChainTips().front(), &b2);
     }
 
     b3.nStatus = 0;
@@ -228,39 +224,39 @@ BOOST_AUTO_TEST_CASE(headersChain2)
         b2.nStatus |= BLOCK_FAILED_VALID;
 
         changed = db->appendHeader(&b2);
-        BOOST_CHECK_EQUAL(changed, true);
-        BOOST_CHECK_EQUAL(db->headerChain().Tip(), &b1);
-        BOOST_CHECK_EQUAL(db->headerChain().Height(), 1);
-        BOOST_CHECK_EQUAL(db->headerChainTips().size(), 1);
-        BOOST_CHECK_EQUAL(db->headerChainTips().front(), &b1);
+        QCOMPARE(changed, true);
+        QCOMPARE(db->headerChain().Tip(), &b1);
+        QCOMPARE(db->headerChain().Height(), 1);
+        QCOMPARE(db->headerChainTips().size(), 1);
+        QCOMPARE(db->headerChainTips().front(), &b1);
     }
 }
 
-BOOST_AUTO_TEST_CASE(invalidate)
+void TestBlocksDB::invalidate()
 {
     // create a chain of 20 blocks.
-    std::vector<FastBlock> blocks = bv.appendChain(20);
+    std::vector<FastBlock> blocks = bv->appendChain(20);
     // split the chain so we have two header-chain-tips
     CBlockIndex *b18 = Blocks::Index::get(blocks.at(18).createHash());
-    auto block = bv.createBlock(b18);
-    bv.addBlock(block, 0).start().waitUntilFinished();
-    BOOST_CHECK_EQUAL(Blocks::DB::instance()->headerChainTips().size(), 2);
+    auto block = bv->createBlock(b18);
+    bv->addBlock(block, 0).start().waitUntilFinished();
+    QCOMPARE(Blocks::DB::instance()->headerChainTips().size(), 2);
 
     // then invalidate a block in the common history of both chains
     CBlockIndex *b14 = Blocks::Index::get(blocks.at(14).createHash());
-    BOOST_CHECK(b14);
+    QVERIFY(b14);
     b14->nStatus |= BLOCK_FAILED_VALID;
     bool changed = Blocks::DB::instance()->appendHeader(b14);
-    BOOST_CHECK(changed);
-    BOOST_CHECK_EQUAL(Blocks::DB::instance()->headerChain().Tip(), b14->pprev);
+    QVERIFY(changed);
+    QCOMPARE(Blocks::DB::instance()->headerChain().Tip(), b14->pprev);
 
     for (auto tip : Blocks::DB::instance()->headerChainTips()) {
-        BOOST_CHECK_EQUAL(tip, b14->pprev);
+        QCOMPARE(tip, b14->pprev);
     }
-    BOOST_CHECK_EQUAL(Blocks::DB::instance()->headerChainTips().size(), 1);
+    QCOMPARE(Blocks::DB::instance()->headerChainTips().size(), 1);
 }
 
-BOOST_AUTO_TEST_CASE(invalidate2)
+void TestBlocksDB::invalidate2()
 {
     /*
      * x b8 b9
@@ -270,33 +266,33 @@ BOOST_AUTO_TEST_CASE(invalidate2)
      * Invalidating 'b9b' should remove the second branch with b10
      */
 
-    std::vector<FastBlock> blocks = bv.appendChain(10);
+    std::vector<FastBlock> blocks = bv->appendChain(10);
     // split the chain so we have two header-chain-tips
     CBlockIndex *b9 = Blocks::Index::get(blocks.at(9).createHash()); // chain-tip
-    BOOST_CHECK_EQUAL(Blocks::DB::instance()->headerChain().Tip(), b9);
+    QCOMPARE(Blocks::DB::instance()->headerChain().Tip(), b9);
 
     CBlockIndex *b8 = Blocks::Index::get(blocks.at(8).createHash());
-    auto block = bv.createBlock(b8);
-    bv.addBlock(block, 0).start().waitUntilFinished();
-    BOOST_CHECK_EQUAL(Blocks::DB::instance()->headerChainTips().size(), 2);
+    auto block = bv->createBlock(b8);
+    bv->addBlock(block, 0).start().waitUntilFinished();
+    QCOMPARE(Blocks::DB::instance()->headerChainTips().size(), 2);
 
     CBlockIndex *b9b = Blocks::Index::get(block.createHash());
-    block = bv.createBlock(b9b); // new chain-tip
-    bv.addBlock(block, 0).start().waitUntilFinished();
-    BOOST_CHECK_EQUAL(Blocks::DB::instance()->headerChainTips().size(), 2);
+    block = bv->createBlock(b9b); // new chain-tip
+    bv->addBlock(block, 0).start().waitUntilFinished();
+    QCOMPARE(Blocks::DB::instance()->headerChainTips().size(), 2);
 
     CBlockIndex *b10b = Blocks::Index::get(block.createHash());
-    BOOST_CHECK_EQUAL(Blocks::DB::instance()->headerChain().Tip(), b10b);
+    QCOMPARE(Blocks::DB::instance()->headerChain().Tip(), b10b);
 
     // then invalidate block b9b
     b9b->nStatus |= BLOCK_FAILED_VALID;
     bool changed = Blocks::DB::instance()->appendHeader(b9b);
-    BOOST_CHECK(changed);
-    BOOST_CHECK_EQUAL(Blocks::DB::instance()->headerChain().Tip(), b9);
-    BOOST_CHECK_EQUAL(Blocks::DB::instance()->headerChainTips().size(), 1);
+    QVERIFY(changed);
+    QCOMPARE(Blocks::DB::instance()->headerChain().Tip(), b9);
+    QCOMPARE(Blocks::DB::instance()->headerChainTips().size(), 1);
 }
 
-BOOST_AUTO_TEST_CASE(invalidate3)
+void TestBlocksDB::invalidate3()
 {
     /*
      * b6 b7 b8  b9
@@ -307,37 +303,37 @@ BOOST_AUTO_TEST_CASE(invalidate3)
      * Then invalidate b8` and check if we go back to b9
      */
 
-    std::vector<FastBlock> blocks = bv.appendChain(10);
+    std::vector<FastBlock> blocks = bv->appendChain(10);
     // split the chain so we have two header-chain-tips
     const CBlockIndex *b9 = Blocks::Index::get(blocks.at(9).createHash()); // chain-tip
-    BOOST_CHECK_EQUAL(Blocks::DB::instance()->headerChain().Tip(), b9);
+    QCOMPARE(Blocks::DB::instance()->headerChain().Tip(), b9);
 
     CBlockIndex *b6 = Blocks::Index::get(blocks.at(6).createHash());
     CBlockIndex *b8b = nullptr;
     CBlockIndex *parent = b6;
     for (int i = 0; i < 4; ++i) {
-        auto block = bv.createBlock(parent);
-        bv.addBlock(block, 0).start().waitUntilFinished();
+        auto block = bv->createBlock(parent);
+        bv->addBlock(block, 0).start().waitUntilFinished();
         parent = Blocks::Index::get(block.createHash());
         if (parent->nHeight == 9)
             b8b = parent;
-        BOOST_CHECK_EQUAL(Blocks::DB::instance()->headerChainTips().size(), 2);
+        QCOMPARE(Blocks::DB::instance()->headerChainTips().size(), 2);
     }
-    BOOST_CHECK_EQUAL(parent->nHeight, 11);
-    BOOST_CHECK_EQUAL(Blocks::DB::instance()->headerChain().Tip(), parent);
+    QCOMPARE(parent->nHeight, 11);
+    QCOMPARE(Blocks::DB::instance()->headerChain().Tip(), parent);
     assert(b8b);
-    BOOST_CHECK_EQUAL(b8b->nHeight, 9);
-    BOOST_CHECK_EQUAL(b8b->pprev->pprev, b6);
+    QCOMPARE(b8b->nHeight, 9);
+    QCOMPARE(b8b->pprev->pprev, b6);
 
     b8b->nStatus |= BLOCK_FAILED_VALID;
     bool changed = Blocks::DB::instance()->appendHeader(b8b);
-    BOOST_CHECK(changed);
-    BOOST_CHECK_EQUAL(Blocks::DB::instance()->headerChain().Tip(), b9);
-    BOOST_CHECK_EQUAL(Blocks::DB::instance()->headerChainTips().size(), 2);
+    QVERIFY(changed);
+    QCOMPARE(Blocks::DB::instance()->headerChain().Tip(), b9);
+    QCOMPARE(Blocks::DB::instance()->headerChainTips().size(), 2);
 }
 
 
-BOOST_AUTO_TEST_CASE(addImpliedInvalid)
+void TestBlocksDB::addImpliedInvalid()
 {
     /*
      * Starting with;
@@ -348,9 +344,9 @@ BOOST_AUTO_TEST_CASE(addImpliedInvalid)
      * If one is failing, then all are.
      */
 
-    std::vector<FastBlock> blocks = bv.appendChain(10);
+    std::vector<FastBlock> blocks = bv->appendChain(10);
     auto * const x = Blocks::DB::instance()->headerChain().Tip();
-    BOOST_CHECK_EQUAL(x->nHeight, 10);
+    QCOMPARE(x->nHeight, 10);
 
     uint256 hashes[3];
     CBlockIndex a1;
@@ -373,7 +369,5 @@ BOOST_AUTO_TEST_CASE(addImpliedInvalid)
     a3.nStatus = BLOCK_FAILED_CHILD;
 
     Blocks::DB::instance()->appendHeader(&a3);
-    BOOST_CHECK_EQUAL(Blocks::DB::instance()->headerChain().Tip(), x);
+    QCOMPARE(Blocks::DB::instance()->headerChain().Tip(), x);
 }
-
-BOOST_AUTO_TEST_SUITE_END()

@@ -67,7 +67,6 @@ set (TEST_SOURCES
     allocator_tests.cpp
     base58_tests.cpp
     blocksdb_mapfile_tests.cpp
-    blocksdb_tests.cpp
     Checkpoints_tests.cpp
     compress_tests.cpp
     cuckoocache_tests.cpp
@@ -103,8 +102,8 @@ if (enable_wallet)
     )
 endif ()
 
-add_executable(test_hub ${TEST_SOURCES} ${TEST_SOURCES_WALLET})
+add_executable(test_hubOld ${TEST_SOURCES} ${TEST_SOURCES_WALLET})
 
-target_link_libraries(test_hub ${TEST_LIBS})
+target_link_libraries(test_hubOld ${TEST_LIBS})
 
-add_test(NAME HUB_tests COMMAND test_hub)
+add_test(NAME HUB_tests COMMAND test_hubOld)
