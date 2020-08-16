@@ -572,7 +572,6 @@ void Blocks::DB::loadConfig()
 //
 void Blocks::DB::partitionCheck(int64_t powTargetSpacing)
 {
-logFatal() << "PartitionCheck";
     static int64_t lastAlertTime = 0;
     int64_t now = GetAdjustedTime();
     if (lastAlertTime > now - 60 * 60 * 6) // Alert at most 4 times per day
