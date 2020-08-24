@@ -12,18 +12,18 @@
 
 <h3>Get all outputs depositing money into an address</h3>
 
-<p><code>GET `/api/BCH/mainnet/address/:address/txs`</code>
+<p><code>GET `/api/BCH/mainnet/address/{address}/txs`</code>
 (<a href="/api/BCH/mainnet/address/1PYELM7jXHy5HhatbXGXfRpGrgMMxmpobu/txs" target="_other">example</a>)</p>
 
 <p>Notice that address can be of type 'bitcoincash', but should not have the preceding 'bitcoincash:' identifier. Legacy type addresses are supported.</p>
 
 <h3>Get all outputs for an address still unspent</h3>
-<p><code>GET `/api/BCH/mainnet/address/:address/?unspent`</code>
+<p><code>GET `/api/BCH/mainnet/address/{address}/?unspent`</code>
 (<a href="/api/BCH/mainnet/address/1PYELM7jXHy5HhatbXGXfRpGrgMMxmpobu/?unspent" target="_other">example</a>)</p>
 
 <h3>Get the balance of an address</h3>
 
-<p><code>GET `/api/BCH/mainnet/address/:address/balance`</code>
+<p><code>GET `/api/BCH/mainnet/address/{address}/balance`</code>
 (<a href="/api/BCH/mainnet/address/1PYELM7jXHy5HhatbXGXfRpGrgMMxmpobu/balance" target="_other">example</a>)</p>
 
 </body>
