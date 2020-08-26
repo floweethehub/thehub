@@ -609,7 +609,7 @@ int main(int argc, char *argv[])
     } catch (const std::exception& e) {
         QMessageBox::critical(0, QObject::tr("Flowee"),
                               QObject::tr("Error: Cannot parse program options: %1.").arg(e.what()));
-        return false;
+        return 10;
     }
 
     /// 3. Application identification
@@ -666,7 +666,7 @@ int main(int argc, char *argv[])
     } catch (const std::exception& e) {
         QMessageBox::critical(0, QObject::tr("Flowee"),
                               QObject::tr("Error: Cannot parse configuration file: %1. Only use key=value syntax.").arg(e.what()));
-        return false;
+        return 10;
     }
     if (confPathSet) // after raeding the user-indicated conf file, select chain (including conf file opts)
         SelectChain();
