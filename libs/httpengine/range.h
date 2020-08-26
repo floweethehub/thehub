@@ -167,22 +167,22 @@ public:
      */
     bool isValid() const;
 
-    /**
-     * @brief Retrieve representation suitable for Content-Range header
-     *
-     * @code
-     * HttpEngine::Range range(0, 100, 1000);
-     * range.contentRange(); // "0-100/1000"
-     *
-     * // When resource size is unknown
-     * range = HttpEngine::Range(512, 1024);
-     * range.contentRange(); // "512-1024/*"
-     *
-     * // if range request was bad, return resource size
-     * range = HttpEngine::Range(1, 0, 1200);
-     * range.contentRange(); // "*\/1200"
-     * @endcode
-     */
+    ///
+    // @brief Retrieve representation suitable for Content-Range header
+    //
+    // @code
+    // HttpEngine::Range range(0, 100, 1000);
+    // range.contentRange(); // "0-100/1000"
+    //
+    // // When resource size is unknown
+    // range = HttpEngine::Range(512, 1024);
+    // range.contentRange(); // "512-1024/*"
+    //
+    // // if range request was bad, return resource size
+    // range = HttpEngine::Range(1, 0, 1200);
+    // range.contentRange(); // "*\/1200"
+    // @endcode
+    //
     QString contentRange() const;
 
 private:
