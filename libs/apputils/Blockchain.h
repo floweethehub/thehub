@@ -252,6 +252,8 @@ public:
     virtual void hubDisconnected() {}
     virtual void indexerDisconnected() {}
 
+    SearchEngine(const SearchEngine &) = delete;
+    SearchEngine &operator=(SearchEngine&) = delete;
 protected:
     void reparseConfig();
 

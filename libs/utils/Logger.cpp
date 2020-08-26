@@ -333,9 +333,10 @@ void Log::Manager::parseConfig(const boost::filesystem::path &configfile, const 
             d->channels.push_back(new ConsoleLogChannel());
             loadedConsoleLog = true;
         }
-        d->enabledSections[0] = Log::WarningLevel;
 #ifndef NDEBUG
         d->enabledSections[0] = Log::DebugLevel;
+#else
+        d->enabledSections[0] = Log::WarningLevel;
 #endif
         for (short i = 1000; i <= 20000; i+=1000)
             d->enabledSections[i] = Log::WarningLevel;

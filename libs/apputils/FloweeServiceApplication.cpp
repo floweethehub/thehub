@@ -130,6 +130,7 @@ void FloweeServiceApplication::setup(const char *logFilename, const QString &con
             for (auto p : QStandardPaths::standardLocations(QStandardPaths::AppConfigLocation)) {
                 logWarning(m_appLogSection).nospace() << "  tried " << p << "/logs.conf";
             }
+            logCritical().nospace() << "Log output goes to: " << m_logFile;
             Log::Manager::instance()->setLogLevel(m_appLogSection, Log::WarningLevel);
         } else {
             logCritical().nospace() << applicationName() << "] Trying logs config at " << m_logsconf;

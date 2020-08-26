@@ -136,6 +136,7 @@ class Manager
 public:
     /// please use instance() instead.
     Manager();
+    Manager(const Manager &o) = delete;
     ~Manager();
 
     /**
@@ -214,6 +215,8 @@ public:
 
     void clearLogLevels(Log::Verbosity defaultVerbosity = Log::WarningLevel);
     void setLogLevel(short section, Log::Verbosity verbosity);
+
+    Manager& operator=(const Manager &o) = delete;
 
 private:
     ManagerPrivate *d;

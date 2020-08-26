@@ -82,6 +82,10 @@ public:
 
     // policies
     SearchPolicy *txPolicy = nullptr;
+
+    // avoid unexpected usage.
+    SearchEnginePrivate(const SearchEnginePrivate&) = delete;
+    SearchEnginePrivate&operator=(const SearchEnginePrivate&) = delete;
 };
 
 class SearchPolicy // move all this to the private instead and make the searcher link to the private instead of having a policy

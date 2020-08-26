@@ -438,7 +438,7 @@ void Blockchain::SearchPolicy::parseMessageFromHub(Search *request, const Messag
     Streaming::MessageParser parser(message);
     { // jobsLock scope
     std::lock_guard<std::mutex> lock(request->jobsLock);
-    if (jobId < 0 || request->jobs.size() <= jobId) {
+    if (jobId < 0 || static_cast<int>(request->jobs.size()) <= jobId) {
         logDebug(Log::SearchEngine) << "Hub message refers to non existing job Id";
         return;
     }
@@ -543,7 +543,7 @@ void Blockchain::SearchPolicy::parseMessageFromIndexer(Search *request, const Me
     logDebug(Log::SearchEngine) << "  " << jobId;
     { // jobslock scope
     std::lock_guard<std::mutex> lock(request->jobsLock);
-    if (jobId < 0 || request->jobs.size() <= jobId) {
+    if (jobId < 0 || static_cast<int>(request->jobs.size()) <= jobId) {
         logDebug(Log::SearchEngine) << "Indexer message refers to non existing job Id";
         return;
     }
@@ -571,14 +571,14 @@ void Blockchain::SearchPolicy::parseMessageFromIndexer(Search *request, const Me
             request->spentOutputResolved(jobId, height, offsetInBlock);
     }
     else if (message.messageId() == Api::Indexer::FindAddressReply) {
-        int blockHeight = -1, offsetInBlock = 0, outIndex = -1;
+        int blockHeight = -1, offsetInBlock = 0;
         while (parser.next() == Streaming::FoundTag) {
             if (parser.tag() == Api::Indexer::BlockHeight)
                 blockHeight = parser.intData();
             else if (parser.tag() == Api::Indexer::OffsetInBlock)
                 offsetInBlock = parser.intData();
             else if (parser.tag() == Api::Indexer::OutIndex) {
-                outIndex = parser.intData();
+                int outIndex = parser.intData();
                 // TODO process.
                 request->addressUsedInOutput(blockHeight, offsetInBlock, outIndex);
             }
