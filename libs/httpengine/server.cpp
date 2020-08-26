@@ -54,6 +54,7 @@ ServerPrivate::~ServerPrivate()
 
 void ServerPrivate::schedule(qintptr socketDescriptor)
 {
+    Q_UNUSED(socketDescriptor)
 }
 
 Server::Server()

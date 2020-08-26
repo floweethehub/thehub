@@ -30,7 +30,7 @@
 class Server : public HttpEngine::Server
 {
 public:
-    Server(const std::function<void(HttpEngine::WebRequest*)> &handler)
+    explicit Server(const std::function<void(HttpEngine::WebRequest*)> &handler)
         : m_func(handler)
     {
     }
@@ -40,7 +40,7 @@ public:
 
     void setProxy(BitcoreProxy *proxy) { m_handler = proxy; }
 private:
-    BitcoreProxy *m_handler;
+    BitcoreProxy *m_handler = nullptr;
     std::function<void(HttpEngine::WebRequest*)> m_func;
 };
 

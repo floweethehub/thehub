@@ -112,7 +112,7 @@ int main(int argc, char **argv)
 
     logFatal() << "Starting";
     TestApi tester;
-    auto server =app.serverAddressFromArguments(3000);
+    auto server = app.serverAddressFromArguments(3000);
     tester.start(QString::fromStdString(server.hostname), server.announcePort);
 
     return app.exec();
