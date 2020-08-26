@@ -23,7 +23,6 @@ The indexer has the following --help message;
       -h, --help             Displays this help.
       --datadir, -d <DIR>    The directory to put the data in
       --conf <FILENAME>      config file
-      --debug                Use debug level logging
       --version              Display version
       --connect <ADDRESS>  server location and port
       --bind <IP-ADDRESS>    Bind to this IP:port
@@ -61,7 +60,7 @@ db_port=5432
 
 # The Hub server address, with optional port.
 [services]
-#hub=router:1235
+#hub=router:1235 (mainnet) 11235 (testnet)
 hub=localhost
 
 # Listen on localhost
