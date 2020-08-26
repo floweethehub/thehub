@@ -22,22 +22,22 @@ add_executable(univalue_gen gen/gen.cpp)
 target_include_directories(univalue_gen PUBLIC include)
 add_custom_command(
     OUTPUT ${CMAKE_CURRENT_BINARY_DIR}/univalue_escapes.h
-	COMMAND univalue_gen > ${CMAKE_CURRENT_BINARY_DIR}/univalue_escapes.h
+    COMMAND univalue_gen > ${CMAKE_CURRENT_BINARY_DIR}/univalue_escapes.h
     DEPENDS univalue_gen
 )
 
 add_library(univalue
-	lib/univalue.cpp
-	lib/univalue_read.cpp
-	lib/univalue_write.cpp
+    lib/univalue.cpp
+    lib/univalue_read.cpp
+    lib/univalue_write.cpp
 )
 target_sources(univalue PRIVATE ${CMAKE_CURRENT_BINARY_DIR}/univalue_escapes.h)
 
 target_include_directories(univalue
-	PUBLIC
-		include
-	PRIVATE
-		lib
+    PUBLIC
+        include
+    PRIVATE
+        lib
         ${CMAKE_CURRENT_BINARY_DIR}
 )
 
