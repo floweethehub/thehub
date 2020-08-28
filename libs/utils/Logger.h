@@ -172,9 +172,10 @@ public:
      *
      * <code>
      * # Anything behind a '#' is a comment
+     * # Online docs; https://flowee.org/docs/hub/log-config/
      *
      * channel console
-     *     # linenumber / methodname / filename only work for developer-builds. (configure --enable-dev-setup)
+     *     # linenumber / methodname / filename only show for developer-builds. (configure --enable-dev-setup)
      *     option linenumber false
      *     option methodname true
      *     option filename true
@@ -184,10 +185,11 @@ public:
      * # just mentioning 'channel file' will enable it.
      * channel file
      *     # all options available for console are available for file too.
+     *     # path is optional, default goes to XDG dir (~/.local/share/flowee/app/app.log)
      *     option path [path]
      *
      * # Log sections from Log::Sections and verbosity
-     * # default value for all log sections that are not specifically added here is `info`
+     * # default value for all log sections that are not specifically added here is `warning`
      * 1000 quiet   # multiple of 1000 is a group, changes apply to all unset items in that group (1000-1999)
      * 1007 debug   # override group setting.
      *
