@@ -1,6 +1,6 @@
 /*
  * This file is part of the Flowee project
- * Copyright (C) 2019 Tom Zander <tomz@freedommail.ch>
+ * Copyright (C) 2019-2020 Tom Zander <tomz@freedommail.ch>
  *
  * This program is free software: you can redistribute it and/or modify
  * it under the terms of the GNU General Public License as published by
@@ -64,6 +64,7 @@ struct Job {
 
 class ServiceUnavailableException : public std::runtime_error
 {
+public:
     explicit ServiceUnavailableException(const char *error, Service service);
 
     Service service() const {

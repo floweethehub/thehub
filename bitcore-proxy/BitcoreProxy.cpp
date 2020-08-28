@@ -258,6 +258,23 @@ void BitcoreProxy::onIncomingConnection(HttpEngine::WebRequest *request_)
         }
 
         start(request);
+    } catch (const Blockchain::ServiceUnavailableException &e) {
+        QString error("Config or backend issue: can't find upstream service: %1");
+        switch (e.service()) {
+        case Blockchain::TheHub:
+            error = error.arg("The Hub");
+            break;
+        case Blockchain::IndexerTxIdDb:
+            error = error.arg("TxID indexer");
+            break;
+        case Blockchain::IndexerAddressDb:
+            error = error.arg("Addresses indexer");
+            break;
+        case Blockchain::IndexerSpentDb:
+            error = error.arg("Spent-db indexer");
+            break;
+        }
+        returnTemplatePath(socket, "setup.html", error);
     } catch (const UserInputException &e) {
         returnTemplatePath(socket, e.helpPage(), e.what());
     } catch (const std::exception &e) {

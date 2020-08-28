@@ -1,8 +1,8 @@
 <RCC>
     <qresource prefix="/">
         <file alias="index.html">data/index.html</file>
-        <file alias="no-upstream.json">data/no-upstream.json</file>
         <file alias="txHelp.html">data/txHelp.html</file>
         <file alias="addressHelp.html">data/addressHelp.html</file>
+        <file alias="setup.html">data/setup.html</file>
     </qresource>
 </RCC>

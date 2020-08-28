@@ -413,7 +413,7 @@ void Blockchain::SearchEnginePrivate::sendMessage(const Message &message, Blockc
         }
         ++iter;
     }
-    throw std::runtime_error("Backing service not connected");
+    throw ServiceUnavailableException("Backing service not connected", service);
 }
 
 void Blockchain::SearchEnginePrivate::searchFinished(Blockchain::Search *searcher)
@@ -764,6 +764,8 @@ void Blockchain::SearchPolicy::processRequests(Blockchain::Search *request)
             sendMessage(request, builder.message(), TheHub);
             break;
         }
+        } catch (const ServiceUnavailableException &e) {
+            throw;
         } catch (std::exception &e) {
             logCritical(Log::SearchEngine) << "Job processing failed due to" << e;
             job.started = true;
