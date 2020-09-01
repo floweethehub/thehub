@@ -61,7 +61,7 @@ class GetBlockChainInfo : public Api::RpcParser
 {
 public:
     GetBlockChainInfo() : RpcParser("getblockchaininfo", Api::BlockChain::GetBlockChainInfoReply, 500) {}
-    virtual void buildReply(Streaming::MessageBuilder &builder, const UniValue &result) {
+    virtual void buildReply(Streaming::MessageBuilder &builder, const UniValue &result) override {
         const UniValue &chain = find_value(result, "chain");
         builder.add(Api::BlockChain::Chain, chain.get_str());
         const UniValue &blocks = find_value(result, "blocks");
@@ -89,7 +89,7 @@ class GetBlockLegacy : public Api::RpcParser
 {
 public:
     GetBlockLegacy() : RpcParser("getblock", Api::BlockChain::GetBlockVerboseReply), m_verbose(true) {}
-    virtual void createRequest(const Message &message, UniValue &output) {
+    virtual void createRequest(const Message &message, UniValue &output) override {
         std::string blockId;
         Streaming::MessageParser parser(message.body());
         while (parser.next() == Streaming::FoundTag) {
@@ -108,7 +108,7 @@ public:
         output.push_back(std::make_pair("verbose", UniValue(UniValue::VBOOL, m_verbose ? "1": "0")));
     }
 
-    virtual int calculateMessageSize(const UniValue &result) const {
+    virtual int calculateMessageSize(const UniValue &result) const override {
         if (m_verbose) {
             const UniValue &tx = find_value(result, "tx");
             return tx.size() * 70 + 200;
@@ -116,7 +116,7 @@ public:
         return result.get_str().size() / 2 + 20;
     }
 
-    virtual void buildReply(Streaming::MessageBuilder &builder, const UniValue &result) {
+    virtual void buildReply(Streaming::MessageBuilder &builder, const UniValue &result)  override{
         if (!m_verbose) {
             std::vector<char> answer;
             boost::algorithm::unhex(result.get_str(), back_inserter(answer));
@@ -195,7 +195,7 @@ public:
             builder.add(Api::BlockChain::NextBlockHash, next->GetBlockHash());
     }
 
-    void buildReply(const Message &request, Streaming::MessageBuilder &builder) {
+    void buildReply(const Message &request, Streaming::MessageBuilder &builder) override {
         Streaming::MessageParser parser(request.body());
 
         bool first = true;
@@ -308,7 +308,7 @@ public:
 
     GetBlock() : DirectParser(Api::BlockChain::GetBlockReply) {}
 
-    int calculateMessageSize(const Message &request) {
+    int calculateMessageSize(const Message &request) override {
         CBlockIndex *index = nullptr;
         Streaming::MessageParser parser(request.body());
         BlockSessionData *session = dynamic_cast<BlockSessionData*>(*data);
@@ -449,7 +449,7 @@ public:
         return total;
     }
 
-    void buildReply(const Message&, Streaming::MessageBuilder &builder) {
+    void buildReply(const Message&, Streaming::MessageBuilder &builder) override {
         assert(m_height >= 0);
         builder.add(Api::BlockChain::BlockHeight, m_height);
         builder.add(Api::BlockChain::BlockHash, m_block.createHash());
@@ -490,7 +490,7 @@ class GetBlockCount : public Api::DirectParser
 public:
     GetBlockCount() : DirectParser(Api::BlockChain::GetBlockCountReply, 20) {}
 
-    void buildReply(const Message&, Streaming::MessageBuilder &builder) {
+    void buildReply(const Message&, Streaming::MessageBuilder &builder) override {
         builder.add(Api::BlockChain::BlockHeight, chainActive.Height());
     }
 };
@@ -502,7 +502,7 @@ class GetLiveTransaction : public Api::RpcParser
 public:
     GetLiveTransaction() : RpcParser("getrawtransaction", Api::LiveTransactions::GetTransactionReply) {}
 
-    virtual void createRequest(const Message &message, UniValue &output) {
+    virtual void createRequest(const Message &message, UniValue &output) override {
         std::string txid;
         Streaming::MessageParser parser(message.body());
         while (parser.next() == Streaming::FoundTag) {
@@ -515,7 +515,7 @@ public:
         output.push_back(std::make_pair("parameter 1", UniValue(UniValue::VSTR, txid)));
     }
 
-    virtual int calculateMessageSize(const UniValue &result) const {
+    virtual int calculateMessageSize(const UniValue &result) const override {
         return result.get_str().size() / 2 + 20;
     }
 };
@@ -525,7 +525,7 @@ class SendLiveTransaction : public Api::RpcParser
 public:
     SendLiveTransaction() : RpcParser("sendrawtransaction", Api::LiveTransactions::SendTransactionReply, 34) {}
 
-    virtual void createRequest(const Message &message, UniValue &output) {
+    virtual void createRequest(const Message &message, UniValue &output) override {
         std::string tx;
         Streaming::MessageParser parser(message.body());
         while (parser.next() == Streaming::FoundTag) {
@@ -544,7 +544,7 @@ class CreateAddress : public Api::DirectParser
 public:
     CreateAddress() : DirectParser(Api::Util::CreateAddressReply, 150) {}
 
-    virtual void buildReply(const Message &, Streaming::MessageBuilder &builder) {
+    virtual void buildReply(const Message &, Streaming::MessageBuilder &builder) override {
         CKey key;
         key.MakeNewKey();
         assert(key.IsCompressed());
@@ -558,7 +558,7 @@ class ValidateAddress : public Api::RpcParser {
 public:
     ValidateAddress() : RpcParser("validateaddress", Api::Util::ValidateAddressReply, 300) {}
 
-    virtual void buildReply(Streaming::MessageBuilder &builder, const UniValue &result) {
+    virtual void buildReply(Streaming::MessageBuilder &builder, const UniValue &result) override {
         const UniValue &isValid = find_value(result, "isvalid");
         builder.add(Api::Util::IsValid, isValid.getBool());
         const UniValue &address = find_value(result, "address");
@@ -569,7 +569,7 @@ public:
         builder.add(Api::Util::ScriptPubKey, bytearray);
         bytearray.clear();
     }
-    virtual void createRequest(const Message &message, UniValue &output) {
+    virtual void createRequest(const Message &message, UniValue &output) override {
         Streaming::MessageParser parser(message.body());
         while (parser.next() == Streaming::FoundTag) {
             if (parser.tag() == Api::Util::BitcoinP2PKHAddress) {
@@ -585,7 +585,7 @@ class RegTestGenerateBlock : public Api::RpcParser {
 public:
     RegTestGenerateBlock() : RpcParser("generate", Api::RegTest::GenerateBlockReply) {}
 
-    void createRequest(const Message &message, UniValue &output) {
+    void createRequest(const Message &message, UniValue &output) override {
         Streaming::MessageParser parser(message.body());
         int amount = 1;
         std::vector<uint8_t> outAddress;
@@ -607,7 +607,7 @@ public:
         m_messageSize = amount * 35;
     }
 
-    void buildReply(Streaming::MessageBuilder &builder, const UniValue &result) {
+    void buildReply(Streaming::MessageBuilder &builder, const UniValue &result) override {
         assert(result.getType() == UniValue::VARR);
         for (size_t i = 0; i < result.size(); ++i) {
             assert(result[i].get_str().size() == 64);
@@ -716,7 +716,7 @@ private:
 class UtxoFetcher: public Api::DirectParser
 {
 public:
-    UtxoFetcher(int replyId)
+    explicit UtxoFetcher(int replyId)
       : DirectParser(replyId)
     {
     }
@@ -889,7 +889,8 @@ Api::Parser *Api::createParser(const Message &message)
 Api::Parser::Parser(ParserType type, int answerMessageId, int messageSize)
     : m_messageSize(messageSize),
       m_replyMessageId(answerMessageId),
-      m_type(type)
+      m_type(type),
+      data(nullptr)
 {
 }
 
