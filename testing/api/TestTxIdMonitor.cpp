@@ -102,8 +102,8 @@ void TestTxIdMonitor::testMempool()
     QVERIFY(m.messageId() == Api::TransactionMonitor::SubscribeReply);
 
     logDebug() << "Sending tx1 to hub0" << tx1.createHash();
-    builder = Streaming::MessageBuilder(pool);
-    builder.add(Api::LiveTransactions::GenericByteData, tx1.data());
+    Streaming::MessageBuilder builder2(pool);
+    builder2.add(Api::LiveTransactions::GenericByteData, tx1.data());
 
     m = waitForReply(0, builder.message(Api::LiveTransactionService, Api::LiveTransactions::SendTransaction),
                      Api::TransactionMonitorService, Api::TransactionMonitor::TransactionFound);
@@ -128,8 +128,8 @@ void TestTxIdMonitor::testMempool()
     QCOMPARE(seenOffsetInBlock, false);
 
     // second part; to connect to a peer that already has it in the mempool.
-    builder.add(Api::TransactionMonitor::TxId, tx1.createHash());
-    m = waitForReply(1, builder.message(Api::TransactionMonitorService, Api::TransactionMonitor::Subscribe),
+    builder2.add(Api::TransactionMonitor::TxId, tx1.createHash());
+    m = waitForReply(1, builder2.message(Api::TransactionMonitorService, Api::TransactionMonitor::Subscribe),
                      Api::TransactionMonitorService, Api::TransactionMonitor::TransactionFound);
     QVERIFY(m.messageId() == Api::TransactionMonitor::TransactionFound);
 
@@ -184,15 +184,15 @@ void TestTxIdMonitor::testDoubleSpend()
     m_hubs[1].m_foundMessage.store(nullptr);
 
     logDebug() << "Sending tx1 to hub0" << tx1.createHash();
-    builder = Streaming::MessageBuilder(pool);
-    builder.add(Api::LiveTransactions::GenericByteData, tx1.data());
-    m = waitForReply(0, builder.message(Api::LiveTransactionService, Api::LiveTransactions::SendTransaction),
+    Streaming::MessageBuilder builder2(pool);
+    builder2.add(Api::LiveTransactions::GenericByteData, tx1.data());
+    m = waitForReply(0, builder2.message(Api::LiveTransactionService, Api::LiveTransactions::SendTransaction),
                           Api::TransactionMonitorService, Api::TransactionMonitor::TransactionFound);
     QCOMPARE(m.messageId(), (int) Api::TransactionMonitor::TransactionFound);
     logDebug() << "Sending tx2 to hub0" << tx2.createHash();
-    builder = Streaming::MessageBuilder(pool);
-    builder.add(Api::LiveTransactions::GenericByteData, tx2.data());
-    m = waitForReply(0, builder.message(Api::LiveTransactionService, Api::LiveTransactions::SendTransaction),
+    Streaming::MessageBuilder builder3(pool);
+    builder3.add(Api::LiveTransactions::GenericByteData, tx2.data());
+    m = waitForReply(0, builder3.message(Api::LiveTransactionService, Api::LiveTransactions::SendTransaction),
                           Api::TransactionMonitorService, Api::TransactionMonitor::DoubleSpendFound);
     QCOMPARE(m.messageId(), (int) Api::TransactionMonitor::DoubleSpendFound);
 

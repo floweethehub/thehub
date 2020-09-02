@@ -167,7 +167,6 @@ void Streaming::MessageBuilder::add(uint32_t tag, int32_t value_)
     uint64_t value(value_);
     if (value_ < 0)
         value = value_ * -1l;
-    assert(value >= 0);
     assert(value <= 0xFFFFFFFF);
     int tagSize = write(m_buffer->data(), tag, type);
     m_buffer->markUsed(tagSize);

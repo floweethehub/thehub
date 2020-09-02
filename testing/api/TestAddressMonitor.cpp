@@ -1,6 +1,6 @@
 /*
  * This file is part of the Flowee project
- * Copyright (C) 2019 Tom Zander <tomz@freedommail.ch>
+ * Copyright (C) 2019-2020 Tom Zander <tomz@freedommail.ch>
  *
  * This program is free software: you can redistribute it and/or modify
  * it under the terms of the GNU General Public License as published by
@@ -172,10 +172,10 @@ void TestAddressMonitor::testDoubleSpendProof()
 
     logDebug() << "Sending tx2 to hub1" << tx2.createHash();
     // double-spend-tx (same input, other output and amount)
-    builder = Streaming::MessageBuilder(pool);
-    builder.add(Api::LiveTransactions::GenericByteData, tx2.data());
+    Streaming::MessageBuilder builder2(pool);
+    builder2.add(Api::LiveTransactions::GenericByteData, tx2.data());
     // Sent this to HUB 1
-    con[1].send(builder.message(Api::LiveTransactionService, Api::LiveTransactions::SendTransaction));
+    con[1].send(builder2.message(Api::LiveTransactionService, Api::LiveTransactions::SendTransaction));
 
 
     // from hub 1 I should have received an old fashioned double spend. The one with TX.

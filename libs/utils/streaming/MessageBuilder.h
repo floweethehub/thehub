@@ -41,6 +41,7 @@ class MessageBuilder
 public:
     MessageBuilder(MessageType type = NoHeader, int size = 20000);
     MessageBuilder(BufferPool &pool, MessageType type = NoHeader);
+    MessageBuilder(MessageBuilder &o) = delete;
     ~MessageBuilder();
 
     void add(uint32_t tag, uint64_t value);
@@ -97,6 +98,8 @@ public:
      * no-header type messages.
      */
     Message reply(const Message &incoming, int messageId = -1);
+
+    MessageBuilder* operator=(const MessageBuilder &o) = delete;
 
 private:
     void add(uint32_t tag, const unsigned char *data, unsigned int length);
