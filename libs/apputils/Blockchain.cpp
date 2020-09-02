@@ -127,6 +127,20 @@ Blockchain::Search::~Search()
         policy->searchFinished(this);
 }
 
+uint64_t Blockchain::Search::txRefKey(int origTxIndex, Blockchain::Search::TxRef ref, int index)
+{
+    // pack those 3 into one long.
+    assert(origTxIndex >= 0);
+    assert(index >= 0);
+    assert(index < 1000000); // should fit in 24 bits.
+    uint64_t answer = origTxIndex;
+    answer <<= 32;
+    if (ref == TxRef::Input)
+        answer += 0x1000000;
+    answer += index;
+    return answer;
+}
+
 Blockchain::SearchEngine::SearchEngine()
     : d(new SearchEnginePrivate(this))
 {
@@ -300,8 +314,12 @@ void Blockchain::SearchEnginePrivate::hubSentMessage(const Message &message)
         auto searcher = searchers.find(id);
         if (searcher != searchers.end()) {
             assert(searcher->second->policy);
-            searcher->second->dataAdded(message);
-            searcher->second->policy->parseMessageFromHub(searcher->second, message);
+            try {
+                searcher->second->policy->parseMessageFromHub(searcher->second, message);
+            } catch (const Blockchain::ServiceUnavailableException &e) {
+                logWarning() << "Service unavailable" << e;
+                searcher->second->aborted(e);
+            }
         }
         else logDebug() << "No searcher matching the job";
         return;
@@ -356,8 +374,12 @@ void Blockchain::SearchEnginePrivate::indexerSentMessage(const Message &message)
         std::lock_guard<std::mutex> lock_(lock);
         auto searcher = searchers.find(id);
         if (searcher != searchers.end()) {
-            searcher->second->dataAdded(message);
-            searcher->second->policy->parseMessageFromIndexer(searcher->second, message);
+            try {
+                searcher->second->policy->parseMessageFromIndexer(searcher->second, message);
+            } catch (const Blockchain::ServiceUnavailableException &e) {
+                logWarning() << "Service unavailable" << e;
+                searcher->second->aborted(e);
+            }
         }
         return;
     }
@@ -437,21 +459,34 @@ void Blockchain::SearchPolicy::parseMessageFromHub(Search *request, const Messag
     const int jobId = message.headerInt(JobRequestId);
     logDebug(Log::SearchEngine) << "  " << jobId;
     Streaming::MessageParser parser(message);
+    Job job;
     { // jobsLock scope
     std::lock_guard<std::mutex> lock(request->jobsLock);
     if (jobId < 0 || static_cast<int>(request->jobs.size()) <= jobId) {
         logDebug(Log::SearchEngine) << "Hub message refers to non existing job Id";
         return;
     }
-    Job &job = request->jobs[jobId];
-    job.finished = true;
+    Job &job_ref = request->jobs[jobId];
+    job_ref.finished = true;
+    job = job_ref;
+    } // jobsLock scope
 
     if (message.serviceId() == Api::BlockChainService) {
         if (message.messageId() == Api::BlockChain::GetTransactionReply) {
             request->answer.push_back(fillTx(parser, job, jobId));
-            if (!request->answer.back().txid.isEmpty())
-                request->transactionMap.insert(std::make_pair(uint256(request->answer.back().txid.begin()), request->answer.size() - 1));
-            request->transactionAdded(request->answer.back());
+            const Transaction &tx = request->answer.back();
+            auto iter = request->txRefs.find(jobId);
+            if (iter != request->txRefs.end()) { // check the txRefs for matches.
+                uint64_t v = iter->second;
+                uint32_t k = v & 0xFFFFFFFF;
+                v = v >> 32;
+                int txIndex = v;
+                assert(txIndex >= 0); // if this or the next hits, then the inherting class failed to insert a proper row
+                assert(request->answer.size() > size_t(txIndex));
+                Transaction &backTx = request->answer[txIndex];
+                backTx.txRefs.insert(std::make_pair(k, &request->answer.back()));
+            }
+            request->transactionAdded(tx, request->answer.size() - 1);
         }
         else if (message.messageId() == Api::BlockChain::GetBlockHeaderReply) {
             BlockHeader header;
@@ -487,22 +522,22 @@ void Blockchain::SearchPolicy::parseMessageFromHub(Search *request, const Messag
                 if (!more)
                     break;
                 request->answer.push_back(fillTx(parser, job, jobId));
-                request->transactionAdded(request->answer.back());
+                request->transactionAdded(request->answer.back(), request->answer.size() - 1);
             }
         }
         else {
             logDebug(Log::SearchEngine) << "Unknown message from Hub" << message.serviceId() << message.messageId();
         }
     }
-    } // jobsLock scope
 
     if (message.serviceId() == Api::LiveTransactionService) {
         // TODO also implement error reporting from the API module.
         // things like "OffsetInBlock larger than block" get reported there.
-        if (message.messageId() == Api::LiveTransactions::IsUnspentReply) {
-            int blockHeight = -1;
-            int offsetInBlock = -1;
-            int outIndex = -1;
+        if (message.messageId() == Api::LiveTransactions::IsUnspentReply
+                || message.messageId() == Api::LiveTransactions::GetUnspentOutputReply) {
+            int blockHeight = job.intData;
+            int offsetInBlock = job.intData2;
+            int outIndex = job.intData3;
             int64_t amount = -1;
             Streaming::ConstBuffer outputScript;
             bool unspent = false;
@@ -578,11 +613,8 @@ void Blockchain::SearchPolicy::parseMessageFromIndexer(Search *request, const Me
                 blockHeight = parser.intData();
             else if (parser.tag() == Api::Indexer::OffsetInBlock)
                 offsetInBlock = parser.intData();
-            else if (parser.tag() == Api::Indexer::OutIndex) {
-                int outIndex = parser.intData();
-                // TODO process.
-                request->addressUsedInOutput(blockHeight, offsetInBlock, outIndex);
-            }
+            else if (parser.tag() == Api::Indexer::OutIndex)
+                request->addressUsedInOutput(blockHeight, offsetInBlock, parser.intData());
         }
     } else {
         logDebug(Log::SearchEngine) << "Unknown message from Indexer";

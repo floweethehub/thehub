@@ -311,6 +311,7 @@ if (${Qt5Core_FOUND})
     add_subdirectory(unspentdb)
     if (${Qt5Network_FOUND})
         add_subdirectory(bitcore-proxy)
+        add_subdirectory(rest-service)
     endif ()
 endif ()
 

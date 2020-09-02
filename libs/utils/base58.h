@@ -99,6 +99,8 @@ public:
         return vchData;
     }
 
+    void SetData(const std::vector<unsigned char> &vchVersionIn, const void* pdata, size_t nSize);
+
 protected:
     //! the version byte(s)
     std::vector<unsigned char> vchVersion;
@@ -106,9 +108,7 @@ protected:
     //! the actually encoded data
     std::vector<unsigned char> vchData;
 
-    void SetData(const std::vector<unsigned char> &vchVersionIn, const void* pdata, size_t nSize);
     void SetData(const std::vector<unsigned char> &vchVersionIn, const unsigned char *pbegin, const unsigned char *pend);
-
 };
 
 #endif

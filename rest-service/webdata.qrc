@@ -1,0 +1,7 @@
+<RCC>
+    <qresource prefix="/">
+        <file alias="index.html">data/index.html</file>
+        <file alias="setup.html">data/setup.html</file>
+        <file alias="txHelp.html">data/txHelp.html</file>
+    </qresource>
+</RCC>

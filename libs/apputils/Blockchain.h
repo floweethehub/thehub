@@ -22,14 +22,12 @@
 #include <NetworkEndPoint.h>
 #include <uint256.h>
 #include <Message.h>
-
-#include <boost/unordered_map.hpp>
+#include <streaming/BufferPool.h>
 
 #include <vector>
+#include <map>
 #include <deque>
 #include <mutex>
-
-#include <streaming/BufferPool.h>
 
 namespace Blockchain
 {
@@ -108,6 +106,21 @@ struct Transaction
 
     std::vector<Input> inputs;
     std::vector<Output> outputs;
+
+    // For clients that want this to be populated: when you fetch a transaction
+    // based on the search result of the spentDb, make sure that the 'job'
+    // key]  bool isOutput, index -> (isOutput ? 1 << 25: 0) + (index & 0xFFFFFF);
+    std::map<uint32_t, Transaction*> txRefs;
+    static uint32_t refKeyForInput(int i) {
+        assert(i >= 0);
+        assert(i < 0x1000000);
+        return 0x1000000 + static_cast<uint32_t>(i);
+    }
+    static uint32_t refKeyForOutput(int i) {
+        assert(i >= 0);
+        assert(i < 0x1000000);
+        return static_cast<uint32_t>(i);
+    }
 };
 
 struct BlockHeader
@@ -150,20 +163,15 @@ public:
     virtual void finished(int unfinishedJobs) {}
 
     /**
-     * @brief dataAdded is called for every message received in response to jobs.
-     * @param message the original message from the remote.
-     */
-    virtual void dataAdded(const Message &message) { }
-
-    /**
      * @brief transactionAdded is called when a transaction was retrieved.
      * @param transaction
+     * @param answerIndex the index in the list of Answers for this transaction.
      *
      * Many jobs end up fetching a transaction from remote, while you can wait
      * until the entire job is finished, this callback allows you to parse the
      * transaction and add more jobs to the search object.
      */
-    virtual void transactionAdded(const Transaction &transaction) { }
+    virtual void transactionAdded(const Transaction &transaction, int answerIndex) { }
 
     /**
      * @brief txIdResolved is called when the Indexer resolved a txid.
@@ -211,6 +219,8 @@ public:
      */
     virtual void utxoLookup(int jobId, int blockHeight, int offsetInBlock, int outIndex, bool unspent, int64_t amount, Streaming::ConstBuffer outputScript) { }
 
+    virtual void aborted(const ServiceUnavailableException&) = 0;
+
     // used by the engine to ID the request, set and used only by the engine.
     int requestId = -1;
 
@@ -219,12 +229,24 @@ public:
     std::deque<Job> jobs;
 
     // results
-    boost::unordered_map<uint256, int, HashShortener> transactionMap;
     std::deque<Transaction> answer;
     std::map<int, BlockHeader> blockHeaders;
 
     // set by the SearchEngine in SearchEngine::start()
     SearchPolicy *policy = nullptr;
+
+    /*
+     * Any transaction has unknown data about its inputs and outputs. It is common
+     * to fetch the transaction on the other side of either that input or output.
+     * This helps.
+     * Clients that create a `job.type = Blockchain::FetchTx` should insert a row
+     * into the txRef with the new jobId (the FetchTX) -> the output of the txRefKey()
+     * then this Search class will automatically match the transaction when (if) it comes
+     * in and update your Transaction::txRef member
+     */
+    enum class TxRef { Input, Output };
+    static uint64_t txRefKey(int origTxIndex, TxRef ref, int index);
+    std::map<int, uint64_t> txRefs;
 };
 
 class SearchEngine

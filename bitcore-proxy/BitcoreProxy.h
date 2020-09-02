@@ -75,11 +75,12 @@ public:
 
     // Blockchain::Search interface
     void finished(int unfinishedJobs) override;
-    void transactionAdded(const Blockchain::Transaction &transaction) override;
+    void transactionAdded(const Blockchain::Transaction &transaction, int resultIndex) override;
     void txIdResolved(int jobId, int blockHeight, int offsetInBlock) override;
     void spentOutputResolved(int jobId, int blockHeight, int offsetInBlock) override;
     void addressUsedInOutput(int blockHeight, int offsetInBlock, int outIndex) override;
     void utxoLookup(int jobId, int blockHeight, int offsetInBlock, int outindex, bool unspent, int64_t amount, Streaming::ConstBuffer outputScript) override;
+    void aborted(const Blockchain::ServiceUnavailableException &) override;
 
     QJsonObject m_map;
 

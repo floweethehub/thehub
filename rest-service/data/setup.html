@@ -1,0 +1,87 @@
+<!DOCTYPE html>
+<html lang="en-us">
+<head>
+<meta charset="utf-8">
+<title>Flowee REST-service</title>
+<meta property="og:description" content="REST service backed by Flowee"/>
+</head>
+<body>
+<p>Your request could not be fulfilled due to a missing backing service.
+This most likely means you are trying to setup your REST service and
+you need a hand with configuration.</br>
+The issue is listed here:</p>
+
+<p><pre><b>%ERROR%</b></pre></p>
+
+
+<b>Setup help</b>
+
+<p>Config file location is following the XDG data specification, the easiest way to find out where your REST service finds its config files is starting the rest service and notifing an output like:</p>
+
+<pre>
+13:04:57 rest-service] No logs config found
+    .169 [9200]   tried /home/user/.config/flowee/rest-service/logs.conf
+    .169 [9200]   tried /etc/xdg/flowee/rest-service/logs.conf
+</pre>
+
+<p>These two log directories are searched when started as user 'user', your output may differ if you start the service differently.</p>
+
+<p>Pick one of the default locations and create in that directory both a <b>logs.conf</b> as well as a <b>rest-service.conf</b> using the following templates:</p>
+
+<p><b>logs.conf example</b></p>
+<pre>
+# Rest-service logging config.
+# More docs at https://flowee.org/docs/hub/log-config/
+
+# Enable this to (also) log to console. Useful if you want your logs to go to the journal.
+channel console
+#     # linenumber / methodname / filename only work for developer-builds.
+#     option linenumber false
+#     option methodname true
+#     option filename true
+#     # timestamp-format.  No argments means no timestamp, adding 'date' implies 'time'.
+#     option timestamp date time millisecond
+#
+# just mentioning 'channel file' will enable logging to file (to xdg data dir).
+# channel file
+#     # all options available for console are available for file too.
+#
+#     option timestamp time millisecond
+#     # The file to log to
+#     # if not specfied we go to the XDG dir (~/.local/share/flowee/rest-service/restservice.log)
+#     option path [path]
+
+
+#####  Log sections from Log::Sections and verbosity
+# Lookup is 1) direct match.  2) group (n mod 1000)  3) default to 'warning'
+# numbers come from file Logging.h, enum Log::Sections
+9200 info
+
+# silent only shows fatal
+# quiet only shows critical and fatal
+# info shows warning, info, critical and fatal
+# debug shows everything.
+</pre>
+
+<p><b>rest-service.conf</b></p>
+<pre>
+[services]
+# hostname and optional port of the indexer.
+# A series of indexers can be given using a semicolon or whitespace as a separator
+# examples:
+#indexer=hostname
+#indexer=localhost:1234 flowee.org
+
+# same for hub.
+#hub=hostname
+
+
+[json]
+# JSON rendering is by default set to be 'compact', this avoids all the
+# spaces and saves bandwidth while enabled.
+#compact=false
+
+</pre>
+
+</body>
+</html>

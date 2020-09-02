@@ -524,7 +524,7 @@ void BitcoreWebRequest::finished(int unfinishedJobs)
     // TODO maybe remember unfinishedJobs being non-zero so we can deal with not found items
 }
 
-void BitcoreWebRequest::transactionAdded(const Blockchain::Transaction &transaction)
+void BitcoreWebRequest::transactionAdded(const Blockchain::Transaction &transaction, int resultIndex)
 {
     if ((answerType == TxForTxIdCoins
          || answerType == AddressTxs)
@@ -695,6 +695,12 @@ void BitcoreWebRequest::utxoLookup(int jobId, int blockHeight, int offsetInBlock
         job.transactionFilters = answerType == AddressBalance ? Blockchain::IncludeOutputs : Blockchain::IncludeFullTransactionData;
         jobs.push_back(job);
     }
+}
+
+void BitcoreWebRequest::aborted(const Blockchain::ServiceUnavailableException &)
+{
+    // TODO maybe print something nice to output
+    socket()->close();
 }
 
 void BitcoreWebRequest::addDefaults(QJsonObject &node)
