@@ -351,9 +351,10 @@ void Api::Server::Connection::sendFailedMessage(const Message &origin, const std
     builder.add(Meta::FailedCommandServiceId, origin.serviceId());
     builder.add(Meta::FailedCommandId, origin.messageId());
     Message answer = builder.message(APIService, Meta::CommandFailed);
-    const int requestId = origin.headerInt(RequestId);
-    if (requestId != -1)
-        answer.setHeaderInt(RequestId, requestId);
+    for (auto header : origin.headerData()) {
+        if (header.first >= RequestId) // anything below is not allowed to be used by users.
+            answer.setHeaderInt(header.first, header.second);
+    }
     m_connection.send(answer);
 }
 
