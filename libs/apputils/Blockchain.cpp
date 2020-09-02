@@ -159,6 +159,7 @@ void Blockchain::SearchEngine::addIndexer(const EndPoint &ep)
     d->connections.resize(d->connections.size() + 1);
     SearchEnginePrivate::Connection &c = d->connections.back();
     c.con = std::move(connection);
+    c.con.setMessageQueueSizes(60000, 1);
     c.con.connect();
 }
 
@@ -173,7 +174,7 @@ void Blockchain::SearchEngine::addHub(const EndPoint &ep)
     d->connections.resize(d->connections.size() + 1);
     SearchEnginePrivate::Connection &c = d->connections.back();
     c.con = std::move(connection);
-    c.con.setMessageQueueSizes(5000, 1);
+    c.con.setMessageQueueSizes(60000, 1);
     c.con.connect();
 }
 

@@ -48,7 +48,7 @@ template<class V>
 class RingBuffer
 {
 public:
-    RingBuffer(short size) : m_array(size), NumItems(size) { }
+    RingBuffer(size_t size) : m_array(size), NumItems(size) { }
 
     void append(const V &v) {
         m_array[m_next] = v;
@@ -155,7 +155,7 @@ private:
     int m_first = 0;
     int m_readIndex = 0;
     int m_next = 0; // last plus one
-    const short NumItems;
+    const size_t NumItems;
 };
 
 class NetworkManagerConnection : public std::enable_shared_from_this<NetworkManagerConnection>
@@ -227,7 +227,7 @@ public:
     void setMessageHeaderType(MessageHeaderType messageHeaderType);
 
     void punish(int amount);
-    inline void setMessageQueueSizes(short main, short priority) {
+    inline void setMessageQueueSizes(int main, int priority) {
         m_queueSizeMain = main;
         m_priorityQueueSize = priority;
     }
@@ -292,8 +292,8 @@ private:
     bool m_sendingInProgress = false;
     bool m_acceptedConnection = false;
 
-    short m_queueSizeMain = 2000; // config setting for the ringbuffers sizes
-    short m_priorityQueueSize = 20; // ditto
+    int m_queueSizeMain = 2000; // config setting for the ringbuffers sizes
+    int m_priorityQueueSize = 20; // ditto
 
     short m_reconnectStep = 0;
     boost::asio::deadline_timer m_reconnectDelay;

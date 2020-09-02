@@ -231,10 +231,8 @@ void NetworkConnection::setMessageHeaderLegacy(bool on)
 void NetworkConnection::setMessageQueueSizes(int main, int priority)
 {
     assert(main >= 1);
-    assert(main <= 0xeFFF);
     assert(priority >= 1);
-    assert(priority <= 0xeFFF);
     auto d = m_parent.lock();
     if (d)
-        d->setMessageQueueSizes(static_cast<short>(main), static_cast<short>(priority));
+        d->setMessageQueueSizes(main, priority);
 }
