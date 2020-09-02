@@ -157,8 +157,8 @@ void Api::Server::connectionRemoved(const EndPoint &endPoint)
     auto conIter = m_connections.begin();
     while (conIter != m_connections.end()) {
         if ((*conIter)->m_connection.connectionId() == endPoint.connectionId) {
-            m_connections.erase(conIter);
             delete *conIter;
+            m_connections.erase(conIter);
             break;
         }
         ++conIter;
