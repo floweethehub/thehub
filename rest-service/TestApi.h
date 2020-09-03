@@ -20,6 +20,7 @@
 
 #include <QJsonValue>
 #include <QJsonArray>
+#include <QJsonObject>
 #include <QNetworkAccessManager>
 
 
@@ -58,6 +59,7 @@ protected:
 
     template<class V>
     inline void check(const QJsonValue &o, const QString &key, V value) {
+        if (o.isNull()) return;
         if (o[key] == value)
             return;
         if (o[key] == QJsonValue::Undefined) {
@@ -75,6 +77,26 @@ protected:
             return;
         static const QString failure3("array[%1] has incorrect value");
         error(failure3.arg(index));
+    }
+
+    inline QJsonArray checkArray(const QJsonValue &o, const QString &key, int size) {
+        auto a = o[key];
+        if (a.isNull())
+            error("Missing array: " + key);
+        if (!a.isArray())
+            error("Not an array: " + key);
+        auto aa = a.toArray();
+        if (aa.size() != size)
+            error("Array not expected length: " + key);
+        return aa;
+    }
+    inline QJsonObject checkProp(const QJsonValue &o, const QString &key) {
+        auto a = o[key];
+        if (a.isNull())
+            error("Missing property: " + key);
+        if (!a.isObject())
+            error("Property is not an object: " + key);
+        return a.toObject();
     }
 
 signals:
@@ -108,6 +130,18 @@ protected:
     void checkDocument(const QJsonDocument &doc) override;
 };
 
+class TestAddressDetails2 : public AbstractTestCall
+{
+    Q_OBJECT
+public:
+    static void startRequest(TestApi *parent, QNetworkAccessManager &manager);
+
+protected:
+    TestAddressDetails2(QNetworkReply *parent) : AbstractTestCall(parent) { }
+
+    void checkDocument(const QJsonDocument &doc) override;
+};
+
 class TestAddressUTXO : public AbstractTestCall
 {
     Q_OBJECT
@@ -116,6 +150,18 @@ public:
 
 protected:
     TestAddressUTXO(QNetworkReply *parent) : AbstractTestCall(parent) { }
+
+    void checkDocument(const QJsonDocument &doc) override;
+};
+
+class TestTransactionDetails : public AbstractTestCall
+{
+    Q_OBJECT
+public:
+    static void startRequest(TestApi *parent, QNetworkAccessManager &manager);
+
+protected:
+    TestTransactionDetails(QNetworkReply *parent) : AbstractTestCall(parent) { }
 
     void checkDocument(const QJsonDocument &doc) override;
 };

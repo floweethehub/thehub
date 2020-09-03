@@ -846,7 +846,7 @@ QJsonObject RestServiceWebRequest::renderTransactionToJSon(const Blockchain::Tra
                 auto bytearray = iter.byteData();
                 scriptSig.insert("hex", QString::fromStdString(HexStr(bytearray.begin(), bytearray.end())));
                 // TODO parse and find address
-                input.insert("scriptsig", scriptSig);
+                input.insert("scriptSig", scriptSig);
             }
             break;
         }
@@ -906,6 +906,12 @@ QJsonObject RestServiceWebRequest::renderTransactionToJSon(const Blockchain::Tra
     answer.insert("valueOut", (double) valueOut / 1E8);
     answer.insert("valueIn", (double) valueIn / 1E8);
     answer.insert("fees", ((double) valueIn - valueOut) / 1E8);
+    // When fees is zero, we actually say its null.
+    const double fees = ((double) valueIn - valueOut) / 1E8;
+    if (qFuzzyIsNull(fees))
+        answer.insert("fees", QJsonValue::Null);
+    else
+        answer.insert("fees", fees);
 
     if (tx.isCoinbase())
         answer.insert("isCoinBase", true);
