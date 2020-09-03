@@ -108,4 +108,16 @@ protected:
     void checkDocument(const QJsonDocument &doc) override;
 };
 
+class TestAddressUTXO : public AbstractTestCall
+{
+    Q_OBJECT
+public:
+    static void startRequest(TestApi *parent, QNetworkAccessManager &manager);
+
+protected:
+    TestAddressUTXO(QNetworkReply *parent) : AbstractTestCall(parent) { }
+
+    void checkDocument(const QJsonDocument &doc) override;
+};
+
 #endif

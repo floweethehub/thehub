@@ -59,9 +59,9 @@ int TestApi::port() const
 void TestApi::finishedRequest()
 {
     switch (m_finishedRequests++) {
-    // case 0:
-        // TestAddressDetails::startRequest(this, m_network);
-        // break;
+    case 0:
+        TestAddressUTXO::startRequest(this, m_network);
+        break;
     default:
         QCoreApplication::quit();
     }
@@ -187,5 +187,42 @@ void TestAddressDetails::checkDocument(const QJsonDocument &doc)
         error("Wrong number of transactions");
     check(txs, 0, "ac771c02c80f4d70f7733a436e06f5de8ecc9e9988e9e5baf727fb479804c99d");
     check(txs, 1, "bec03d0a5384f776e3cd351e37613c0e7924f081081b4352a1fcd69e2f2e8819");
+}
+
+
+//////////////////////////////////////////////////////////
+
+void TestAddressUTXO::startRequest(TestApi *parent, QNetworkAccessManager &manager)
+{
+    QString blockHeight("%1:%2/v2/address/utxo/qqhtg3y40dgaa7ueprz3mhgkxktpk27sru8t3l2zph");
+    auto reply = manager.get(QNetworkRequest(blockHeight.arg(parent->hostname()).arg(parent->port())));
+    auto o = new TestAddressUTXO(reply);
+    connect (o, SIGNAL(requestDone()), parent, SLOT(finishedRequest()));
+}
+
+void TestAddressUTXO::checkDocument(const QJsonDocument &doc)
+{
+    if (doc.isArray())
+        error("Root should not be an array");
+    QJsonObject root = doc.object();
+    check(root, "cashAddress", "bitcoincash:qqhtg3y40dgaa7ueprz3mhgkxktpk27sru8t3l2zph");
+    check(root, "legacyAddress", "15Fx34MisMrqThpkmFdC6U2uGW6SRKVwh4");
+    // TODO slpAddress ??
+    // scriptPubKey
+    // asm
+
+    auto outputs = root["utxos"];
+    if (!outputs.isArray())
+        error("no utxos array found");
+    QJsonArray utxos = outputs.toArray();
+    if (utxos.size() != 1)
+        error("Wrong number of transactions");
+    auto tx0 = utxos[0];
+    check(tx0, "vout", 0);
+    check(tx0, "amount", 39);
+    check(tx0, "satoshis", (double) 3900000000);
+    check(tx0, "height", 178290);
+    check(tx0, "txid", "221fd0f3b12d6d76027f21753fd64c644dbbf34405333ca1565a6a75d937c8ac");
+    // optional: confirmations
 }
 
