@@ -1,0 +1,67 @@
+<!DOCTYPE html>
+<html lang="en-us">
+<head>
+<meta charset="utf-8">
+<title>Address help -- Flowee REST-service</title>
+<meta property="og:description" content="REST service backed by Flowee"/>
+</head>
+<body>
+
+<p><pre><b>%ERROR%</b></pre></p>
+
+<p>What follows is an exhaustive description of the different types of '<b>address</b>' requests you can pose to this server:</p>
+
+<h3>Get UTXOs</h3>
+<p><code><b>GET</b> /address/utxo/{address}</code></br> Address utxos single.
+<a href="/v2/address/utxo/bitcoincash:qzs02v05l7qs5s24srqju498qu55dwuj0cx5ehjm2c">Example</a></p>
+
+<p><code><b>POST</b> /address/utxo</code></br> Address utxo bulk.</p>
+<table><tr><td valign='top'>Request:</td><td><pre>
+{
+  "addresses": [
+    "bitcoincash:qzs02v05l7qs5s24srqju498qu55dwuj0cx5ehjm2c",
+    "bitcoincash:qrehqueqhw629p6e57994436w730t4rzasnly00ht0"
+  ]
+}
+</pre></td></tr></table>
+
+<h3>Get Details</h3>
+<p><code><b>GET</b> /address/details/{address}</code></br>Returns the details of an address including balance.
+<a href="/v2/address/details/bitcoincash:qzs02v05l7qs5s24srqju498qu55dwuj0cx5ehjm2c">Example</a></p>
+
+<p><code><b>POST</b> /address/details</code></br>Returns the details of one or more addresses including balance.</p>
+<table><tr><td valign='top'>Request:</td><td><pre>
+{
+  "addresses": [
+    "bitcoincash:qzs02v05l7qs5s24srqju498qu55dwuj0cx5ehjm2c",
+    "bitcoincash:qrehqueqhw629p6e57994436w730t4rzasnly00ht0"
+  ]
+}
+</pre></td></tr></table>
+
+<p><code><b>GET</b> /address/unconfirmed/{address}</code></br>Unconfirmed transactions for an address.
+<a href="/v2/address/unconfirmed/bitcoincash:qzs02v05l7qs5s24srqju498qu55dwuj0cx5ehjm2c">Example</a></p>
+<p><code><b>POST</b> /address/unconfirmed</code></br>Unconfirmed transactions for array of addresses.</p>
+<table><tr><td valign='top'>Request:</td><td><pre>
+{
+  "addresses": [
+    "bitcoincash:qzs02v05l7qs5s24srqju498qu55dwuj0cx5ehjm2c",
+    "bitcoincash:qrehqueqhw629p6e57994436w730t4rzasnly00ht0"
+  ]
+}
+</pre></td></tr></table>
+
+<p><code><b>GET</b> /address/transactions/{address}</code></br>Transactions for an address.
+<a href="/v2/address/transactions/bitcoincash:qzs02v05l7qs5s24srqju498qu55dwuj0cx5ehjm2c">Example</a></p>
+<p><code><b>POST</b> /address/transactions</code></br>Transactions for an array of addresses.</p>
+<table><tr><td valign='top'>Request:</td><td><pre>
+{
+  "addresses": [
+    "bitcoincash:qzs02v05l7qs5s24srqju498qu55dwuj0cx5ehjm2c",
+    "bitcoincash:qrehqueqhw629p6e57994436w730t4rzasnly00ht0"
+  ]
+}
+</pre></td></tr></table>
+
+</body>
+</html>

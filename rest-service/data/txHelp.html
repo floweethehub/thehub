@@ -11,8 +11,22 @@
 
 <p>What follows is an exhaustive description of the different types of '<b>tx</b>' requests you can pose to this server:</p>
 
-<h3>Get Transactions by blockHeight</h3>
+<h3>Get Transactions by TXID</h3>
 
+<p><code><b>GET</b> /transaction/details/{txid}</code></br>
+Transaction details single.
+<a href="/v2/transaction/details/a5f972572ee1753e2fd2457dd61ce5f40fa2f8a30173d417e49feef7542c96a1">Example</a></p>
+
+<p><code><b>POST</b> /transaction/details</code></br>
+Transaction details bulk</p>
+<table><tr><td valign='top'>Request:</td><td><pre>
+{
+  "txids": [
+    "a5f972572ee1753e2fd2457dd61ce5f40fa2f8a30173d417e49feef7542c96a1",
+    "5165dc531aad05d1149bb0f0d9b7bda99c73e2f05e314bcfb5b4bb9ca5e1af5e"
+  ]
+}
+</pre></td></tr></table>
 
 </body>
 </html>

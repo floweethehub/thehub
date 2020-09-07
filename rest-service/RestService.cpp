@@ -314,18 +314,22 @@ void RestService::onIncomingConnection(HttpEngine::WebRequest *request_)
         logWarning() << "Unparsable JSON in POST request";
     }
     try {
+        static const QString indexHelp = "index.html";
+        QString help = indexHelp;
         if (rs.request == "transaction/details") {
             requestTransactionInfo(rs, request);
-        } else if (rs.request.startsWith("address/")) {
+        } else if (rs.request.startsWith("address")) {
+            help = "addressHelp.html";
             requestAddressInfo(rs, request);
+
+        } else if (rs.request.startsWith("transaction")) {
+            help = "txHelp.html";
         }
 
-        if (request->answerType == RestServiceWebRequest::Unset) {
-            returnTemplatePath(socket, "index.html");
-            return;
-        }
-
-        start(request);
+        if (request->answerType)
+            start(request);
+        else
+            returnTemplatePath(socket, help);
     } catch (const Blockchain::ServiceUnavailableException &e) {
         request->aborted(e);
     } catch (const UserInputException &e) {
@@ -427,6 +431,10 @@ void RestService::requestAddressInfo(const RequestString &rs, RestServiceWebRequ
             std::lock_guard<std::mutex> lock(request->jobsLock);
             request->jobs.push_back(job);
         }
+        else {
+            // POST not yet done
+            throw UserInputException("POST not supported yet", "addressHelp.html");
+        }
     }
     else if (rs.request == "address/utxo") {
         std::unique_ptr<AddressListingData>address(new AddressListingData());
@@ -454,17 +462,18 @@ RequestString::RequestString(const QString &path)
 {
     if (path.startsWith(s_servicePrefixPath)) {
         wholePath = path;
-        int slash = path.indexOf("/", s_servicePrefixPath.size());
-        if (slash > 0) {
-            int slash2 = path.indexOf("/", slash + 1);
-            if (slash2 == -1) {
-                // something like /address/utxo
-                request = path.mid(s_servicePrefixPath.size());
-            } else {
-                // something like /address/utxo/{address}
-                request = path.mid(s_servicePrefixPath.size(), slash2 - s_servicePrefixPath.size());
-                argument = path.mid(slash2+1);
-            }
+        int seprator = path.indexOf("/", s_servicePrefixPath.size());
+        if (seprator == -1) // then to the end of the line.
+            seprator = path.length() - 1;
+
+        int slash2 = path.indexOf("/", seprator + 1);
+        if (slash2 == -1) {
+            // something like /address/utxo
+            request = path.mid(s_servicePrefixPath.size());
+        } else {
+            // something like /address/utxo/{address}
+            request = path.mid(s_servicePrefixPath.size(), slash2 - s_servicePrefixPath.size());
+            argument = path.mid(slash2+1);
         }
     }
 }
