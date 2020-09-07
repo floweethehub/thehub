@@ -261,19 +261,7 @@ void returnTemplatePath(HttpEngine::Socket *socket, const QString &templateName,
 class UserInputException : public std::runtime_error
 {
 public:
-    // UserInputException() = default;
-    UserInputException(const char *error, const char *helpPage)
-        : std::runtime_error(error),
-        m_helpPage(helpPage)
-    {
-    }
-
-    const char *helpPage() const {
-        return m_helpPage;
-    }
-
-private:
-    const char *m_helpPage = nullptr;
+    explicit UserInputException(const char *error) : std::runtime_error(error) { }
 };
 
 RestService::RestService()
@@ -312,31 +300,33 @@ void RestService::onIncomingConnection(HttpEngine::WebRequest *request_)
     if (request->socket()->method() == HttpEngine::Socket::POST
             && !request->socket()->readJson(rs.post)) {
         logWarning() << "Unparsable JSON in POST request";
+        return;
     }
+    static QString errorJson = "error.json";
     try {
-        static const QString indexHelp = "index.html";
-        QString help = indexHelp;
+        QString errorPage = errorJson;
         if (rs.request == "transaction/details") {
             requestTransactionInfo(rs, request);
         } else if (rs.request.startsWith("address")) {
-            help = "addressHelp.html";
             requestAddressInfo(rs, request);
-
-        } else if (rs.request.startsWith("transaction")) {
-            help = "txHelp.html";
+        } else if (rs.request.startsWith("help/")) {
+            if (rs.request == "help/transaction")
+                errorPage = "txHelp.html";
+            else if (rs.request == "help/address")
+                errorPage = "addressHelp.html";
         }
 
         if (request->answerType)
             start(request);
         else
-            returnTemplatePath(socket, help);
+            returnTemplatePath(socket, errorPage);
     } catch (const Blockchain::ServiceUnavailableException &e) {
         request->aborted(e);
     } catch (const UserInputException &e) {
-        returnTemplatePath(socket, e.helpPage(), e.what());
+        returnTemplatePath(socket, errorJson, e.what());
     } catch (const std::exception &e) {
         logCritical() << "Failed to handle request because of" << e;
-        socket->writeError(503);
+        socket->writeError(HttpEngine::Socket::ServiceUnavailable);
     }
 }
 
@@ -373,7 +363,7 @@ void RestService::requestTransactionInfo(const RequestString &rs, RestServiceWeb
         try {
             job.data = hexStringToBuffer(rs.argument.left(64));
         } catch (const std::runtime_error &e) {
-            throw UserInputException(e.what(), "txHelp.html");
+            throw UserInputException(e.what());
         }
         job.transactionFilters = Blockchain::IncludeFullTransactionData;
         job.nextJobId = 1; // that would be the 'fetchBlockHeader'
@@ -386,20 +376,20 @@ void RestService::requestTransactionInfo(const RequestString &rs, RestServiceWeb
     }
     else if (rs.post.isObject()) {
         const auto inputJson = rs.post.object();
-        auto arrayRef = inputJson.find("txids");
-        if (arrayRef == inputJson.end() || !arrayRef->isArray())
-            throw UserInputException("Input invalid", "txHelp.html");
-        auto array = arrayRef->toArray();
+        auto txids = inputJson["txs"];
+        if (!txids.isArray())
+            throw UserInputException("Input invalid");
+        auto array = txids.toArray();
         for (auto i = array.begin(); i != array.end(); ++i) {
             if (!i->isString())
-                throw UserInputException("Input invalid", "txHelp.html");
+                throw UserInputException("Input invalid");
 
             Blockchain::Job job;
             job.type = Blockchain::FetchTx;
             try {
                 job.data = hexStringToBuffer(i->toString());
             } catch (const std::runtime_error &e) {
-                throw UserInputException(e.what(), "txHelp.html");
+                throw UserInputException(e.what());
             }
             job.transactionFilters = Blockchain::IncludeFullTransactionData;
             job.nextJobId = request->jobs.size() + 1; // that would be the 'fetchBlockHeader'
@@ -423,7 +413,7 @@ void RestService::requestAddressInfo(const RequestString &rs, RestServiceWebRequ
             try {
                 job.data = addressToHashedOutputScriptBuffer(rs.argument.toStdString(), address);
             } catch (const std::runtime_error &e) {
-                throw UserInputException(e.what(), "addressHelp.html");
+                throw UserInputException(e.what());
             }
             request->answerType = RestServiceWebRequest::AddressDetails;
             request->answerData = address.release();
@@ -433,7 +423,7 @@ void RestService::requestAddressInfo(const RequestString &rs, RestServiceWebRequ
         }
         else {
             // POST not yet done
-            throw UserInputException("POST not supported yet", "addressHelp.html");
+            throw UserInputException("POST not supported yet");
         }
     }
     else if (rs.request == "address/utxo") {
@@ -444,13 +434,17 @@ void RestService::requestAddressInfo(const RequestString &rs, RestServiceWebRequ
             try {
                 job.data = addressToHashedOutputScriptBuffer(rs.argument.toStdString(), address);
             } catch (const std::runtime_error &e) {
-                throw UserInputException(e.what(), "addressHelp.html");
+                throw UserInputException(e.what());
             }
             request->answerType = RestServiceWebRequest::AddressUTXO;
             request->answerData = address.release();
 
             std::lock_guard<std::mutex> lock(request->jobsLock);
             request->jobs.push_back(job);
+        }
+        else {
+            // POST not yet done
+            throw UserInputException("POST not supported yet");
         }
     }
 }
@@ -709,6 +703,7 @@ void RestServiceWebRequest::threadSafeFinished()
             }
         }
         socket()->writeJson(QJsonDocument(root), s_JsonFormat);
+        break;
     }
     case AddressDetails: {
         QJsonObject root;
@@ -755,6 +750,7 @@ void RestServiceWebRequest::threadSafeFinished()
         // "unconfirmedTxApperances":0,
 
         socket()->writeJson(QJsonDocument(root), s_JsonFormat);
+        break;
     }
     // case AddressDetailsList: TODO
     case AddressUTXO: {
@@ -790,6 +786,7 @@ void RestServiceWebRequest::threadSafeFinished()
         //   1. make 1 tx fetch the output-scripts
         //       extract the scriptPubKey and asm from it.
         socket()->writeJson(QJsonDocument(root), s_JsonFormat);
+        break;
     }
     default:
         // TODO

@@ -49,8 +49,13 @@ private:
 class AbstractTestCall : public QObject
 {
     Q_OBJECT
+public:
+    enum CallType {
+        POST,
+        GET
+    };
 protected:
-    AbstractTestCall(QNetworkReply *parent);
+    AbstractTestCall(QNetworkReply *parent, CallType callType = GET);
 
     virtual void checkDocument(const QJsonDocument &doc) = 0;
 
@@ -115,6 +120,8 @@ protected:
 
     QList<Error> m_errors;
     QString m_context;
+
+    const CallType m_callType;
 };
 
 
@@ -122,10 +129,11 @@ class TestAddressDetails : public AbstractTestCall
 {
     Q_OBJECT
 public:
-    static void startRequest(TestApi *parent, QNetworkAccessManager &manager);
+    static void startRequest(TestApi *parent, QNetworkAccessManager &manager, CallType type);
+    static QByteArray s_postData;
 
 protected:
-    TestAddressDetails(QNetworkReply *parent) : AbstractTestCall(parent) { }
+    TestAddressDetails(QNetworkReply *parent, CallType ct) : AbstractTestCall(parent, ct) { }
 
     void checkDocument(const QJsonDocument &doc) override;
 };
@@ -154,6 +162,19 @@ protected:
     void checkDocument(const QJsonDocument &doc) override;
 };
 
+class TestAddressUTXOPost : public AbstractTestCall
+{
+    Q_OBJECT
+public:
+    static void startRequest(TestApi *parent, QNetworkAccessManager &manager);
+    static QByteArray s_postData;
+
+protected:
+    TestAddressUTXOPost(QNetworkReply *parent) : AbstractTestCall(parent, POST) { }
+
+    void checkDocument(const QJsonDocument &doc) override;
+};
+
 class TestTransactionDetails : public AbstractTestCall
 {
     Q_OBJECT
@@ -161,9 +182,87 @@ public:
     static void startRequest(TestApi *parent, QNetworkAccessManager &manager);
 
 protected:
-    TestTransactionDetails(QNetworkReply *parent) : AbstractTestCall(parent) { }
+    TestTransactionDetails(QNetworkReply *parent, CallType type = GET) : AbstractTestCall(parent, type) { }
 
     void checkDocument(const QJsonDocument &doc) override;
+    void checkDetails221fd0f3(const QJsonObject &tx);
 };
+
+class TestTransactionDetailsPost : public TestTransactionDetails
+{
+    Q_OBJECT
+public:
+    static void startRequest(TestApi *parent, QNetworkAccessManager &manager);
+    static QByteArray s_postData;
+
+protected:
+    TestTransactionDetailsPost(QNetworkReply *parent) : TestTransactionDetails(parent, POST) { }
+
+    void checkDocument(const QJsonDocument &doc) override;
+
+};
+
+/*
+ * API mapping to the functions testing them.
+ *
+ * GET /address/details/{address}
+ * 		TestAddressDetails
+ * 		TestAddressDetails2
+ * POST /address/details
+ * 		TestAddressDetails
+ * GET /address/utxo/{address}
+ * 		TestAddressUTXO
+ * POST /address/utxo
+ * 		TestAddressUTXOPost
+ * GET /address/unconfirmed/{address}
+ * POST /address/unconfirmed
+ * GET /address/transactions/{address}
+ * POST /address/transactions
+ * GET /address/fromXPub/{xpub}
+ *
+ * GET /block/detailsByHash/{hash}
+ * POST /block/detailsByHash
+ * GET /block/detailsByHeight/{height}
+ * POST /block/detailsByHeight
+ *
+ * GET /blockchain/getBestBlockHash
+ * GET /blockchain/getBlockchainInfo
+ * GET /blockchain/getBlockCount
+ * GET /blockchain/getBlockHeader/{hash}
+ * POST /blockchain/getBlockHeader
+ * GET /blockchain/getChainTips
+ * GET /blockchain/getDifficulty
+ * GET /blockchain/getMempoolEntry/{txid}
+ * POST /blockchain/getMempoolEntry
+ * GET /blockchain/getMempoolInfo
+ * GET /blockchain/getRawMempool
+ * GET /blockchain/getTxOut/{txid}/{n}
+ * GET /blockchain/getTxOutProof/{txid}
+ * POST /blockchain/getTxOutProof
+ * GET /blockchain/verifyTxOutProof/{proof}
+ * POST /blockchain/verifyTxOutProof
+ *
+ * GET /control/getInfo
+ * GET /control/getNetworkInfo
+ *
+ * GET /mining/getMiningInfo
+ * GET /mining/getNetworkHashps
+ *
+ * GET /rawtransactions/decodeRawTransaction/{hex}
+ * POST /rawtransactions/decodeRawTransaction
+ * GET /rawtransactions/decodeScript/{hex}
+ * POST /rawtransactions/decodeScript
+ * GET /rawtransactions/getRawTransaction/{txid}
+ * POST /rawtransactions/getRawTransaction
+ * GET /rawtransactions/sendRawTransaction/{hex}
+ * POST /rawtransactions/sendRawTransaction
+ *
+ * GET /transaction/details/{txid}
+ * 		TestTransactionDetails
+ * POST /transaction/details
+ *
+ * GET /util/validateAddress/{address}
+ * POST /util/validateAddress
+*/
 
 #endif
