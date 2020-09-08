@@ -86,10 +86,14 @@ protected:
 
     inline QJsonArray checkArray(const QJsonValue &o, const QString &key, int size) {
         auto a = o[key];
-        if (a.isNull())
+        if (a.isNull()) {
             error("Missing array: " + key);
-        if (!a.isArray())
+            return QJsonArray();
+        }
+        if (!a.isArray()) {
             error("Not an array: " + key);
+            return QJsonArray();
+        }
         auto aa = a.toArray();
         if (aa.size() != size)
             error("Array not expected length: " + key);
@@ -97,10 +101,14 @@ protected:
     }
     inline QJsonObject checkProp(const QJsonValue &o, const QString &key) {
         auto a = o[key];
-        if (a.isNull())
+        if (a.isNull()) {
             error("Missing property: " + key);
-        if (!a.isObject())
+            return QJsonObject();
+        }
+        if (!a.isObject()) {
             error("Property is not an object: " + key);
+            return QJsonObject();
+        }
         return a.toObject();
     }
 

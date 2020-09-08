@@ -142,8 +142,12 @@ void AbstractTestCall::finished()
         QJsonDocument doc = QJsonDocument::fromJson(m_reply->readAll());
         if (doc.isNull())
             error("  document could not be parsed, is it JSON?");
-        else
+        else try {
             checkDocument(doc);
+        } catch (...) {
+            if (m_errors.isEmpty())
+                m_errors.append(Error{"Runner", "Crashed"});
+        }
 
         if (m_errors.isEmpty()) {
             logCritical() << "  ✓ all Ok";
@@ -205,8 +209,11 @@ void TestAddressDetails::checkDocument(const QJsonDocument &doc)
 {
     QJsonObject answer1, answer2;
     if (m_callType == POST) {
-        if (!doc.isArray())
+        qDebug() << doc;
+        if (!doc.isArray()) {
             error("Root should be an array");
+            return;
+        }
 
         auto array = doc.array();
         if (array.size() != 2)
@@ -338,8 +345,10 @@ void TestAddressUTXOPost::startRequest(TestApi *parent, QNetworkAccessManager &m
 
 void TestAddressUTXOPost::checkDocument(const QJsonDocument &doc)
 {
-    if (!doc.isArray())
+    if (!doc.isArray()) {
         error("Root should be an array");
+        return;
+    }
     QJsonArray array = doc.array();
     if (array.size() != 2)
         error("Incorrect number of root elements");
@@ -371,6 +380,8 @@ void TestAddressUTXOPost::checkDocument(const QJsonDocument &doc)
     // asm
 
     utxos = checkArray(root, "utxos", 2);
+    if (utxos.isEmpty())
+        return;
     tx0 = utxos[0];
     check(tx0, "vout", 0);
     check(tx0, "amount", 0.00051061);
@@ -497,55 +508,77 @@ void TestTransactionDetailsPost::checkDocument(const QJsonDocument &doc)
     if (!tx2_.isObject())
         error("Item 1 should be an object {}");
     auto tx2 = tx2_.toObject();
-    check(tx2, "txid", "221fd0f3b12d6d76027f21753fd64c644dbbf34405333ca1565a6a75d937c8ac");
+    check(tx2, "txid", "1afcc63b244182647909539ebe3f4a44b8ea4120a95edb8d9eebe5347b9491bb");
     check(tx2, "version", 1);
     check(tx2, "locktime", 0);
-    check(tx2, "blockhash", "000000000000073e9769b8839e8b28f1d6a82eee6e3c94b3e866332bc0f86d13");
-    check(tx2, "blockheight", 178290);
-    check(tx2, "time", 1335978635);
-    check(tx2, "blocktime", 1335978635);
+    check(tx2, "blockhash", "0000000000000000045e5e52fb4f9746b3d15d3062855fd346aaef3debef4360");
+    check(tx2, "blockheight", 562106);
+    check(tx2, "time", 1545564654);
+    check(tx2, "blocktime", 1545564654);
     check(tx2, "firstSeenTime", QJsonValue::Null);
-    check(tx2, "size", 224);
-    check(tx2, "valueOut", 39);
-    check(tx2, "valueIn", 39);
-    check(tx2, "fees", QJsonValue::Null); // WFT? zero would be more appropriate
+    check(tx2, "size", 437);
+    check(tx2, "valueOut", 0.47531373);
+    check(tx2, "valueIn", 0.47541373);
+    check(tx2, "fees", 0.0001);
     // optional: confirmations
 
-    auto inputs = checkArray(tx2, "vin", 1);
+    auto inputs = checkArray(tx2, "vin", 2);
     auto in1 = inputs[0];
-    check (in1, "txid", "d0519ef40c6704ccd8f55f0e14627f7d716d58df796ea4980875ab266daba6be");
-    check (in1, "vout", 1);
+    check (in1, "txid", "c42f8f16d3baa2ee343ea89ef110dfe094992379d08edd30887b8ca7ee671c9a");
+    check (in1, "vout", 0);
     check (in1, "n", 0);
-    check (in1, "value", (double)3900000000);
-    check (in1, "legacyAddress", "19rRh2VahedZdLxPhsJLjJWCwwEqRoS4PU");
-    check (in1, "cashAddress", "bitcoincash:qps3nla86vdczawucy28ha5reay2ghmwdc66x8xd85");
+    check (in1, "value", 25572607.);
+    check (in1, "legacyAddress", "1PCBukyYULnmraUpMy2hW1Y1ngEQTN8DtF");
+    check (in1, "cashAddress", "bitcoincash:qrehqueqhw629p6e57994436w730t4rzasnly00ht0");
     auto scriptSig = checkProp(in1, "scriptSig");
-    check (scriptSig, "hex", "4830450220588378deeafd55e05a2d5cc07fc7010990b"
-        "0738b0da32882e482e95df5c3b68a022100a36419800033620a7369423047a96cd"
-        "1e6537b54eb86f4f12a4d3c14819edad301410429042110774d8f75f01dceb2881"
-        "995ab34c46743f33859142991498adf93a27010446ab98b910a3924c3ea96a8d8b"
-        "1accf05a3fa54ebc2953ebf39f1d57890fd");
-    check (scriptSig, "asm", "30450220588378deeafd55e05a2d5cc07fc7010990b07"
-        "38b0da32882e482e95df5c3b68a022100a36419800033620a7369423047a96cd1e"
-        "6537b54eb86f4f12a4d3c14819edad301 "
-        "0429042110774d8f75f01dceb2881995ab34c46743f33859142991498adf93a270"
-        "10446ab98b910a3924c3ea96a8d8b1accf05a3fa54ebc2953ebf39f1d57890fd");
+    check (scriptSig, "hex", "4830450221008052d3b067418d53585fb8f91e1b57cf3"
+        "c040dc9c07a70f393ed663b3f7502c50220749aa8e09ac922e78cb474c8097873c"
+        "fb2634108d7acaa7db32a73a35743da974141044eb40b025df18409f2a5197b010"
+        "dd62a9e65d9a74e415e5b10367721a9c4baa7ebfee22d14b8ece1c9bd70c0d9e5e"
+        "8b00b61b81b88a1b5ce6f24eac6b8a34b2c");
+    auto in2 = inputs[1];
+    check (in2, "txid", "e4a0ac48ff3f42fc342717a2a3d34248e5e85bae79d59bd20e1b60e61b1c500f");
+    check (in2, "vout", 1);
+    check (in2, "n", 1);
+    check (in2, "value", 21968766.);
+    check (in2, "legacyAddress", "1PCBukyYULnmraUpMy2hW1Y1ngEQTN8DtF");
+    check (in2, "cashAddress", "bitcoincash:qrehqueqhw629p6e57994436w730t4rzasnly00ht0");
+    scriptSig = checkProp(in2, "scriptSig");
+    check (scriptSig, "hex", "473044022050d7fe7cdcec81eefa0987b88ddb83274d8e"
+        "9063d927090dc4c2d1db76c512d302207dc1eea439a627476265ed87f59cc9823fb"
+        "572ffc2640f0218d7bddc9a621c6e4141044eb40b025df18409f2a5197b010dd62a"
+        "9e65d9a74e415e5b10367721a9c4baa7ebfee22d14b8ece1c9bd70c0d9e5e8b00b6"
+        "1b81b88a1b5ce6f24eac6b8a34b2c");
 
-    auto outputs = checkArray(tx2, "vout", 1);
+    auto outputs = checkArray(tx2, "vout", 2);
     auto out1 = outputs[0];
-    check(out1, "value", "39.00000000");
+    check(out1, "value", "0.47000000");
     check(out1, "n", 0);
-    check(out1, "spentTxId", QJsonValue::Null);
-    check(out1, "spentIndex", QJsonValue::Null);
-    check(out1, "spentHeight", QJsonValue::Null);
+    check(out1, "spentTxId", "5994ec5d40d5c77d4cebd6988de5c4b58961539f3aca8f079ca39d923100adf6");
+    check(out1, "spentIndex", 0);
+    check(out1, "spentHeight", 626385);
 
     auto scriptPubKey = checkProp(out1, "scriptPubKey");
-    check (scriptPubKey, "hex", "76a9142eb444957b51defb9908c51ddd1635961b2bd01f88ac");
-    check (scriptPubKey, "asm", "OP_DUP OP_HASH160 2eb444957b51defb9908c51ddd16"
-        "35961b2bd01f OP_EQUALVERIFY OP_CHECKSIG");
+    check (scriptPubKey, "hex", "76a9147ab928d0b41194411a2e87a782b688c7cc69ba4688ac");
     check (scriptPubKey, "type", "pubkeyhash");
     auto ad1 = checkArray(scriptPubKey, "addresses", 1);
-    check(ad1, 0, "15Fx34MisMrqThpkmFdC6U2uGW6SRKVwh4");
+    check(ad1, 0, "1CBuFWNQsRAy25xGsBoXTxNeRpd5t8be1a");
     auto ad2 = checkArray(scriptPubKey, "cashAddrs", 1);
-    check(ad2, 0, "bitcoincash:qqhtg3y40dgaa7ueprz3mhgkxktpk27sru8t3l2zph");
+    check(ad2, 0, "bitcoincash:qpatj2xsksgegsg696r60q4k3rruc6d6gc3srp333v");
+
+
+    auto out2 = outputs[1];
+    check(out2, "value", "0.00531373");
+    check(out2, "n", 1);
+    check(out2, "spentTxId", QJsonValue::Null);
+    check(out2, "spentIndex", QJsonValue::Null);
+    check(out2, "spentHeight", QJsonValue::Null);
+
+    scriptPubKey = checkProp(out2, "scriptPubKey");
+    check (scriptPubKey, "hex", "76a914f3707320bbb4a28759a78a5ad63a77a2f5d462ec88ac");
+    check (scriptPubKey, "type", "pubkeyhash");
+    ad1 = checkArray(scriptPubKey, "addresses", 1);
+    check(ad1, 0, "1PCBukyYULnmraUpMy2hW1Y1ngEQTN8DtF");
+    ad2 = checkArray(scriptPubKey, "cashAddrs", 1);
+    check(ad2, 0, "bitcoincash:qrehqueqhw629p6e57994436w730t4rzasnly00ht0");
 }

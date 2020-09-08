@@ -274,12 +274,28 @@ void RestService::onIncomingConnection(HttpEngine::WebRequest *request_)
     auto request = qobject_cast<RestServiceWebRequest*>(request_);
     Q_ASSERT(request);
     auto socket = request->socket();
+    if (socket->method() == HttpEngine::Socket::POST) {
+        if (socket->contentLength() > 250000) {
+            // POST data exceeds maximum, just close
+            socket->close();
+            return;
+        }
+        if (socket->contentLength() > socket->bytesAvailable()) {
+            // wait for the full POST data to become available.
+            QObject::connect(socket, &HttpEngine::Socket::readChannelFinished, [this, request]() {
+                this->onIncomingConnection(request);
+            });
+            return;
+        }
+    }
     QObject::connect(socket, SIGNAL(disconnected()), request, SLOT(deleteLater()));
 
     if (socket->method() != HttpEngine::Socket::HEAD
             && socket->method() != HttpEngine::Socket::GET
-            && socket->method() != HttpEngine::Socket::POST)
+            && socket->method() != HttpEngine::Socket::POST) {
         socket->close();
+        return;
+    }
     socket->setHeader("server", "Flowee");
     RequestString rs(socket->path());
     if (rs.wholePath.isEmpty() || rs.request.isEmpty()) {
@@ -698,7 +714,7 @@ void RestServiceWebRequest::threadSafeFinished()
         for (auto tx : answer) {
             if (tx.fullTxData.size() > 0) {
                 QJsonObject o = renderTransactionToJSon(tx);
-                auto header = blockHeaders.find(answer.front().blockHeight);
+                auto header = blockHeaders.find(tx.blockHeight);
                 if (header != blockHeaders.end())
                     toJson(header->second, o);
                 root.append(o);
