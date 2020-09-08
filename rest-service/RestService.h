@@ -67,6 +67,8 @@ public:
         AddressDetails,
         AddressDetailsList,
         AddressUTXO,
+        GetRawTransaction,
+        GetRawTransactionVerbose,
     } answerType = Unset;
 
     QJsonObject &map();
@@ -113,6 +115,7 @@ public slots:
 private:
     void requestTransactionInfo(const RequestString &rs, RestServiceWebRequest *request);
     void requestAddressInfo(const RequestString &rs, RestServiceWebRequest *request);
+    void requestRawTransaction(const RequestString &rs, RestServiceWebRequest *request);
 
 private:
     void findServices(const QString &configFile);

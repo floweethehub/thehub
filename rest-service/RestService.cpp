@@ -173,6 +173,25 @@ QChar hexChar(uint8_t k) {
     return QChar('a' + k - 10);
 }
 
+
+void writeAsHexString(const Streaming::ConstBuffer &buf, QIODevice *device)
+{
+    static const char hexmap[16] = { '0', '1', '2', '3', '4', '5', '6', '7',
+                                     '8', '9', 'a', 'b', 'c', 'd', 'e', 'f' };
+
+    for (const char *k = buf.begin(); k != buf.end(); ++k) {
+        // socket()->write(tx.begin(), tx.size());
+
+        uint8_t val = static_cast<uint8_t>(*k);
+        const char byte[2] = {
+            hexmap[val >> 4],
+            hexmap[val & 15],
+        };
+        device->write(byte, 2);
+    }
+}
+
+
 QString uint256ToString(const Streaming::ConstBuffer &buf)
 {
     assert(buf.size() == 32);
@@ -325,6 +344,8 @@ void RestService::onIncomingConnection(HttpEngine::WebRequest *request_)
             requestTransactionInfo(rs, request);
         } else if (rs.request.startsWith("address")) {
             requestAddressInfo(rs, request);
+        } else if (rs.request.startsWith("rawtransactions")) {
+            requestRawTransaction(rs, request);
         } else if (rs.request.startsWith("help/")) {
             if (rs.request == "help/transaction")
                 errorPage = "txHelp.html";
@@ -431,10 +452,9 @@ void RestService::requestAddressInfo(const RequestString &rs, RestServiceWebRequ
             } catch (const std::runtime_error &e) {
                 throw UserInputException(e.what());
             }
+            std::lock_guard<std::mutex> lock(request->jobsLock);
             request->answerType = RestServiceWebRequest::AddressDetails;
             request->answerData = address.release();
-
-            std::lock_guard<std::mutex> lock(request->jobsLock);
             request->jobs.push_back(job);
         }
         else {
@@ -452,10 +472,9 @@ void RestService::requestAddressInfo(const RequestString &rs, RestServiceWebRequ
             } catch (const std::runtime_error &e) {
                 throw UserInputException(e.what());
             }
+            std::lock_guard<std::mutex> lock(request->jobsLock);
             request->answerType = RestServiceWebRequest::AddressUTXO;
             request->answerData = address.release();
-
-            std::lock_guard<std::mutex> lock(request->jobsLock);
             request->jobs.push_back(job);
         }
         else {
@@ -467,6 +486,35 @@ void RestService::requestAddressInfo(const RequestString &rs, RestServiceWebRequ
         throw UserInputException("Endpoint not recognized, check for typos!");
 }
 
+void RestService::requestRawTransaction(const RequestString &rs, RestServiceWebRequest *request)
+{
+    if (rs.request == "rawtransactions/getRawTransaction") {
+        if (!rs.argument.isEmpty()) {
+            Blockchain::Job job;
+            job.type = Blockchain::FetchTx;
+            job.transactionFilters = Blockchain::IncludeFullTransactionData;
+            try {
+                job.data = hexStringToBuffer(rs.argument.left(64));
+            } catch (const std::runtime_error &e) {
+                throw UserInputException(e.what());
+            }
+            std::lock_guard<std::mutex> lock(request->jobsLock);
+            request->answerType = RestServiceWebRequest::GetRawTransaction;
+            auto args = request->socket()->queryString();
+            qWarning() << args;
+            auto verbose = args.find("verbose");
+            if (verbose != args.end() && verbose.value().toLower() == "true") {
+                job.nextJobId = 1; // that would be the 'fetchBlockHeader'
+                request->jobs.push_back(job);
+                job = Blockchain::Job();
+                job.type = Blockchain::FetchBlockHeader;
+                request->jobs.push_back(job);
+                request->answerType = RestServiceWebRequest::GetRawTransactionVerbose;
+            }
+            request->jobs.push_back(job);
+        }
+    }
+}
 
 // ------------------------------------------
 
@@ -806,6 +854,26 @@ void RestServiceWebRequest::threadSafeFinished()
         socket()->writeJson(QJsonDocument(root), s_JsonFormat);
         break;
     }
+    case GetRawTransaction: {
+        if (answer.size() == 0) {
+            socket()->writeError(HttpEngine::Socket::BadRequest);
+        } else {
+            writeAsHexString(answer.front().fullTxData, socket());
+        }
+        break;
+    }
+    case GetRawTransactionVerbose: {
+        if (answer.size() == 0) {
+            socket()->writeError(HttpEngine::Socket::BadRequest);
+        } else {
+            QJsonObject root = renderTransactionToJSon(answer.front());
+            auto header = blockHeaders.find(answer.front().blockHeight);
+            if (header != blockHeaders.end())
+                toJson(header->second, root);
+            socket()->writeJson(QJsonDocument(root), s_JsonFormat);
+        }
+        break;
+    }
     default:
         // TODO
         break;
@@ -816,8 +884,11 @@ void RestServiceWebRequest::threadSafeFinished()
 QJsonObject RestServiceWebRequest::renderTransactionToJSon(const Blockchain::Transaction &tx) const
 {
     QJsonObject answer;
-    if (!tx.txid.isEmpty())
+    if (!tx.txid.isEmpty()) {
         answer.insert("txid", uint256ToString(tx.txid));
+        if (answerType == GetRawTransactionVerbose)
+            answer.insert("hash", answer["txid"]);
+    }
     answer.insert("size", tx.fullTxData.size());
     answer.insert("blockheight", tx.blockHeight);
     if (tx.blockHeight > 0)
@@ -880,7 +951,10 @@ QJsonObject RestServiceWebRequest::renderTransactionToJSon(const Blockchain::Tra
             break;
         case Tx::OutputValue:
             output = QJsonObject();
-            output.insert("value", satoshisToBCH(iter.longData()));
+            if (answerType == TransactionDetails || answerType == TransactionDetailsList)
+                output.insert("value", satoshisToBCH(iter.longData()));
+            else // GetRawTransactionVerbose
+                output.insert("value", (double) iter.longData() / 1E8);
             output.insert("n", outputs.size());
             valueOut += iter.longData();
             break;
@@ -893,27 +967,34 @@ QJsonObject RestServiceWebRequest::renderTransactionToJSon(const Blockchain::Tra
             QJsonArray address1;
             QJsonArray address2;
             auto type = parseOutScriptAddAddresses(address1, address2, bytearray);
-            outScript.insert("addresses", address1);
-            outScript.insert("cashAddrs", address2);
+
+            if (answerType == TransactionDetails || answerType == TransactionDetailsList) {
+                outScript.insert("addresses", address1);
+                outScript.insert("cashAddrs", address2);
+            } else { // GetRawTransactionVerbose
+                outScript.insert("addresses", address2);
+            }
             outScript.insert("type", type);
             output.insert("scriptPubKey", outScript);
 
-            /*
-             * Find the spent data
-             */
-            auto i = tx.txRefs.find(tx.refKeyForOutput(outputs.size()));
-            QJsonValue txid = QJsonValue::Null;
-            QJsonValue index = QJsonValue::Null;
-            QJsonValue height = QJsonValue::Null;
-            if (i != tx.txRefs.end()) {
-                auto *spendingTx = i->second;
-                txid = uint256ToString(spendingTx->txid);
-                index = 0; // TODO, do we care which input index spent this output?
-                height = spendingTx->blockHeight;
+            if (answerType == TransactionDetails || answerType == TransactionDetailsList) {
+                /*
+                 * Find the spent data
+                 */
+                auto i = tx.txRefs.find(tx.refKeyForOutput(outputs.size()));
+                QJsonValue txid = QJsonValue::Null;
+                QJsonValue index = QJsonValue::Null;
+                QJsonValue height = QJsonValue::Null;
+                if (i != tx.txRefs.end()) {
+                    auto *spendingTx = i->second;
+                    txid = uint256ToString(spendingTx->txid);
+                    index = 0; // TODO, do we care which input index spent this output?
+                    height = spendingTx->blockHeight;
+                }
+                output.insert("spentTxId", txid);
+                output.insert("spentIndex", index);
+                output.insert("spentHeight", height);
             }
-            output.insert("spentTxId", txid);
-            output.insert("spentIndex", index);
-            output.insert("spentHeight", height);
 
             outputs.append(output);
             break;
@@ -927,15 +1008,17 @@ QJsonObject RestServiceWebRequest::renderTransactionToJSon(const Blockchain::Tra
     }
     answer.insert("vin", inputs);
     answer.insert("vout", outputs);
-    answer.insert("valueOut", (double) valueOut / 1E8);
-    answer.insert("valueIn", (double) valueIn / 1E8);
-    answer.insert("fees", ((double) valueIn - valueOut) / 1E8);
-    // When fees is zero, we actually say its null.
-    const double fees = ((double) valueIn - valueOut) / 1E8;
-    if (qFuzzyIsNull(fees))
-        answer.insert("fees", QJsonValue::Null);
-    else
-        answer.insert("fees", fees);
+    if (answerType == TransactionDetails || answerType == TransactionDetailsList) {
+        answer.insert("valueOut", (double) valueOut / 1E8);
+        answer.insert("valueIn", (double) valueIn / 1E8);
+        answer.insert("fees", ((double) valueIn - valueOut) / 1E8);
+        // When fees is zero, we actually say its null.
+        const double fees = ((double) valueIn - valueOut) / 1E8;
+        if (qFuzzyIsNull(fees))
+            answer.insert("fees", QJsonValue::Null);
+        else
+            answer.insert("fees", fees);
+    }
 
     if (tx.isCoinbase())
         answer.insert("isCoinBase", true);

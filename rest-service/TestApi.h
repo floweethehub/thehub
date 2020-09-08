@@ -194,6 +194,7 @@ protected:
 
     void checkDocument(const QJsonDocument &doc) override;
     void checkDetails221fd0f3(const QJsonObject &tx);
+    void checkDetails221fd0f3_more(const QJsonObject &tx);
 };
 
 class TestTransactionDetailsPost : public TestTransactionDetails
@@ -208,6 +209,36 @@ protected:
 
     void checkDocument(const QJsonDocument &doc) override;
 
+};
+
+class GetRawTransactionVerbose : public TestTransactionDetails
+{
+    Q_OBJECT
+public:
+    static void startRequest(TestApi *parent, QNetworkAccessManager &manager);
+
+protected:
+    GetRawTransactionVerbose(QNetworkReply *parent, CallType type = GET) : TestTransactionDetails(parent, type) { }
+
+    void checkDocument(const QJsonDocument &doc) override;
+};
+
+class GetRawTransaction : public QObject
+{
+    Q_OBJECT
+public:
+    static void startRequest(TestApi *parent, QNetworkAccessManager &manager);
+    GetRawTransaction(QNetworkReply *parent);
+
+signals:
+    void requestDone();
+
+private slots:
+    void finished();
+    void timeout();
+
+private:
+    QNetworkReply *m_reply;
 };
 
 /*
@@ -261,6 +292,8 @@ protected:
  * GET /rawtransactions/decodeScript/{hex}
  * POST /rawtransactions/decodeScript
  * GET /rawtransactions/getRawTransaction/{txid}
+ *  	GetRawTransaction
+ *  	GetRawTransactionVerbose
  * POST /rawtransactions/getRawTransaction
  * GET /rawtransactions/sendRawTransaction/{hex}
  * POST /rawtransactions/sendRawTransaction

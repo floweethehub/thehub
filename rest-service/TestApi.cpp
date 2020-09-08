@@ -78,6 +78,12 @@ void TestApi::finishedRequest()
     case 5:
         TestTransactionDetailsPost::startRequest(this, m_network);
         break;
+    case 6:
+        GetRawTransactionVerbose::startRequest(this, m_network);
+        break;
+    case 7:
+        GetRawTransaction::startRequest(this, m_network);
+        break;
     default:
         QCoreApplication::quit();
     }
@@ -140,9 +146,9 @@ void AbstractTestCall::finished()
     }
     if (m_reply->error() == QNetworkReply::NoError) {
         QJsonDocument doc = QJsonDocument::fromJson(m_reply->readAll());
-        if (doc.isNull())
+        if (doc.isNull()) {
             error("  document could not be parsed, is it JSON?");
-        else try {
+        } else try {
             checkDocument(doc);
         } catch (...) {
             if (m_errors.isEmpty())
@@ -412,6 +418,7 @@ void TestTransactionDetails::checkDocument(const QJsonDocument &doc)
     if (doc.isArray())
         error("Root should not be an array");
     checkDetails221fd0f3(doc.object());
+    checkDetails221fd0f3_more(doc.object());
 }
 
 void TestTransactionDetails::checkDetails221fd0f3(const QJsonObject &root)
@@ -423,21 +430,13 @@ void TestTransactionDetails::checkDetails221fd0f3(const QJsonObject &root)
     check(root, "blockheight", 178290);
     check(root, "time", 1335978635);
     check(root, "blocktime", 1335978635);
-    check(root, "firstSeenTime", QJsonValue::Null);
     check(root, "size", 224);
-    check(root, "valueOut", 39);
-    check(root, "valueIn", 39);
-    check(root, "fees", QJsonValue::Null); // WFT? zero would be more appropriate
-    // optional: confirmations
 
     auto inputs = checkArray(root, "vin", 1);
     auto in1 = inputs[0];
     check (in1, "txid", "d0519ef40c6704ccd8f55f0e14627f7d716d58df796ea4980875ab266daba6be");
     check (in1, "vout", 1);
     check (in1, "n", 0);
-    check (in1, "value", (double)3900000000);
-    check (in1, "legacyAddress", "19rRh2VahedZdLxPhsJLjJWCwwEqRoS4PU");
-    check (in1, "cashAddress", "bitcoincash:qps3nla86vdczawucy28ha5reay2ghmwdc66x8xd85");
     auto scriptSig = checkProp(in1, "scriptSig");
     check (scriptSig, "hex", "4830450220588378deeafd55e05a2d5cc07fc7010990b"
         "0738b0da32882e482e95df5c3b68a022100a36419800033620a7369423047a96cd"
@@ -452,17 +451,37 @@ void TestTransactionDetails::checkDetails221fd0f3(const QJsonObject &root)
 
     auto outputs = checkArray(root, "vout", 1);
     auto out1 = outputs[0];
-    check(out1, "value", "39.00000000");
     check(out1, "n", 0);
-    check(out1, "spentTxId", QJsonValue::Null);
-    check(out1, "spentIndex", QJsonValue::Null);
-    check(out1, "spentHeight", QJsonValue::Null);
 
     auto scriptPubKey = checkProp(out1, "scriptPubKey");
     check (scriptPubKey, "hex", "76a9142eb444957b51defb9908c51ddd1635961b2bd01f88ac");
     check (scriptPubKey, "asm", "OP_DUP OP_HASH160 2eb444957b51defb9908c51ddd16"
         "35961b2bd01f OP_EQUALVERIFY OP_CHECKSIG");
     check (scriptPubKey, "type", "pubkeyhash");
+}
+
+void TestTransactionDetails::checkDetails221fd0f3_more(const QJsonObject &root)
+{
+    check(root, "firstSeenTime", QJsonValue::Null);
+    check(root, "valueOut", 39);
+    check(root, "valueIn", 39);
+    check(root, "fees", QJsonValue::Null); // WFT? zero would be more appropriate
+    // optional: confirmations
+
+    auto inputs = checkArray(root, "vin", 1);
+    auto in1 = inputs[0];
+    check (in1, "value", (double)3900000000);
+    check (in1, "legacyAddress", "19rRh2VahedZdLxPhsJLjJWCwwEqRoS4PU");
+    check (in1, "cashAddress", "bitcoincash:qps3nla86vdczawucy28ha5reay2ghmwdc66x8xd85");
+
+    auto outputs = checkArray(root, "vout", 1);
+    auto out1 = outputs[0];
+    check(out1, "value", "39.00000000");
+    check(out1, "spentTxId", QJsonValue::Null);
+    check(out1, "spentIndex", QJsonValue::Null);
+    check(out1, "spentHeight", QJsonValue::Null);
+
+    auto scriptPubKey = checkProp(out1, "scriptPubKey");
     auto ad1 = checkArray(scriptPubKey, "addresses", 1);
     check(ad1, 0, "15Fx34MisMrqThpkmFdC6U2uGW6SRKVwh4");
     auto ad2 = checkArray(scriptPubKey, "cashAddrs", 1);
@@ -470,8 +489,8 @@ void TestTransactionDetails::checkDetails221fd0f3(const QJsonObject &root)
 }
 
 
-//////////////////////////////////////////////////////////
 
+//////////////////////////////////////////////////////////
 
 QByteArray TestTransactionDetailsPost::s_postData = {
     "{"
@@ -503,6 +522,7 @@ void TestTransactionDetailsPost::checkDocument(const QJsonDocument &doc)
     if (!tx1.isObject())
         error("Item 0 should be an object {}");
     checkDetails221fd0f3(tx1.toObject());
+    checkDetails221fd0f3_more(tx1.toObject());
 
     auto tx2_ = array.at(1);
     if (!tx2_.isObject())
@@ -581,4 +601,77 @@ void TestTransactionDetailsPost::checkDocument(const QJsonDocument &doc)
     check(ad1, 0, "1PCBukyYULnmraUpMy2hW1Y1ngEQTN8DtF");
     ad2 = checkArray(scriptPubKey, "cashAddrs", 1);
     check(ad2, 0, "bitcoincash:qrehqueqhw629p6e57994436w730t4rzasnly00ht0");
+}
+
+//////////////////////////////////////////////////////////
+
+void GetRawTransactionVerbose::startRequest(TestApi *parent, QNetworkAccessManager &manager)
+{
+    QString request("%1:%2/v2/rawtransactions/getRawTransaction/221fd0f3b12d6d76027f21753fd64c644dbbf34405333ca1565a6a75d937c8ac?verbose=true");
+    auto reply = manager.get(QNetworkRequest(request.arg(parent->hostname()).arg(parent->port())));
+    auto o = new GetRawTransactionVerbose(reply);
+    connect (o, SIGNAL(requestDone()), parent, SLOT(finishedRequest()));
+}
+
+void GetRawTransactionVerbose::checkDocument(const QJsonDocument &doc)
+{
+    if (doc.isArray())
+        error("Root should not be an array");
+    auto root = doc.object();
+    checkDetails221fd0f3(root);
+
+    auto outputs = checkArray(root, "vout", 1);
+    auto out1 = outputs[0];
+    check(out1, "value", 39);
+    auto scriptPubKey = checkProp(out1, "scriptPubKey");
+    auto ad = checkArray(scriptPubKey, "addresses", 1);
+    check(ad, 0, "bitcoincash:qqhtg3y40dgaa7ueprz3mhgkxktpk27sru8t3l2zph");
+}
+
+
+//////////////////////////////////////////////////////////
+
+void GetRawTransaction::startRequest(TestApi *parent, QNetworkAccessManager &manager)
+{
+    QString request("%1:%2/v2/rawtransactions/getRawTransaction/221fd0f3b12d6d76027f21753fd64c644dbbf34405333ca1565a6a75d937c8ac");
+    auto reply = manager.get(QNetworkRequest(request.arg(parent->hostname()).arg(parent->port())));
+    auto o = new GetRawTransaction(reply);
+    connect (o, SIGNAL(requestDone()), parent, SLOT(finishedRequest()));
+}
+
+GetRawTransaction::GetRawTransaction(QNetworkReply *parent)
+    : m_reply(parent)
+{
+    connect (m_reply, SIGNAL(finished()), this, SLOT(finished()));
+    QTimer::singleShot(10000, this, SLOT(timeout()));
+}
+
+void GetRawTransaction::finished()
+{
+    QByteArray data = m_reply->readAll();
+    QString out = QString::fromLatin1(data);
+
+    if (out != "0100000001bea6ab6d26ab750898a46e79df586d717d7f621"
+            "40e5ff5d8cc04670cf49e51d0010000008b4830450220588378d"
+            "eeafd55e05a2d5cc07fc7010990b0738b0da32882e482e95df5c"
+            "3b68a022100a36419800033620a7369423047a96cd1e6537b54e"
+            "b86f4f12a4d3c14819edad301410429042110774d8f75f01dceb"
+            "2881995ab34c46743f33859142991498adf93a27010446ab98b9"
+            "10a3924c3ea96a8d8b1accf05a3fa54ebc2953ebf39f1d57890f"
+            "dffffffff01004775e8000000001976a9142eb444957b51defb9"
+            "908c51ddd1635961b2bd01f88ac00000000") {
+
+        logFatal() << "  ❎" << "GetRawTransaction got the wrong hash back";
+    }
+
+    deleteLater();
+    emit requestDone();
+}
+
+void GetRawTransaction::timeout()
+{
+    logCritical() << m_reply->url().toString();
+    logCritical() << "  ❎ Request never returned";
+    deleteLater();
+    emit requestDone();
 }
