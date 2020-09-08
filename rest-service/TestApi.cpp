@@ -191,7 +191,7 @@ void TestAddressDetails::startRequest(TestApi *parent, QNetworkAccessManager &ma
     base = base.arg(parent->hostname()).arg(parent->port());
 
     if (type == GET) {
-        reply = manager.get(QNetworkRequest(base + "qqdkd86mqx4uxhqk6mcq0n7wt353j6kk9u85lmd68g"));
+        reply = manager.get(QNetworkRequest(base + "/qqdkd86mqx4uxhqk6mcq0n7wt353j6kk9u85lmd68g"));
     } else {
         QNetworkRequest request(base);
         request.setHeader(QNetworkRequest::ContentTypeHeader,"application/json");

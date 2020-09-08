@@ -447,6 +447,8 @@ void RestService::requestAddressInfo(const RequestString &rs, RestServiceWebRequ
             throw UserInputException("POST not supported yet");
         }
     }
+    else
+        throw UserInputException("Endpoint not recognized, check for typos!");
 }
 
 
