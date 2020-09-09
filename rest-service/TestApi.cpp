@@ -87,6 +87,9 @@ void TestApi::finishedRequest()
     case 8:
         SendRawTransaction::startRequest(this, m_network);
         break;
+    case 9:
+        SendRawTransaction::startRequest(this, m_network, SendRawTransaction::POST);
+        break;
     default:
         QCoreApplication::quit();
     }
@@ -682,18 +685,30 @@ void GetRawTransaction::timeout()
 
 //////////////////////////////////////////////////////////
 
+static const QByteArray s_txToSend("01000000013ba3edfd7a7b12b27ac72c3e67768"
+     "f617fc81bc3888a51323a9fb8aa4b1e5e4a000000006a4730440220540986d1c58d6e76"
+     "f8f05501c520c38ce55393d0ed7ed3c3a82c69af04221232022058ea43ed6c05fec0ecc"
+     "ce749a63332ed4525460105346f11108b9c26df93cd72012103083dfc5a0254613941dd"
+     "c91af39ff90cd711cdcde03a87b144b883b524660c39ffffffff01807c814a000000001"
+     "976a914d7e7c4e0b70eaa67ceff9d2823d1bbb9f6df9a5188ac00000000");
+
+QByteArray SendRawTransaction::s_postData("{"
+       "\"hexes\": [\"" + s_txToSend + "\"]}");
+
 void SendRawTransaction::startRequest(TestApi *parent, QNetworkAccessManager &manager, CallType type)
 {
     QNetworkReply *reply = nullptr;
+    QString base("%1:%2/v2/rawtransactions/sendRawTransaction");
+    base = base.arg(parent->hostname()).arg(parent->port());
     if (type == GET) {
-        QString request("%1:%2/v2/rawtransactions/sendRawTransaction/01000000013ba3edfd7a7b12b27ac72c3e67768f617fc81bc3888a51323a9fb8aa4b1e5e4a000000006a4730440220540986d1c58d6e76f8f05501c520c38ce55393d0ed7ed3c3a82c69af04221232022058ea43ed6c05fec0eccce749a63332ed4525460105346f11108b9c26df93cd72012103083dfc5a0254613941ddc91af39ff90cd711cdcde03a87b144b883b524660c39ffffffff01807c814a000000001976a914d7e7c4e0b70eaa67ceff9d2823d1bbb9f6df9a5188ac00000000");
-        reply = manager.get(QNetworkRequest(request.arg(parent->hostname()).arg(parent->port())));
+        reply = manager.get(QNetworkRequest(base + "/" + QString::fromLatin1(s_txToSend)));
     }
     else {
-        // TODO
+        QNetworkRequest request(base);
+        request.setHeader(QNetworkRequest::ContentTypeHeader, "application/json");
+        reply = manager.post(request, s_postData);
     }
-    assert(reply);
-    auto o = new SendRawTransaction(reply);
+    auto o = new SendRawTransaction(reply, type);
     connect (o, SIGNAL(requestDone()), parent, SLOT(finishedRequest()));
 }
 

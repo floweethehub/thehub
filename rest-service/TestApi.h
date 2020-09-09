@@ -245,6 +245,7 @@ class SendRawTransaction : public AbstractTestCall
 {
     Q_OBJECT
 public:
+    static QByteArray s_postData;
     static void startRequest(TestApi *parent, QNetworkAccessManager &manager, CallType type = GET);
 
 protected:
@@ -269,7 +270,6 @@ protected:
  * POST /address/unconfirmed
  * GET /address/transactions/{address}
  * POST /address/transactions
- * GET /address/fromXPub/{xpub}
  *
  * GET /block/detailsByHash/{hash}
  * POST /block/detailsByHash
@@ -310,6 +310,7 @@ protected:
  * GET /rawtransactions/sendRawTransaction/{hex}
  * 		SendRawTransaction
  * POST /rawtransactions/sendRawTransaction
+ * 		SendRawTransaction
  *
  * GET /transaction/details/{txid}
  * 		TestTransactionDetails

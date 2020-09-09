@@ -583,6 +583,40 @@ void RestService::requestRawTransaction(const RequestString &rs, RestServiceWebR
             request->jobs.push_back(job);
             request->answerType = RestServiceWebRequest::SendRawTransaction;
         }
+        else if (rs.post.isObject()) {
+            const auto inputJson = rs.post.object();
+            auto hexes = inputJson["hexes"];
+            if (!hexes.isArray())
+                throw UserInputException("Input invalid");
+            auto array = hexes.toArray();
+            for (auto i = array.begin(); i != array.end(); ++i) {
+                if (!i->isString())
+                    throw UserInputException("Input invalid");
+                Streaming::ConstBuffer tx;
+                try {
+                    tx = hexStringToBuffer(array[0].toString(), d->pool());
+                } catch (const std::runtime_error &e) {
+                    throw UserInputException(e.what());
+                }
+                if (tx.size() <= 60 || tx.size() == 64)
+                    throw UserInputException("Tx too small");
+                if (tx.size() > 100000)
+                    throw UserInputException("Tx too large");
+
+                auto pool = d->pool();
+                pool->reserve(tx.size() + 5);
+                Streaming::MessageBuilder builder(*pool);
+                builder.add(Api::GenericByteData, tx);
+
+                Blockchain::Job job;
+                job.data = builder.buffer();
+                job.intData = Api::LiveTransactionService;
+                job.intData2 = Api::LiveTransactions::SendTransaction;
+                job.type = Blockchain::CustomHubMessage;
+                request->jobs.push_back(job);
+                request->answerType = RestServiceWebRequest::SendRawTransaction;
+            }
+        }
     }
     else
         throw UserInputException("Endpoint not recognized, check for typos!");
@@ -954,8 +988,12 @@ void RestServiceWebRequest::threadSafeFinished()
                 if (error == "16: missing-inputs")
                     qs = "Missing inputs";
                 // other replacements go here
-                if (qs.isEmpty())
+                if (qs.isEmpty()) {
                     qs = QString::fromStdString(error);
+                    // uppercase first char
+                    if (!qs.isEmpty())
+                        qs[0] = qs[0].toUpper();
+                }
                 QJsonObject root;
                 root.insert("error", qs);
                 socket()->writeJson(QJsonDocument(root), s_JsonFormat);
