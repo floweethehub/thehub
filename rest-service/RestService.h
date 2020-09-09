@@ -69,6 +69,7 @@ public:
         AddressUTXO,
         GetRawTransaction,
         GetRawTransactionVerbose,
+        SendRawTransaction,
     } answerType = Unset;
 
     QJsonObject &map();

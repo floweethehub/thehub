@@ -48,7 +48,9 @@ enum JobType {
     FetchBlockHeader,
     FetchBlockOfTx,
     FetchUTXOUnspent,
-    FetchUTXODetails
+    FetchUTXODetails,
+
+    CustomHubMessage, // the data field is a Message to send to Hub.
 };
 
 struct Job {
@@ -142,6 +144,12 @@ enum TransactionFilter {
     IncludeOutputAddresses = 0x80
 };
 
+struct Error {
+    int serviceId = -1;
+    int messageId = -1;
+    std::string error;
+};
+
 struct Search
 {
 public:
@@ -231,6 +239,7 @@ public:
     // results
     std::deque<Transaction> answer;
     std::map<int, BlockHeader> blockHeaders;
+    std::map<int, Error> errors;
 
     // set by the SearchEngine in SearchEngine::start()
     SearchPolicy *policy = nullptr;

@@ -16,10 +16,12 @@
  * along with this program.  If not, see <http://www.gnu.org/licenses/>.
  */
 #include "RestService.h"
+#include <Blockchain_p.h>
 #include <httpengine/socket.h>
 #include <primitives/script.h>
 #include <primitives/FastTransaction.h>
 #include <primitives/key.h>
+#include <Streaming.h>
 
 #include <utilstrencodings.h>
 #include <base58.h>
@@ -121,11 +123,37 @@ QString satoshisToBCH(quint64 sats)
     return answer.left(answer.length() - change.length()) + change;
 }
 
-Streaming::ConstBuffer hexStringToBuffer(const QString &hash)
+Streaming::ConstBuffer hexStringToBuffer(const QString &hash, Streaming::BufferPool *pool)
 {
-    if (hash.size() != 64)
+    assert(pool);
+    if (hash.length() / 2 * 2 != hash.length())
+        throw std::runtime_error("invalid sized hash, odd number of chars");
+    pool->reserve(hash.length() / 2);
+
+    char *buf = pool->begin();
+    for (int i = 0; i < hash.length(); ++i) {
+        QChar k = hash.at(i);
+        uint8_t v = static_cast<uint8_t>(HexDigit(static_cast<int8_t>(k.unicode())));
+        if (k.unicode() > 'f' || v == 0xFF)
+            throw std::runtime_error("Not a hash");
+        if ((i % 2) == 0) {
+            *buf = static_cast<char>(v << 4);
+        } else {
+            *buf += v;
+            ++buf;
+        }
+    }
+    return pool->commit(hash.length() / 2);
+}
+
+// The uint256 serialization for some reason reverses the ordering.
+Streaming::ConstBuffer uint256StringToBuffer(const QString &hash, Streaming::BufferPool *pool)
+{
+    assert(pool);
+    if (hash.size() < 64)
         throw std::runtime_error("invalid sized hash" );
-    Streaming::BufferPool pool(32);
+
+    pool->reserve(32);
     int i2 = 31;
     for (int i = 0; i < 64; ++i) {
         QChar k = hash.at(i);
@@ -133,12 +161,12 @@ Streaming::ConstBuffer hexStringToBuffer(const QString &hash)
         if (k.unicode() > 'f' || v == 0xFF)
             throw std::runtime_error("Not a hash");
         if ((i % 2) == 0) {
-            pool.begin()[i2] = static_cast<char>(v << 4);
+            pool->begin()[i2] = static_cast<char>(v << 4);
         } else {
-            pool.begin()[i2--] += v;
+            pool->begin()[i2--] += v;
         }
     }
-    return pool.commit(32);
+    return pool->commit(32);
 }
 
 Streaming::ConstBuffer addressToHashedOutputScriptBuffer(const std::string &address, std::unique_ptr<AddressListingData> &data)
@@ -173,15 +201,12 @@ QChar hexChar(uint8_t k) {
     return QChar('a' + k - 10);
 }
 
+static const char hexmap[16] = { '0', '1', '2', '3', '4', '5', '6', '7',
+                                 '8', '9', 'a', 'b', 'c', 'd', 'e', 'f' };
 
 void writeAsHexString(const Streaming::ConstBuffer &buf, QIODevice *device)
 {
-    static const char hexmap[16] = { '0', '1', '2', '3', '4', '5', '6', '7',
-                                     '8', '9', 'a', 'b', 'c', 'd', 'e', 'f' };
-
     for (const char *k = buf.begin(); k != buf.end(); ++k) {
-        // socket()->write(tx.begin(), tx.size());
-
         uint8_t val = static_cast<uint8_t>(*k);
         const char byte[2] = {
             hexmap[val >> 4],
@@ -191,6 +216,19 @@ void writeAsHexString(const Streaming::ConstBuffer &buf, QIODevice *device)
     }
 }
 
+void writeAsHexStringReversed(const Streaming::ConstBuffer &buf, QIODevice *device)
+{
+    const char *k = buf.end();
+    do {
+        --k;
+        uint8_t val = static_cast<uint8_t>(*k);
+        const char byte[2] = {
+            hexmap[val >> 4],
+            hexmap[val & 15],
+        };
+        device->write(byte, 2);
+    } while (k != buf.begin());
+}
 
 QString uint256ToString(const Streaming::ConstBuffer &buf)
 {
@@ -398,7 +436,7 @@ void RestService::requestTransactionInfo(const RequestString &rs, RestServiceWeb
         Blockchain::Job job;
         job.type = Blockchain::FetchTx;
         try {
-            job.data = hexStringToBuffer(rs.argument.left(64));
+            job.data = uint256StringToBuffer(rs.argument, d->pool());
         } catch (const std::runtime_error &e) {
             throw UserInputException(e.what());
         }
@@ -424,7 +462,7 @@ void RestService::requestTransactionInfo(const RequestString &rs, RestServiceWeb
             Blockchain::Job job;
             job.type = Blockchain::FetchTx;
             try {
-                job.data = hexStringToBuffer(i->toString());
+                job.data = uint256StringToBuffer(i->toString(), d->pool());
             } catch (const std::runtime_error &e) {
                 throw UserInputException(e.what());
             }
@@ -438,6 +476,8 @@ void RestService::requestTransactionInfo(const RequestString &rs, RestServiceWeb
             request->answerType = RestServiceWebRequest::TransactionDetailsList;
         }
     }
+    else
+        throw UserInputException("Endpoint not recognized, check for typos!");
 }
 
 void RestService::requestAddressInfo(const RequestString &rs, RestServiceWebRequest *request)
@@ -494,7 +534,7 @@ void RestService::requestRawTransaction(const RequestString &rs, RestServiceWebR
             job.type = Blockchain::FetchTx;
             job.transactionFilters = Blockchain::IncludeFullTransactionData;
             try {
-                job.data = hexStringToBuffer(rs.argument.left(64));
+                job.data = uint256StringToBuffer(rs.argument, d->pool());
             } catch (const std::runtime_error &e) {
                 throw UserInputException(e.what());
             }
@@ -513,7 +553,39 @@ void RestService::requestRawTransaction(const RequestString &rs, RestServiceWebR
             }
             request->jobs.push_back(job);
         }
+        // TODO POST
+        else
+            throw UserInputException("POST no supported yet");
     }
+    else if (rs.request == "rawtransactions/sendRawTransaction") {
+        if (!rs.argument.isEmpty()) {
+            Streaming::ConstBuffer tx;
+            try {
+                tx = hexStringToBuffer(rs.argument, d->pool());
+            } catch (const std::runtime_error &e) {
+                throw UserInputException(e.what());
+            }
+            if (tx.size() <= 60 || tx.size() == 64)
+                throw UserInputException("Tx too small");
+            if (tx.size() > 100000)
+                throw UserInputException("Tx too large");
+
+            auto pool = d->pool();
+            pool->reserve(tx.size() + 5);
+            Streaming::MessageBuilder builder(*pool);
+            builder.add(Api::GenericByteData, tx);
+
+            Blockchain::Job job;
+            job.data = builder.buffer();
+            job.intData = Api::LiveTransactionService;
+            job.intData2 = Api::LiveTransactions::SendTransaction;
+            job.type = Blockchain::CustomHubMessage;
+            request->jobs.push_back(job);
+            request->answerType = RestServiceWebRequest::SendRawTransaction;
+        }
+    }
+    else
+        throw UserInputException("Endpoint not recognized, check for typos!");
 }
 
 // ------------------------------------------
@@ -567,8 +639,6 @@ void RestServiceWebRequest::finished(int unfinishedJobs)
     // Our http engine wants to use its own thread, so lets move threads.
 
     QTimer::singleShot(0, this, SLOT(threadSafeFinished()));
-
-    // TODO maybe remember unfinishedJobs being non-zero so we can deal with not found items
 }
 
 void RestServiceWebRequest::transactionAdded(const Blockchain::Transaction &transaction, int answerIndex)
@@ -874,8 +944,35 @@ void RestServiceWebRequest::threadSafeFinished()
         }
         break;
     }
+    case SendRawTransaction: {
+        for (size_t i = 0; i < jobs.size(); ++i) {
+            // const Blockchain::Job &job = jobs.at(i);
+            auto errIter = errors.find(i);
+            if (errIter != errors.end()) {
+                const std::string &error = errIter->second.error;
+                QString qs;
+                if (error == "16: missing-inputs")
+                    qs = "Missing inputs";
+                // other replacements go here
+                if (qs.isEmpty())
+                    qs = QString::fromStdString(error);
+                QJsonObject root;
+                root.insert("error", qs);
+                socket()->writeJson(QJsonDocument(root), s_JsonFormat);
+                break;
+            }
+            for (auto tx : answer) {
+                if (tx.jobId == int(i) && tx.txid.size() == 32) {
+                    socket()->write("\"", 1);
+                    writeAsHexStringReversed(tx.txid, socket());
+                    socket()->write("\"", 1);
+                    break;
+                }
+            }
+        }
+        break;
+    }
     default:
-        // TODO
         break;
     }
     socket()->close();
@@ -960,7 +1057,7 @@ QJsonObject RestServiceWebRequest::renderTransactionToJSon(const Blockchain::Tra
             break;
         case Tx::OutputScript: {
             QJsonObject outScript;
-            // TODO hex, asm
+            // TODO asm
             auto bytearray = iter.byteData();
             outScript.insert("hex", QString::fromStdString(HexStr(bytearray.begin(), bytearray.end())));
 

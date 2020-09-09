@@ -84,6 +84,9 @@ void TestApi::finishedRequest()
     case 7:
         GetRawTransaction::startRequest(this, m_network);
         break;
+    case 8:
+        SendRawTransaction::startRequest(this, m_network);
+        break;
     default:
         QCoreApplication::quit();
     }
@@ -674,4 +677,30 @@ void GetRawTransaction::timeout()
     logCritical() << "  ❎ Request never returned";
     deleteLater();
     emit requestDone();
+}
+
+
+//////////////////////////////////////////////////////////
+
+void SendRawTransaction::startRequest(TestApi *parent, QNetworkAccessManager &manager, CallType type)
+{
+    QNetworkReply *reply = nullptr;
+    if (type == GET) {
+        QString request("%1:%2/v2/rawtransactions/sendRawTransaction/01000000013ba3edfd7a7b12b27ac72c3e67768f617fc81bc3888a51323a9fb8aa4b1e5e4a000000006a4730440220540986d1c58d6e76f8f05501c520c38ce55393d0ed7ed3c3a82c69af04221232022058ea43ed6c05fec0eccce749a63332ed4525460105346f11108b9c26df93cd72012103083dfc5a0254613941ddc91af39ff90cd711cdcde03a87b144b883b524660c39ffffffff01807c814a000000001976a914d7e7c4e0b70eaa67ceff9d2823d1bbb9f6df9a5188ac00000000");
+        reply = manager.get(QNetworkRequest(request.arg(parent->hostname()).arg(parent->port())));
+    }
+    else {
+        // TODO
+    }
+    assert(reply);
+    auto o = new SendRawTransaction(reply);
+    connect (o, SIGNAL(requestDone()), parent, SLOT(finishedRequest()));
+}
+
+void SendRawTransaction::checkDocument(const QJsonDocument &doc)
+{
+    if (doc.isArray())
+        error("Root should not be an array");
+    auto root = doc.object();
+    check(root, "error", "Missing inputs");
 }

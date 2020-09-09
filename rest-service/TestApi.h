@@ -241,6 +241,18 @@ private:
     QNetworkReply *m_reply;
 };
 
+class SendRawTransaction : public AbstractTestCall
+{
+    Q_OBJECT
+public:
+    static void startRequest(TestApi *parent, QNetworkAccessManager &manager, CallType type = GET);
+
+protected:
+    SendRawTransaction(QNetworkReply *parent, CallType type = GET) : AbstractTestCall(parent, type) { }
+
+    void checkDocument(const QJsonDocument &doc) override;
+};
+
 /*
  * API mapping to the functions testing them.
  *
@@ -296,6 +308,7 @@ private:
  *  	GetRawTransactionVerbose
  * POST /rawtransactions/getRawTransaction
  * GET /rawtransactions/sendRawTransaction/{hex}
+ * 		SendRawTransaction
  * POST /rawtransactions/sendRawTransaction
  *
  * GET /transaction/details/{txid}
