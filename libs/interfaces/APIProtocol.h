@@ -145,8 +145,10 @@ enum MessageIds {
     IsUnspent,
     IsUnspentReply,
     GetUnspentOutput,
-    GetUnspentOutputReply
+    GetUnspentOutputReply,
 
+    SearchMempool,
+    SearchMempoolReply,
 };
 enum Tags {
     Separator = Api::Separator,
@@ -155,11 +157,16 @@ enum Tags {
     Amount = Api::Amount,  // value in satoshis
     BlockHeight = Api::BlockHeight,
     OffsetInBlock = Api::OffsetInBlock,
+    BitcoinScriptHashed = Api::BitcoinScriptHashed,
 
     Transaction = 20,
     OutIndex,
-    UnspentState, // bool
-    OutputScript
+    UnspentState, // bool, when true the utxo is unspent
+    OutputScript,
+    DSProofId,
+
+    Include_TxId = 43,        ///< bool.
+    FullTransactionData = 45, ///< bool. When true, return full tx data
 };
 }
 

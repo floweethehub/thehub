@@ -18,23 +18,22 @@
 #include "APIRPCBinding.h"
 
 #include <APIProtocol.h>
-#include <streaming/MessageBuilder.h>
-#include <BlocksDB.h>
-#include <main.h>
-#include <rpcserver.h>
-#include <encodings_legacy.h>
 #include <univalue.h>
-
-#include <boost/algorithm/hex.hpp>
-
 #include <streaming/MessageParser.h>
-
-#include <UnspentOutputData.h>
-#include <list>
-
+#include <streaming/MessageBuilder.h>
 #include <primitives/FastBlock.h>
 #include <primitives/FastTransaction.h>
 #include <utxo/UnspentOutputDatabase.h>
+#include <server/BlocksDB.h>
+#include <server/encodings_legacy.h>
+#include <server/rpcserver.h>
+#include <server/txmempool.h>
+#include <server/UnspentOutputData.h>
+#include <server/main.h>
+#include <server/DoubleSpendProofStorage.h>
+
+#include <boost/algorithm/hex.hpp>
+#include <list>
 
 namespace {
 
@@ -173,7 +172,7 @@ private:
 class GetBlockHeader : public Api::DirectParser
 {
 public:
-    GetBlockHeader() : DirectParser(Api::BlockChain::GetBlockHeaderReply, 190) {}
+    GetBlockHeader() : DirectParser(Api::BlockChain::GetBlockHeaderReply, 200) {}
 
     void buildReply(Streaming::MessageBuilder &builder, CBlockIndex *index) {
         assert(index);
@@ -831,6 +830,91 @@ public:
 private:
     std::vector<UnspentOutput> m_utxos;
 };
+
+class MempoolSearch: public Api::DirectParser
+{
+public:
+    explicit MempoolSearch()
+      : DirectParser(Api::LiveTransactions::SearchMempoolReply)
+    {
+    }
+
+    int calculateMessageSize(const Message &request) override {
+        Streaming::MessageParser parser(request);
+        std::set<uint256> scriptHashes;
+
+        while (parser.next() == Streaming::FoundTag) {
+            if (parser.tag() == Api::LiveTransactions::TxId) {
+                if (parser.dataLength() != 32)
+                    throw Api::ParserException("TxId should be a 32 byte-bytearray");
+                ResultPair result;
+                if (mempool.lookup(parser.uint256Data(), result.tx, &result.dsProof))
+                    m_results.push_back(std::move(result));
+            }
+            else if (parser.tag() == Api::LiveTransactions::BitcoinScriptHashed) {
+                if (parser.dataLength() != 32)
+                    throw Api::ParserException("ScriptHash should be a 32 byte-bytearray");
+                scriptHashes.insert(parser.uint256Data());
+            }
+            else if (parser.tag() == Api::LiveTransactions::Include_TxId) {
+                m_includeTxId = parser.boolData();
+            }
+            else if (parser.tag() == Api::LiveTransactions::FullTransactionData) {
+                m_includeFullTx = parser.boolData();
+            }
+        }
+
+        if (!m_results.empty()) {
+            LOCK(mempool.cs);
+            for (auto iter = mempool.mapTx.begin(); iter != mempool.mapTx.end(); ++iter) {
+                Tx::Iterator txIter(iter->tx);
+                while (txIter.next(Tx::OutputScript) == Tx::OutputScript) {
+                    auto hit = scriptHashes.find(txIter.hashedByteData());
+                    if (hit != scriptHashes.end()) {
+                        ResultPair result;
+                        result.tx = iter->tx;
+                        result.dsProof = iter->dsproof;
+                        m_results.push_back(std::move(result));
+                        if (m_results.size() > 2500) // protect the Hub from DOS.
+                            break;
+                    }
+                }
+            }
+        }
+
+        int rc = 0;
+        for (const auto &rp : m_results) {
+            if (m_includeTxId)
+                rc += 35;
+            else if (m_includeFullTx)
+                rc += rp.tx.size() + 5;
+            if (rp.dsProof != -1)
+                rc += 35;
+        }
+        return rc;
+    }
+    void buildReply(const Message &, Streaming::MessageBuilder &builder) override {
+        for (const auto &rp : m_results) {
+            if (m_includeTxId)
+                builder.add(Api::LiveTransactions::TxId, rp.tx.createHash());
+            else if (m_includeFullTx)
+                builder.add(Api::LiveTransactions::Transaction, rp.tx.data());
+            if (rp.dsProof != -1) {
+                auto dsp = mempool.doubleSpendProofStorage()->proof(rp.dsProof);
+                if (!dsp.isEmpty())
+                    builder.add(Api::LiveTransactions::DSProofId, dsp.createHash());
+            }
+        }
+    }
+private:
+    struct ResultPair {
+        Tx tx;
+        int dsProof = -1;
+    };
+    std::deque<ResultPair> m_results;
+    bool m_includeTxId = false;
+    bool m_includeFullTx = true;
+};
 }
 
 
@@ -865,6 +949,8 @@ Api::Parser *Api::createParser(const Message &message)
             return new UtxoFetcher(Api::LiveTransactions::IsUnspentReply);
         case Api::LiveTransactions::GetUnspentOutput:
             return new UtxoFetcher(Api::LiveTransactions::GetUnspentOutputReply);
+        case Api::LiveTransactions::SearchMempool:
+            return new MempoolSearch();
         }
         break;
     case Api::UtilService:

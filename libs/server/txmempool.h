@@ -565,9 +565,10 @@ public:
         return (mapTx.count(hash) != 0);
     }
 
-    bool lookup(const uint256 &hash, CTransaction& result) const;
-    bool lookup(const uint256 &hash, Tx& result) const;
-    bool lookup(const COutPoint &outpoint, Tx& result) const;
+    /// Fetch the transaction, and optionally its associated dsproof
+    bool lookup(const uint256 &hash, Tx &result, int *dsproof = nullptr) const;
+    bool lookup(const uint256 &hash, CTransaction &result) const;
+    bool lookup(const COutPoint &outpoint, Tx &result) const;
 
     size_t DynamicMemoryUsage() const;
 
