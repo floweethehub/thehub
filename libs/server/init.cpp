@@ -851,6 +851,8 @@ bool AppInit2(boost::thread_group& threadGroup, CScheduler& scheduler)
                     if (tip) {
                         chainActive.SetTip(tip);
                         pindexBestHeader = tip;
+                        // Set the chain again after it received a Tip()
+                        Application::instance()->validation()->setBlockchain(&chainActive);
 
                         // verify basics
                         if (!VerifyDB().verifyDB(GetArg("-checklevel", Settings::DefaultCheckLevel),
