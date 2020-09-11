@@ -49,8 +49,10 @@ enum JobType {
     FetchBlockOfTx,
     FetchUTXOUnspent,
     FetchUTXODetails,
+    FindTxInMempool,
+    FindAddressInMempool,
 
-    CustomHubMessage, // the data field is a Message to send to Hub.
+    CustomHubMessage = 100, // the data field is a Message to send to Hub.
 };
 
 struct Job {

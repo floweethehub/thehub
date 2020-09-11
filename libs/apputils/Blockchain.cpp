@@ -577,6 +577,21 @@ void Blockchain::SearchPolicy::parseMessageFromHub(Search *request, const Messag
                 }
             }
         }
+        if (message.messageId() == Api::LiveTransactions::SearchMempoolReply) {
+            while (parser.next() == Streaming::FoundTag) {
+                if (parser.tag() == Api::LiveTransactions::Transaction
+                        || parser.tag() == Api::LiveTransactions::TxId) {
+                    Transaction tx;
+                    if (parser.tag() == Api::LiveTransactions::Transaction)
+                        tx.fullTxData = parser.bytesDataBuffer();
+                    else
+                        tx.txid = parser.bytesDataBuffer();
+                    tx.jobId = jobId;
+                    request->answer.push_back(tx);
+                    request->transactionAdded(tx, request->answer.size() - 1);
+                }
+            }
+        }
     }
     else if (message.serviceId() == Api::APIService && message.messageId() == Api::Meta::CommandFailed) {
         Error error;
@@ -833,6 +848,28 @@ void Blockchain::SearchPolicy::processRequests(Blockchain::Search *request)
                 sendMessage(request, builder.message(), TheHub);
                 break;
             }
+            case FindTxInMempool:
+            case FindAddressInMempool:
+                if (job.data.size() != 32)
+                    throw std::runtime_error("Invalid job definition");
+
+                job.started = true;
+                logDebug(Log::SearchEngine) << "starting Find-Tx in mempool" << i;
+                Streaming::MessageBuilder builder(*pool, Streaming::HeaderAndBody);
+                builder.add(Network::ServiceId, Api::LiveTransactionService);
+                builder.add(Network::MessageId, Api::LiveTransactions::SearchMempool);
+                builder.add(SearchRequestId, request->requestId);
+                builder.add(JobRequestId, i);
+                builder.add(Network::HeaderEnd, true);
+                if (job.type == FindTxInMempool)
+                    builder.add(Api::LiveTransactions::TxId, job.data);
+                else
+                    builder.add(Api::LiveTransactions::BitcoinScriptHashed, job.data);
+                if ((job.transactionFilters & Blockchain::IncludeTxId) != 0)
+                    // this disables the full transaction and just returns the txid again.
+                    builder.add(Api::LiveTransactions::Include_TxId, true);
+                sendMessage(request, builder.message(), TheHub);
+                break;
             }
         } catch (const ServiceUnavailableException &e) {
             throw;
