@@ -47,7 +47,6 @@ public:
         uint256 dummySha;
         uint32_t bits = parent->nBits;
 
-        // std::vector<FastBlock> answer;
         for (int i = 0; i < COINBASE_MATURITY; ++i) {
             dummy.nHeight = parent->nHeight + i;
             dummy.nTime += 10;
