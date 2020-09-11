@@ -708,13 +708,18 @@ void ValidationEnginePrivate::handleFailedBlock(const std::shared_ptr<BlockValid
         // remember this failed block-id
         mempool->utxo()->setFailedBlockId(state->m_block.createHash());
 
-        auto currentHeaderTip = Blocks::DB::instance()->headerChain().Tip();
-        const bool changed = Blocks::DB::instance()->appendHeader(index); // Processes that the block actually is invalid.
-        auto tip = Blocks::DB::instance()->headerChain().Tip();
-        if (changed && currentHeaderTip != tip) {
-            logCritical(Log::BlockValidation).nospace() << "new best header=" << *tip->phashBlock << " height=" << tip->nHeight;
-            logInfo(Log::BlockValidation) << "Header-reorg detected. Old-tip" << *currentHeaderTip->phashBlock << "@" << currentHeaderTip->nHeight;
-            prepareChain();
+        // no need to update the header chain if the index is never moved to be owned by the Blocks::DB
+        if (!state->m_ownsIndex) {
+
+            // check if this invalidation has an effect on the validated chain.
+            auto currentHeaderTip = Blocks::DB::instance()->headerChain().Tip();
+            const bool changed = Blocks::DB::instance()->appendHeader(index); // Processes that the block actually is invalid.
+            auto tip = Blocks::DB::instance()->headerChain().Tip();
+            if (changed && currentHeaderTip != tip) {
+                logCritical(Log::BlockValidation).nospace() << "new best header=" << *tip->phashBlock << " height=" << tip->nHeight;
+                logInfo(Log::BlockValidation) << "Header-reorg detected. Old-tip" << *currentHeaderTip->phashBlock << "@" << currentHeaderTip->nHeight;
+                prepareChain();
+            }
         }
     }
 
