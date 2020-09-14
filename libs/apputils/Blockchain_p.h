@@ -98,6 +98,26 @@ public:
     void processRequests(Search *request);
 
     void searchFinished(Search *request);
+    /**
+     * @brief updateTxRefs uses the txRefs to update the back-ref in the answer list of the request.
+     *
+     * The client can insert txRefs at the same time they create a job. For instance to fetch a transaction
+     * that matches an input of my current transaction I can start a new FetchTx:
+     *
+     * @code
+     *    auto job = Blockchain::Job();
+     *    job.type = Blockchain::FetchTx;
+     *    job.data = prevTxId;
+     *    txRefs.insert(std::make_pair(jobs.size(), txRefKey(requestingAnswerIndex, TxRef::Input, curInputIndex)));
+     *    jobs.push_back(job);
+     * @endcode
+     *
+     * The Blockchain baseclass will then call the updateTxRefs() when data has been downloaded.
+     * The updateTxRefs method will assume that the answer arrays most recently pushed Transaction is the result
+     * of such a job, and ensure that the Transaction at "requestingAnswerIndex" gets a reference to this new
+     * transaction.
+     */
+    void updateTxRefs(Search *request, int jobId);
 
 protected:
     void sendMessage(Search *request, Message message, Service service);

@@ -671,21 +671,35 @@ void RestServiceWebRequest::finished(int unfinishedJobs)
     Q_UNUSED(unfinishedJobs)
     // SearchEngine does everything in the threads that it uses for individual connections.
     // Our http engine wants to use its own thread, so lets move threads.
+    if (answerType == TransactionDetails && answer.empty() && jobs.size() <= 4) {
+        Blockchain::Job job;
+        job.type = Blockchain::FindTxInMempool;
+        job.transactionFilters = Blockchain::IncludeFullTransactionData;
+        job.data = jobs[0].data;
+        {
+            std::lock_guard<std::mutex> lock(jobsLock);
+            jobs.push_back(job);
+        }
+        policy->processRequests(this);
+        return;
+    }
 
     QTimer::singleShot(0, this, SLOT(threadSafeFinished()));
 }
 
 void RestServiceWebRequest::transactionAdded(const Blockchain::Transaction &transaction, int answerIndex)
 {
-    logDebug() << "Fetched Tx:" << transaction.blockHeight << transaction.offsetInBlock << "=>" << uint256ToString(transaction.txid) << transaction.jobId;
+    logDebug() << "Fetched Tx:" << transaction.blockHeight << transaction.offsetInBlock << transaction.jobId;
+    if (!transaction.txid.isEmpty())
+        logDebug() << "          :" << uint256ToString(transaction.txid);
     if ((answerType == TransactionDetails || answerType == TransactionDetailsList)
             && !transaction.fullTxData.isEmpty()) { // if (one of) the main transaction
-        logDebug() << "Fetched Tx:" << transaction.blockHeight << transaction.offsetInBlock << "=>" << uint256ToString(transaction.txid);
 
         // For each input we want to know the value, so we need to do two lookups for that (spent-db and outputvalue)
         // For each output we want to know who spent it.
         Tx::Iterator iter(transaction.fullTxData);
         Blockchain::Job job;
+        int inputIndex = 0;
         int outputIndex = 0;
         while (iter.next() != Tx::End) {
             switch (iter.tag()) {
@@ -696,14 +710,23 @@ void RestServiceWebRequest::transactionAdded(const Blockchain::Transaction &tran
             case Tx::PrevTxIndex:
                 if (!transaction.isCoinbase()) {
                     job.type = Blockchain::LookupTxById;
-                    job.nextJobId = jobs.size() + 1;
+                    job.nextJobId = jobs.size() + 2;
                     jobs.push_back(job);
 
-                    txRefs.insert(std::make_pair(jobs.size(), txRefKey(answerIndex, TxRef::Input, iter.intData())));
+                    // fetch both the mempool one and the blockchain one at the same time to ensure we get an answer.
+                    Blockchain::Job memJob;
+                    memJob.data = job.data;
+                    memJob.type = Blockchain::FindTxInMempool;
+                    memJob.transactionFilters = Blockchain::IncludeOutputAmounts
+                            + Blockchain::IncludeOutputScripts;
+                    txRefs.insert(std::make_pair(jobs.size(), txRefKey(answerIndex, TxRef::Input, inputIndex)));
+                    jobs.push_back(memJob);
+
                     job = Blockchain::Job();
                     job.type = Blockchain::FetchTx;
                     job.transactionFilters = Blockchain::IncludeOutputAmounts
                             + Blockchain::IncludeOutputScripts;
+                    txRefs.insert(std::make_pair(jobs.size(), txRefKey(answerIndex, TxRef::Input, inputIndex++)));
                     jobs.push_back(job);
                 }
                 break;
@@ -715,11 +738,15 @@ void RestServiceWebRequest::transactionAdded(const Blockchain::Transaction &tran
                 job.nextJobId = jobs.size() + 1;
                 jobs.push_back(job);
 
-                txRefs.insert(std::make_pair(jobs.size(), txRefKey(answerIndex, TxRef::Output, outputIndex++)));
-                job = Blockchain::Job();
-                job.type = Blockchain::FetchTx;
-                job.transactionFilters = Blockchain::IncludeTxId;
-                jobs.push_back(job);
+                if (transaction.blockHeight > 0) {
+                    // only fetch from the blockchain if the transaction itself has been mined
+                    txRefs.insert(std::make_pair(jobs.size(), txRefKey(answerIndex, TxRef::Output, outputIndex++)));
+                    job = Blockchain::Job();
+                    job.type = Blockchain::FetchTx;
+                    job.transactionFilters = Blockchain::IncludeTxId;
+                    jobs.push_back(job);
+                }
+                // TODO mempool?
                 break;
             case Tx::End:
                 return;
@@ -895,7 +922,7 @@ void RestServiceWebRequest::threadSafeFinished()
         QMap<TransactionId, Blockchain::Transaction*> sortedTx;
         for (size_t i = 0; i < answer.size(); ++i) {
             Blockchain::Transaction *tx = &answer[i];
-            sortedTx.insert({tx->blockHeight, tx->offsetInBlock}, tx);
+            sortedTx.insert({tx->blockHeight, int(tx->offsetInBlock)}, tx);
         }
         // we want to list the most recent hits first, which are the highest blockchain ones.
         auto iter = sortedTx.end();
@@ -1026,14 +1053,21 @@ QJsonObject RestServiceWebRequest::renderTransactionToJSon(const Blockchain::Tra
     }
     answer.insert("size", tx.fullTxData.size());
     answer.insert("blockheight", tx.blockHeight);
-    if (tx.blockHeight > 0)
+    if (tx.blockHeight > 0) {
         answer.insert("firstSeenTime", QJsonValue::Null);
+    }
+    else {
+        // for mempool transactions
+        answer.insert("firstSeenTime", (double) tx.firstSeenTime);
+        answer.insert("time", (double) tx.firstSeenTime);
+    }
 
     Tx::Iterator iter(tx.fullTxData);
     QJsonArray inputs, outputs;
     QJsonObject input, output;
     qint64 valueOut = 0;
     qint64 valueIn = 0;
+    int inIndex = 0;
     while (iter.next() != Tx::End) {
         switch (iter.tag()) {
         case Tx::TxVersion:
@@ -1049,7 +1083,7 @@ QJsonObject RestServiceWebRequest::renderTransactionToJSon(const Blockchain::Tra
                 input.insert("vout", iter.intData());
 
                 // Find transaction on the other side.
-                auto i = tx.txRefs.find(tx.refKeyForInput(iter.intData()));
+                auto i = tx.txRefs.find(tx.refKeyForInput(inIndex++));
                 if (i != tx.txRefs.end() && int(i->second->outputs.size()) > iter.intData()) {
                     const auto &out = i->second->outputs[iter.intData()];
                     input.insert("value", static_cast<qint64>(out.amount));

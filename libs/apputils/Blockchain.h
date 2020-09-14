@@ -100,7 +100,11 @@ struct Output
 struct Transaction
 {
     int blockHeight = -1;
-    int offsetInBlock = 0;
+    union {
+        // offsetInBlock is used when blockHeight is valid
+        uint32_t offsetInBlock;
+        uint32_t firstSeenTime = 0;
+    };
     int jobId = -1; // jobId that was processed to create this object
 
     bool isCoinbase() const {

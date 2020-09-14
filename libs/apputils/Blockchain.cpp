@@ -33,9 +33,17 @@ Blockchain::Transaction fillTx(Streaming::MessageParser &parser, const Blockchai
 {
     Blockchain::Transaction tx;
     tx.jobId = jobId;
-    tx.blockHeight = job.intData;
-    tx.offsetInBlock = job.intData2;
-    tx.txid = job.data;
+    if (job.type == Blockchain::FetchTx) {
+        tx.blockHeight = job.intData;
+        tx.offsetInBlock = job.intData2;
+    }
+    if (job.type == Blockchain::FetchTx || job.type == Blockchain::FindTxInMempool)
+        tx.txid = job.data;
+
+    // The vast majority of the LiveTransaction and the Blockchain tags are identical
+    // in this method we use the lowest common denominator when available.
+    // This is why the tags are typically compared to the Api::Blockchain::Tags enum values
+
     while (parser.next() == Streaming::FoundTag) {
         if (parser.tag() == Api::TxId)
             tx.txid = parser.bytesDataBuffer();
@@ -77,9 +85,19 @@ Blockchain::Transaction fillTx(Streaming::MessageParser &parser, const Blockchai
             tx.outputs.back().outScript = parser.bytesDataBuffer();
             tx.outputs.back().type = Blockchain::Output::OnlyAddress;
         }
-        else if (parser.tag() == Api::BlockChain::GenericByteData) {
+        else if (parser.tag() == Api::BlockChain::GenericByteData
+                 || (job.type == Blockchain::FindTxInMempool
+                     && parser.tag() == Api::LiveTransactions::Transaction)) {
             tx.fullTxData = parser.bytesDataBuffer();
-        } else if (parser.tag() == Api::Separator) {
+        }
+        else if (job.type == Blockchain::FindTxInMempool
+                 && parser.tag() == Api::LiveTransactions::FirstSeenTime) {
+            // This assumes that the blockHeight is not set since otherwise we won't
+            // be able to tell the difference.
+            assert(tx.blockHeight == -1);
+            tx.firstSeenTime = parser.longData(); // use long to be safe for 2038 overflow
+        }
+        else if (parser.tag() == Api::Separator) {
             break;
         }
     }
@@ -475,17 +493,7 @@ void Blockchain::SearchPolicy::parseMessageFromHub(Search *request, const Messag
         if (message.messageId() == Api::BlockChain::GetTransactionReply) {
             request->answer.push_back(fillTx(parser, job, jobId));
             const Transaction &tx = request->answer.back();
-            auto iter = request->txRefs.find(jobId);
-            if (iter != request->txRefs.end()) { // check the txRefs for matches.
-                uint64_t v = iter->second;
-                uint32_t k = v & 0xFFFFFFFF;
-                v = v >> 32;
-                int txIndex = v;
-                assert(txIndex >= 0); // if this or the next hits, then the inherting class failed to insert a proper row
-                assert(request->answer.size() > size_t(txIndex));
-                Transaction &backTx = request->answer[txIndex];
-                backTx.txRefs.insert(std::make_pair(k, &request->answer.back()));
-            }
+            updateTxRefs(request, jobId);
             request->transactionAdded(tx, request->answer.size() - 1);
         }
         else if (message.messageId() == Api::BlockChain::GetBlockHeaderReply) {
@@ -531,8 +539,6 @@ void Blockchain::SearchPolicy::parseMessageFromHub(Search *request, const Messag
     }
 
     if (message.serviceId() == Api::LiveTransactionService) {
-        // TODO also implement error reporting from the API module.
-        // things like "OffsetInBlock larger than block" get reported there.
         if (message.messageId() == Api::LiveTransactions::IsUnspentReply
                 || message.messageId() == Api::LiveTransactions::GetUnspentOutputReply) {
             int blockHeight = job.intData;
@@ -578,18 +584,14 @@ void Blockchain::SearchPolicy::parseMessageFromHub(Search *request, const Messag
             }
         }
         if (message.messageId() == Api::LiveTransactions::SearchMempoolReply) {
-            while (parser.next() == Streaming::FoundTag) {
-                if (parser.tag() == Api::LiveTransactions::Transaction
-                        || parser.tag() == Api::LiveTransactions::TxId) {
-                    Transaction tx;
-                    if (parser.tag() == Api::LiveTransactions::Transaction)
-                        tx.fullTxData = parser.bytesDataBuffer();
-                    else
-                        tx.txid = parser.bytesDataBuffer();
-                    tx.jobId = jobId;
-                    request->answer.push_back(tx);
-                    request->transactionAdded(tx, request->answer.size() - 1);
-                }
+            while (true) {
+                bool more;
+                parser.peekNext(&more);
+                if (!more)
+                    break;
+                request->answer.push_back(fillTx(parser, job, jobId));
+                updateTxRefs(request, jobId);
+                request->transactionAdded(request->answer.back(), request->answer.size() - 1);
             }
         }
     }
@@ -865,9 +867,7 @@ void Blockchain::SearchPolicy::processRequests(Blockchain::Search *request)
                     builder.add(Api::LiveTransactions::TxId, job.data);
                 else
                     builder.add(Api::LiveTransactions::BitcoinScriptHashed, job.data);
-                if ((job.transactionFilters & Blockchain::IncludeTxId) != 0)
-                    // this disables the full transaction and just returns the txid again.
-                    builder.add(Api::LiveTransactions::Include_TxId, true);
+                addIncludeRequests(builder, job.transactionFilters);
                 sendMessage(request, builder.message(), TheHub);
                 break;
             }
@@ -891,6 +891,21 @@ void Blockchain::SearchPolicy::processRequests(Blockchain::Search *request)
 void Blockchain::SearchPolicy::searchFinished(Blockchain::Search *request)
 {
     m_owner->searchFinished(request);
+}
+
+void Blockchain::SearchPolicy::updateTxRefs(Search *request, int jobId)
+{
+    auto iter = request->txRefs.find(jobId);
+    if (iter != request->txRefs.end()) { // check the txRefs for matches.
+        uint64_t v = iter->second;
+        uint32_t k = v & 0xFFFFFFFF;
+        v = v >> 32;
+        int txIndex = v;
+        assert(txIndex >= 0); // if this or the next hits, then the inherting class failed to insert a proper row
+        assert(request->answer.size() > size_t(txIndex));
+        Transaction &backTx = request->answer[txIndex];
+        backTx.txRefs.insert(std::make_pair(k, &request->answer.back()));
+    }
 }
 
 void Blockchain::SearchPolicy::sendMessage(Blockchain::Search *request, Message message, Blockchain::Service service)
