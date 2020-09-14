@@ -566,7 +566,7 @@ public:
     }
 
     /// Fetch the transaction, and optionally its associated dsproof
-    bool lookup(const uint256 &hash, Tx &result, int *dsproof = nullptr) const;
+    bool lookup(const uint256 &hash, Tx &result) const;
     bool lookup(const uint256 &hash, CTransaction &result) const;
     bool lookup(const COutPoint &outpoint, Tx &result) const;
 

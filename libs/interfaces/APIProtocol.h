@@ -153,20 +153,34 @@ enum MessageIds {
 enum Tags {
     Separator = Api::Separator,
     GenericByteData = Api::GenericByteData,
+    Tx_Out_Address = Api::BitcoinP2PKHAddress, ///< a ripe160 based P2PKH address.
     TxId = Api::TxId,   // bytearray
     Amount = Api::Amount,  // value in satoshis
     BlockHeight = Api::BlockHeight,
     OffsetInBlock = Api::OffsetInBlock,
     BitcoinScriptHashed = Api::BitcoinScriptHashed,
 
-    Transaction = 20,
+    Tx_IN_TxId = 20,
     OutIndex,
-    UnspentState, // bool, when true the utxo is unspent
+    Tx_InputScript,
     OutputScript,
-    DSProofId,
+    Tx_Out_Index,
 
-    Include_TxId = 43,        ///< bool.
-    FullTransactionData = 45, ///< bool. When true, return full tx data
+    Transaction,
+    UnspentState, // bool, when true the utxo is unspent
+    DSProofId,
+    FirstSeenTime, // long-int with seconds since epoch (UTC)
+
+    // for individual transaction you can select how they should be returned.
+    Include_TxId = 43,      ///< bool.
+    FullTransactionData = 45, ///< bool. When true, return full tx data even when interpeted data is sent.
+    Include_Inputs,         ///< bool. Return all inputs for selected tx.
+    Include_OutputAmounts,  ///< bool. Return the amounts field for selected transactions.
+    Include_OutputScripts,  ///< bool. Return full output Scripts.
+    Include_Outputs,        ///< bool. Return all parts of outputs, overriding the previous 2 options.
+    Include_OutputAddresses,///< bool. If the output is a p2pkh, return the hash160 of the address paid to.
+    Include_OutputScriptHash,///< bool. Include Tx_Out_ScriptHash
+    FilterOutputIndex,  	///< integer of output. This filters to only return data for those.
 };
 }
 
@@ -228,7 +242,7 @@ enum Tags {
     Include_Outputs,        ///< bool. Return all parts of outputs, overriding the previous 2 options.
     Include_OutputAddresses,///< bool. If the output is a p2pkh, return the hash160 of the address paid to.
     Include_OutputScriptHash,///< bool. Include Tx_Out_ScriptHash
-    FilterOutputIndex,  // integer to limit transaction fetching to outputs
+    FilterOutputIndex,  	///< integer of output. This filters to only return data for those.
 
     Verbose = 60,   // bool
     Size,           // int

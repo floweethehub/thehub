@@ -219,6 +219,13 @@ public:
     }
 };
 
+/**
+ * @brief The TransactionSerializationOptions struct helps commands serialize transactions
+ * according to the peers-selected criterea.
+ *
+ * A command would populate the options struct once and then repeatedly call
+ * serialize on each of the transactions it wants to include in the reply.
+ */
 struct TransactionSerializationOptions
 {
     void serialize(Streaming::MessageBuilder &builder, Tx::Iterator &iter)
@@ -287,6 +294,22 @@ struct TransactionSerializationOptions
                 || returnOutputScripts || returnOutputAddresses || returnOutputScriptHashed;
         return partialTxData;
     }
+
+    void readParser(const Streaming::MessageParser &parser) {
+        if (parser.tag() == Api::BlockChain::Include_Inputs) {
+            returnInputs = parser.boolData();
+        } else if (parser.tag() == Api::BlockChain::Include_Outputs) {
+            returnOutputs = parser.boolData();
+        } else if (parser.tag() == Api::BlockChain::Include_OutputAmounts) {
+            returnOutputAmounts = parser.boolData();
+        } else if (parser.tag() == Api::BlockChain::Include_OutputScripts) {
+            returnOutputScripts = parser.boolData();
+        } else if (parser.tag() == Api::BlockChain::Include_OutputAddresses) {
+            returnOutputAddresses = parser.boolData();
+        } else if (parser.tag() == Api::BlockChain::Include_OutputScriptHash) {
+            returnOutputScriptHashed = parser.boolData();
+        }
+    }
     bool returnInputs = false;
     bool returnOutputs = false;
     bool returnOutputAmounts = false;
@@ -347,18 +370,8 @@ public:
                 m_returnTxId = parser.boolData();
             } else if (parser.tag() == Api::BlockChain::Include_OffsetInBlock) {
                 m_returnOffsetInBlock = parser.boolData();
-            } else if (parser.tag() == Api::BlockChain::Include_Inputs) {
-                opt.returnInputs = parser.boolData();
-            } else if (parser.tag() == Api::BlockChain::Include_Outputs) {
-                opt.returnOutputs = parser.boolData();
-            } else if (parser.tag() == Api::BlockChain::Include_OutputAmounts) {
-                opt.returnOutputAmounts = parser.boolData();
-            } else if (parser.tag() == Api::BlockChain::Include_OutputScripts) {
-                opt.returnOutputScripts = parser.boolData();
-            } else if (parser.tag() == Api::BlockChain::Include_OutputAddresses) {
-                opt.returnOutputAddresses = parser.boolData();
-            } else if (parser.tag() == Api::BlockChain::Include_OutputScriptHash) {
-                opt.returnOutputScriptHashed = parser.boolData();
+            } else {
+                opt.readParser(parser);
             }
         }
         if (fullTxData) // if explicitly asked.
@@ -643,22 +656,12 @@ public:
                 m_returnTxId = parser.boolData();
             } else if (parser.tag() == Api::BlockChain::Include_OffsetInBlock) {
                 m_returnOffsetInBlock = parser.boolData();
-            } else if (parser.tag() == Api::BlockChain::Include_Inputs) {
-                opt.returnInputs = parser.boolData();
-            } else if (parser.tag() == Api::BlockChain::Include_Outputs) {
-                opt.returnOutputs = parser.boolData();
-            } else if (parser.tag() == Api::BlockChain::Include_OutputAmounts) {
-                opt.returnOutputAmounts = parser.boolData();
-            } else if (parser.tag() == Api::BlockChain::Include_OutputScripts) {
-                opt.returnOutputScripts = parser.boolData();
-            } else if (parser.tag() == Api::BlockChain::Include_OutputScriptHash) {
-                opt.returnOutputScriptHashed = parser.boolData();
-            } else if (parser.tag() == Api::BlockChain::Include_OutputAddresses) {
-                opt.returnOutputAddresses = parser.boolData();
             } else if (parser.tag() == Api::BlockChain::FilterOutputIndex) {
                 if (!parser.isInt() || parser.intData() < 0)
                     throw Api::ParserException("FilterOutputIndex should be a positive number");
                 opt.filterOutputs.insert(parser.intData());
+            } else {
+                opt.readParser(parser);
             }
         }
         if (fullTxData) // if explicitly asked.
@@ -843,26 +846,44 @@ public:
         Streaming::MessageParser parser(request);
         std::set<uint256> scriptHashes;
 
+        bool fullTxData = false;
         while (parser.next() == Streaming::FoundTag) {
             if (parser.tag() == Api::LiveTransactions::TxId) {
                 if (parser.dataLength() != 32)
                     throw Api::ParserException("TxId should be a 32 byte-bytearray");
-                ResultPair result;
-                if (mempool.lookup(parser.uint256Data(), result.tx, &result.dsProof))
+                LOCK(mempool.cs);
+                auto i = mempool.mapTx.find(parser.uint256Data());
+                if (i != mempool.mapTx.end()) {
+                    ResultPair result;
+                    result.tx = i->tx;
+                    result.dsProof = i->dsproof;
+                    result.time = i->GetTime();
                     m_results.push_back(std::move(result));
+                }
             }
             else if (parser.tag() == Api::LiveTransactions::BitcoinScriptHashed) {
                 if (parser.dataLength() != 32)
                     throw Api::ParserException("ScriptHash should be a 32 byte-bytearray");
                 scriptHashes.insert(parser.uint256Data());
+            } else if (parser.tag() == Api::LiveTransactions::Include_TxId) {
+                m_returnTxId = parser.boolData();
+            } else if (parser.tag() == Api::LiveTransactions::FullTransactionData) {
+                fullTxData = parser.boolData();
+                if (!fullTxData)
+                    m_fullTxData = false;
+            } else if (parser.tag() == Api::BlockChain::FilterOutputIndex) {
+                if (!parser.isInt() || parser.intData() < 0)
+                    throw Api::ParserException("FilterOutputIndex should be a positive number");
+                opt.filterOutputs.insert(parser.intData());
             }
-            else if (parser.tag() == Api::LiveTransactions::Include_TxId) {
-                m_includeTxId = parser.boolData();
-            }
-            else if (parser.tag() == Api::LiveTransactions::FullTransactionData) {
-                m_includeFullTx = parser.boolData();
+            else {
+                opt.readParser(parser);
             }
         }
+        if (fullTxData) // if explicitly asked.
+            m_fullTxData = true;
+        else if (m_returnTxId || opt.shouldRun()) // we imply false if they want a subset.
+            m_fullTxData = false;
 
         if (!m_results.empty()) {
             LOCK(mempool.cs);
@@ -874,6 +895,7 @@ public:
                         ResultPair result;
                         result.tx = iter->tx;
                         result.dsProof = iter->dsproof;
+                        result.time = iter->GetTime();
                         m_results.push_back(std::move(result));
                         if (m_results.size() > 2500) // protect the Hub from DOS.
                             break;
@@ -882,38 +904,57 @@ public:
             }
         }
 
-        int rc = 0;
+        // this is a quick and dirty calculation aiming to rather have more bytes reserved
+        // than used.
+        int bytesPerTx = 1;
+        if (m_returnTxId) bytesPerTx += 35;
+        if (m_fullTxData)  bytesPerTx += 5; // actual tx-data is in 'size'
+
+        const bool optShouldRun = opt.shouldRun();
+
+        int total = 45;
         for (const auto &rp : m_results) {
-            if (m_includeTxId)
-                rc += 35;
-            else if (m_includeFullTx)
-                rc += rp.tx.size() + 5;
+            total += bytesPerTx;
+            if (optShouldRun)
+                // instead of parsing each transaction here, add the entire size
+                total += rp.tx.size();
+            if (m_fullTxData)
+                total += rp.tx.size();
             if (rp.dsProof != -1)
-                rc += 35;
+                total += 35;
         }
-        return rc;
+        return total;
     }
     void buildReply(const Message &, Streaming::MessageBuilder &builder) override {
+        const bool optShouldRun = opt.shouldRun();
+
         for (const auto &rp : m_results) {
-            if (m_includeTxId)
+            Tx::Iterator iter(rp.tx);
+            if (m_returnTxId)
                 builder.add(Api::LiveTransactions::TxId, rp.tx.createHash());
-            else if (m_includeFullTx)
+            if (optShouldRun)
+                opt.serialize(builder, iter);
+            if (m_fullTxData)
                 builder.add(Api::LiveTransactions::Transaction, rp.tx.data());
             if (rp.dsProof != -1) {
                 auto dsp = mempool.doubleSpendProofStorage()->proof(rp.dsProof);
                 if (!dsp.isEmpty())
                     builder.add(Api::LiveTransactions::DSProofId, dsp.createHash());
             }
+            builder.add(Api::LiveTransactions::FirstSeenTime, rp.time);
+            builder.add(Api::Separator, true);
         }
     }
 private:
     struct ResultPair {
         Tx tx;
         int dsProof = -1;
+        uint64_t time = 0; // time the tx entered the mempool
     };
     std::deque<ResultPair> m_results;
-    bool m_includeTxId = false;
-    bool m_includeFullTx = true;
+    bool m_fullTxData = true;
+    bool m_returnTxId = false;
+    TransactionSerializationOptions opt;
 };
 }
 

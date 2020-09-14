@@ -710,14 +710,12 @@ bool CTxMemPool::lookup(const uint256 &hash, CTransaction &result) const
     return true;
 }
 
-bool CTxMemPool::lookup(const uint256 &hash, Tx& result, int *dsproof) const
+bool CTxMemPool::lookup(const uint256 &hash, Tx& result) const
 {
     LOCK(cs);
     indexed_transaction_set::const_iterator i = mapTx.find(hash);
     if (i == mapTx.end()) return false;
     result = i->tx;
-    if (dsproof)
-        *dsproof = i->dsproof;
     return true;
 }
 
