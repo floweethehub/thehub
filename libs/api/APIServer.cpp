@@ -32,7 +32,7 @@
 #include <fstream>
 #include <functional>
 
-// the amount of seconds after which we disconnect incoming connections that have done anything yet.
+// the amount of seconds after which we disconnect incoming connections that have not done anything yet.
 #define INTRODUCTION_TIMEOUT 4
 
 #ifdef __linux__
