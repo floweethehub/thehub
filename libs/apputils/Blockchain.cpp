@@ -375,6 +375,7 @@ void Blockchain::SearchEnginePrivate::indexerConnected(const EndPoint &ep)
     logDebug(Log::SearchEngine);
     auto con = network.connection(ep);
     con.send(Message(Api::IndexerService, Api::Indexer::GetAvailableIndexers));
+    con.send(Message(Api::IndexerService, Api::Indexer::Version));
 }
 
 void Blockchain::SearchEnginePrivate::indexerDisconnected(const EndPoint &)
@@ -403,43 +404,55 @@ void Blockchain::SearchEnginePrivate::indexerSentMessage(const Message &message)
     }
 
     // parse message on which indexers the indexer has.
-    if (message.serviceId() == Api::IndexerService && message.messageId() == Api::Indexer::GetAvailableIndexersReply) {
-        bool hasTxId = false, hasSpent = false, hasAddress = false;
-        Streaming::MessageParser p(message);
-        while (p.next() == Streaming::FoundTag) {
-            if (p.tag() == Api::Indexer::AddressIndexer) {
-                hasAddress = true;
-                logInfo(Log::SearchEngine) << "Indexer 'address' available:" << p.boolData();
-            } else if (p.tag() == Api::Indexer::TxIdIndexer) {
-                hasTxId = true;
-                logInfo(Log::SearchEngine) << "Indexer 'TxID' available:" << p.boolData();
-            } else if (p.tag() == Api::Indexer::SpentOutputIndexer){
-                hasSpent = true;
-                logInfo(Log::SearchEngine) << "Indexer 'Spent' available:" << p.boolData();
+    if (message.serviceId() == Api::IndexerService) {
+        if (message.messageId() == Api::Indexer::GetAvailableIndexersReply) {
+            bool hasTxId = false, hasSpent = false, hasAddress = false;
+            Streaming::MessageParser p(message);
+            while (p.next() == Streaming::FoundTag) {
+                if (p.tag() == Api::Indexer::AddressIndexer) {
+                    hasAddress = true;
+                    logInfo(Log::SearchEngine) << "Indexer 'address' available:" << p.boolData();
+                } else if (p.tag() == Api::Indexer::TxIdIndexer) {
+                    hasTxId = true;
+                    logInfo(Log::SearchEngine) << "Indexer 'TxID' available:" << p.boolData();
+                } else if (p.tag() == Api::Indexer::SpentOutputIndexer){
+                    hasSpent = true;
+                    logInfo(Log::SearchEngine) << "Indexer 'Spent' available:" << p.boolData();
+                }
+            }
+
+            for (auto iter = connections.begin(); iter != connections.end(); ++iter) {
+                if (iter->con.connectionId() == message.remote) {
+                    if (hasAddress)
+                        iter->services.insert(IndexerAddressDb);
+                    if (hasTxId)
+                        iter->services.insert(IndexerTxIdDb);
+                    if (hasSpent)
+                        iter->services.insert(IndexerSpentDb);
+                    break;
+                }
+            }
+            std::set<Service> services;
+            if (hasAddress)
+                services.insert(IndexerAddressDb);
+            if (hasTxId)
+                services.insert(IndexerTxIdDb);
+            if (hasSpent)
+                services.insert(IndexerSpentDb);
+
+            q->initializeIndexerConnection(network.connection(network.endPoint(message.remote)), services);
+            return;
+        }
+        if (message.messageId() == Api::Indexer::VersionReply) {
+            Streaming::MessageParser parser(message);
+            while (parser.next() == Streaming::FoundTag) {
+                if (parser.tag() == Api::GenericByteData) {
+                    logCritical(Log::SearchEngine) << "  Upstream Indexer connected"
+                                                   << parser.stringData();
+                    return;
+                }
             }
         }
-
-        for (auto iter = connections.begin(); iter != connections.end(); ++iter) {
-            if (iter->con.connectionId() == message.remote) {
-                if (hasAddress)
-                    iter->services.insert(IndexerAddressDb);
-                if (hasTxId)
-                    iter->services.insert(IndexerTxIdDb);
-                if (hasSpent)
-                    iter->services.insert(IndexerSpentDb);
-                break;
-            }
-        }
-        std::set<Service> services;
-        if (hasAddress)
-            services.insert(IndexerAddressDb);
-        if (hasTxId)
-            services.insert(IndexerTxIdDb);
-        if (hasSpent)
-            services.insert(IndexerSpentDb);
-
-        q->initializeIndexerConnection(network.connection(network.endPoint(message.remote)), services);
-        return;
     }
     q->indexerSentMessage(message);
 }
