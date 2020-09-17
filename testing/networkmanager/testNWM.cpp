@@ -1,6 +1,6 @@
 /*
  * This file is part of the Flowee project
- * Copyright (C) 2016, 2019 Tom Zander <tomz@freedommail.ch>
+ * Copyright (C) 2016, 2019-2020 Tom Zander <tomz@freedommail.ch>
  *
  * This program is free software: you can redistribute it and/or modify
  * it under the terms of the GNU General Public License as published by
@@ -21,6 +21,11 @@
 #include <networkmanager/NetworkManager_p.h>
 #include <WorkerThreads.h>
 #include <Message.h>
+
+TestNWM::TestNWM()
+{
+    srand(time(nullptr));
+}
 
 void TestNWM::testBigMessage()
 {
@@ -208,6 +213,84 @@ void TestNWM::testHeaderInt()
     QCOMPARE((int) message.headerData().size(), 5); // 3 from above and the service/message ids
 
     QTRY_COMPARE(message.headerData(), headerMap);
+}
+
+void TestNWM::testChunkReadQueue()
+{
+    /*
+     * The NWM does flow control using the outgoing-message-queue size
+     * This means we might end up pausing processing of incoming traffic in order to
+     * wait for the outgoing data to be sent.
+     *
+     * Lets test that we still manage to send everything.
+     *
+     * The way to test this is simply that when we get 10 incoming messages, which generate
+     * 1000 outgoing messages, then we expect the NWM to stop processing the incoming and
+     * push a 'send' in between.
+     */
+
+    auto localhost = boost::asio::ip::address_v4::loopback();
+    const int port = std::max(1100, rand() % 32000);
+
+    std::list<NetworkConnection> connections;
+    WorkerThreads threads;
+    NetworkManager receiver(threads.ioService());
+    receiver.bind(boost::asio::ip::tcp::endpoint(localhost, port), [&connections](NetworkConnection &connection) {
+        connection.setMessageQueueSizes(1000, 1000);
+        connections.push_back(std::move(connection));
+        NetworkConnection *con = &connections.back();
+        con->setOnIncomingMessage([con](const Message &message) {
+            // first send a high prio, those are useful to measure the chunk-size.
+            con->send(Message(1, 1), NetworkConnection::HighPriority);
+            // for each incoming connection we send 100.
+            for (int i = 0; i < 100; ++i) {
+                con->send(Message(message.serviceId(), message.messageId() + 1));
+            }
+        });
+        con->accept();
+    });
+
+    NetworkManager sender(threads.ioService());
+    EndPoint ep;
+    ep.announcePort = port;
+    ep.ipAddress = localhost;
+    auto con = sender.connection(ep);
+    con.setMessageQueueSizes(1000, 1000);
+
+    struct ReplyParser {
+        int plainMessageCount = 0;
+        int prioMessageCount = 0;
+
+        bool ok = false;
+
+        void replyReceived(const Message &message) {
+            if (message.serviceId() == 1)
+                ++prioMessageCount;
+            else
+                ++plainMessageCount;
+
+            if (!ok && plainMessageCount > 300 && prioMessageCount < 5) {
+                // Prio messages are sent every flush of the other side, so this is how
+                // we know that the replies have been chunked. We get the first 4 batches
+                // (4 + 400 messages) in one go and then we get another such batch and
+                // a last batch to finish the (10 + 1000) messages count.
+
+                // If there was no chunking we'd have gotten all prio messages
+                // in one (or nothing at all).
+                ok = true;
+            }
+        }
+    };
+    ReplyParser parser;
+    con.setOnIncomingMessage(std::bind(&ReplyParser::replyReceived, &parser, std::placeholders::_1));
+    con.connect();
+
+    // we send 10 messages from sender to receiver.
+    for (int i = 0; i < 10; ++i) {
+        con.send(Message(10, 5));
+    }
+
+    QTRY_COMPARE(parser.ok, true);
 }
 
 QTEST_MAIN(TestNWM)

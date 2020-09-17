@@ -237,10 +237,7 @@ public:
     void setMessageHeaderType(MessageHeaderType messageHeaderType);
 
     void punish(int amount);
-    inline void setMessageQueueSizes(int main, int priority) {
-        m_queueSizeMain = main;
-        m_priorityQueueSize = priority;
-    }
+    void setMessageQueueSizes(int main, int priority);
     void close(bool reconnect = true); // close down connection
 
     short m_punishment = 0; // aka ban-sore
@@ -304,6 +301,21 @@ private:
 
     int m_queueSizeMain = 2000; // config setting for the ringbuffers sizes
     int m_priorityQueueSize = 20; // ditto
+    // flow-control limits
+    /*
+     * When on processing the received messages, the send queue reached this size
+     * we interrupt and do a quick send.
+     */
+    int m_forceSendLimit = 750;
+    /*
+     * A send-message queue size limit that determines
+     * if we throttle waiting on receive, and by how much.
+     * Below L1 we don't wait.
+     * Below L2 we wait 10ms, below L3 we wait 50ms.
+     */
+    int m_throttleReceiveAtSendLimitL1 = 1000;
+    int m_throttleReceiveAtSendLimitL2 = 1500;
+    int m_throttleReceiveAtSendLimitL3 = 1900;
 
     short m_reconnectStep = 0;
     boost::asio::deadline_timer m_reconnectDelay;

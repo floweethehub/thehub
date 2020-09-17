@@ -629,6 +629,12 @@ void NetworkManagerConnection::sentSomeBytes(const boost::system::error_code& er
     m_sendQHeaders->clear();
 
     runMessageQueue();
+
+    // if we interrupted the received-message-processing, resume that now.
+    if (m_receiveStream.size() > 4) {
+        logDebug() << "  resuming processing. Message Queue now:" << m_messageQueue->size();
+        receivedSomeBytes(boost::system::error_code(), 0);
+    }
 }
 
 void NetworkManagerConnection::receivedSomeBytes(const boost::system::error_code& error, std::size_t bytes_transferred)
@@ -661,6 +667,14 @@ void NetworkManagerConnection::receivedSomeBytes(const boost::system::error_code
         const size_t blockSize = static_cast<size_t>(m_receiveStream.size());
         if (blockSize < 4) // need more data
             break;
+
+        // Check ring buffer capacity and send if low.
+        if (m_messageQueue->size() > m_forceSendLimit) {
+            logDebug(Log::NWM) << "Waiting with the processing of receive, too much outgoing queued";
+            runMessageQueue();
+            return;
+        }
+
         Streaming::ConstBuffer data = m_receiveStream.createBufferSlice(m_receiveStream.begin(), m_receiveStream.end());
 
         if (m_firstPacket) {
@@ -734,13 +748,13 @@ void NetworkManagerConnection::requestMoreBytes_callback(const boost::system::er
         return;
 
     const int backlog = m_messageQueue->size() + m_priorityMessageQueue->size();
-    if (backlog < 1000)
+    if (backlog < m_throttleReceiveAtSendLimitL1)
         requestMoreBytes();
     else if (isConnected()) {
         int wait = 2;
-        if (backlog > 2000)
+        if (backlog > m_throttleReceiveAtSendLimitL3)
             wait = 30;
-        else if (backlog > 1500)
+        else if (backlog > m_throttleReceiveAtSendLimitL2)
             wait = 10;
         m_sendTimer.expires_from_now(boost::posix_time::milliseconds(wait));
         m_sendTimer.async_wait(m_strand.wrap(std::bind(&NetworkManagerConnection::requestMoreBytes_callback,
@@ -1210,6 +1224,19 @@ void NetworkManagerConnection::runOnStrand(const std::function<void()> &function
 void NetworkManagerConnection::punish(int amount)
 {
     d->punishNode(m_remote.connectionId, amount);
+}
+
+void NetworkManagerConnection::setMessageQueueSizes(int main, int priority)
+{
+    m_queueSizeMain = main;
+    m_priorityQueueSize = priority;
+
+    // Calculate the limits. We only really use 'main' here
+    // These numbers may be tweaked with some more testing, if someone wants to put the time in.
+    m_forceSendLimit = main / 8 * 3;
+    m_throttleReceiveAtSendLimitL1 = main / 2;
+    m_throttleReceiveAtSendLimitL2 = main / 4 * 3;
+    m_throttleReceiveAtSendLimitL3 = main - (main / 20);
 }
 
 void NetworkManagerConnection::setMessageHeaderType(MessageHeaderType messageHeaderType)
