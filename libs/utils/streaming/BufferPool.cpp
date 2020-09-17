@@ -60,9 +60,9 @@ Streaming::BufferPool& Streaming::BufferPool::operator=(BufferPool&& rhs)
 int Streaming::BufferPool::capacity() const
 {
     assert(m_writePointer <= m_buffer.get() + m_size);
-    auto distance = std::distance<char const*>(m_writePointer, m_buffer.get() + m_size);
-    assert(distance < 0xeFFFFFFF);
-    return static_cast<int>(distance);
+    size_t diff = m_buffer.get() + m_size - m_writePointer;
+    assert(diff < 0xeFFFFFFF);
+    return static_cast<int>(diff);
 }
 
 void Streaming::BufferPool::forget(int rc)
