@@ -683,7 +683,7 @@ void NetworkManagerConnection::receivedSomeBytes(const boost::system::error_code
                 }
             }
         }
-        if(m_messageHeaderType == LegacyP2P) {
+        if (m_messageHeaderType == LegacyP2P) {
             if (data.size() < LEGACY_HEADER_SIZE) // wait for entire header
                 break;
 

@@ -44,6 +44,16 @@ class NetworkManagerPrivate;
 
 using boost::asio::ip::tcp;
 
+/**
+ * Ringbuffer is specially crafted for the NetworkManager to have a zero-alloc buffer.
+ * The special part about this ringbuffer is that it allows you to have a read pointer
+ * that you use to get items out which you then mark as read. This marking it as read
+ * only affects your ability to read the next one.
+ * Marking something as read does not mark that item as deletable. We still keep a reference
+ * to the item! Especially useful if the item is a shared-pointer.
+ * Then at some later point we allow removing of items. Either using removeTip() or using
+ *  removeAllRead()
+ */
 template<class V>
 class RingBuffer
 {

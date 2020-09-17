@@ -115,7 +115,7 @@ public:
                 if (t)
                     return t;
             }
-            t =new T(this);
+            t = new T(this);
             m_runningActions.push_back(t);
         }
         t->start();
