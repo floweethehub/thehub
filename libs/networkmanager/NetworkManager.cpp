@@ -493,10 +493,12 @@ void NetworkManagerConnection::runMessageQueue()
 
     while (m_priorityMessageQueue->hasUnread()) {
         const Message &message = m_priorityMessageQueue->unreadTip();
-        int headerSize = message.header().size();
         if (m_sendQHeaders->isFull())
             break;
-        if (!message.hasHeader()) { // build a simple header
+        int headerSize;
+        if (message.hasHeader()) {
+            headerSize = message.header().size();
+        } else { // build a simple header
             const Streaming::ConstBuffer constBuf = createHeader(message);
             headerSize = constBuf.size();
             bytesLeft -= headerSize;
