@@ -641,7 +641,7 @@ void NetworkManagerConnection::receivedSomeBytes(const boost::system::error_code
 {
     if (m_isClosingDown)
         return;
-    if (error) {
+    if (error || m_receiveStream.begin() == nullptr) {
         logDebug(Log::NWM) << "receivedSomeBytes errored:" << error.message();
         // first copy to avoid problems if a callback removes its callback or closes the connection.
         std::vector<std::function<void(const EndPoint&)> > callbacks;
