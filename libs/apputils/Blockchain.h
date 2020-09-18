@@ -102,10 +102,11 @@ struct Transaction
     int blockHeight = -1;
     union {
         // offsetInBlock is used when blockHeight is valid
-        uint32_t offsetInBlock;
+        int offsetInBlock;
         uint32_t firstSeenTime = 0;
     };
     int jobId = -1; // jobId that was processed to create this object
+    short outIndex = -1; // if >= 0, the outputIndex returned in a search
 
     bool isCoinbase() const {
         return offsetInBlock > 0 && offsetInBlock < 100;

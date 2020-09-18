@@ -59,6 +59,10 @@ struct TransactionId {
     bool operator<(const TransactionId &o) const {
         if (blockHeight == o.blockHeight)
             return offsetInBlock < o.offsetInBlock;
+        if (blockHeight == -1) // -1 is actually the mempool, so newer than the highest block
+            return false;
+        if (o.blockHeight == -1)
+            return true;
         return blockHeight < o.blockHeight;
     }
 };
@@ -496,8 +500,12 @@ void RestService::requestAddressInfo(const RequestString &rs, RestServiceWebRequ
             request->answerType = RestServiceWebRequest::AddressDetails;
             request->answerData = address.release();
             request->jobs.push_back(job);
+
+            job.type = Blockchain::FindAddressInMempool;
+            job.transactionFilters = Blockchain::IncludeOutputAmounts | Blockchain::IncludeTxId;
+            request->jobs.push_back(job);
         }
-        else {
+        else if (rs.post.isObject()) {
             // POST not yet done
             throw UserInputException("POST not supported yet");
         }
@@ -517,7 +525,7 @@ void RestService::requestAddressInfo(const RequestString &rs, RestServiceWebRequ
             request->answerData = address.release();
             request->jobs.push_back(job);
         }
-        else {
+        else if (rs.post.isObject()) {
             // POST not yet done
             throw UserInputException("POST not supported yet");
         }
@@ -758,6 +766,14 @@ void RestServiceWebRequest::transactionAdded(const Blockchain::Transaction &tran
     }
     auto *ald = dynamic_cast<AddressListingData*>(answerData);
     if (ald && (answerType == AddressDetails || answerType == AddressDetailsList)) {
+        if (transaction.blockHeight == -1) { // from mempool
+            assert(transaction.outIndex != -1);
+            assert(transaction.outputs.size() <= 0x7fff); // since we cast to short next
+            assert(short(transaction.outputs.size()) > transaction.outIndex);
+            ald->m_utxos.push_back(UTXOEntry(-1, -1, transaction.outIndex,
+                           transaction.outputs[transaction.outIndex].amount));
+            return;
+        }
         // we receive a tx for our address search because it deposited an output to our target address.
         //
         //   - update the utxos to the amount it deposited
@@ -908,14 +924,19 @@ void RestServiceWebRequest::threadSafeFinished()
         qint64 balance = 0;
         qint64 received = 0;
         qint64 sent = 0;
+        qint64 balanceUnconfirmed = 0;
         auto *ald = dynamic_cast<AddressListingData*>(answerData);
         assert(ald);
         for (const auto &utxo : ald->m_utxos) {
+            if (utxo.blockHeight == -1) {
+                assert(utxo.unspent);
+                balanceUnconfirmed += utxo.amount;
+                continue;
+            }
             if (utxo.unspent)
                 balance += utxo.amount;
             else
                 sent += utxo.amount;
-
             received += utxo.amount;
         }
         // a map sorts by key. Key uses blockheight
@@ -924,12 +945,15 @@ void RestServiceWebRequest::threadSafeFinished()
             Blockchain::Transaction *tx = &answer[i];
             sortedTx.insert({tx->blockHeight, int(tx->offsetInBlock)}, tx);
         }
+
         // we want to list the most recent hits first, which are the highest blockchain ones.
-        auto iter = sortedTx.end();
-        do {
-            Blockchain::Transaction *tx = *(--iter);
-            transactionHashes.append(uint256ToString(tx->txid));
-        } while (iter != sortedTx.begin());
+        if (!sortedTx.empty()) {
+            auto iter = sortedTx.end();
+            do {
+                Blockchain::Transaction *tx = *(--iter);
+                transactionHashes.append(uint256ToString(tx->txid));
+            } while (sortedTx.begin() != iter);
+        }
 
         root.insert("balance", balance / 1E8);
         root.insert("balanceSat", balance);
@@ -942,8 +966,8 @@ void RestServiceWebRequest::threadSafeFinished()
         root.insert("legacyAddress", ripeToLegacyAddress(ald->address.hash, ald->address.type));
         root.insert("cashAddress", ripeToCashAddress(ald->address.hash, ald->address.type));
 
-        // TODO     "unconfirmedBalance":0,
-        // "unconfirmedBalanceSat":0,
+        root.insert("unconfirmedBalance", balanceUnconfirmed / 1E8);
+        root.insert("unconfirmedBalanceSat", (double) balanceUnconfirmed);
         // "unconfirmedTxApperances":0,
 
         socket()->writeJson(QJsonDocument(root), s_JsonFormat);

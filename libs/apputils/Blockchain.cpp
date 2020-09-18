@@ -97,6 +97,10 @@ Blockchain::Transaction fillTx(Streaming::MessageParser &parser, const Blockchai
             assert(tx.blockHeight == -1);
             tx.firstSeenTime = parser.longData(); // use long to be safe for 2038 overflow
         }
+        else if (job.type == Blockchain::FindAddressInMempool
+                 && parser.tag() == Api::LiveTransactions::MatchingOutIndex) {
+            tx.outIndex = parser.intData();
+        }
         else if (parser.tag() == Api::Separator) {
             break;
         }
