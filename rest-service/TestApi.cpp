@@ -146,7 +146,7 @@ void AbstractTestCall::finished()
 {
     Q_ASSERT(metaObject()->className() != QString("AbstractTestCall"));
     logCritical().nospace() << metaObject()->className() + 4 << " [" << m_reply->url().toString()
-                            << ":" << (m_callType == GET ? "GET": "POST") << "]";
+                            << " :" << (m_callType == GET ? "GET": "POST") << "]";
     for (auto x : m_reply->rawHeaderList()) {
         logInfo().nospace() << "  " << QString::fromLatin1(x) << ": " << QString::fromUtf8(m_reply->rawHeader(x));
     }
@@ -282,23 +282,23 @@ void TestAddressDetails2::checkDocument(const QJsonDocument &doc)
     if (doc.isArray())
         error("Root should not be an array");
     QJsonObject root = doc.object();
-    check(root, "balance", 39);
-    check(root, "balanceSat", (double) 3900000000);
-    check(root, "totalReceived", 10044);
-    check(root, "totalReceivedSat", (double) 1004400000000);
+    check(root, "balance", (double) 39.00000547);
+    check(root, "balanceSat", (double) 3900000547);
+    check(root, "totalReceived", 10044.00000547);
+    check(root, "totalReceivedSat", (double) 1004400000547);
     check(root, "totalSent", 10005);
     check(root, "totalSentSat", (double) 1000500000000);
     check(root, "cashAddress", "bitcoincash:qqhtg3y40dgaa7ueprz3mhgkxktpk27sru8t3l2zph");
     check(root, "legacyAddress", "15Fx34MisMrqThpkmFdC6U2uGW6SRKVwh4");
 
-    auto txs = checkArray(root, "transactions", 240);
-    check(txs, 0, "221fd0f3b12d6d76027f21753fd64c644dbbf34405333ca1565a6a75d937c8ac");
-    check(txs, 1, "f2d5540968fe76c7d4ae0f183e34e873ea4deea492fde56cff5b2cc7920942f0");
-    check(txs, 2, "70a00f731e6b3bf959834f429a548546487d3f71d247cc78a12a78df9d1eb7de");
-    check(txs, 3, "a0d643d1f64fadb3d4039fe8b78d5d1ff8f16705613aa7918551abde57315af7");
-    check(txs, 4, "19c86fcdcb5f7c572f4d5d1176a2e00004ac9311f219ce469136f65fcf2985cf");
-    check(txs, 7, "db6d13b57fb0daef6ebb8af735a4b2776f11143e760d0c90e4251613bb00e43b");
-    check(txs, 225, "cbc4418fb87fde759fb02435b620774c0eccd1b238eab15a4c839a77a7c0cc0e");
+    auto txs = checkArray(root, "transactions", 241);
+    check(txs, 1, "221fd0f3b12d6d76027f21753fd64c644dbbf34405333ca1565a6a75d937c8ac");
+    check(txs, 2, "f2d5540968fe76c7d4ae0f183e34e873ea4deea492fde56cff5b2cc7920942f0");
+    check(txs, 3, "70a00f731e6b3bf959834f429a548546487d3f71d247cc78a12a78df9d1eb7de");
+    check(txs, 4, "a0d643d1f64fadb3d4039fe8b78d5d1ff8f16705613aa7918551abde57315af7");
+    check(txs, 5, "19c86fcdcb5f7c572f4d5d1176a2e00004ac9311f219ce469136f65fcf2985cf");
+    check(txs, 8, "db6d13b57fb0daef6ebb8af735a4b2776f11143e760d0c90e4251613bb00e43b");
+    check(txs, 226, "cbc4418fb87fde759fb02435b620774c0eccd1b238eab15a4c839a77a7c0cc0e");
 }
 
 
@@ -323,7 +323,7 @@ void TestAddressUTXO::checkDocument(const QJsonDocument &doc)
     // scriptPubKey
     // asm
 
-    auto utxos = checkArray(root, "utxos", 1);
+    auto utxos = checkArray(root, "utxos", 2);
     auto tx0 = utxos[0];
     check(tx0, "vout", 0);
     check(tx0, "amount", 39);
@@ -373,7 +373,7 @@ void TestAddressUTXOPost::checkDocument(const QJsonDocument &doc)
     // scriptPubKey
     // asm
 
-    auto utxos = checkArray(root, "utxos", 1);
+    auto utxos = checkArray(root, "utxos", 2);
     auto tx0 = utxos[0];
     check(tx0, "vout", 0);
     check(tx0, "amount", 39);
