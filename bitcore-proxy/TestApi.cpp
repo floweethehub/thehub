@@ -624,11 +624,11 @@ void TestAddressOutputs::checkDocument(const QJsonDocument &doc)
         return;
     }
     auto txs = doc.array();
-    if (txs.size() != 2)
+    if (txs.size() != 3)
         error("Incorrect number of txs");
 
     startContext("out1");
-    auto in = txs.at(0);
+    auto in = txs.at(1);
     check(in, "chain", "BCH");
     check(in, "network", "mainnet");
     check(in, "coinbase", false);
@@ -643,7 +643,7 @@ void TestAddressOutputs::checkDocument(const QJsonDocument &doc)
     check(in, "value", (qint64) 12213);
 
     startContext("out2");
-    in = txs.at(1);
+    in = txs.at(2);
     check(in, "chain", "BCH");
     check(in, "network", "mainnet");
     check(in, "coinbase", false);
