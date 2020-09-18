@@ -73,9 +73,17 @@ public:
     inline MessageParser(const Message &message) : MessageParser(message.body()) {}
 
     ParsedType next();
-    uint32_t peekNext(bool *success = 0) const;
+    /**
+     * @brief peekNext checks for the next tag and returns the tag-id if there is one.
+     * Notice that this will not change current!
+     * @param success is set to true if there is a next item, otherwise set to false.
+     * @return the tag, on success.
+     */
+    uint32_t peekNext(bool *success = nullptr) const;
 
+    /// returns the tag of the current item.
     uint32_t tag() const;
+    /// \internal
     variant data();
 
     inline bool isInt() const {
