@@ -170,6 +170,7 @@ enum Tags {
     UnspentState, // bool, when true the utxo is unspent
     DSProofId,
     FirstSeenTime, // long-int with seconds since epoch (UTC)
+    MatchingOutIndex, // int. Output index that matches the requested search.
 
     // for individual transaction you can select how they should be returned.
     Include_TxId = 43,      ///< bool.

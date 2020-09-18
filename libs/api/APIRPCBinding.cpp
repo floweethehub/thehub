@@ -885,10 +885,11 @@ public:
         else if (m_returnTxId || opt.shouldRun()) // we imply false if they want a subset.
             m_fullTxData = false;
 
-        if (!m_results.empty()) {
+        if (!scriptHashes.empty()) {
             LOCK(mempool.cs);
             for (auto iter = mempool.mapTx.begin(); iter != mempool.mapTx.end(); ++iter) {
                 Tx::Iterator txIter(iter->tx);
+                int outIndex = 0;
                 while (txIter.next(Tx::OutputScript) == Tx::OutputScript) {
                     auto hit = scriptHashes.find(txIter.hashedByteData());
                     if (hit != scriptHashes.end()) {
@@ -896,17 +897,19 @@ public:
                         result.tx = iter->tx;
                         result.dsProof = iter->dsproof;
                         result.time = iter->GetTime();
+                        result.outputIndex = outIndex;
                         m_results.push_back(std::move(result));
                         if (m_results.size() > 2500) // protect the Hub from DOS.
                             break;
                     }
+                    ++outIndex;
                 }
             }
         }
 
         // this is a quick and dirty calculation aiming to rather have more bytes reserved
         // than used.
-        int bytesPerTx = 1;
+        int bytesPerTx = 5;
         if (m_returnTxId) bytesPerTx += 35;
         if (m_fullTxData)  bytesPerTx += 5; // actual tx-data is in 'size'
 
@@ -932,16 +935,18 @@ public:
             Tx::Iterator iter(rp.tx);
             if (m_returnTxId)
                 builder.add(Api::LiveTransactions::TxId, rp.tx.createHash());
-            if (optShouldRun)
-                opt.serialize(builder, iter);
+            if (rp.outputIndex != -1)
+                builder.add(Api::LiveTransactions::MatchingOutIndex, rp.outputIndex);
+            builder.add(Api::LiveTransactions::FirstSeenTime, rp.time);
             if (m_fullTxData)
                 builder.add(Api::LiveTransactions::Transaction, rp.tx.data());
+            if (optShouldRun)
+                opt.serialize(builder, iter);
             if (rp.dsProof != -1) {
                 auto dsp = mempool.doubleSpendProofStorage()->proof(rp.dsProof);
                 if (!dsp.isEmpty())
                     builder.add(Api::LiveTransactions::DSProofId, dsp.createHash());
             }
-            builder.add(Api::LiveTransactions::FirstSeenTime, rp.time);
             builder.add(Api::Separator, true);
         }
     }
@@ -949,6 +954,7 @@ private:
     struct ResultPair {
         Tx tx;
         int dsProof = -1;
+        int outputIndex = -1;
         uint64_t time = 0; // time the tx entered the mempool
     };
     std::deque<ResultPair> m_results;
