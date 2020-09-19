@@ -29,6 +29,7 @@
 
 #include <QSettings>
 #include <QJsonArray>
+#include <QThread>
 #include <QFile>
 #include <QTimer>
 
@@ -298,6 +299,7 @@ QString parseOutScriptAddAddresses(QJsonArray &addresses, QJsonArray &cashAddres
 
 void returnTemplatePath(HttpEngine::Socket *socket, const QString &templateName, const QString &error = QString())
 {
+    Q_ASSERT(QThread::currentThread() == socket->thread());
     QFile helpMessage(":/" + templateName);
     if (!helpMessage.open(QIODevice::ReadOnly)) {
         logCritical() << "Missing template file" << templateName;
@@ -671,11 +673,6 @@ RestServiceWebRequest::~RestServiceWebRequest()
     delete answerData;
 }
 
-QJsonObject &RestServiceWebRequest::map()
-{
-    return m_map;
-}
-
 void RestServiceWebRequest::finished(int unfinishedJobs)
 {
     Q_UNUSED(unfinishedJobs)
@@ -876,19 +873,25 @@ void RestServiceWebRequest::aborted(const Blockchain::ServiceUnavailableExceptio
     QString error("could not find upstream service: %1");
     switch (e.service()) {
     case Blockchain::TheHub:
-        error = error.arg("The Hub");
+        m_error = error.arg("The Hub");
         break;
     case Blockchain::IndexerTxIdDb:
-        error = error.arg("TxID indexer");
+        m_error = error.arg("TxID indexer");
         break;
     case Blockchain::IndexerAddressDb:
-        error = error.arg("Addresses indexer");
+        m_error = error.arg("Addresses indexer");
         break;
     case Blockchain::IndexerSpentDb:
-        error = error.arg("Spent-db indexer");
+        m_error = error.arg("Spent-db indexer");
         break;
     }
-    returnTemplatePath(socket(), "setup.html", error);
+
+    QTimer::singleShot(0, this, SLOT(threadSafeAborted()));
+}
+
+void RestServiceWebRequest::threadSafeAborted()
+{
+    returnTemplatePath(socket(), "setup.html", m_error);
 }
 
 void RestServiceWebRequest::threadSafeFinished()

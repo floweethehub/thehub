@@ -72,8 +72,6 @@ public:
         SendRawTransaction,
     } answerType = Unset;
 
-    QJsonObject &map();
-
     // Blockchain::Search interface
     void finished(int unfinishedJobs) override;
     void transactionAdded(const Blockchain::Transaction &transaction, int answerIndex) override;
@@ -82,17 +80,15 @@ public:
     void utxoLookup(int jobId, int blockHeight, int offsetInBlock, int outindex, bool unspent, int64_t amount, Streaming::ConstBuffer outputScript) override;
     void aborted(const Blockchain::ServiceUnavailableException&) override;
 
-    QJsonObject m_map;
-
     // data specific for an AnswerType
     AnswerDataBase *answerData = nullptr;
 
 private slots:
     void threadSafeFinished();
+    void threadSafeAborted();
 
 private:
-    // add things like 'network', 'chain' and '_id'
-    // void addDefaults(QJsonObject &node);
+    QString m_error;
 
     QJsonObject renderTransactionToJSon(const Blockchain::Transaction &tx) const;
 };
