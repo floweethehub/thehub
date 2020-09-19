@@ -5,5 +5,6 @@
         <file alias="addressHelp.html">data/addressHelp.html</file>
         <file alias="error.json">data/error.json</file>
         <file alias="txHelp.html">data/txHelp.html</file>
+        <file alias="rawTxHelp.html">data/rawTxHelp.html</file>
     </qresource>
 </RCC>

@@ -393,6 +393,8 @@ void RestService::onIncomingConnection(HttpEngine::WebRequest *request_)
                 errorPage = "txHelp.html";
             else if (rs.request == "help/address")
                 errorPage = "addressHelp.html";
+            else if (rs.request == "help/rawtransaction")
+                errorPage = "rawTxHelp.html";
         }
 
         if (request->answerType)
