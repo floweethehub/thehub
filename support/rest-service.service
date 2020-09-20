@@ -1,0 +1,12 @@
+[Unit]
+Description=Flowee REST service
+After=network.target
+
+[Service]
+User=flowee
+Group=flowee
+ExecStart=/usr/bin/rest-service --bind=0.0.0.0:3200 --conf=/etc/flowee/rest-service.conf
+Type=simple
+
+[Install]
+WantedBy=multi-user.target
