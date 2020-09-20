@@ -9,10 +9,6 @@ RUN apt-get -y update && apt-get install -y --no-install-recommends \
     libboost-regex1.67.0 \
     libboost-date-time1.67.0 \
     libboost-program-options1.67.0 \
-    libqt5sql5 \
-    libqt5sql5-mysql \
-    libqt5sql5-odbc \
-    libqt5sql5-psql \
     libqt5network5 && \
     apt-get clean && \
     rm -rf /var/lib/apt/lists/*
