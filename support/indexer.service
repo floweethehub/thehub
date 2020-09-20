@@ -8,7 +8,7 @@ Group=flowee
 UMask=022
 
 Type=simple
-ExecStart=/usr/bin/indexer --conf=/etc/flowee/indexer.conf --datadir=/var/lib/flowee --bind=localhost:1234
+ExecStart=/usr/bin/indexer --conf=/etc/flowee/indexer.conf --datadir=/var/lib/flowee --bind=0.0.0.0:1234
 
 Restart=always
 PrivateTmp=true
