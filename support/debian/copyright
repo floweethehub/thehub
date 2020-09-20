@@ -8,11 +8,7 @@ Copyright: Various Bitcoin developers
 License: GPL-3+
 
 Files: debian/*
-Copyright: 2016-2019 Tom Zander <tomz@freedommail.ch>
-License: GPL-3+
-
-Files: debian/manpages/*
-Copyright: Micah Anderson <micah@debian.org>
+Copyright: 2016-2020 Tom Zander <tomz@freedommail.ch>
 License: GPL-3+
 
 License: GPL-3+

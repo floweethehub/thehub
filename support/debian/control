@@ -2,8 +2,8 @@ Package: flowee
 Conflicts:
 Replaces:
 Architecture: amd64
-Description: Flowee Bitcoin Cash tools and servers.
+Description: Flowee provides the shortest path to Bitcoin Cash
 Maintainer: TomZ <tomz@freedommail.ch>
-Version: 2019.09
-Depends: debconf, adduser, libssl1.1
+Version: 2020.06.3
+Depends: debconf, adduser, libssl1.1, libboost-chrono, libboost-iostreams, libboost-filesystem, libboost-atomic, libboost-thread, libboost-regex, libboost-date-time, libboost-program-options, libevent-2.1, libevent-pthreads-2.1, libczmq4, libminiupnpc17, libqt5network5
 
