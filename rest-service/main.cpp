@@ -69,26 +69,21 @@ int main(int argc, char **argv)
     Server server(std::bind(&RestService::onIncomingConnection, &handler, std::placeholders::_1));
     server.setProxy(&handler);
 
-    auto listenAddresses = app.bindingEndPoints(parser, PORT);
-    if (listenAddresses.isEmpty()) {
-        using boost::asio::ip::tcp;
-        listenAddresses.push_back(tcp::endpoint(boost::asio::ip::address_v4::loopback(), PORT));
-        listenAddresses.push_back(tcp::endpoint(boost::asio::ip::address_v6::loopback(), PORT));
-    }
+    // become a server
     bool success = false;
-    for (auto ep : listenAddresses) {
-        logCritical().nospace() << "Binding http server to " << ep.address().to_string().c_str() << ":" << ep.port();
+    for (auto ep : app.bindingEndPoints(parser, 1234, FloweeServiceApplication::LocalhostAsDefault)) {
+        logCritical().nospace() << "Trying to bind to " << ep.address().to_string().c_str() << ":" << ep.port();
         try {
             if (!server.listen(QHostAddress(QString::fromStdString(ep.address().to_string())), ep.port())) {
                 logCritical() << "  Failed to listen on interface";
             } else {
                 success = true;
-                break;
             }
         } catch (std::exception &e) {
-            logCritical() << "  " << e << "skipping";
+            logCritical() << "   nope, not binding there due to:" << e;
         }
     }
+
     if (!success) {
         logFatal() << "Please pass --bind to tell me which network to listen to";
         return 1;
