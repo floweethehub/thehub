@@ -1032,9 +1032,9 @@ void ValidationFlags::updateForBlock(CBlockIndex *index)
         hf201811Active = true;
     if (!hf201905Active && index->nHeight >= consensus.hf201905Height)
         hf201905Active = true;
-    if (hf201905Active && !hf201911Active && index->GetMedianTimePast() >= consensus.hf201911Time)
+    if (!hf201911Active && index->nHeight >= consensus.hf201911Height)
         hf201911Active = true;
-    if (hf201911Active && !hf202005Active && index->GetMedianTimePast() >= consensus.hf202005Time)
+    if (!hf202005Active && index->nHeight >= consensus.hf202005Height)
         hf202005Active = true;
 }
 

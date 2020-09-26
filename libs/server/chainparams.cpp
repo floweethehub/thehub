@@ -150,8 +150,8 @@ public:
         consensus.hf201805Height = 530356;
         consensus.hf201811Height = 556767;
         consensus.hf201905Height = 582680;
-        consensus.hf201911Time = 1573819200;
-        consensus.hf202005Time = 1589544000;
+        consensus.hf201911Height = 609135;
+        consensus.hf202005Height = 635258;
         consensus.hf202011Time = 1605441600;
 
         checkpointData = CCheckpointData {
@@ -253,8 +253,8 @@ public:
         consensus.hf201805Height = 1267994;
         consensus.hf201811Height = 1267997;
         consensus.hf201905Height = 1303885;
-        consensus.hf201911Time = 1573819200;
-        consensus.hf202005Time = 1589544000;
+        consensus.hf201911Height = 1341711;
+        consensus.hf202005Height = 1378460;
         consensus.hf202011Time = GetArg("-axionactivationtime", 1605441600);;
 
         checkpointData = CCheckpointData {
@@ -329,8 +329,8 @@ public:
         consensus.hf201805Height = 1;
         consensus.hf201811Height = 9999999; // avoid invalidating my unit-test chain
         consensus.hf201905Height = 1;
-        consensus.hf201911Time = 1;
-        consensus.hf202005Time = 1;
+        consensus.hf201911Height = 0;
+        consensus.hf202005Height = 0;
         consensus.hf202011Time = 1;
 
         checkpointData = CCheckpointData {

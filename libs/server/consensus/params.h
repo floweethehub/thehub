@@ -61,8 +61,8 @@ struct Params {
     int hf201805Height;
     int hf201811Height;
     int hf201905Height;
-    int64_t hf201911Time;
-    int64_t hf202005Time;
+    int hf201911Height;
+    int hf202005Height;
     int64_t hf202011Time; // asert DAA
 
 
