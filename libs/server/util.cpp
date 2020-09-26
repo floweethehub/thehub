@@ -417,15 +417,21 @@ void SetThreadPriority(int nPriority)
 
 std::string ChainNameFromCommandLine()
 {
+    int num_selected = 0;
     bool fRegTest = GetBoolArg("-regtest", false);
+    if (fRegTest) num_selected++;
     bool fTestNet = GetBoolArg("-testnet", false);
-
-    if (fTestNet && fRegTest)
-        throw std::runtime_error("Invalid combination of -regtest and/or -testnet.");
+    if (fTestNet) num_selected++;
+    bool fTestNet4 = GetBoolArg("-testnet4", false);
+    if (fTestNet4) num_selected++;
+    if (num_selected > 1)
+        throw std::runtime_error("Invalid combination of -regtest, -testnet and -testnet4.");
     if (fRegTest)
         return CBaseChainParams::REGTEST;
     if (fTestNet)
         return CBaseChainParams::TESTNET;
+    if (fTestNet4)
+        return CBaseChainParams::TESTNET4;
     return CBaseChainParams::MAIN;
 }
 

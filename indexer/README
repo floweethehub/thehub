@@ -63,7 +63,7 @@ enabled=false
 
 # The Hub server address, with optional port.
 [services]
-#hub=router:1235 (mainnet) 11235 (testnet)
+#hub=router:1235 (mainnet) 11235 (testnet) 21235 (testnet4)
 hub=localhost
 
 # Listen on localhost

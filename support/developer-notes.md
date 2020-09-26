@@ -113,10 +113,17 @@ on all categories (and give you a very large hub.log file).
 The Qt code routes qDebug() output to hub.log under category "qt": run with -debug=qt
 to see it.
 
-**testnet and regtest modes**
+**testnet, testnet4 and regtest modes**
 
-Run with the -testnet option to run with "play bitcoins" on the test network, if you
-are testing multi-machine code that needs to operate across the internet.
+Run with the -testnet option to run with "play bitcoins" on the v3 test network, if you
+are testing multi-machine code that needs to operate across the internet.  The testnet v3
+network has gotten quite large and it is recommended that you use testnet v4 (for compatibility
+and feature testing).
+
+Run with the -testnet4 option to run with "play bitcoins" on the v4 test network, if you
+are testing multi-machine code that needs to operate across the internet for compatibility
+or non-scaling related features.  This chain has a hard limit of 2 MB blocks and is intended
+to be kept lightweight and quick to sync.
 
 If you are testing something that can run on one machine, run with the -regtest option.
 In regression test mode, blocks can be created on-demand; see qa/rpc-tests/ for tests

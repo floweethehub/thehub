@@ -643,8 +643,8 @@ bool SetStartOnSystemStartup(bool fAutoStart)
 
             // Start client minimized
             QString strArgs = "-min";
-            // Set -testnet /-regtest options
-            strArgs += QString::fromStdString(strprintf(" -testnet=%d -regtest=%d", GetBoolArg("-testnet", false), GetBoolArg("-regtest", false)));
+            // Set -testnet / -tesetnet4 / -regtest options
+            strArgs += QString::fromStdString(strprintf(" -testnet=%d -testnet4=%d -regtest=%d", GetBoolArg("-testnet", false), GetBoolArg("-testnet4", false), GetBoolArg("-regtest", false)));
 
 #ifdef UNICODE
             boost::scoped_array<TCHAR> args(new TCHAR[strArgs.length() + 1]);
@@ -755,7 +755,7 @@ bool SetStartOnSystemStartup(bool fAutoStart)
             optionFile << "Name=Bitcoin\n";
         else
             optionFile << strprintf("Name=Bitcoin (%s)\n", chain);
-        optionFile << "Exec=" << pszExePath << strprintf(" -min -testnet=%d -regtest=%d\n", GetBoolArg("-testnet", false), GetBoolArg("-regtest", false));
+        optionFile << "Exec=" << pszExePath << strprintf(" -min -testnet=%d =testnet4=%d -regtest=%d\n", GetBoolArg("-testnet", false), GetBoolArg("-testnet4", false), GetBoolArg("-regtest", false));
         optionFile << "Terminal=false\n";
         optionFile << "Hidden=false\n";
         optionFile.close();
