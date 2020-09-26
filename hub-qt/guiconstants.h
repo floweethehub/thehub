@@ -64,5 +64,6 @@ static const int MAX_URI_LENGTH = 255;
 #define QAPP_APP_NAME_DEFAULT "FloweeTheHub"
 #define QAPP_APP_NAME_TESTNET "FloweeTheHub-testnet"
 #define QAPP_APP_NAME_TESTNET4 "FloweeTheHub-testnet4"
+#define QAPP_APP_NAME_SCALENET "FloweeTheHub-scalenet"
 
 #endif

@@ -31,7 +31,7 @@ docker run -d -v flowee_hub_data:/blocks -v /mnt/ssd/flowee:/data -p 1235:1235 f
 
 Options (set as env variables);
 
-* FLOWEE_NETWORK `allows you to choose other networks, options are regtest, testnet and testnet4
+* FLOWEE_NETWORK `allows you to choose other networks, options are regtest, testnet and testnet4 and scalenet`
 
 * FLOWEE_RPC_PASSWORD `The content of the 'cookie' password file (advanced). Please note that this is for the old style RPC, not Flowee's APIs`
 

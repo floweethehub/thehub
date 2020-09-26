@@ -166,7 +166,7 @@ void SetThreadPriority(int nPriority);
 void RenameThread(const char* name);
 
 /**
- * Looks for -regtest, -testnet, -testnet4 and returns the appropriate BIP70 chain name.
+ * Looks for -regtest, -testnet, -testnet4, -scalenet and returns the appropriate BIP70 chain name.
  * @return CBaseChainParams::MAX_NETWORK_TYPES if an invalid combination is given. CBaseChainParams::MAIN by default.
  */
 std::string ChainNameFromCommandLine();

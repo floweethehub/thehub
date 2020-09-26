@@ -29,7 +29,7 @@
 /*
    Interprets env vars;
    FLOWEE_NETWORK:
-      regtest, testnet or tesetnet4
+      regtest, testnet, tesetnet4 or scalenet
    FLOWEE_RPC_PASSWORD
       the password (cookie data) for the RPC access.
     FLOWEE_LOGLEVEL
@@ -85,6 +85,10 @@ int main(int x, char**y) {
         else if (networkSpec.compare("testnet4", Qt::CaseInsensitive) == 0) {
             net = "testnet4=true";
             subdir = "testnet4";
+        }
+        else if (networkSpec.compare("scalenet", Qt::CaseInsensitive) == 0) {
+            net = "scalenet=true";
+            subdir = "scalenet";
         }
 
         if (!subdir.isEmpty()) {

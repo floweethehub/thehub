@@ -73,6 +73,7 @@ static const unsigned int DefaultMaxSendBuffer    = 1 * 1000;
 static const int DefaultMainnetPort = 8333;
 static const int DefaultTestnetPort = 18333;
 static const int DefaultTestnet4Port = 28333;
+static const int DefaultScalenetPort = 38333;
 
 static const bool DefaultProxyRandomize = true;
 

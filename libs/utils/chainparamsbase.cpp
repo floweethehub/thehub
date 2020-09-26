@@ -26,6 +26,7 @@
 const std::string CBaseChainParams::MAIN = "main";
 const std::string CBaseChainParams::TESTNET = "test";
 const std::string CBaseChainParams::TESTNET4 = "test4";
+const std::string CBaseChainParams::SCALENET = "scale";
 const std::string CBaseChainParams::REGTEST = "regtest";
 
 /**
@@ -72,6 +73,21 @@ public:
 };
 static CBaseTestNet4Params testNet4Params;
 
+/**
+ * Scaling Network
+ */
+class CBaseScaleNetParams : public CBaseChainParams
+{
+public:
+    CBaseScaleNetParams()
+    {
+        nRPCPort = 38332;
+        nApiServerPort = 31235;
+        strDataDir = "scalenet";
+    }
+};
+static CBaseScaleNetParams scaleNetParams;
+
 /*
  * Regression test
  */
@@ -103,6 +119,8 @@ CBaseChainParams& BaseParams(const std::string& chain)
         return testNetParams;
     else if (chain == CBaseChainParams::TESTNET4)
         return testNet4Params;
+    else if (chain == CBaseChainParams::SCALENET)
+        return scaleNetParams;
     else if (chain == CBaseChainParams::REGTEST)
         return regTestParams;
     else

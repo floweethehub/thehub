@@ -201,14 +201,14 @@ void TxValidationState::checkTransaction()
         if (tx.IsCoinBase())
             throw Exception("coinbase", 100);
 
-        // Rather not work on nonstandard transactions (unless -testnet/-testnet4/-regtest)
+        // Rather not work on nonstandard transactions (unless -testnet/-testnet4/-scalenet/-regtest)
         std::string reason;
         if (fRequireStandard && !IsStandardTx(tx, reason))
             throw Exception(reason, Validation::RejectNonstandard, 0);
 
         // Don't relay version 2 transactions until CSV is active, and we can be
         // sure that such transactions will be mined (unless we're on
-        // -testnet/-testnet4/-regtest).
+        // -testnet/-testnet4/-scalenet/-regtest).
         if (fRequireStandard && tx.nVersion >= 2 &&  flags.nLocktimeVerifySequence == false)
             throw Exception("premature-version2-tx", Validation::RejectNonstandard, 0);
         // Only accept nLockTime-using transactions that can be mined in the next

@@ -424,14 +424,19 @@ std::string ChainNameFromCommandLine()
     if (fTestNet) num_selected++;
     bool fTestNet4 = GetBoolArg("-testnet4", false);
     if (fTestNet4) num_selected++;
+    bool fScaleNet = GetBoolArg("-scalenet", false);
+    if (fScaleNet) num_selected++;
+
     if (num_selected > 1)
-        throw std::runtime_error("Invalid combination of -regtest, -testnet and -testnet4.");
+        throw std::runtime_error("Invalid combination of -regtest, -testnet, -testnet4 and -scalenet.");
     if (fRegTest)
         return CBaseChainParams::REGTEST;
     if (fTestNet)
         return CBaseChainParams::TESTNET;
     if (fTestNet4)
         return CBaseChainParams::TESTNET4;
+    if (fScaleNet)
+        return CBaseChainParams::SCALENET;
     return CBaseChainParams::MAIN;
 }
 

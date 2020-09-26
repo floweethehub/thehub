@@ -35,6 +35,7 @@ static const struct {
     {"main", QAPP_APP_NAME_DEFAULT, 0, 0, ""},
     {"test", QAPP_APP_NAME_TESTNET, 160, 30, QT_TRANSLATE_NOOP("SplashScreen", "[testnet]")},
     {"test4", QAPP_APP_NAME_TESTNET, 160, 30, QT_TRANSLATE_NOOP("SplashScreen", "[testnet4]")},
+    {"scale", QAPP_APP_NAME_TESTNET, 160, 30, QT_TRANSLATE_NOOP("SplashScreen", "[scalenet]")},
     {"regtest", QAPP_APP_NAME_TESTNET, 70, 30, "[regtest]"}
 };
 static const int network_styles_count = sizeof(network_styles)/sizeof(*network_styles);

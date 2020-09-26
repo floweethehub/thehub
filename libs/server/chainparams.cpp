@@ -364,6 +364,100 @@ public:
         };
     }
 };
+
+/**
+ * Scaling Network
+ */
+class CScaleNetParams : public CChainParams {
+public:
+    CScaleNetParams() {
+        strNetworkID = "scale";
+        consensus.nSubsidyHalvingInterval = 210000;
+        consensus.BIP34Height = 2;
+        consensus.BIP65Height = 3; // CHECKLOCKTIMEVERIFY
+        consensus.BIP66Height = 4; // DERSIG
+        consensus.BIP68Height = 5; // sequence locks & CHECKSEQUENCEVERIFY
+        consensus.powLimit = uint256S("00000000ffffffffffffffffffffffffffffffffffffffffffffffffffffffff");
+        consensus.nPowTargetTimespan = 14 * 24 * 60 * 60; // two weeks
+        consensus.nPowTargetSpacing = 10 * 60;
+        consensus.fPowAllowMinDifficultyBlocks = true;
+        consensus.fPowNoRetargeting = false;
+        consensus.nRuleChangeActivationThreshold = 1512; // 75% for testchains
+        consensus.nMinerConfirmationWindow = 2016; // nPowTargetTimespan / nPowTargetSpacing
+
+        // The half life for the ASERT DAA. For every (nASERTHalfLife) seconds behind schedule the blockchain gets,
+        // difficulty is cut in half. Doubled if blocks are ahead of schedule.
+        // Two days
+        consensus.nASERTHalfLife = 2 * 24 * 60 * 60;
+
+        pchMessageStart[0] = 0xba;
+        pchMessageStart[1] = 0xc2;
+        pchMessageStart[2] = 0x2d;
+        pchMessageStart[3] = 0xc4;
+
+        pchMessageStartCash[0] = 0xc3;
+        pchMessageStartCash[1] = 0xaf;
+        pchMessageStartCash[2] = 0xe1;
+        pchMessageStartCash[3] = 0xa2;
+
+        nDefaultPort = Settings::DefaultScalenetPort;
+        nMaxTipAge = 0x7fffffff;
+        nPruneAfterHeight = 1000;
+
+        //! Modify the testnet genesis block so the timestamp is valid for a later start.
+        genesis = CreateGenesisBlock(1598282438, -1567304284, 0x1d00ffff, 1, 50 * COIN);
+        consensus.hashGenesisBlock = genesis.GetHash();
+
+        assert(consensus.hashGenesisBlock == uint256S("00000000e6453dc2dfe1ffa19023f86002eb11dbb8e87d0291a4599f0430be52"));
+        assert(genesis.hashMerkleRoot == uint256S("4a5e1e4baab89f3a32518a88c31bc87f618f76673e2cc77ab2127b7afdeda33b"));
+
+        vFixedSeeds.clear();
+        vSeeds.clear();
+        vSeeds.push_back(CDNSSeedData("bitcoinforks.org", "scalenet-seed-bch.bitcoinforks.org"));
+        vSeeds.push_back(CDNSSeedData("toom.im", "scalenet-seed-bch.toom.im"));
+        vSeeds.push_back(CDNSSeedData("loping.net", "seed.sbch.loping.net"));
+
+        base58Prefixes[PUBKEY_ADDRESS] = std::vector<unsigned char>(1, 111);
+        base58Prefixes[SCRIPT_ADDRESS] = std::vector<unsigned char>(1, 196);
+        base58Prefixes[SECRET_KEY] = std::vector<unsigned char>(1, 239);
+        base58Prefixes[EXT_PUBLIC_KEY] = boost::assign::list_of(0x04)(0x35)(0x87)(0xCF).convert_to_container<std::vector<unsigned char> >();
+        base58Prefixes[EXT_SECRET_KEY] = boost::assign::list_of(0x04)(0x35)(0x83)(0x94).convert_to_container<std::vector<unsigned char> >();
+
+        vFixedSeeds = std::vector<SeedSpec6>(pnSeed6_scalenet, pnSeed6_scalenet + ARRAYLEN(pnSeed6_scalenet));
+
+        fMiningRequiresPeers = true;
+        fDefaultConsistencyChecks = false;
+        fRequireStandard = false;
+        fMineBlocksOnDemand = false;
+        fTestnetToBeDeprecatedFieldRPC = true;
+
+        consensus.hf201708Height = 6;
+        consensus.hf201711Height = 3000;
+        consensus.hf201805Height = 4000;
+        consensus.hf201811Height = 4000;
+        consensus.hf201905Height = 5000;
+        consensus.hf201911Height = 5000;
+        // The scalenet chain was initially mined by BCHN, which has removed all legacy code related to
+        // sig-ops counting so the May 2020 hardfork height must be set to 0 for compatibility with any
+        // nodes which retain the legacy sig-ops counting pre-May 2020 HF and use the new sigchecks from genesis.
+        // Specifically at around block 4900, the legacy sig-ops check fails while the new sigcheck passes
+        // See https://gitlab.com/bitcoin-cash-node/bitcoin-cash-node/-/commit/08e332d0bd0c480e560c7b3ebe953854d038d03f
+        consensus.hf202005Height = 0;
+        consensus.hf202011Time = GetArg("-axionactivationtime", 1605441600);;
+
+        checkpointData = CCheckpointData{
+            boost::assign::map_list_of
+            (0, uint256S("0x00000000e6453dc2dfe1ffa19023f86002eb11dbb8e87d0291a4599f0430be52"))
+            (45, uint256S("0x00000000d75a7c9098d02b321e9900b16ecbd552167e65683fe86e5ecf88b320"))
+            ,
+            0,          // * UNIX timestamp of last checkpoint block
+            0,          // * total number of transactions between genesis and last checkpoint
+                        //   (the tx=... number in the SetBestChain hub.log lines)
+            0           // * estimated number of transactions per day after checkpoint
+        };
+    }
+};
+
 /**
  * Regression test
  */
@@ -461,6 +555,11 @@ public:
             m_testnet4.reset(new CTestNet4Params());
         return *m_testnet4.get();
     }
+    CChainParams &scalenet() {
+        if (m_scalenet.get() == nullptr)
+            m_scalenet.reset(new CScaleNetParams());
+        return *m_scalenet.get();
+    }
     CChainParams &current() const {
         assert(m_currentParams);
         return *m_currentParams;
@@ -473,7 +572,7 @@ public:
     }
 
 private:
-    std::unique_ptr<CChainParams> m_main, m_testnet, m_testnet4, m_regtest;
+    std::unique_ptr<CChainParams> m_main, m_testnet, m_testnet4, m_scalenet, m_regtest;
     CChainParams *m_currentParams;
 };
 }
@@ -492,6 +591,8 @@ CChainParams& Params(const std::string& chain)
         return s_chains.testnet3();
     else if (chain == CBaseChainParams::TESTNET4)
         return s_chains.testnet4();
+    else if (chain == CBaseChainParams::SCALENET)
+        return s_chains.scalenet();
     else if (chain == CBaseChainParams::REGTEST)
         return s_chains.regtest();
     else
