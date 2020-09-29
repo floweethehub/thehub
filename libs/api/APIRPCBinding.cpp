@@ -16,6 +16,7 @@
  * along with this program.  If not, see <http://www.gnu.org/licenses/>.
  */
 #include "APIRPCBinding.h"
+#include "APIServer.h"
 
 #include <APIProtocol.h>
 #include <univalue.h>
@@ -962,6 +963,29 @@ private:
     bool m_returnTxId = false;
     TransactionSerializationOptions opt;
 };
+
+class SendLiveTransactonASync : public Api::ASyncParser {
+public:
+    SendLiveTransactonASync(const Message &request)
+        : Api::ASyncParser(request, Api::LiveTransactions::SendTransactionReply, 34)
+    {
+    }
+
+    void run() override {
+        // TODO parse message, get transaction out.
+        // submit transaction to parser
+        // wait for it to finish.
+        // store the m_txid (or error on m_reply)
+    }
+
+    void buildReply(Streaming::MessageBuilder &builder) override {
+        // simply return the txid of the transaction.
+        builder.add(Api::LiveTransactions::TxId, m_txid);
+    }
+
+private:
+    uint256 m_txid;
+};
 }
 
 
@@ -991,7 +1015,9 @@ Api::Parser *Api::createParser(const Message &message)
         case Api::LiveTransactions::GetTransaction:
             return new GetLiveTransaction();
         case Api::LiveTransactions::SendTransaction:
-            return new SendLiveTransaction();
+            if (message.headerInt(Api::ASyncRequest) <= 0)
+                return new SendLiveTransaction();
+            return new SendLiveTransactonASync(message);
         case Api::LiveTransactions::IsUnspent:
             return new UtxoFetcher(Api::LiveTransactions::IsUnspentReply);
         case Api::LiveTransactions::GetUnspentOutput:
@@ -1062,4 +1088,47 @@ int Api::RpcParser::calculateMessageSize(const UniValue &result) const
 Api::DirectParser::DirectParser(int replyMessageId, int messageSize)
     : Parser(IncludesHandler, replyMessageId, messageSize)
 {
+}
+
+Api::ASyncParser::ASyncParser(const Message &request, int replyMessageId, int messageSize)
+    : Parser(Parser::ASyncParser, replyMessageId, messageSize),
+      m_request(request)
+{
+
+}
+
+void Api::ASyncParser::start(NetworkConnection &&connection, Api::Server *server)
+{
+    assert(server);
+    m_con = std::move(connection);
+    m_server = server;
+    server->createNewThread(std::bind(&Api::ASyncParser::run_priv, shared_from_this()));
+}
+
+const std::string &Api::ASyncParser::error() const
+{
+    return m_error;
+}
+
+void Api::ASyncParser::run_priv()
+{
+    assert(m_server);
+    try {
+        run();
+        assert(m_messageSize >= 0);
+
+        Streaming::MessageBuilder builder(m_server->pool(m_messageSize));
+        buildReply(builder);
+
+        Message reply = builder.reply(m_request, m_replyMessageId);
+        if (m_messageSize < reply.body().size())
+            logDebug(Log::ApiServer) << "Generated message larger than space reserved."
+                                     << m_request.serviceId() << m_replyMessageId
+                                     << "reserved:" << m_messageSize << "built:" << reply.body().size();
+        assert(reply.body().size() <= m_messageSize); // fail fast.
+        m_con.send(reply);
+    } catch (const ParserException &e) {
+        logWarning(Log::ApiServer) << e;
+        m_con.send(m_server->createFailedMessage(m_request, e.what()));
+    }
 }

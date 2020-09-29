@@ -19,10 +19,11 @@
 #ifndef APIRPCBINDING_H
 #define APIRPCBINDING_H
 
-#include "APIServer.h"
+#include <networkmanager/NetworkConnection.h>
 
 #include <string>
 #include <functional>
+#include <Message.h>
 
 namespace Streaming {
     class MessageBuilder;
@@ -32,6 +33,14 @@ class Message;
 
 namespace Api
 {
+class Server;
+class SessionData
+{
+public:
+    SessionData() {}
+    virtual ~SessionData();
+};
+
     class ParserException : public std::runtime_error {
     public:
         ParserException(const char *errorMessage) : std::runtime_error(errorMessage) {}
@@ -49,7 +58,8 @@ namespace Api
     public:
         enum ParserType {
             WrapsRPCCall,
-            IncludesHandler
+            IncludesHandler,
+            ASyncParser
         };
 
         Parser(ParserType type, int replyMessageId, int messageSize = -1);
@@ -140,6 +150,59 @@ namespace Api
          * @brief The buildReply method takes the request and builds the reply to be sent over the network.
          */
         virtual void buildReply(const Message &request, Streaming::MessageBuilder &builder) = 0;
+    };
+
+    class ASyncParser : public Parser,  public std::enable_shared_from_this<ASyncParser> {
+    public:
+       /*
+        * The intention here is to have the parser start and own a new thread
+        * which is runs its own code in.
+        *
+        * Afterwards we shut the thread down (but don't delete it until the destructor).
+        *
+        * The parser should have a callback set which it can call when its ready to
+        * build and send a message. This callback we schedule to be called (in our thread)
+        * in a message to the connections strand.
+        *
+        *  The callback should get a shared_ptr to ourselves (maybe we should
+        *       inherit the  shared_from class?)
+        *
+        * So the workflow is this;
+        *
+        * we get built.
+        * a method on us gets called which passes in the callback and a new connection object
+        * we also start the thread in there.
+        *
+        * The thread starts, parses the message and blockingly waits for it to complete.
+        * It schedules, on the shard, the callback and the thread exits.
+        *
+        * The callback is run, which builds the message using a proper pool, we send it
+        * through our connection and as this method exits the shared pointer deletes us.
+        */
+
+        ASyncParser(const Message &request, int replyMessageId, int messageSize = -1);
+
+        void start(NetworkConnection && connection, Server *server);
+
+        /// returns any erors that may have happend, empty sting for no-error
+        const std::string &error() const;
+
+        virtual void buildReply(Streaming::MessageBuilder &builder) = 0;
+
+    protected:
+        // A unique thread wil call this and call it life
+        virtual void run() = 0;
+
+        /// when sometihng went wrong in the thread, set this variable to tell the remote this.
+        std::string m_error;
+
+        const Server *m_server = nullptr;
+
+    private:
+        void run_priv();
+
+        NetworkConnection m_con;
+        Message m_request;
     };
 
     /// maps an input message to a Parser implementation.

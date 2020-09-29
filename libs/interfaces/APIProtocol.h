@@ -64,7 +64,8 @@ enum ApiTags {
     OffsetInBlock,
     BitcoinScriptHashed, ///< a (single) sha256 hash of a script (typically output) used as a unique ID for the payment 'address'.
 
-    RequestId = 11 ///< Use only in headers.
+    ASyncRequest = 10,   ///< Use only in headers.
+    RequestId            ///< Use only in headers.
 };
 
 

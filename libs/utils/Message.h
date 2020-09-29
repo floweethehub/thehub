@@ -1,6 +1,6 @@
 /*
  * This file is part of the Flowee project
- * Copyright (C) 2016-2019 Tom Zander <tomz@freedommail.ch>
+ * Copyright (C) 2016-2020 Tom Zander <tomz@freedommail.ch>
  *
  * This program is free software: you can redistribute it and/or modify
  * it under the terms of the GNU General Public License as published by
@@ -100,10 +100,10 @@ public:
      * message if there is a namespacing-conflict between item you want to add and the body,
      * which would lead to unintended sideeffects.
      *
-     * @param name the tag-name. Has to be over 10 as the lower ones are reserved.
+     * @param name the tag-name. Has to be over 9 as the lower ones are reserved.
      */
     inline void setHeaderInt(int name, int value) {
-        assert(name > 10);
+        assert(name >= 10);
         m_headerData.insert(std::make_pair(name, value));
     }
     inline int headerInt(int name, int defaultVal = -1) const {

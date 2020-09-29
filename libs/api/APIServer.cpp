@@ -117,6 +117,11 @@ Api::Server::Server(boost::asio::io_service &service)
     }
 }
 
+Api::Server::~Server()
+{
+    m_threads.join_all();
+}
+
 void Api::Server::addService(NetworkService *service)
 {
     m_networkManager.addService(service);
@@ -188,7 +193,7 @@ void Api::Server::incomingMessage(const Message &message)
         assert(con.isValid());
         con.setOnDisconnected(std::bind(&Api::Server::connectionRemoved, this, std::placeholders::_1));
 
-        handler = new Connection(std::move(con));
+        handler = new Connection(this, std::move(con));
         m_connections.push_back(handler);
     }
     handler->incomingMessage(message);
@@ -222,11 +227,38 @@ void Api::Server::checkConnections(boost::system::error_code error)
     }
 }
 
-
-Api::Server::Connection::Connection(NetworkConnection && connection)
-    : m_connection(std::move(connection)),
-      m_bufferPool(4000000) // default size is 4MB
+thread_local Streaming::BufferPool m_buffer(4000000);
+Streaming::BufferPool &Api::Server::pool(int reserveSize) const
 {
+    m_buffer.reserve(reserveSize);
+    return m_buffer;
+}
+
+NetworkConnection Api::Server::copyConnection(const NetworkConnection &orig)
+{
+    return m_networkManager.connection(m_networkManager.endPoint(orig.connectionId()));
+}
+
+Message Api::Server::createFailedMessage(const Message &origin, const std::string &failReason) const
+{
+    Streaming::MessageBuilder builder(pool(failReason.size() + 40));
+    builder.add(Meta::FailedReason, failReason);
+    builder.add(Meta::FailedCommandServiceId, origin.serviceId());
+    builder.add(Meta::FailedCommandId, origin.messageId());
+    Message answer = builder.message(APIService, Meta::CommandFailed);
+    for (auto header : origin.headerData()) {
+        if (header.first >= RequestId) // anything below is not allowed to be used by users.
+            answer.setHeaderInt(header.first, header.second);
+    }
+    return answer;
+}
+
+
+Api::Server::Connection::Connection(Server *parent, NetworkConnection && connection)
+    : m_connection(std::move(connection)),
+      m_parent(parent)
+{
+    m_runningParsers.resize(10);
     m_connection.setOnIncomingMessage(std::bind(&Api::Server::Connection::incomingMessage, this, std::placeholders::_1));
 }
 
@@ -242,7 +274,7 @@ void Api::Server::Connection::incomingMessage(const Message &message)
     if (message.serviceId() >= 16) // not a service we handle
         return;
     if (message.serviceId() == APIService && message.messageId() == Meta::Version) {
-        Streaming::MessageBuilder builder(m_bufferPool);
+        Streaming::MessageBuilder builder(m_parent->pool(50));
         std::ostringstream ss;
         ss << "Flowee:" << HUB_SERIES << " (" << CLIENT_VERSION_MAJOR << "-";
         ss.width(2);
@@ -269,95 +301,117 @@ void Api::Server::Connection::incomingMessage(const Message &message)
     const uint32_t sessionDataId = (static_cast<uint32_t>(message.serviceId()) << 16) + static_cast<uint32_t>(message.messageId());
     parser.get()->setSessionData(&m_properties[sessionDataId]);
 
-    auto *rpcParser = dynamic_cast<Api::RpcParser*>(parser.get());
-    if (rpcParser) {
-        assert(!rpcParser->method().empty());
+    switch (parser->type()) {
+    case Parser::WrapsRPCCall:
+        handleRpcParser(parser.get(), message);
+        break;
+    case Parser::IncludesHandler:
+        handleMainParser(parser.get(), message);
+        break;
+    case Parser::ASyncParser:
+        startASyncParser(parser.get());
+        break;
+    }
+}
+
+void Api::Server::Connection::handleRpcParser(Api::Parser *parser, const Message &message)
+{
+    auto *rpcParser = dynamic_cast<Api::RpcParser*>(parser);
+    assert(rpcParser);
+    assert(!rpcParser->method().empty());
+    try {
+        UniValue request(UniValue::VOBJ);
+        rpcParser->createRequest(message, request);
+        UniValue result;
         try {
-            UniValue request(UniValue::VOBJ);
-            rpcParser->createRequest(message, request);
-            UniValue result;
-            try {
-                logInfo(Log::ApiServer) << rpcParser->method() << message.serviceId() << '/' << message.messageId();
-                result = tableRPC.execute(rpcParser->method(), request);
-            } catch (UniValue& objError) {
-                const std::string error = find_value(objError, "message").get_str();
-                logWarning(Log::ApiServer) << error;
-                sendFailedMessage(message, error);
-                return;
-            } catch(const std::exception &e) {
-                logWarning(Log::ApiServer) << e;
-                sendFailedMessage(message, std::string(e.what()));
-                return;
-            }
-            int reserveSize = rpcParser->messageSize(result);
-            m_bufferPool.reserve(reserveSize);
-            Streaming::MessageBuilder builder(m_bufferPool);
-            rpcParser->buildReply(builder, result);
-            Message reply = builder.reply(message, rpcParser->replyMessageId());
-            if (reserveSize < reply.body().size())
-                logDebug(Log::ApiServer) << "Generated message larger than space reserved."
-                                         << message.serviceId() << message.messageId()
-                                         << "reserved:" << reserveSize << "built:" << reply.body().size();
-            assert(reply.body().size() <= reserveSize); // fail fast.
-            m_connection.send(reply);
-        } catch (const ParserException &e) {
-            logWarning(Log::ApiServer) << e;
-            sendFailedMessage(message, e.what());
-            return;
-        } catch (const std::exception &e) {
-            std::string error = "Interal Error " + std::string(e.what());
-            logCritical(Log::ApiServer) << "ApiServer internal error in parsing" << rpcParser->method() <<  e;
-            (void) m_bufferPool.commit(); // make sure the partial message is discarded
+            logInfo(Log::ApiServer) << rpcParser->method() << message.serviceId() << '/' << message.messageId();
+            result = tableRPC.execute(rpcParser->method(), request);
+        } catch (UniValue& objError) {
+            const std::string error = find_value(objError, "message").get_str();
+            logWarning(Log::ApiServer) << error;
             sendFailedMessage(message, error);
+            return;
+        } catch(const std::exception &e) {
+            logWarning(Log::ApiServer) << e;
+            sendFailedMessage(message, std::string(e.what()));
+            return;
         }
+        int reserveSize = rpcParser->messageSize(result);
+        Streaming::MessageBuilder builder(m_parent->pool(reserveSize));
+        rpcParser->buildReply(builder, result);
+        Message reply = builder.reply(message, rpcParser->replyMessageId());
+        if (reserveSize < reply.body().size())
+            logDebug(Log::ApiServer) << "Generated message larger than space reserved."
+                                     << message.serviceId() << message.messageId()
+                                     << "reserved:" << reserveSize << "built:" << reply.body().size();
+        assert(reply.body().size() <= reserveSize); // fail fast.
+        m_connection.send(reply);
+    } catch (const ParserException &e) {
+        logWarning(Log::ApiServer) << e;
+        sendFailedMessage(message, e.what());
+        return;
+    } catch (const std::exception &e) {
+        std::string error = "Interal Error " + std::string(e.what());
+        logCritical(Log::ApiServer) << "ApiServer internal error in parsing" << rpcParser->method() <<  e;
+        m_parent->pool(0).commit(); // make sure the partial message is discarded
+        sendFailedMessage(message, error);
+    }
+}
+
+void Api::Server::Connection::handleMainParser(Api::Parser *parser, const Message &message)
+{
+    auto *directParser = dynamic_cast<Api::DirectParser*>(parser);
+    assert(directParser);
+    int reserveSize = 0;
+    try {
+        reserveSize = directParser->calculateMessageSize(message);
+    } catch (const ParserException &e) {
+        logWarning(Log::ApiServer) << "calculateMessageSize() threw:" << e;
+        sendFailedMessage(message, e.what());
         return;
     }
-    auto *directParser = dynamic_cast<Api::DirectParser*>(parser.get());
-    assert(directParser);
-    if (directParser) {
-        int reserveSize = 0;
-        try {
-            reserveSize = directParser->calculateMessageSize(message);
-            m_bufferPool.reserve(reserveSize);
-        } catch (const ParserException &e) {
-            logWarning(Log::ApiServer) << "calculateMessageSize() threw:" << e;
-            sendFailedMessage(message, e.what());
-            return;
-        }
-        logInfo(Log::ApiServer) << message.serviceId() << '/' << message.messageId();
-        Streaming::MessageBuilder builder(m_bufferPool);
-        try {
-            directParser->buildReply(message, builder);
-            Message reply = builder.reply(message, directParser->replyMessageId());
-            if (reserveSize < reply.body().size())
-                logDebug(Log::ApiServer) << "Generated message larger than space reserved."
-                                         << message.serviceId() << message.messageId()
-                                         << "reserved:" << reserveSize << "built:" << reply.body().size();
-            assert(reply.body().size() <= reserveSize); // fail fast.
-            m_connection.send(reply);
-        } catch (const ParserException &e) {
-            logWarning(Log::ApiServer) << e;
-            sendFailedMessage(message, e.what());
-            return;
-        }
+    logInfo(Log::ApiServer) << message.serviceId() << '/' << message.messageId();
+    Streaming::MessageBuilder builder(m_parent->pool(reserveSize));
+    try {
+        directParser->buildReply(message, builder);
+        Message reply = builder.reply(message, directParser->replyMessageId());
+        if (reserveSize < reply.body().size())
+            logDebug(Log::ApiServer) << "Generated message larger than space reserved."
+                                     << message.serviceId() << message.messageId()
+                                     << "reserved:" << reserveSize << "built:" << reply.body().size();
+        assert(reply.body().size() <= reserveSize); // fail fast.
+        m_connection.send(reply);
+    } catch (const ParserException &e) {
+        logWarning(Log::ApiServer) << e;
+        sendFailedMessage(message, e.what());
+        return;
     }
+}
+
+void Api::Server::Connection::startASyncParser(Api::Parser *parser)
+{
+    auto *asyncParser = dynamic_cast<Api::ASyncParser*>(parser);
+    assert(asyncParser);
+    std::shared_ptr<ASyncParser> ptr(asyncParser);
+    while (true) {
+        for (size_t i = 0; i < m_runningParsers.size(); ++i) {
+            if (m_runningParsers.at(i).expired()) {
+                m_runningParsers[i] = ptr->weak_from_this();
+            }
+        }
+        // if 'full' avoid burning CPU while waiting for some thread to finish.
+        struct timespec tim, tim2;
+        tim.tv_sec = 0;
+        tim.tv_nsec = 500;
+        nanosleep(&tim , &tim2);
+    }
+    asyncParser->start(m_parent->copyConnection(m_connection), m_parent);
 }
 
 void Api::Server::Connection::sendFailedMessage(const Message &origin, const std::string &failReason)
 {
-    m_bufferPool.reserve(failReason.size() + 40);
-    Streaming::MessageBuilder builder(m_bufferPool);
-    builder.add(Meta::FailedReason, failReason);
-    builder.add(Meta::FailedCommandServiceId, origin.serviceId());
-    builder.add(Meta::FailedCommandId, origin.messageId());
-    Message answer = builder.message(APIService, Meta::CommandFailed);
-    for (auto header : origin.headerData()) {
-        if (header.first >= RequestId) // anything below is not allowed to be used by users.
-            answer.setHeaderInt(header.first, header.second);
-    }
-    m_connection.send(answer);
+    m_connection.send(m_parent->createFailedMessage(origin, failReason));
 }
-
 
 
 Api::SessionData::~SessionData()

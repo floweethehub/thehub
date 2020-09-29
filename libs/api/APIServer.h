@@ -24,25 +24,37 @@
 
 #include <univalue.h>
 #include <vector>
+#include <memory>
 #include <string>
 #include <list>
-#include <boost/thread/mutex.hpp>
 #include <boost/asio/deadline_timer.hpp>
+#include <boost/thread.hpp>
 
 namespace Api {
 
-class SessionData
-{
-public:
-    SessionData() {}
-    virtual ~SessionData();
-};
+class Parser;
+class ASyncParser;
+class SessionData;
 
 class Server {
 public:
     Server(boost::asio::io_service &service);
+    ~Server();
 
     void addService(NetworkService *service);
+
+    template<typename F>
+    boost::thread* createNewThread(F threadfunc) {
+        return m_threads.create_thread(threadfunc);
+    }
+
+    // return a pool for the current thread;
+    Streaming::BufferPool &pool(int reserveSize) const;
+
+    NetworkConnection copyConnection(const NetworkConnection &orig);
+
+    /// create a message stating that we had a failure.
+    Message createFailedMessage(const Message &origin, const std::string &failReason) const;
 
 private:
     void newConnection(NetworkConnection &connection);
@@ -53,17 +65,25 @@ private:
 
     class Connection {
     public:
-        Connection(NetworkConnection && connection);
+        Connection(Server *parent, NetworkConnection && connection);
         ~Connection();
         void incomingMessage(const Message &message);
 
         NetworkConnection m_connection;
 
     private:
+        /// Handle a parser that just calls the old RPC code
+        void handleRpcParser(Parser *parser, const Message &message);
+        /// Handle a parser that does the heavy lifting itself.
+        void handleMainParser(Parser *parser, const Message &message);
+        /// Handles an async parser, asynchroniously.
+        void startASyncParser(Parser *parser);
+
         void sendFailedMessage(const Message &origin, const std::string &failReason);
 
-        Streaming::BufferPool m_bufferPool;
+        Server * const m_parent;
         std::map<uint32_t, SessionData*> m_properties;
+        std::vector<std::weak_ptr<ASyncParser> > m_runningParsers;
     };
 
     struct NewConnection {
@@ -73,8 +93,10 @@ private:
 
     NetworkManager m_networkManager;
 
+    boost::thread_group m_threads;
+
     mutable boost::mutex m_mutex; // protects the next 4 vars.
-    std::list<Connection*> m_connections;
+    std::list<Connection*> m_connections; // make this a list of shared_ptrs to Connection
     std::list<NewConnection> m_newConnections;
     bool m_timerRunning;
     boost::asio::deadline_timer m_newConnectionTimeout;
