@@ -465,6 +465,9 @@ bool CTxMemPool::insertTx(CTxMemPoolEntry &entry)
                                            << oldTx->second.tx.createHash()
                                            << entry.tx.createHash();
                     item.dsproof = m_dspStorage->add(DoubleSpendProof::create(oldTx->second.tx, entry.tx));
+                    if (item.dsproof == -1) // DSP-hash already known
+                        return false;
+
                     mapTx.replace(iter, item);
                     newProofId = item.dsproof;
 #ifndef NDEBUG

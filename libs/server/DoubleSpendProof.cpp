@@ -185,6 +185,10 @@ DoubleSpendProof DoubleSpendProof::create(const Tx &tx1, const Tx &tx2)
     if (diff > 0)
         std::swap(s1, s2);
 
+    // Finally, ensure that we can eat our own dog food -- this should always succeed,
+    // it is a programming error if it does not.
+    answer.checkSanityOrThrow();
+
     return answer;
 }
 
@@ -204,6 +208,12 @@ DoubleSpendProof::Validity DoubleSpendProof::validate(const CTxMemPool &mempool)
     if (m_spender1.pushData.empty() || m_spender1.pushData.front().empty()
             || m_spender2.pushData.empty() || m_spender2.pushData.front().empty())
         return Invalid;
+
+    try { // Check basics. No DSP should ever violate those.
+        checkSanityOrThrow();
+    } catch (const std::runtime_error &e) {
+        return Invalid;
+    }
 
     // check if ordering is proper
     int diff = m_spender1.hashOutputs.Compare(m_spender2.hashOutputs);
@@ -341,4 +351,20 @@ int DoubleSpendProof::prevOutIndex() const
 uint256 DoubleSpendProof::createHash() const
 {
     return SerializeHash(*this);
+}
+
+void DoubleSpendProof::checkSanityOrThrow() const
+{
+    if (isEmpty())
+        throw std::runtime_error("DSProof is empty");
+
+    // Check limits for both pushData vectors above
+    for (auto *pushData : {&m_spender1.pushData, &m_spender2.pushData}) {
+        // Message must contain exactly 1 pushData
+        if (pushData->size() != 1)
+            throw std::runtime_error("DSProof must contain exactly 1 pushData");
+        // Script data must be within size limits (520 bytes)
+        if (!pushData->empty() && pushData->front().size() > MaxPushDataSize)
+            throw std::runtime_error("DSProof script size limit exceeded");
+    }
 }

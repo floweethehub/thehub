@@ -82,7 +82,7 @@ void DoubleSpendProofTest::basic()
     QVERIFY(!s1.hashSequence.IsNull());
     QVERIFY(!s1.hashPrevOutputs.IsNull());
 
-    auto s2 = dsp.doubleSpender();
+    auto s2 = dsp.secondSpender();
     QCOMPARE(s2.lockTime, (uint32_t) 0);
     QCOMPARE(s2.txVersion, (uint32_t) 2);
     QCOMPARE(s2.outSequence, (uint32_t) 0xFFFFFFFF);
@@ -141,7 +141,7 @@ void DoubleSpendProofTest::proofOrder()
 
     // now, however we process them, the result is the same.
     QCOMPARE(dsp1.firstSpender().pushData.front(), dsp2.firstSpender().pushData.front());
-    QCOMPARE(dsp1.doubleSpender().pushData.front(), dsp2.doubleSpender().pushData.front());
+    QCOMPARE(dsp1.secondSpender().pushData.front(), dsp2.secondSpender().pushData.front());
 }
 
 void DoubleSpendProofTest::serialization()

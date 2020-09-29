@@ -20,7 +20,7 @@
 #include <primitives/transaction.h>
 #include "main.h"
 
-#define SECONDS_TO_KEEP_ORPHANS 90
+static constexpr int64_t SECONDS_TO_KEEP_ORPHANS = 90;
 
 DoubleSpendProofStorage::DoubleSpendProofStorage()
     : m_recentRejects(120000, 0.000001)
@@ -43,7 +43,7 @@ int DoubleSpendProofStorage::add(const DoubleSpendProof &proof)
     uint256 hash = proof.createHash();
     auto lookupIter = m_dspIdLookupTable.find(hash);
     if (lookupIter != m_dspIdLookupTable.end())
-        return lookupIter->second;
+        return -1;
 
     auto iter = m_proofs.find(m_nextId);
     while (iter != m_proofs.end()) {
@@ -62,7 +62,7 @@ void DoubleSpendProofStorage::addOrphan(const DoubleSpendProof &proof, int peerI
     std::lock_guard<std::recursive_mutex> lock(m_lock);
     const int next = m_nextId;
     const int id = add(proof);
-    if (id != next) // it was already in the storage
+    if (id == -1) // it was already in the storage
         return;
 
     m_orphans.insert(std::make_pair(id, std::make_pair(peerId, GetTime())));

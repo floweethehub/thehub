@@ -36,7 +36,7 @@ public:
     /// returns a double spend proof based on proof-id
     DoubleSpendProof proof(int proof) const;
     /// adds a proof, returns an internal proof-id that proof is known under.
-    /// notice that if the proof (by hash) was known, that proof-id is returned instead.
+    /// notice that if the proof (by hash) was known, we return -1 instead.
     int add(const DoubleSpendProof &proof);
     /// remove by proof-id
     void remove(int proof);

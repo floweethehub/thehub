@@ -2417,7 +2417,7 @@ bool static ProcessMessage(CNode* pfrom, std::string strCommand, CDataStream& vR
                 mempool.doubleSpendProofStorage()->addOrphan(dsp, pfrom->id);
                 break;
             case DoubleSpendProof::Invalid:
-                throw std::runtime_error("Proof didn't validate");
+                throw std::runtime_error("DSProof didn't validate");
             default:
                 assert(false);
                 return false;
@@ -2427,7 +2427,7 @@ bool static ProcessMessage(CNode* pfrom, std::string strCommand, CDataStream& vR
             if (!hash.IsNull())
                 mempool.doubleSpendProofStorage()->markProofRejected(hash);
             LOCK(cs_main);
-            Misbehaving(pfrom->GetId(), 10);
+            Misbehaving(pfrom->GetId(), 15);
             return false;
         }
     }
