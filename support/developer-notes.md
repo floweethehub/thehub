@@ -5,13 +5,13 @@ Various coding styles have been used during the history of the codebase,
 and the result is not very consistent. However, we're now trying to converge to
 a single style, so please use it in new code. Old code will be converted
 gradually.
-- Basic rules specified in src/.clang-format. Use a recent clang-format-3.5 to format automatically.
-  - Braces on new lines for namespaces, classes, functions, methods.
-  - Braces on the same line for everything else.
-  - 4 space indentation (no tabs) for every block except namespaces.
-  - No indentation for public/protected/private or for namespaces.
-  - No extra spaces inside parenthesis; don't do ( this )
-  - No space after function names; one space after if, for and while.
+
+- Braces on new lines for namespaces, classes, functions, methods.
+- Braces on the same line for everything else.
+- 4 space indentation (no tabs) for every block except namespaces.
+- No indentation for public/protected/private or for namespaces.
+- No extra spaces inside parenthesis; don't do ( this )
+- No space after function names; one space after if, for and while.
 
 Block style example:
 ```c++
