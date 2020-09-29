@@ -128,7 +128,8 @@ DoubleSpendProof DoubleSpendProof::create(const Tx &tx1, const Tx &tx2)
 
     size_t inputIndex1 = 0;
     size_t inputIndex2 = 0;
-    for (; inputIndex1 < t1.vin.size(); ++inputIndex1) {
+    bool found = false;
+    for (;!found && inputIndex1 < t1.vin.size(); ++inputIndex1) {
         const CTxIn &in1 = t1.vin.at(inputIndex1);
         for (inputIndex2 = 0; inputIndex2 < t2.vin.size(); ++inputIndex2) {
             const CTxIn &in2 = t2.vin.at(inputIndex2);
@@ -160,12 +161,14 @@ DoubleSpendProof DoubleSpendProof::create(const Tx &tx1, const Tx &tx2)
                 if (!(hashType & SIGHASH_FORKID))
                     throw std::runtime_error("Tx2 Not a Bitcoin Cash P2PKH transaction");
 
+                found = true;
                 break;
             }
         }
     }
 
-    if (answer.m_prevOutIndex == -1)
+
+    if (!found)
         throw std::runtime_error("Transactions do not double spend each other");
     if (s1.pushData.front().empty() || s2.pushData.front().empty())
         throw std::runtime_error("Transactions not using known payment type. Could not find sig");

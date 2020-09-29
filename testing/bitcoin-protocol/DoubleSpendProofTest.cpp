@@ -171,3 +171,44 @@ void DoubleSpendProofTest::serialization()
     bv->mempool()->insertTx(second);
     QCOMPARE(dsp2.validate(*bv->mempool()), DoubleSpendProof::Valid);
 }
+
+void DoubleSpendProofTest::bigTx()
+{
+    CKey key;
+    key.MakeNewKey();
+    std::vector<FastBlock> blocks = bv->appendChain(702, key, MockBlockValidation::FullOutScript);
+
+    TransactionBuilder builder;
+    for (size_t i = 0; i < 300; ++i) {
+        auto block = blocks.at(i);
+        block.findTransactions();
+        QCOMPARE(block.transactions().size(), 1ul);
+        auto tx = block.transactions().at(0);
+        builder.appendInput(tx.createHash(), 0);
+        auto out = tx.output(0);
+        builder.pushInputSignature(key, out.outputScript, out.outputValue);
+        builder.appendOutput(50 * COIN);
+    }
+    builder.pushOutputPay2Address(key.GetPubKey().GetID());
+    auto first = builder.createTransaction();
+
+    TransactionBuilder builder2;
+    for (size_t i = 599; i >= 300; --i) {
+        auto block = blocks.at(i);
+        block.findTransactions();
+        QCOMPARE(block.transactions().size(), 1ul);
+        auto tx = block.transactions().at(0);
+        builder2.appendInput(tx.createHash(), 0);
+        auto out = tx.output(0);
+        builder2.pushInputSignature(key, out.outputScript, out.outputValue);
+        builder2.appendOutput(50 * COIN);
+    }
+
+    builder2.pushOutputPay2Address(key.GetPubKey().GetID());
+    auto second = builder2.createTransaction();
+
+
+    QBENCHMARK {
+        DoubleSpendProof::create(first, second);
+    }
+}

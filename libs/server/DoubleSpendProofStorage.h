@@ -41,15 +41,19 @@ public:
     /// remove by proof-id
     void remove(int proof);
 
-    /// this add()s and additionally registers this is an orphan.
-    /// you can fetch those upto 90s using 'claim()'.
+    /// add()s and additionally registers the proof as an orphan.
+    /// Orphans expire after secondsToKeepOrphans() elapses. They may
+    /// be claimed using 'claimOrphan()'.
     void addOrphan(const DoubleSpendProof &proof, int peerId);
     /// Returns all (not yet verified) orphans matching prevOut.
-    /// Each item is a pair of a proofId and the nodeId that send the proof to us
+    /// Each item is a pair of a proofId and the nodeId that send the proof to us.
     std::list<std::pair<int, int> > findOrphans(const COutPoint &prevOut) const;
 
+    /// Flags the proof associated with hash as not an orphan, and thus
+    /// not subject to automatic expiry.
     void claimOrphan(int proofId);
 
+    /// Lookup a double-spend proof by id.
     DoubleSpendProof lookup(const uint256 &proofId) const;
     bool exists(const uint256 &proofId) const;
 

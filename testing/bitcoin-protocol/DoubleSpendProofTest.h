@@ -28,6 +28,7 @@ private slots:
     void mempool();
     void proofOrder();
     void serialization();
+    void bigTx();
 };
 
 #endif
