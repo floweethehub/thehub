@@ -172,6 +172,36 @@ void DoubleSpendProofTest::serialization()
     QCOMPARE(dsp2.validate(*bv->mempool()), DoubleSpendProof::Valid);
 }
 
+void DoubleSpendProofTest::testStupidUsage()
+{
+    CKey key;
+    key.MakeNewKey();
+    auto blocks = bv->appendChain(5, key, MockBlockValidation::FullOutScript);
+    blocks[3].findTransactions();
+    auto tx = blocks[3].transactions().at(0);
+    blocks[4].findTransactions();
+
+    try {
+        auto tx2 = blocks[4].transactions().at(0);
+        // coinbases can't be double spent (since they don't spent an output).
+        DoubleSpendProof::create(tx, tx2);
+        QFAIL("Coinbases can't be used to create a DSP");
+    } catch (const std::runtime_error &e) { /* ok */ }
+
+    // new Tx that spends a coinbase.
+    TransactionBuilder builder;
+    builder.appendInput(tx.createHash(), 0);
+    auto out = tx.output(0);
+    builder.pushInputSignature(key, out.outputScript, out.outputValue);
+    builder.appendOutput(50 * COIN);
+    tx = builder.createTransaction();
+
+    try {
+        DoubleSpendProof::create(tx, tx);
+        QFAIL("Wrong type of input should throw");
+    } catch (const std::runtime_error &e) { /* ok */ }
+}
+
 void DoubleSpendProofTest::bigTx()
 {
     CKey key;

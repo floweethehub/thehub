@@ -370,4 +370,6 @@ void DoubleSpendProof::checkSanityOrThrow() const
         if (!pushData->empty() && pushData->front().size() > MaxPushDataSize)
             throw std::runtime_error("DSProof script size limit exceeded");
     }
+    if (m_spender1.pushData.front() == m_spender2.pushData.front())
+        throw std::runtime_error("DSProof noticed both sides are the same");
 }
