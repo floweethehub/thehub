@@ -108,7 +108,7 @@ flowee-linux.zip:
   stage: deploy
   script:
     - for i in bin/*; do strip $i; done
-    - mkdir ${PACKAGE_NAME}
+    - mkdir -p ${PACKAGE_NAME}
     - mv bin etc systemd ${PACKAGE_NAME}
   artifacts:
     name: ${PACKAGE_NAME}
