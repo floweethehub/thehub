@@ -563,7 +563,7 @@ WId BitcoinApplication::getMainWinId() const
 
 static bool SelectChain()
 {
-    // Check for -testnet or -regtest parameter (Params() calls are only valid after this)
+    // Check for -testnet, -testnet4, -scalenet or -regtest parameter (Params() calls are only valid after this)
     try {
         SelectParams(ChainNameFromCommandLine());
         return true;

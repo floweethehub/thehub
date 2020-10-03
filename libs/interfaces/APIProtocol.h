@@ -253,7 +253,7 @@ enum Tags {
     Difficulty,     // double
     MedianTime,     // in seconds since epoch (int)
     ChainWork,      // a sha256
-    Chain,          // string. "main", "testnet", "regtest"
+    Chain,          // string. "main", "testnet", "testnet4", "scalenet", "regtest"
     Blocks,         // number of blocks (int)
     Headers,        // number of headers (int)
     BestBlockHash,  // sha256
