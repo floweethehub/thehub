@@ -29,7 +29,7 @@
 /*
    Interprets env vars;
    FLOWEE_NETWORK:
-      regtest, testnet, tesetnet4 or scalenet
+      regtest, testnet, testnet4 or scalenet
    FLOWEE_RPC_PASSWORD
       the password (cookie data) for the RPC access.
     FLOWEE_LOGLEVEL
