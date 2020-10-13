@@ -202,10 +202,6 @@ public:
         consensus.fPowNoRetargeting = false;
         consensus.nRuleChangeActivationThreshold = 1512; // 75% for testchains
         consensus.nMinerConfirmationWindow = 2016; // nPowTargetTimespan / nPowTargetSpacing
-
-        // The half life for the ASERT DAA. For every (nASERTHalfLife) seconds behind schedule the blockchain gets,
-        // difficulty is cut in half. Doubled if blocks are ahead of schedule.
-        // One hour
         consensus.nASERTHalfLife = 60 * 60;
 
         pchMessageStart[0] = 0x0B;
@@ -222,7 +218,6 @@ public:
         nMaxTipAge = 0x7fffffff;
         nPruneAfterHeight = 1000;
 
-        //! Modify the testnet genesis block so the timestamp is valid for a later start.
         genesis = CreateGenesisBlock(1296688602, 414098458, 0x1d00ffff, 1, 50 * COIN);
         consensus.hashGenesisBlock = genesis.GetHash();
 
@@ -255,7 +250,7 @@ public:
         consensus.hf201905Height = 1303885;
         consensus.hf201911Height = 1341711;
         consensus.hf202005Height = 1378460;
-        consensus.hf202011Time = GetArg("-axionactivationtime", 1605441600);;
+        consensus.hf202011Time = GetArg("-axionactivationtime", 1605441600);
 
         checkpointData = CCheckpointData {
             boost::assign::map_list_of
@@ -314,7 +309,6 @@ public:
         nMaxTipAge = 0x7fffffff;
         nPruneAfterHeight = 1000;
 
-        //! Modify the testnet genesis block so the timestamp is valid for a later start.
         genesis = CreateGenesisBlock(1597811185, 114152193, 0x1d00ffff, 1, 50 * COIN);
         consensus.hashGenesisBlock = genesis.GetHash();
 
@@ -322,6 +316,7 @@ public:
 
         vFixedSeeds.clear();
         vSeeds.clear();
+        vSeeds.push_back(CDNSSeedData("toomim", "testnet4-seed-bch.toom.im"));
         vSeeds.push_back(CDNSSeedData("bitcoinforks.org", "testnet4-seed-bch.bitcoinforks.org"));
         vSeeds.push_back(CDNSSeedData("loping.net", "seed.tbch4.loping.net"));
 
@@ -345,12 +340,8 @@ public:
         consensus.hf201811Height = 4000;
         consensus.hf201905Height = 5000;
         consensus.hf201911Height = 5000;
-        // The testnet v4 chain was initially mined by BCHN, which has removed all legacy code related to
-        // sig-ops counting so the May 2020 hardfork height must be set to 0 for compatibility with any
-        // nodes which retain the legacy sig-ops counting pre-May 2020 HF and use the new sigchecks from genesis.
-        // See https://gitlab.com/bitcoin-cash-node/bitcoin-cash-node/-/commit/08e332d0bd0c480e560c7b3ebe953854d038d03f
-        consensus.hf202005Height = 0;
-        consensus.hf202011Time = GetArg("-axionactivationtime", 1605441600);;
+        consensus.hf202005Height = 0; // sigop counting irrelevant on this chain.
+        consensus.hf202011Time = GetArg("-axionactivationtime", 1605441600);
 
         checkpointData = CCheckpointData{
             boost::assign::map_list_of
@@ -384,10 +375,6 @@ public:
         consensus.fPowNoRetargeting = false;
         consensus.nRuleChangeActivationThreshold = 1512; // 75% for testchains
         consensus.nMinerConfirmationWindow = 2016; // nPowTargetTimespan / nPowTargetSpacing
-
-        // The half life for the ASERT DAA. For every (nASERTHalfLife) seconds behind schedule the blockchain gets,
-        // difficulty is cut in half. Doubled if blocks are ahead of schedule.
-        // Two days
         consensus.nASERTHalfLife = 2 * 24 * 60 * 60;
 
         pchMessageStart[0] = 0xba;
@@ -413,9 +400,9 @@ public:
 
         vFixedSeeds.clear();
         vSeeds.clear();
-        vSeeds.push_back(CDNSSeedData("bitcoinforks.org", "scalenet-seed-bch.bitcoinforks.org"));
         vSeeds.push_back(CDNSSeedData("toom.im", "scalenet-seed-bch.toom.im"));
         vSeeds.push_back(CDNSSeedData("loping.net", "seed.sbch.loping.net"));
+        vSeeds.push_back(CDNSSeedData("bitcoinforks.org", "scalenet-seed-bch.bitcoinforks.org"));
 
         base58Prefixes[PUBKEY_ADDRESS] = std::vector<unsigned char>(1, 111);
         base58Prefixes[SCRIPT_ADDRESS] = std::vector<unsigned char>(1, 196);
@@ -437,13 +424,8 @@ public:
         consensus.hf201811Height = 4000;
         consensus.hf201905Height = 5000;
         consensus.hf201911Height = 5000;
-        // The scalenet chain was initially mined by BCHN, which has removed all legacy code related to
-        // sig-ops counting so the May 2020 hardfork height must be set to 0 for compatibility with any
-        // nodes which retain the legacy sig-ops counting pre-May 2020 HF and use the new sigchecks from genesis.
-        // Specifically at around block 4900, the legacy sig-ops check fails while the new sigcheck passes
-        // See https://gitlab.com/bitcoin-cash-node/bitcoin-cash-node/-/commit/08e332d0bd0c480e560c7b3ebe953854d038d03f
-        consensus.hf202005Height = 0;
-        consensus.hf202011Time = GetArg("-axionactivationtime", 1605441600);;
+        consensus.hf202005Height = 0; // sigop counting irrelevant on this chain.
+        consensus.hf202011Time = GetArg("-axionactivationtime", 1605441600);
 
         checkpointData = CCheckpointData{
             boost::assign::map_list_of
