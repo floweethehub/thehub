@@ -113,10 +113,13 @@ int PrivacySegment::firstBlock() const
 void PrivacySegment::blockSynched(int height)
 {
     std::unique_lock<std::recursive_mutex> lock(m_lock);
-    if (height <= m_merkleBlockHeight)
+    if (height <= m_merkleBlockHeight) {
         m_softMerkleBlockHeight = height;
-    else
+    } else {
         m_merkleBlockHeight = height;
+        assert(m_parent);
+        m_parent->setLastSynchedBlockHeight(height);
+    }
 }
 
 int PrivacySegment::lastBlockSynched() const

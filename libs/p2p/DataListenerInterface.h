@@ -21,7 +21,6 @@
 #include <deque>
 
 class Tx;
-// class DoubleSpendProof;
 class BlockHeader;
 
 class DataListenerInterface
@@ -39,6 +38,8 @@ public:
     virtual void newTransactions(const BlockHeader &header, int blockHeight, const std::deque<Tx> &blockTransactions) = 0;
     /// A single transaction that matches our filters, forwarded to us as it hits a mempool.
     virtual void newTransaction(const Tx &tx) = 0;
+    /// notify when we get a newer (higher) blockheight
+    virtual void setLastSynchedBlockHeight(int height);
 };
 
 #endif
