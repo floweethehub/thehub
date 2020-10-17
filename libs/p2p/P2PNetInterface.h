@@ -9,7 +9,7 @@ public:
     P2PNetInterface() = default;
     virtual ~P2PNetInterface();
 
-    virtual void newPeer(int peerId, const std::string &userAgent, int startHeight, PeerAddress address) {};
+    virtual void newPeer(int peerId, const std::string &userAgent, int startHeight, PeerAddress address) {}
     virtual void lostPeer(int peerId) {}
     virtual void punishMentChanged(int peerId) {}
 
