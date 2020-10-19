@@ -46,7 +46,7 @@ void SyncSPVAction::execute(const boost::system::error_code &error)
     std::map<PrivacySegment*, WalletInfo> wallets;
     /*
      * Privacy Segments are assigned to a number of peers, make an inventory of each segment.
-     * For ease, segments are the same thing as wallets here.
+     * For ease, realize that segments are the same thing as wallets here.
      */
     for (auto peer : m_dlm->connectionManager().connectedPeers()) {
         auto *ps = peer->privacySegment();
@@ -70,9 +70,15 @@ void SyncSPVAction::execute(const boost::system::error_code &error)
     bool didSomething = false;
 
     // connect to enough peers for each wallet.
-    for (auto segment : m_dlm->connectionManager().segments()) {
+    std::deque<PrivacySegment *> segments = m_dlm->connectionManager().segments();
+    std::sort(segments.begin(), segments.end(), [](PrivacySegment *a, PrivacySegment *b){
+        return a->priority() < b->priority();
+    });
+    for (auto segment : segments) {
         if (segment->firstBlock() == -1 || segment->firstBlock() > currentBlockHeight)
             continue;
+        if (segment->priority() == PrivacySegment::OnlyManual)
+            break;
         auto i = wallets.find(segment);
         size_t peers = 0;
         if (i != wallets.end())

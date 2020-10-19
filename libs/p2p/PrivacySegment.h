@@ -51,6 +51,14 @@ class PrivacySegment
 public:
     explicit PrivacySegment(uint16_t id, DataListenerInterface *parent = nullptr);
 
+    /// The priority of a segmment in the wider system.
+    /// This decides the order in which peers are assigned to privacy segments.
+    enum Priority {
+        First,      ///< Highest priority
+        Normal,
+        OnlyManual  ///< Never auto-connect, only when specifically asked.
+    };
+
     uint16_t segmentId() const;
 
     struct FilterLock {
@@ -119,6 +127,12 @@ public:
     void addListener(PrivacySegmentListener *listener);
     void removeListener(PrivacySegmentListener *listener);
 
+    /// The priority of a segmment in the wider system.
+    /// This decides the order in which peers are assigned to privacy segments.
+    Priority priority() const;
+    /// Return the priority
+    void setPriority(const Priority &priority);
+
 private:
     const uint16_t m_segmentId = 0;
     mutable std::recursive_mutex m_lock;
@@ -129,6 +143,7 @@ private:
     int m_merkleBlockHeight = -1;
     int m_filterChangedHeight = 0;
     int m_softMerkleBlockHeight = -1;
+    Priority m_priority = Normal;
 };
 
 #endif

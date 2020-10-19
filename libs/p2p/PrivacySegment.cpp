@@ -185,6 +185,16 @@ void PrivacySegment::removeListener(PrivacySegmentListener *listener)
     }
 }
 
+PrivacySegment::Priority PrivacySegment::priority() const
+{
+    return m_priority;
+}
+
+void PrivacySegment::setPriority(const Priority &priority)
+{
+    m_priority = priority;
+}
+
 
 // ///////////////////////////////////////////////////////////////////
 
