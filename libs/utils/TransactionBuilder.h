@@ -60,6 +60,9 @@ public:
      */
     int selectInput(int index);
 
+    int outputCount() const;
+    int inputCount() const;
+
     /// SigHash type, the inputs part.
     enum SignInputs {
         /**

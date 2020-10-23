@@ -96,6 +96,16 @@ int TransactionBuilder::selectInput(int index)
     return d->curInput;
 }
 
+int TransactionBuilder::outputCount() const
+{
+    return static_cast<int>(d->transaction.vout.size());
+}
+
+int TransactionBuilder::inputCount() const
+{
+    return static_cast<int>(d->transaction.vin.size());
+}
+
 void TransactionBuilder::pushInputSignature(const CKey &privKey, const CScript &prevOutScript, int64_t amount, SignInputs inputs, SignOutputs outputs)
 {
     d->checkCurInput();
