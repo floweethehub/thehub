@@ -26,8 +26,6 @@
 #include "random.h"
 #include "test/test_bitcoin.h"
 
-// #include <boost/test/unit_test.hpp>
-
 /* Test calculation of next difficulty target with no constraints applying */
 void POWTests::get_next_work()
 {
