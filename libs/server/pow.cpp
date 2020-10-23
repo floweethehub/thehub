@@ -260,7 +260,7 @@ uint32_t CalculateNextASERTWorkRequired(const CBlockIndex *pindexPrev,
     // This is somewhat counterintuitive since it is referred to as the anchor timestamp, but
     // as per the formula the timestamp of block M-1 must be used if the anchor is M.
     assert(pindexPrev->pprev != nullptr);
-    // Note: time difference is to parent of anchor block (or to anchor block itself iff anchor is genesis).
+    // Note: time difference is to parent of anchor block (or to anchor block itself if anchor is genesis).
     //       (according to absolute formulation of ASERT)
     const auto anchorTime = pindexAnchorBlock->pprev
                                     ? pindexAnchorBlock->pprev->GetBlockTime()
