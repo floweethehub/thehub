@@ -632,8 +632,14 @@ void NetworkManagerConnection::sentSomeBytes(const boost::system::error_code& er
 
     // if we interrupted the received-message-processing, resume that now.
     if (m_receiveStream.size() > 4) {
-        logDebug() << "  resuming processing. Message Queue now:" << m_messageQueue->size();
-        receivedSomeBytes(boost::system::error_code(), 0);
+        const unsigned int rawHeader = *(reinterpret_cast<const unsigned int*>(m_receiveStream.begin()));
+        const int packetLength = (rawHeader & 0xFFFF);
+        if (packetLength <= m_receiveStream.size()) {
+            logDebug() << "Resuming processing. ReceiveStream-size:"
+                       << m_receiveStream.size() << "holds packet:" << packetLength
+                       << "Message Queue now:" << m_messageQueue->size();
+            receivedSomeBytes(boost::system::error_code(), 0);
+        }
     }
 }
 
@@ -671,6 +677,7 @@ void NetworkManagerConnection::receivedSomeBytes(const boost::system::error_code
         // Check ring buffer capacity and send if low.
         if (m_messageQueue->size() > m_forceSendLimit) {
             logDebug(Log::NWM) << "Waiting with the processing of receive, too much outgoing queued";
+            logDebug(Log::NWM) << " + Leaving" << m_receiveStream.size() << "bytes for later processing";
             runMessageQueue();
             return;
         }
