@@ -15,6 +15,7 @@
 # along with this program.  If not, see <http://www.gnu.org/licenses/>.
 
 include_directories(${LIBAPI_INCLUDES} ${CMAKE_BINARY_DIR}/include)
+add_definitions(-DLOG_DEFAULT_SECTION=2500)
 
 add_library(flowee_api STATIC
     APIRPCBinding.cpp
