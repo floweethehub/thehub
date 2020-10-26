@@ -1,6 +1,6 @@
 /*
  * This file is part of the Flowee project
- * Copyright (C) 2019 Tom Zander <tomz@freedommail.ch>
+ * Copyright (C) 2019-2020 Tom Zander <tomz@freedommail.ch>
  *
  * This program is free software: you can redistribute it and/or modify
  * it under the terms of the GNU General Public License as published by
@@ -18,6 +18,7 @@
 #ifndef WALLET_H
 #define WALLET_H
 
+#include <QString>
 #include <map>
 
 /*
@@ -49,7 +50,7 @@ class TransactionBuilder;
 class Wallet
 {
 public:
-    Wallet(const boost::filesystem::path &dbFile);
+    Wallet(const QString &dbFile);
     ~Wallet();
 
     void addKey(const CKey &key, int blockheight = -1);
@@ -84,7 +85,7 @@ public:
     std::list<UnspentOutput>::const_iterator spendOutput(const std::list<UnspentOutput>::const_iterator &output);
 
 private:
-    const boost::filesystem::path m_dbFile;
+    const QString m_dbFile;
     void loadKeys();
 
     std::list<std::pair<int, CKey> > m_keys; // private keys.

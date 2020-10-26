@@ -24,9 +24,13 @@
 #include <streaming/BufferPool.h>
 #include <streaming/MessageBuilder.h>
 
+#include <QDir>
+#include <QFile>
+#include <QFileInfo>
+
 using namespace Streaming;
 
-Wallet::Wallet(const boost::filesystem::path &dbFile)
+Wallet::Wallet(const QString &dbFile)
     : m_dbFile(dbFile)
 {
     loadKeys();
@@ -41,6 +45,7 @@ Wallet::~Wallet()
 
 void Wallet::addKey(const CKey &key, int blockheight)
 {
+    Q_UNUSED(blockheight);
     assert(key.IsValid());
     int id = m_keys.empty() ? 0 : (m_keys.back().first + 1);
     m_keys.push_back(std::make_pair(id, key));
@@ -139,6 +144,12 @@ void Wallet::saveKeys()
 {
     if (!m_privKeysNeedsSave)
         return;
+    QFileInfo info(m_dbFile);
+    if (!info.dir().exists()) {
+        QDir root("/");
+        root.mkpath(info.absolutePath());
+    }
+
     BufferPool pool(m_keys.size() * 40);
     MessageBuilder builder(pool);
     for (auto &keyPair : m_keys) {
@@ -147,12 +158,13 @@ void Wallet::saveKeys()
         builder.addByteArray(WalletPrivateKeys::PrivateKey, key.begin(), key.size());
     }
     builder.add(WalletPrivateKeys::End, true);
-    boost::filesystem::ofstream output(m_dbFile, std::ios_base::binary | std::ios_base::trunc | std::ios_base::out);
-    auto data = builder.buffer();
-    output.write(data.begin(), data.size());
-    output.close();
-
-    m_privKeysNeedsSave = false;
+    QFile output(m_dbFile);
+    if (output.open(QIODevice::WriteOnly)) {
+        auto data = builder.buffer();
+        output.write(data.begin(), data.size());
+        output.close();
+        m_privKeysNeedsSave = false;
+    }
 }
 
 void Wallet::saveCache()
@@ -163,10 +175,10 @@ void Wallet::saveCache()
 void Wallet::loadKeys()
 {
     assert(m_keys.empty());
-    boost::filesystem::ifstream input(m_dbFile);
-    // find out file-size
-    input.seekg(0, std::ios::end);
-    const int fileSize = static_cast<int>(input.tellg());
+    QFile input(m_dbFile);
+    if (!input.open(QIODevice::ReadOnly))
+        return;
+    auto fileSize = input.size();
     if (fileSize == -1) // no file to read
         return;
     if (fileSize < 0 || fileSize > 1E6) {
@@ -174,12 +186,7 @@ void Wallet::loadKeys()
         throw std::runtime_error("Input file is too large");
     }
     BufferPool pool(fileSize);
-    input.seekg(0, std::ios::beg);
     input.read(pool.begin(), fileSize);
-    if (input.tellg() != fileSize) {
-        logFatal() << "Failed to read whole file (total;" << fileSize << "read:" << read;
-        throw std::runtime_error("File read failed");
-    }
     MessageParser parser(pool.commit(fileSize));
     Streaming::ParsedType type = parser.next();
     while (type == Streaming::FoundTag) {

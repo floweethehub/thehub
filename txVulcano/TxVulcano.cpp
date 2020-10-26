@@ -1,6 +1,6 @@
 /*
  * This file is part of the Flowee project
- * Copyright (C) 2016,2019 Tom Zander <tomz@freedommail.ch>
+ * Copyright (C) 2016,2019-2020 Tom Zander <tomz@freedommail.ch>
  *
  * This program is free software: you can redistribute it and/or modify
  * it under the terms of the GNU General Public License as published by
@@ -32,6 +32,7 @@
 
 #define MIN_FEE 1000
 
+#include <QStandardPaths>
 #include <cashaddr.h>
 #include <qtimer.h>
 
@@ -42,7 +43,7 @@ TxVulcano::TxVulcano(boost::asio::io_service &ioService)
       m_blockSizeLeft(-1),
       m_timer(ioService),
       m_walletMutex(QMutex::Recursive),
-      m_wallet("mywallet")
+      m_wallet(QStandardPaths::writableLocation(QStandardPaths::AppDataLocation) + "/mywallet")
 {
     qRegisterMetaType<Message>("Message");
     moveToThread(&m_workerThread);
