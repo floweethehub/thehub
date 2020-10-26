@@ -1059,9 +1059,10 @@ void NetworkManagerConnection::queueMessage(const Message &message, NetworkConne
         }
         if (isConnected())
             runMessageQueue();
-        else
+        else if (isOutgoing())
             connect_priv();
-    } else {
+    }
+    else {
         runOnStrand(std::bind(&NetworkManagerConnection::queueMessage, this, message, priority));
     }
 }
