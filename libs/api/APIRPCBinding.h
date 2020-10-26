@@ -24,6 +24,7 @@
 
 #include <string>
 #include <thread>
+#include <mutex>
 
 namespace Streaming {
     class MessageBuilder;
