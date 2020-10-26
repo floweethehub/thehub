@@ -279,7 +279,7 @@ void TxVulcano::incomingMessage(const Message& message)
                 QCoreApplication::exit(0);
             }
             m_blockSizeLeft -= txData.transaction.size();
-            if (m_lastPrintedBlockSizeLeft - m_blockSizeLeft > 1000000) {
+            if (m_lastPrintedBlockSizeLeft - m_blockSizeLeft > 10000000) {
                 m_lastPrintedBlockSizeLeft = m_blockSizeLeft;
                 logCritical() << "Block still"
                     << (m_lastPrintedBlockSizeLeft + 500000) / 1000000 << "MB from goal";
