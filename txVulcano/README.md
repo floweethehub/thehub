@@ -19,7 +19,13 @@ development mode. The main reason of this is cost. Mostly cost of mining.
 
 The suggested way to start the Hub is then;
 
-    `hub -regtest -blockmaxsize=500000000`
+```
+hub -regtest -blockmaxsize=500000000 \
+         -limitancestorcount=5000    \
+         -limitancestorsize=1000000  \
+         -limitdescendantcount=5000  \
+         -limitdescendantsize=1000000
+```
 
 The txVulcano application has several option as well, but generally the
 defaults will be fine for a testrun. But please do check out the `--help`
