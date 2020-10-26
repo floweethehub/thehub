@@ -77,6 +77,7 @@ private:
 
     NetworkManager m_networkManager;
     NetworkConnection m_connection;
+    bool m_serverSupportsAsync = false;
 
     Streaming::BufferPool m_Txpool;
     Streaming::BufferPool m_pool;

@@ -61,7 +61,7 @@ TxVulcano::~TxVulcano()
 
 void TxVulcano::tryConnect(const EndPoint &ep)
 {
-    m_connection = std::move(m_networkManager.connection(ep));
+    m_connection = m_networkManager.connection(ep);
     if (!m_connection.isValid())
         throw std::runtime_error("Invalid Endpoint, can't create connection");
     m_connection.setOnConnected(std::bind(&TxVulcano::connectionEstablished, this, std::placeholders::_1));
@@ -90,6 +90,8 @@ void TxVulcano::connectionEstablished(const EndPoint &)
 {
     logCritical() << "Connection established";
     assert(m_connection.isValid());
+    m_serverSupportsAsync = false;
+    m_connection.send(Message(Api::APIService, Api::Meta::Version));
 
     // fill the wallet with private keys
     int count = 100 - m_wallet.keyCount();
@@ -278,7 +280,6 @@ void TxVulcano::incomingMessage(const Message& message)
             m_blockSizeLeft -= txData.transaction.size();
             if (m_lastPrintedBlockSizeLeft - m_blockSizeLeft > 1000000) {
                 m_lastPrintedBlockSizeLeft = m_blockSizeLeft;
-                float left = m_lastPrintedBlockSizeLeft / 1000000.;
                 logCritical() << "Block still"
                     << (m_lastPrintedBlockSizeLeft + 500000) / 1000000 << "MB from goal";
             }
@@ -287,6 +288,15 @@ void TxVulcano::incomingMessage(const Message& message)
                 m_transactionsInProgress.clear();
                 m_wallet.clearUnconfirmedUTXOs();
                 generate(1);
+            }
+        }
+    }
+    else if (message.serviceId() == Api::APIService && message.messageId() == Api::Meta::VersionReply) {
+        Streaming::MessageParser parser(message.body());
+        while (parser.next() == Streaming::FoundTag) {
+            if (parser.tag() == Api::GenericByteData) {
+                // Don't send the async header to older clients, they don't like it.
+                m_serverSupportsAsync = parser.stringData().compare("Flowee:1 (2020-07)") >= 0;
             }
         }
     }
@@ -429,6 +439,8 @@ void TxVulcano::createTransactions_priv()
     Streaming::MessageBuilder mb(m_Txpool);
     mb.add(Api::LiveTransactions::Transaction, signedTx.data());
     Message m(mb.message(Api::LiveTransactionService, Api::LiveTransactions::SendTransaction));
+    if (m_serverSupportsAsync)
+        m.setHeaderInt(Api::ASyncRequest, true);
 
     unvalidatedTransaction.transaction = signedTx;
     {
