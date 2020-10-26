@@ -302,20 +302,20 @@ void Api::Server::Connection::incomingMessage(const Message &message)
 
     switch (parser->type()) {
     case Parser::WrapsRPCCall:
-        handleRpcParser(parser.get(), message);
+        handleRpcParser(parser, message);
         break;
     case Parser::IncludesHandler:
-        handleMainParser(parser.get(), message);
+        handleMainParser(std::move(parser), message);
         break;
     case Parser::ASyncParser:
-        startASyncParser(parser.release());
+        startASyncParser(std::move(parser));
         break;
     }
 }
 
-void Api::Server::Connection::handleRpcParser(Api::Parser *parser, const Message &message)
+void Api::Server::Connection::handleRpcParser(const std::unique_ptr<Parser> &parser, const Message &message)
 {
-    auto *rpcParser = dynamic_cast<Api::RpcParser*>(parser);
+    auto *rpcParser = dynamic_cast<Api::RpcParser*>(parser.get());
     assert(rpcParser);
     assert(!rpcParser->method().empty());
     try {
@@ -357,9 +357,9 @@ void Api::Server::Connection::handleRpcParser(Api::Parser *parser, const Message
     }
 }
 
-void Api::Server::Connection::handleMainParser(Api::Parser *parser, const Message &message)
+void Api::Server::Connection::handleMainParser(const std::unique_ptr<Parser> &parser, const Message &message)
 {
-    auto *directParser = dynamic_cast<Api::DirectParser*>(parser);
+    auto *directParser = dynamic_cast<Api::DirectParser*>(parser.get());
     assert(directParser);
     int reserveSize = 0;
     try {
@@ -387,9 +387,9 @@ void Api::Server::Connection::handleMainParser(Api::Parser *parser, const Messag
     }
 }
 
-void Api::Server::Connection::startASyncParser(Api::Parser *parser)
+void Api::Server::Connection::startASyncParser(std::unique_ptr<Parser> &&parser)
 {
-    auto *asyncParser = dynamic_cast<Api::ASyncParser*>(parser);
+    auto *asyncParser = dynamic_cast<Api::ASyncParser*>(parser.get());
     assert(asyncParser);
     while (!ShutdownRequested()) {
         for (size_t i = 0; i < m_runningParsers.size(); ++i) {
@@ -397,6 +397,7 @@ void Api::Server::Connection::startASyncParser(Api::Parser *parser)
             if (!token.exchange(true)) {
                 asyncParser->start(&token,
                             m_parent->copyConnection(m_connection), m_parent);
+                parser.release(); // avoid double delete
                 return;
             }
         }

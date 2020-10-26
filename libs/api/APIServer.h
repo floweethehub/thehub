@@ -68,11 +68,11 @@ private:
 
     private:
         /// Handle a parser that just calls the old RPC code
-        void handleRpcParser(Parser *parser, const Message &message);
+        void handleRpcParser(const std::unique_ptr<Parser> &parser, const Message &message);
         /// Handle a parser that does the heavy lifting itself.
-        void handleMainParser(Parser *parser, const Message &message);
+        void handleMainParser(const std::unique_ptr<Parser> &parser, const Message &message);
         /// Handles an async parser, asynchroniously.
-        void startASyncParser(Parser *parser);
+        void startASyncParser(std::unique_ptr<Parser> && parser);
 
         void sendFailedMessage(const Message &origin, const std::string &failReason);
 
