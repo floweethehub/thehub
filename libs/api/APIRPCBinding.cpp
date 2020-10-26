@@ -25,13 +25,15 @@
 #include <primitives/FastBlock.h>
 #include <primitives/FastTransaction.h>
 #include <utxo/UnspentOutputDatabase.h>
+#include <server/Application.h>
 #include <server/BlocksDB.h>
+#include <server/DoubleSpendProofStorage.h>
 #include <server/encodings_legacy.h>
 #include <server/rpcserver.h>
 #include <server/txmempool.h>
+#include <server/validation/Engine.h>
 #include <server/UnspentOutputData.h>
 #include <server/main.h>
-#include <server/DoubleSpendProofStorage.h>
 
 #include <boost/algorithm/hex.hpp>
 #include <list>
@@ -972,10 +974,27 @@ public:
     }
 
     void run() override {
-        // TODO parse message, get transaction out.
-        // submit transaction to parser
-        // wait for it to finish.
-        // store the m_txid (or error on m_reply)
+        Streaming::MessageParser parser(m_request);
+        Tx tx;
+        while (parser.next() == Streaming::FoundTag) {
+            if (parser.tag() == Api::LiveTransactions::Transaction
+                    || parser.tag() == Api::LiveTransactions::GenericByteData) {
+                if (!tx.data().isEmpty())
+                    throw Api::ParserException("Only one Tx per message allowed");
+                tx = Tx(parser.bytesDataBuffer());
+            }
+        }
+        if (tx.data().isEmpty())
+            throw Api::ParserException("No transaction found in message");
+
+        std::uint32_t flags = Validation::ForwardGoodToPeers;
+        flags += Validation::RejectAbsurdFeeTx;
+        auto resultFuture = Application::instance()->validation()->addTransaction(tx, flags);
+        auto result = resultFuture.get(); // <= blocking call.
+        if (!result.empty())
+            throw Api::ParserException(result.c_str());
+
+        m_txid = tx.createHash();
     }
 
     void buildReply(Streaming::MessageBuilder &builder) override {
@@ -1091,32 +1110,53 @@ Api::DirectParser::DirectParser(int replyMessageId, int messageSize)
 }
 
 Api::ASyncParser::ASyncParser(const Message &request, int replyMessageId, int messageSize)
-    : Parser(Parser::ASyncParser, replyMessageId, messageSize),
+    : Parser(Parser::ASyncParser, -1, -1),
       m_request(request)
 {
-
+    std::unique_lock<std::mutex> lock(m_lock);
+    m_messageSize = messageSize;
+    m_replyMessageId = replyMessageId;
 }
 
-void Api::ASyncParser::start(NetworkConnection &&connection, Api::Server *server)
+void Api::ASyncParser::start(std::atomic_bool *token, NetworkConnection &&connection, Api::Server *server)
 {
     assert(server);
-    m_con = std::move(connection);
-    m_server = server;
-    server->createNewThread(std::bind(&Api::ASyncParser::run_priv, shared_from_this()));
-}
-
-const std::string &Api::ASyncParser::error() const
-{
-    return m_error;
+    assert(token);
+    {
+        std::unique_lock<std::mutex> lock(m_lock);
+        // make sure that those values are going to be stored and available to the
+        // thread that will be started later.
+        m_con = std::move(connection);
+        m_server = server;
+        m_token = token;
+    }
+    m_thread = std::thread(&Api::ASyncParser::run_priv, this);
 }
 
 void Api::ASyncParser::run_priv()
 {
+    struct RAII {
+        RAII(std::atomic_bool *token, Api::ASyncParser *parser)
+            : m_token(token), m_parser(parser)
+        {
+        }
+        ~RAII() {
+            m_token->store(false);
+            Application::instance()->ioService().post(
+                        std::bind(&Api::ASyncParser::deleteMe, m_parser));
+        }
+    private:
+        std::atomic_bool *m_token;
+        Api::ASyncParser *m_parser;
+    };
+
+    std::unique_lock<std::mutex> lock(m_lock);
+    assert(m_token);
+    RAII deleteOnExit(m_token, this);
     assert(m_server);
     try {
         run();
-        assert(m_messageSize >= 0);
-
+        assert(m_messageSize >= 0); // run should have set that.
         Streaming::MessageBuilder builder(m_server->pool(m_messageSize));
         buildReply(builder);
 
@@ -1131,4 +1171,10 @@ void Api::ASyncParser::run_priv()
         logWarning(Log::ApiServer) << e;
         m_con.send(m_server->createFailedMessage(m_request, e.what()));
     }
+}
+
+void Api::ASyncParser::deleteMe()
+{
+    m_thread.join();
+    delete this;
 }

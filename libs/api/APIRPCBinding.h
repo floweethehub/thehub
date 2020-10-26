@@ -20,10 +20,10 @@
 #define APIRPCBINDING_H
 
 #include <networkmanager/NetworkConnection.h>
+#include <Message.h>
 
 #include <string>
-#include <functional>
-#include <Message.h>
+#include <thread>
 
 namespace Streaming {
     class MessageBuilder;
@@ -152,57 +152,46 @@ public:
         virtual void buildReply(const Message &request, Streaming::MessageBuilder &builder) = 0;
     };
 
-    class ASyncParser : public Parser,  public std::enable_shared_from_this<ASyncParser> {
+    /**
+     * This is a parser that creates a thread, calls its methods and then shuts down.
+     * Inherting classes will want to reimplement run() and buildReply(), and all
+     * other details are taken care off.
+     *
+     * We use the fact that modern Linux can create many thousands of threads a second
+     * without issues.
+     */
+    class ASyncParser : public Parser {
     public:
-       /*
-        * The intention here is to have the parser start and own a new thread
-        * which is runs its own code in.
-        *
-        * Afterwards we shut the thread down (but don't delete it until the destructor).
-        *
-        * The parser should have a callback set which it can call when its ready to
-        * build and send a message. This callback we schedule to be called (in our thread)
-        * in a message to the connections strand.
-        *
-        *  The callback should get a shared_ptr to ourselves (maybe we should
-        *       inherit the  shared_from class?)
-        *
-        * So the workflow is this;
-        *
-        * we get built.
-        * a method on us gets called which passes in the callback and a new connection object
-        * we also start the thread in there.
-        *
-        * The thread starts, parses the message and blockingly waits for it to complete.
-        * It schedules, on the shard, the callback and the thread exits.
-        *
-        * The callback is run, which builds the message using a proper pool, we send it
-        * through our connection and as this method exits the shared pointer deletes us.
-        */
-
         ASyncParser(const Message &request, int replyMessageId, int messageSize = -1);
 
-        void start(NetworkConnection && connection, Server *server);
+        /// Called by the ApiServer.
+        /// \param token a boolean that we are expected to set to false as this parser completes.
+        /// \param connection this is the network connection we operate on.
+        /// \param server is the 'parent' environment we operate in.
+        void start(std::atomic_bool *token, NetworkConnection && connection, Server *server);
 
-        /// returns any erors that may have happend, empty sting for no-error
-        const std::string &error() const;
-
+        /// Create the returning message, called if error() is empty.
+        /// Is allowed to throw Api::ParseException
         virtual void buildReply(Streaming::MessageBuilder &builder) = 0;
 
     protected:
-        // A unique thread wil call this and call it life
+        ///  This is where you reimplement the handling of m_request, you are expected
+        /// to make sure that m_messageSize is properly set as you exit
+        /// Is allowed to throw Api::ParseException
         virtual void run() = 0;
 
-        /// when sometihng went wrong in the thread, set this variable to tell the remote this.
-        std::string m_error;
-
-        const Server *m_server = nullptr;
-
+        const Message m_request;
     private:
         void run_priv();
+        // called in the application-wide threadpool to join the private thread and delete me.
+        void deleteMe();
 
+        // Use this to have a mem-sync barrier for all standard members.
+        std::mutex m_lock;
         NetworkConnection m_con;
-        Message m_request;
+        std::atomic_bool *m_token = nullptr; // Used to tell the caller we are finished.
+        const Server* m_server = nullptr;
+        std::thread m_thread;
     };
 
     /// maps an input message to a Parser implementation.

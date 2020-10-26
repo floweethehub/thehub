@@ -43,11 +43,6 @@ public:
 
     void addService(NetworkService *service);
 
-    template<typename F>
-    boost::thread* createNewThread(F threadfunc) {
-        return m_threads.create_thread(threadfunc);
-    }
-
     // return a pool for the current thread;
     Streaming::BufferPool &pool(int reserveSize) const;
 
@@ -83,7 +78,7 @@ private:
 
         Server * const m_parent;
         std::map<uint32_t, SessionData*> m_properties;
-        std::vector<std::weak_ptr<ASyncParser> > m_runningParsers;
+        std::array<std::atomic_bool, 10> m_runningParsers;
     };
 
     struct NewConnection {
@@ -92,8 +87,6 @@ private:
     };
 
     NetworkManager m_networkManager;
-
-    boost::thread_group m_threads;
 
     mutable boost::mutex m_mutex; // protects the next 4 vars.
     std::list<Connection*> m_connections; // make this a list of shared_ptrs to Connection

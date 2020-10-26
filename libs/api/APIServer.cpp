@@ -28,6 +28,7 @@
 #include "utilstrencodings.h"
 #include "random.h"
 #include "rpcserver.h"
+#include "init.h"
 
 #include <fstream>
 #include <functional>
@@ -119,7 +120,6 @@ Api::Server::Server(boost::asio::io_service &service)
 
 Api::Server::~Server()
 {
-    m_threads.join_all();
 }
 
 void Api::Server::addService(NetworkService *service)
@@ -258,7 +258,6 @@ Api::Server::Connection::Connection(Server *parent, NetworkConnection && connect
     : m_connection(std::move(connection)),
       m_parent(parent)
 {
-    m_runningParsers.resize(10);
     m_connection.setOnIncomingMessage(std::bind(&Api::Server::Connection::incomingMessage, this, std::placeholders::_1));
 }
 
@@ -309,7 +308,7 @@ void Api::Server::Connection::incomingMessage(const Message &message)
         handleMainParser(parser.get(), message);
         break;
     case Parser::ASyncParser:
-        startASyncParser(parser.get());
+        startASyncParser(parser.release());
         break;
     }
 }
@@ -392,11 +391,13 @@ void Api::Server::Connection::startASyncParser(Api::Parser *parser)
 {
     auto *asyncParser = dynamic_cast<Api::ASyncParser*>(parser);
     assert(asyncParser);
-    std::shared_ptr<ASyncParser> ptr(asyncParser);
-    while (true) {
+    while (!ShutdownRequested()) {
         for (size_t i = 0; i < m_runningParsers.size(); ++i) {
-            if (m_runningParsers.at(i).expired()) {
-                m_runningParsers[i] = ptr->weak_from_this();
+            auto &token = m_runningParsers[i];
+            if (!token.exchange(true)) {
+                asyncParser->start(&token,
+                            m_parent->copyConnection(m_connection), m_parent);
+                return;
             }
         }
         // if 'full' avoid burning CPU while waiting for some thread to finish.
@@ -405,7 +406,6 @@ void Api::Server::Connection::startASyncParser(Api::Parser *parser)
         tim.tv_nsec = 500;
         nanosleep(&tim , &tim2);
     }
-    asyncParser->start(m_parent->copyConnection(m_connection), m_parent);
 }
 
 void Api::Server::Connection::sendFailedMessage(const Message &origin, const std::string &failReason)

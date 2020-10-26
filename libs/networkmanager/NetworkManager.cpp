@@ -838,7 +838,7 @@ bool NetworkManagerConnection::processPacket(const std::shared_ptr<char> &buffer
             break;
         default:
             if (parser.isInt() && parser.tag() < 0xFFFFFF) {
-                if (parser.tag() <= 10) { // illegal header tag for users.
+                if (parser.tag() < 10) { // illegal header tag for users.
                     logInfo(Log::NWM) << "  header uses illegal tag. Malformed: re-connecting";
                     close();
                     return false;
