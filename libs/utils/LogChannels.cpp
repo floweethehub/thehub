@@ -32,7 +32,7 @@ std::string shortenMethod(const char *methodName) {
             ++start;
         ++end;
         std::string copy(start, end - start);
-        return std::move(copy);
+        return copy;
     }
     return std::string();
 }
