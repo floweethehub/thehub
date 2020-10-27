@@ -57,10 +57,9 @@ int DoubleSpendProofStorage::add(const DoubleSpendProof &proof)
     return m_nextId++;
 }
 
-void DoubleSpendProofStorage::addOrphan(const DoubleSpendProof &proof, int peerId)
+void DoubleSpendProofStorage::addOrphan(const DoubleSpendProof &proof, NodeId peerId)
 {
     std::lock_guard<std::recursive_mutex> lock(m_lock);
-    const int next = m_nextId;
     const int id = add(proof);
     if (id == -1) // it was already in the storage
         return;
@@ -172,14 +171,16 @@ void DoubleSpendProofStorage::periodicCleanup()
     auto iter = m_orphans.begin();
     while (iter != m_orphans.end()) {
         if (iter->second.second <= expire) {
-            const int peerId = iter->second.first;
-            logFatal() << "punish" << peerId;
+            const NodeId peerId = iter->second.first;
             const int proofId = iter->first;
             iter = m_orphans.erase(iter);
             remove(proofId);
 
-            LOCK(cs_main);
-            Misbehaving(peerId, 1);
+            if (peerId != -1) { // not whitelisted
+                logInfo(Log::DSProof) << "punish" << peerId;
+                LOCK(cs_main);
+                Misbehaving(peerId, 1);
+            }
         }
         else {
             ++iter;

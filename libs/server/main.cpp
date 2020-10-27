@@ -2416,7 +2416,7 @@ bool static ProcessMessage(CNode* pfrom, std::string strCommand, CDataStream& vR
             case DoubleSpendProof::MissingUTXO:
             case DoubleSpendProof::MissingTransaction:
                 logInfo(Log::DSProof) << "DoubleSpend Proof postponed: is orphan";
-                mempool.doubleSpendProofStorage()->addOrphan(dsp, pfrom->id);
+                mempool.doubleSpendProofStorage()->addOrphan(dsp, pfrom->fWhitelisted ? -1 : pfrom->id);
                 break;
             case DoubleSpendProof::Invalid:
                 throw std::runtime_error("DSProof didn't validate");

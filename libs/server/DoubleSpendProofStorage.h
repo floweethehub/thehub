@@ -27,6 +27,7 @@
 #include <mutex>
 
 class COutPoint;
+typedef int NodeId;
 
 class DoubleSpendProofStorage
 {
@@ -44,7 +45,7 @@ public:
     /// add()s and additionally registers the proof as an orphan.
     /// Orphans expire after secondsToKeepOrphans() elapses. They may
     /// be claimed using 'claimOrphan()'.
-    void addOrphan(const DoubleSpendProof &proof, int peerId);
+    void addOrphan(const DoubleSpendProof &proof, NodeId peerId);
     /// Returns all (not yet verified) orphans matching prevOut.
     /// Each item is a pair of a proofId and the nodeId that send the proof to us.
     std::list<std::pair<int, int> > findOrphans(const COutPoint &prevOut) const;
@@ -67,7 +68,7 @@ public:
 private:
     std::map<int, DoubleSpendProof> m_proofs;
     int m_nextId = 1;
-    std::map<int, std::pair<int, int64_t> > m_orphans;
+    std::map<int, std::pair<NodeId, int64_t> > m_orphans;
 
     typedef boost::unordered_map<uint256, int, HashShortener> LookupTable;
     LookupTable m_dspIdLookupTable;
