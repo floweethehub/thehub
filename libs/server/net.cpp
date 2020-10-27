@@ -1300,25 +1300,20 @@ void ThreadSocketHandler()
             // Inactivity checking
             //
             int64_t nTime = GetTime();
-            if (nTime - pnode->nTimeConnected > 60)
-            {
-                if (pnode->nLastRecv == 0 || pnode->nLastSend == 0)
-                {
-                    LogPrint("net", "socket no message in first 60 seconds, %d %d from %d\n", pnode->nLastRecv != 0, pnode->nLastSend != 0, pnode->id);
+            if (nTime - pnode->nTimeConnected > 60) {
+                if (pnode->nLastRecv == 0 || pnode->nLastSend == 0) {
+                    logInfo(Log::Net) << "socket no message in first 60 seconds," << (pnode->nLastRecv != 0) << (pnode->nLastSend != 0) << "from" << pnode->id;
                     pnode->fDisconnect = true;
                 }
-                else if (nTime - pnode->nLastSend > TIMEOUT_INTERVAL)
-                {
+                else if (nTime - pnode->nLastSend > TIMEOUT_INTERVAL) {
                     logWarning(Log::Net) << "socket sending timeout:" << (nTime - pnode->nLastSend);
                     pnode->fDisconnect = true;
                 }
-                else if (nTime - pnode->nLastRecv > (pnode->nVersion > BIP0031_VERSION ? TIMEOUT_INTERVAL : 90*60))
-                {
+                else if (nTime - pnode->nLastRecv > (pnode->nVersion > BIP0031_VERSION ? TIMEOUT_INTERVAL : 90*60)) {
                     logWarning(Log::Net) << "socket receive timeout:" << (nTime - pnode->nLastRecv);
                     pnode->fDisconnect = true;
                 }
-                else if (pnode->nPingNonceSent && pnode->nPingUsecStart + TIMEOUT_INTERVAL * 1000000 < GetTimeMicros())
-                {
+                else if (pnode->nPingNonceSent && pnode->nPingUsecStart + TIMEOUT_INTERVAL * 1000000 < GetTimeMicros()) {
                     logWarning(Log::Net) << "ping timeout:" << (0.000001 * (GetTimeMicros() - pnode->nPingUsecStart));
                     pnode->fDisconnect = true;
                 }
@@ -1959,7 +1954,7 @@ bool BindListenPort(const CService &addrBind, std::string& strError, bool fWhite
     return true;
 }
 
-void static Discover(boost::thread_group& threadGroup)
+void static Discover()
 {
     if (!fDiscover)
         return;
@@ -1994,7 +1989,7 @@ void static Discover(boost::thread_group& threadGroup)
                 struct sockaddr_in* s4 = (struct sockaddr_in*)(ifa->ifa_addr);
                 CNetAddr addr(s4->sin_addr);
                 if (AddLocal(addr, LOCAL_IF))
-                    LogPrintf("%s: IPv4 %s: %s\n", __func__, ifa->ifa_name, addr.ToString());
+                    logInfo(Log::Net).nospace() << __func__ << " IPv4 " << ifa->ifa_name << ": " << addr.ToString();
                     logDebug(Log::Net) << "Discover: IPv4" << ifa->ifa_name << addr;
             }
             else if (ifa->ifa_addr->sa_family == AF_INET6)
@@ -2046,7 +2041,7 @@ void StartNode(boost::thread_group& threadGroup, CScheduler& scheduler)
     if (pnodeLocalHost == NULL)
         pnodeLocalHost = new CNode(INVALID_SOCKET, CAddress(CService("127.0.0.1", 0), nLocalServices));
 
-    Discover(threadGroup);
+    Discover();
 
     //
     // Start threads
@@ -2352,22 +2347,27 @@ bool CAddrDB::Write(const CAddrMan& addr)
     boost::filesystem::path pathTmp = GetDataDir() / tmpfn;
     FILE *file = fopen(pathTmp.string().c_str(), "wb");
     CAutoFile fileout(file, SER_DISK, CLIENT_VERSION);
-    if (fileout.IsNull())
-        return error("%s: Failed to open file %s", __func__, pathTmp.string());
+    if (fileout.IsNull()) {
+        logCritical(Log::DB) << __func__ << "Failed to open file" << pathTmp.string();
+        return false;
+    }
 
     // Write and commit header, data
     try {
         fileout << ssPeers;
     }
     catch (const std::exception& e) {
-        return error("%s: Serialize or I/O error - %s", __func__, e.what());
+        logCritical(Log::DB) << __func__ << "Serialize or I/O error -" << e;
+        return false;
     }
     FileCommit(fileout.Get());
     fileout.fclose();
 
     // replace existing peers.dat, if any, with new peers.dat.XXXX
-    if (!RenameOver(pathTmp, pathAddr))
-        return error("%s: Rename-into-place failed", __func__);
+    if (!RenameOver(pathTmp, pathAddr)) {
+        logCritical(Log::DB) << __func__ << "Rename-into-place failed";
+        return false;
+    }
 
     return true;
 }
@@ -2377,8 +2377,10 @@ bool CAddrDB::Read(CAddrMan& addr)
     // open input file, and associate with CAutoFile
     FILE *file = fopen(pathAddr.string().c_str(), "rb");
     CAutoFile filein(file, SER_DISK, CLIENT_VERSION);
-    if (filein.IsNull())
-        return error("%s: Failed to open file %s", __func__, pathAddr.string());
+    if (filein.IsNull()) {
+        logCritical(Log::DB) << __func__ << "Failed to open file" << pathAddr.string();
+        return false;
+    }
 
     // use file size to size memory buffer
     uint64_t fileSize = boost::filesystem::file_size(pathAddr);
@@ -2396,7 +2398,8 @@ bool CAddrDB::Read(CAddrMan& addr)
         filein >> hashIn;
     }
     catch (const std::exception& e) {
-        return error("%s: Deserialize or I/O error - %s", __func__, e.what());
+        logCritical(Log::DB) << __func__ << "Deserialize or I/O error -" << e;
+        return false;
     }
     filein.fclose();
 
@@ -2404,8 +2407,10 @@ bool CAddrDB::Read(CAddrMan& addr)
 
     // verify stored checksum matches input data
     uint256 hashTmp = Hash(ssPeers.begin(), ssPeers.end());
-    if (hashIn != hashTmp)
-        return error("%s: Checksum mismatch, data corrupted", __func__);
+    if (hashIn != hashTmp) {
+        logCritical(Log::DB) << __func__ << "Checksum mismatch, data corrupted";
+        return false;
+    }
 
     return Read(addr, ssPeers);
 }
@@ -2418,8 +2423,10 @@ bool CAddrDB::Read(CAddrMan& addr, CDataStream& ssPeers)
         ssPeers >> FLATDATA(pchMsgTmp);
 
         // ... verify the network matches ours
-        if (memcmp(pchMsgTmp, Params().magic(), sizeof(pchMsgTmp)))
-            return error("%s: Invalid network magic number", __func__);
+        if (memcmp(pchMsgTmp, Params().magic(), sizeof(pchMsgTmp))) {
+            logCritical(Log::DB) << __func__ << "Invalid network magic number";
+            return false;
+        }
 
         // de-serialize address data into one CAddrMan object
         ssPeers >> addr;
@@ -2427,7 +2434,8 @@ bool CAddrDB::Read(CAddrMan& addr, CDataStream& ssPeers)
     catch (const std::exception& e) {
         // de-serialization has failed, ensure addrman is left in a clean state
         addr.Clear();
-        return error("%s: Deserialize or I/O error - %s", __func__, e.what());
+        logCritical(Log::DB) << __func__ << "Deserialize or I/O error -" << e;
+        return false;
     }
 
     return true;
@@ -2642,22 +2650,27 @@ bool CBanDB::Write(const banmap_t& banSet)
     boost::filesystem::path pathTmp = GetDataDir() / tmpfn;
     FILE *file = fopen(pathTmp.string().c_str(), "wb");
     CAutoFile fileout(file, SER_DISK, CLIENT_VERSION);
-    if (fileout.IsNull())
-        return error("%s: Failed to open file %s", __func__, pathTmp.string());
+    if (fileout.IsNull()) {
+        logCritical(Log::DB) << __func__ << "Failed to open file" << pathTmp.string();
+        return false;
+    }
 
     // Write and commit header, data
     try {
         fileout << ssBanlist;
     }
     catch (const std::exception& e) {
-        return error("%s: Serialize or I/O error - %s", __func__, e.what());
+        logCritical(Log::DB) << __func__ << "Serialize or I/O error -" << e;
+        return false;
     }
     FileCommit(fileout.Get());
     fileout.fclose();
 
     // replace existing banlist.dat, if any, with new banlist.dat.XXXX
-    if (!RenameOver(pathTmp, pathBanlist))
-        return error("%s: Rename-into-place failed", __func__);
+    if (!RenameOver(pathTmp, pathBanlist)) {
+        logCritical(Log::DB) << __func__ << "Rename-into-place failed";
+        return false;
+    }
 
     return true;
 }
@@ -2667,8 +2680,10 @@ bool CBanDB::Read(banmap_t& banSet)
     // open input file, and associate with CAutoFile
     FILE *file = fopen(pathBanlist.string().c_str(), "rb");
     CAutoFile filein(file, SER_DISK, CLIENT_VERSION);
-    if (filein.IsNull())
-        return error("%s: Failed to open file %s", __func__, pathBanlist.string());
+    if (filein.IsNull()) {
+        logCritical(Log::DB) << __func__ << "Failed to open file" << pathBanlist.string();
+        return false;
+    }
 
     // use file size to size memory buffer
     uint64_t fileSize = boost::filesystem::file_size(pathBanlist);
@@ -2686,7 +2701,8 @@ bool CBanDB::Read(banmap_t& banSet)
         filein >> hashIn;
     }
     catch (const std::exception& e) {
-        return error("%s: Deserialize or I/O error - %s", __func__, e.what());
+        logCritical(Log::DB) << __func__ << "Deserialize or I/O error -" << e;
+        return false;
     }
     filein.fclose();
 
@@ -2694,8 +2710,10 @@ bool CBanDB::Read(banmap_t& banSet)
 
     // verify stored checksum matches input data
     uint256 hashTmp = Hash(ssBanlist.begin(), ssBanlist.end());
-    if (hashIn != hashTmp)
-        return error("%s: Checksum mismatch, data corrupted", __func__);
+    if (hashIn != hashTmp) {
+        logCritical(Log::DB) << __func__ << "Checksum mismatch, data corrupted";
+        return false;
+    }
 
     unsigned char pchMsgTmp[4];
     try {
@@ -2703,14 +2721,17 @@ bool CBanDB::Read(banmap_t& banSet)
         ssBanlist >> FLATDATA(pchMsgTmp);
 
         // ... verify the network matches ours
-        if (memcmp(pchMsgTmp, Params().magic(), sizeof(pchMsgTmp)))
-            return error("%s: Invalid network magic number", __func__);
+        if (memcmp(pchMsgTmp, Params().magic(), sizeof(pchMsgTmp))) {
+            logCritical(Log::DB) << __func__ << "Invalid network magic number";
+            return false;
+        }
 
         // de-serialize address data into one CAddrMan object
         ssBanlist >> banSet;
     }
     catch (const std::exception& e) {
-        return error("%s: Deserialize or I/O error - %s", __func__, e.what());
+        logCritical(Log::DB) << __func__ << "Deserialize or I/O error -" << e;
+        return false;
     }
 
     return true;

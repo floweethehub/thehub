@@ -46,7 +46,7 @@ static bool noui_ThreadSafeMessageBox(const std::string& message, const std::str
     }
 
     if (!fSecure)
-        LogPrintf("%s: %s\n", strCaption, message);
+        logCritical(Log::Bitcoin).nospace() << strCaption << ": " << message;
     fprintf(stderr, "%s: %s\n", strCaption.c_str(), message.c_str());
     return false;
 }

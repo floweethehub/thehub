@@ -285,8 +285,7 @@ CBlockTemplate* Mining::CreateNewBlock(Validation::Engine &validationEngine) con
                 double dPriority = iter->GetPriority(nHeight);
                 CAmount dummy;
                 mempool->ApplyDeltas(tx.GetHash(), dPriority, dummy);
-                LogPrintf("priority %.1f fee %s txid %s\n",
-                          dPriority , CFeeRate(iter->GetModifiedFee(), nTxSize).ToString(), tx.GetHash().ToString());
+                logInfo(Log::Mining) << "priority" << dPriority << "fee" << CFeeRate(iter->GetModifiedFee(), nTxSize).ToString() << "txid" << tx.GetHash();
             }
 
             inBlock.insert(iter);
@@ -422,8 +421,8 @@ bool static ScanHash(const CBlockHeader *pblock, uint32_t& nNonce, uint256 *phas
 
 static void ProcessBlockFound(const CBlock* pblock)
 {
-    LogPrintf("%s\n", pblock->ToString());
-    LogPrintf("generated %s\n", FormatMoney(pblock->vtx[0].vout[0].nValue));
+    logInfo(Log::Mining) << pblock->ToString();
+    logInfo(Log::Mining) << "generated" << FormatMoney(pblock->vtx[0].vout[0].nValue);
 
     auto validation = Application::instance()->validation();
     // Process this block the same as if we had received it from another node
@@ -434,7 +433,7 @@ static void ProcessBlockFound(const CBlock* pblock)
 
 void static BitcoinMiner(const CChainParams& chainparams)
 {
-    LogPrintf("BitcoinMiner started\n");
+    logCritical(Log::Mining) << "BitcoinMiner started";
     SetThreadPriority(THREAD_PRIORITY_LOWEST);
     RenameThread("bitcoin-miner");
 
@@ -465,16 +464,15 @@ void static BitcoinMiner(const CChainParams& chainparams)
             CBlockIndex* pindexPrev = chainActive.Tip();
 
             std::unique_ptr<CBlockTemplate> pblocktemplate(mining->CreateNewBlock());
-            if (!pblocktemplate.get())
-            {
-                LogPrintf("Error in BitcoinMiner: Keypool ran out, please call keypoolrefill before restarting the mining thread\n");
+            if (!pblocktemplate.get()) {
+                logCritical(Log::Mining) << "Error in BitcoinMiner: Keypool ran out, please call keypoolrefill before restarting the mining thread";
                 return;
             }
             CBlock *pblock = &pblocktemplate->block;
             mining->IncrementExtraNonce(pblock, pindexPrev, nExtraNonce);
 
-            LogPrintf("Running BitcoinMiner with %u transactions in block (%u bytes)\n", pblock->vtx.size(),
-                ::GetSerializeSize(*pblock, SER_NETWORK, PROTOCOL_VERSION));
+            logInfo(Log::Mining) << "Running BitcoinMiner with" << pblock->vtx.size() << "transactions in block."
+                << ::GetSerializeSize(*pblock, SER_NETWORK, PROTOCOL_VERSION) << "bytes.";
 
             //
             // Search
@@ -494,8 +492,9 @@ void static BitcoinMiner(const CChainParams& chainparams)
                         assert(hash == pblock->GetHash());
 
                         SetThreadPriority(THREAD_PRIORITY_NORMAL);
-                        LogPrintf("BitcoinMiner:\n");
-                        LogPrintf("proof-of-work found  \n  hash: %s  \ntarget: %s\n", hash.GetHex(), hashTarget.GetHex());
+                        logCritical(Log::Mining) << "BitcoinMiner:";
+                        logCritical(Log::Mining) << "proof-of-work found\n  hash:" << hash.GetHex()
+                                                 << "\n  target:" <<  hashTarget.GetHex();
                         ProcessBlockFound(pblock);
                         SetThreadPriority(THREAD_PRIORITY_LOWEST);
 
@@ -531,14 +530,12 @@ void static BitcoinMiner(const CChainParams& chainparams)
             }
         }
     }
-    catch (const boost::thread_interrupted&)
-    {
-        LogPrintf("BitcoinMiner terminated\n");
+    catch (const boost::thread_interrupted&) {
+        logCritical(Log::Mining) << "BitcoinMiner terminated";
         throw;
     }
-    catch (const std::runtime_error &e)
-    {
-        LogPrintf("BitcoinMiner runtime error: %s\n", e.what());
+    catch (const std::runtime_error &e) {
+        logCritical(Log::Mining) << "BitcoinMiner runtime error:" << e;
         return;
     }
 }

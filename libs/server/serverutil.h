@@ -40,27 +40,25 @@ template <typename Callable> void TraceThread(const char* name,  Callable func)
 {
     std::string s = strprintf("bitcoin-%s", name);
     RenameThread(s.c_str());
-    try
-    {
-        LogPrintf("%s thread start\n", name);
+    try {
+        logDebug() << name << "thread start";
         func();
-        LogPrintf("%s thread exit\n", name);
+        logDebug() << name << "thread exit";
     }
-    catch (const boost::thread_interrupted&)
-    {
-        LogPrintf("%s thread interrupt\n", name);
+    catch (const boost::thread_interrupted&) {
+        logDebug() << name << "thread interrupt";
         throw;
     }
-    catch (const std::exception& e) {
-        PrintExceptionContinue(&e, name);
+    catch (const std::exception &e) {
+        logWarning() << name << e;
         throw;
     }
     catch (...) {
-        PrintExceptionContinue(NULL, name);
+        logWarning() << "Exception received" << name;
         throw;
     }
 }
 
-void runCommand(const std::string& strCommand);
+void runCommand(const std::string &strCommand);
 
 #endif

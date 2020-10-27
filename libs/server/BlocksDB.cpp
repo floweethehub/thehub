@@ -292,7 +292,8 @@ bool Blocks::DB::CacheAllBlockInfos(const UnspentOutputDatabase *utxo)
                     pindexNew->nStatus |= BLOCK_HAVE_UNDO;
                 pcursor->Next();
             } else {
-                return error("CacheAllBlockInfos(): failed to read row");
+                logCritical(Log::DB) << "CacheAllBlockInfos(): failed to read row";
+                return false;
             }
         } else {
             break;
@@ -377,12 +378,12 @@ static FILE* OpenDiskFile(const CDiskBlockPos &pos, const char *prefix, bool fRe
     if (!file && !fReadOnly)
         file = fopen(path.string().c_str(), "wb+");
     if (!file) {
-        LogPrintf("Unable to open file %s\n", path.string());
+        logCritical(Log::DB) << "Unable to open file" << path.string();
         return nullptr;
     }
     if (pos.nPos) {
         if (fseek(file, pos.nPos, SEEK_SET)) {
-            LogPrintf("Unable to seek to position %u of %s\n", pos.nPos, path.string());
+            logCritical(Log::DB) << "Unable to seek to position" << pos.nPos << "of" << path.string();
             fclose(file);
             return nullptr;
         }

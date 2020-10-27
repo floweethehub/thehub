@@ -710,8 +710,10 @@ bool CheckSequenceLocks(CTxMemPool &mp, const CTransaction &tx, int flags, LockP
             } else {
                 // try UTXO
                 UnspentOutput output = g_utxo->find(txin.prevout.hash, txin.prevout.n);
-                if (!output.isValid())
-                    return error("%s: Missing input", __func__);
+                if (!output.isValid()) {
+                    logCritical(Log::BlockValidation) << __func__ << "Missing input";
+                    return false;
+                }
                 prevheights[txinIndex] = output.blockHeight();
             }
         }
