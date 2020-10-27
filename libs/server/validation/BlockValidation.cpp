@@ -393,6 +393,11 @@ void ValidationEnginePrivate::createBlockIndexFor(const std::shared_ptr<BlockVal
             index->nStatus |= BLOCK_FAILED_CHILD;
             state->blockFailed(10, "bad-parent", Validation::RejectInvalid);
         }
+        else if (index->pprev->nStatus & BLOCK_VALID_TREE) {
+            // inherit this
+            state->m_validationStatus.fetch_or(BlockValidationState::BlockValidTree);
+            index->RaiseValidity(BLOCK_VALID_TREE);
+        }
     }
     else if (index->pprev == nullptr && block.createHash() == Params().GetConsensus().hashGenesisBlock) {
         index->nHeight = 0;
@@ -1332,7 +1337,7 @@ void BlockValidationState::checks2HaveParentHeaders()
             if ((status & BlockValidParent) || (status & BlockInvalid)) { // we just added the last bit.
                 Application::instance()->ioService().post(std::bind(&BlockValidationState::updateUtxoAndStartValidation, shared_from_this()));
             } else {
-                assert(!m_checkValidityOnly); // why did we get here if the
+                assert(!m_checkValidityOnly); // why did we get here if there is no known parent...
                 DEBUGBV << "  saving block for later, no parent yet" << m_block.createHash()
                         << '@' << m_blockIndex->nHeight << "parent:" << m_blockIndex->pprev->GetBlockHash();
             }
