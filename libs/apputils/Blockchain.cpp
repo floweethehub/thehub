@@ -841,6 +841,9 @@ void Blockchain::SearchPolicy::processRequests(Blockchain::Search *request)
                 logDebug(Log::SearchEngine) << "starting custom Hub message" << i << "SID" << job.intData << "MID" << job.intData2;
                 auto m = Message(job.data, job.intData, job.intData2);
                 m.setHeaderInt(JobRequestId, i);
+                // TODO enable this half 2021 or so.
+                    // ASync is ignored for types that don't support it, but SendLiveTransaction for instnace really appreciates this.
+                    // m.setHeaderInt(Api::ASyncRequest, 1);
                 sendMessage(request, m, TheHub);
                 break;
             }
