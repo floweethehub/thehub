@@ -194,6 +194,7 @@ void Peer::processMessage(const Message &message)
         }
         else if (message.messageId() == Api::P2P::Data_MerkleBlock) {
             if (!m_segment) { // Received merkleblock without asking for one
+                logWarning() << "Peer sent merkleblock without us askign for one. PeerId:" << connectionId();
                 m_connectionManager->punish(PUNISHMENT_MAX);
                 return;
             }
@@ -201,6 +202,7 @@ void Peer::processMessage(const Message &message)
             auto header = BlockHeader::fromMessage(parser);
             int blockHeight = m_connectionManager->blockHeightFor(header.createHash());
             if (blockHeight == -1) { // not on our chain (anymore)
+                logWarning() << "Peer sent merkleblock not on our chain (anymore). PeerId:" << connectionId();
                 m_connectionManager->punish(PUNISHMENT_MAX);
                 return;
             }
