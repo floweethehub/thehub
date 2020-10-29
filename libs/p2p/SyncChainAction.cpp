@@ -140,6 +140,11 @@ void SyncChainAction::execute(const boost::system::error_code &error)
         }
     }
 
+    if (goodPeers > 0) {
+        // make sure that we actually try to download headers if we weren't already
+        m_dlm->getMoreHeaders();
+    }
+
     if (goodPeers < MinGoodPeers) {
         logInfo() << "SyncChain has" << goodPeers << "good peers, which is less than I need. Connecting a new peer";
         connectToNextPeer();

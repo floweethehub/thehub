@@ -146,6 +146,8 @@ public:
     /// This method is blocking and wont return until finished.
     void shutdown();
 
+    void getMoreHeaders();
+
 private:
     void finishShutdown();
 

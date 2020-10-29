@@ -59,26 +59,27 @@ void DownloadManager::headersDownloadFinished(int newBlockHeight, int peerId)
     if (peer.get())
         peer->peerAddress().gotGoodHeaders();
 
-    if (m_peerDownloadingHeaders == -1) { // check if we need to download more of them.
-        // TODO use the fastest peer.
-        for (auto p : m_connectionManager.connectedPeers()) {
-            if (p->startHeight() > newBlockHeight) {
-                m_peerDownloadingHeaders = p->connectionId();
-                auto p = m_connectionManager.peer(m_peerDownloadingHeaders);
-                if (p) {
-                    m_connectionManager.requestHeaders(p);
-                    break;
-                }
-            }
-        }
-    }
-
     m_connectionManager.setBlockHeight(newBlockHeight);
+    getMoreHeaders();
     for (auto iface : m_listeners) {
         iface->blockchainHeightChanged(newBlockHeight);
     }
 
     addAction<SyncSPVAction>();
+}
+
+void DownloadManager::getMoreHeaders()
+{
+    if (m_peerDownloadingHeaders == -1) { // check if we need to download more of them.
+        // TODO use the fastest peer.
+        for (auto p : m_connectionManager.connectedPeers()) {
+            if (p->startHeight() > blockHeight()) {
+                m_peerDownloadingHeaders = p->connectionId();
+                m_connectionManager.requestHeaders(p);
+                return;
+            }
+        }
+    }
 }
 
 void DownloadManager::parseInvMessage(Message message, int sourcePeerId)
