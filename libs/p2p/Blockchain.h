@@ -19,6 +19,7 @@
 #define BLOCKCHAIN_H
 
 #include "BlockHeader.h"
+#include "P2PNet.h"
 
 #include <Message.h>
 #include <arith_uint256.h>
@@ -36,7 +37,7 @@ class P2PBuilder;
 class Blockchain
 {
 public:
-    Blockchain(DownloadManager *downloadManager, const boost::filesystem::path &basedir);
+    Blockchain(DownloadManager *downloadManager, const boost::filesystem::path &basedir, P2PNet::Chain chain);
 
     Message createGetHeadersRequest(Streaming::P2PBuilder &builder);
 
@@ -56,6 +57,13 @@ public:
     void save();
 
 private:
+    void createMainchainGenesis();
+    void loadMainchainCheckpoints();
+    void createTestnet4Genesis();
+    void loadTestnet4Checkpoints();
+
+    void createGenericGenesis(BlockHeader genesis);
+
     mutable std::mutex m_lock;
     const boost::filesystem::path m_basedir;
     std::vector<BlockHeader> m_longestChain;

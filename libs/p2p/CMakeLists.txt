@@ -48,6 +48,7 @@ install(FILES
     DownloadManager.h
     FillAddressDBAction.h
     InventoryItem.h
+    P2PNet.h
     P2PNetInterface.h
     Peer.h
     PeerAddressDB.h

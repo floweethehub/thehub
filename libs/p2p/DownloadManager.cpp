@@ -27,10 +27,11 @@
 #include <streaming/P2PParser.h>
 #include <streaming/P2PBuilder.h>
 
-DownloadManager::DownloadManager(boost::asio::io_service &service, const boost::filesystem::path &basedir)
+DownloadManager::DownloadManager(boost::asio::io_service &service, const boost::filesystem::path &basedir, P2PNet::Chain chain)
     : m_strand(service),
+      m_chain(chain),
       m_connectionManager(service, basedir, this),
-      m_blockchain(this, basedir),
+      m_blockchain(this, basedir, chain),
       m_shuttingDown(false)
 {
     m_connectionManager.setBlockHeight(m_blockchain.height());
@@ -255,6 +256,11 @@ void DownloadManager::finishShutdown()
     assert(m_shuttingDown);
     std::unique_lock<std::mutex> lock(m_lock);
     m_waitVariable.notify_all();
+}
+
+P2PNet::Chain DownloadManager::chain() const
+{
+    return m_chain;
 }
 
 void DownloadManager::runQueue()

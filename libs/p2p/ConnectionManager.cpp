@@ -61,6 +61,18 @@ ConnectionManager::ConnectionManager(boost::asio::io_service &service, const boo
     table.insert(std::make_pair(Api::P2P::GetData, "getdata"));
     m_network.setMessageIdLookup(table);
 
+    // network selection
+    if (parent->chain() == P2PNet::Testnet4Chain) {
+        std::vector<uint8_t> magic(4);
+        magic[0] = 0xe2;
+        magic[1] = 0xb7;
+        magic[2] = 0xda;
+        magic[3] = 0xaf;
+        m_network.setLegacyNetworkId(magic);
+
+        m_peerAddressDb.setDefaultPortNr(28333);
+    }
+
     m_cronTimer.expires_from_now(boost::posix_time::seconds(20));
     m_cronTimer.async_wait(parent->strand().wrap(std::bind(&ConnectionManager::cron, this, std::placeholders::_1)));
 

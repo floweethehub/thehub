@@ -25,47 +25,26 @@
 
 #include <stdexcept>
 
-Blockchain::Blockchain(DownloadManager *downloadManager, const boost::filesystem::path &basedir)
+Blockchain::Blockchain(DownloadManager *downloadManager, const boost::filesystem::path &basedir, P2PNet::Chain chain)
     : m_basedir(basedir), m_dlmanager(downloadManager)
 {
     assert(m_dlmanager);
-    m_longestChain.reserve(650000); // pre-allocate
-    load();
-    if (m_longestChain.empty()) {
-        BlockHeader genesis;
-        genesis.nBits = 0x1d00ffff;
-        genesis.nTime = 1231006505;
-        genesis.nNonce = 2083236893;
-        genesis.nVersion = 1;
-        genesis.hashMerkleRoot = uint256S("4a5e1e4baab89f3a32518a88c31bc87f618f76673e2cc77ab2127b7afdeda33b");
-
-        m_longestChain.push_back(genesis);
-
-        const uint256 genesisHash = genesis.createHash();
-        m_blockHeight.insert(std::make_pair(genesisHash, 0));
-        m_tip.tip = genesisHash;
-        m_tip.height = 0;
-        m_tip.chainWork += genesis.blockProof();
+    switch (chain) {
+    case P2PNet::MainChain:
+        m_longestChain.reserve(650000); // pre-allocate
+        load();
+        createMainchainGenesis();
+        loadMainchainCheckpoints();
+        break;
+    case P2PNet::Testnet4Chain:
+        m_longestChain.reserve(100000);
+        load();
+        createTestnet4Genesis();
+        loadTestnet4Checkpoints();
+        break;
+    default:
+        assert(false);
     }
-
-    checkpoints.insert(std::make_pair( 11111, uint256S("0000000069e244f73d78e8fd29ba2fd2ed618bd6fa2ee92559f542fdb26e7c1d")));
-    checkpoints.insert(std::make_pair( 33333, uint256S("000000002dd5588a74784eaa7ab0507a18ad16a236e7b1ce69f00d7ddfb5d0a6")));
-    checkpoints.insert(std::make_pair( 74000, uint256S("0000000000573993a3c9e41ce34471c079dcf5f52a0e824a81e7f953b8661a20")));
-    checkpoints.insert(std::make_pair(105000, uint256S("00000000000291ce28027faea320c8d2b054b2e0fe44a773f3eefb151d6bdc97")));
-    checkpoints.insert(std::make_pair(134444, uint256S("00000000000005b12ffd4cd315cd34ffd4a594f430ac814c91184a0d42d2b0fe")));
-    checkpoints.insert(std::make_pair(168000, uint256S("000000000000099e61ea72015e79632f216fe6cb33d7899acb35b75c8303b763")));
-    checkpoints.insert(std::make_pair(193000, uint256S("000000000000059f452a5f7340de6682a977387c17010ff6e6c3bd83ca8b1317")));
-    checkpoints.insert(std::make_pair(210000, uint256S("000000000000048b95347e83192f69cf0366076336c639f9b7228e9ba171342e")));
-    checkpoints.insert(std::make_pair(216116, uint256S("00000000000001b4f4b433e81ee46494af945cf96014816a4e2370f11b23df4e")));
-    checkpoints.insert(std::make_pair(225430, uint256S("00000000000001c108384350f74090433e7fcf79a606b8e797f065b130575932")));
-    checkpoints.insert(std::make_pair(250000, uint256S("000000000000003887df1f29024b06fc2200b55f8af8f35453d7be294df2d214")));
-    checkpoints.insert(std::make_pair(279000, uint256S("0000000000000001ae8c72a0b0c301f67e3afca10e819efa9041e458e9bd7e40")));
-    checkpoints.insert(std::make_pair(295000, uint256S("00000000000000004d9b4ef50f0f9d686fd69db2e03af35a100370c64632a983")));
-    checkpoints.insert(std::make_pair(478559, uint256S("000000000000000000651ef99cb9fcbe0dadde1d424bd9f15ff20136191a5eec")));
-    checkpoints.insert(std::make_pair(556767, uint256S("0000000000000000004626ff6e3b936941d341c5932ece4357eeccac44e6d56c")));
-    checkpoints.insert(std::make_pair(582680, uint256S("000000000000000001b4b8e36aec7d4f9671a47872cb9a74dc16ca398c7dcc18")));
-    checkpoints.insert(std::make_pair(609136, uint256S("000000000000000000b48bb207faac5ac655c313e41ac909322eaa694f5bc5b1")));
-    checkpoints.insert(std::make_pair(635259, uint256S("00000000000000000033dfef1fc2d6a5d5520b078c55193a9bf498c5b27530f7")));
 }
 
 Message Blockchain::createGetHeadersRequest(Streaming::P2PBuilder &builder)
@@ -257,6 +236,70 @@ void Blockchain::save()
         assert(cd.size() == 80);
         out.write(cd.begin(), cd.size());
     }
+}
+
+void Blockchain::createMainchainGenesis()
+{
+    if (!m_longestChain.empty())
+        return;
+    BlockHeader genesis;
+    genesis.nBits = 0x1d00ffff;
+    genesis.nTime = 1231006505;
+    genesis.nNonce = 2083236893;
+    genesis.nVersion = 1;
+    createGenericGenesis(genesis);
+}
+
+void Blockchain::loadMainchainCheckpoints()
+{
+    checkpoints.insert(std::make_pair( 11111, uint256S("0000000069e244f73d78e8fd29ba2fd2ed618bd6fa2ee92559f542fdb26e7c1d")));
+    checkpoints.insert(std::make_pair( 33333, uint256S("000000002dd5588a74784eaa7ab0507a18ad16a236e7b1ce69f00d7ddfb5d0a6")));
+    checkpoints.insert(std::make_pair( 74000, uint256S("0000000000573993a3c9e41ce34471c079dcf5f52a0e824a81e7f953b8661a20")));
+    checkpoints.insert(std::make_pair(105000, uint256S("00000000000291ce28027faea320c8d2b054b2e0fe44a773f3eefb151d6bdc97")));
+    checkpoints.insert(std::make_pair(134444, uint256S("00000000000005b12ffd4cd315cd34ffd4a594f430ac814c91184a0d42d2b0fe")));
+    checkpoints.insert(std::make_pair(168000, uint256S("000000000000099e61ea72015e79632f216fe6cb33d7899acb35b75c8303b763")));
+    checkpoints.insert(std::make_pair(193000, uint256S("000000000000059f452a5f7340de6682a977387c17010ff6e6c3bd83ca8b1317")));
+    checkpoints.insert(std::make_pair(210000, uint256S("000000000000048b95347e83192f69cf0366076336c639f9b7228e9ba171342e")));
+    checkpoints.insert(std::make_pair(216116, uint256S("00000000000001b4f4b433e81ee46494af945cf96014816a4e2370f11b23df4e")));
+    checkpoints.insert(std::make_pair(225430, uint256S("00000000000001c108384350f74090433e7fcf79a606b8e797f065b130575932")));
+    checkpoints.insert(std::make_pair(250000, uint256S("000000000000003887df1f29024b06fc2200b55f8af8f35453d7be294df2d214")));
+    checkpoints.insert(std::make_pair(279000, uint256S("0000000000000001ae8c72a0b0c301f67e3afca10e819efa9041e458e9bd7e40")));
+    checkpoints.insert(std::make_pair(295000, uint256S("00000000000000004d9b4ef50f0f9d686fd69db2e03af35a100370c64632a983")));
+    checkpoints.insert(std::make_pair(478559, uint256S("000000000000000000651ef99cb9fcbe0dadde1d424bd9f15ff20136191a5eec")));
+    checkpoints.insert(std::make_pair(556767, uint256S("0000000000000000004626ff6e3b936941d341c5932ece4357eeccac44e6d56c")));
+    checkpoints.insert(std::make_pair(582680, uint256S("000000000000000001b4b8e36aec7d4f9671a47872cb9a74dc16ca398c7dcc18")));
+    checkpoints.insert(std::make_pair(609136, uint256S("000000000000000000b48bb207faac5ac655c313e41ac909322eaa694f5bc5b1")));
+    checkpoints.insert(std::make_pair(635259, uint256S("00000000000000000033dfef1fc2d6a5d5520b078c55193a9bf498c5b27530f7")));
+}
+
+void Blockchain::createTestnet4Genesis()
+{
+    if (!m_longestChain.empty())
+        return;
+    BlockHeader genesis;
+    genesis.nBits = 0x1d00ffff;
+    genesis.nTime = 1597811185;
+    genesis.nNonce = 114152193;
+    genesis.nVersion = 1;
+    createGenericGenesis(genesis);
+}
+
+void Blockchain::loadTestnet4Checkpoints()
+{
+    checkpoints.insert(std::make_pair(5677, uint256S("0x0000000019df558b6686b1a1c3e7aee0535c38052651b711f84eebafc0cc4b5e")));
+    checkpoints.insert(std::make_pair(9999, uint256S("0x00000000016522b7506939b23734bca7681c42a53997f2943ab4c8013936b419")));
+}
+
+void Blockchain::createGenericGenesis(BlockHeader genesis)
+{
+    genesis.hashMerkleRoot = uint256S("4a5e1e4baab89f3a32518a88c31bc87f618f76673e2cc77ab2127b7afdeda33b");
+    m_longestChain.push_back(genesis);
+
+    const uint256 genesisHash = genesis.createHash();
+    m_blockHeight.insert(std::make_pair(genesisHash, 0));
+    m_tip.tip = genesisHash;
+    m_tip.height = 0;
+    m_tip.chainWork += genesis.blockProof();
 }
 
 void Blockchain::load()

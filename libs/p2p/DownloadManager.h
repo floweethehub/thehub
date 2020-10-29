@@ -23,6 +23,7 @@
 #include "Blockchain.h"
 #include "InventoryItem.h"
 #include "DataListenerInterface.h"
+#include "P2PNet.h"
 #include <uint256.h>
 
 #include <condition_variable>
@@ -47,7 +48,7 @@ public:
      * @param service the IO-service. See WorkerThreads
      * @param basedir the directory to load and save state data.
      */
-    DownloadManager(boost::asio::io_service &service, const boost::filesystem::path &basedir);
+    DownloadManager(boost::asio::io_service &service, const boost::filesystem::path &basedir, P2PNet::Chain chain = P2PNet::MainChain);
 
     // start reaching out and synchronizing.
     void start();
@@ -81,6 +82,8 @@ public:
     inline boost::asio::io_service &service() {
         return m_connectionManager.service();
     }
+
+    P2PNet::Chain chain() const;
 
     /**
      * returns peerId that is downloading headers. Or -1 if nobody is.
@@ -147,6 +150,7 @@ private:
     void finishShutdown();
 
     boost::asio::io_context::strand m_strand;
+    const P2PNet::Chain m_chain;
     ConnectionManager m_connectionManager;
     Blockchain m_blockchain;
     std::deque<P2PNetInterface*> m_listeners;

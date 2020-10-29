@@ -224,7 +224,7 @@ PeerAddress PeerAddressDB::findBest(uint64_t requiredServices, uint16_t segment)
             hoursAgoConnected /= 2;
         score += 1000 - std::min(1000, hoursAgoConnected);
 
-        if (info.address.announcePort == 8333) // prefer default port
+        if (info.address.announcePort == m_defaultPortNr) // prefer default port
             score += 500;
 
         if (score > bestScore) {
@@ -290,7 +290,7 @@ void PeerAddressDB::saveDatabase(const boost::filesystem::path &basedir)
             item.second.address.toAddr(ip);
             builder.addByteArray(IPAddress, ip, 16);
         }
-        if (item.second.address.announcePort != 8333)
+        if (item.second.address.announcePort != m_defaultPortNr)
             builder.add(Port, item.second.address.announcePort);
         builder.add(Services, item.second.services);
         builder.add(LastConnected, uint64_t(item.second.lastConnected));
@@ -340,10 +340,10 @@ void PeerAddressDB::loadDatabase(const boost::filesystem::path &basedir)
             info.everConnected = true; // defaults in saving that differ from struct defaults
         }
         else if (parser.tag() == IPAddress) {
-            info.address = EndPoint::fromAddr(parser.bytesData(), 8333);
+            info.address = EndPoint::fromAddr(parser.bytesData(), m_defaultPortNr);
         }
         else if (parser.tag() == Hostname) {
-            info.address = EndPoint(parser.stringData(), 8333);
+            info.address = EndPoint(parser.stringData(), m_defaultPortNr);
         }
         else if (parser.tag() == Port) {
             info.address.announcePort = info.address.peerPort = parser.intData();
@@ -384,4 +384,14 @@ void PeerAddressDB::insert(PeerInfo &pi)
     }
 
     m_peers.insert(std::make_pair(m_nextPeerId++, pi));
+}
+
+int PeerAddressDB::defaultPortNr() const
+{
+    return m_defaultPortNr;
+}
+
+void PeerAddressDB::setDefaultPortNr(int defaultPortNr)
+{
+    m_defaultPortNr = defaultPortNr;
 }

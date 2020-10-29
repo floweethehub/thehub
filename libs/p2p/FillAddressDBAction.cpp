@@ -25,19 +25,31 @@
 #include <time.h>
 #include <functional>
 
-static std::vector<std::string> fillSeeders()
+static int PORTNR = 8333;
+
+static std::vector<std::string> fillSeeders(P2PNet::Chain chain)
 {
     std::vector<std::string> answer;
-    answer.push_back("seed.flowee.cash");
-    answer.push_back("seed.bitcoinabc.org");
-    answer.push_back("seed.bchd.cash");
+    switch (chain) {
+    case P2PNet::MainChain:
+        answer.push_back("seed.flowee.cash");
+        answer.push_back("seed.bchd.cash");
+        break;
+    case P2PNet::Testnet4Chain:
+        answer.push_back("testnet4-seed.flowee.cash");
+        answer.push_back("testnet4-seed-bch.toom.im");
+        answer.push_back("testnet4-seed-bch.bitcoinforks.org");
+        answer.push_back("seed.tbch4.loping.net");
+        PORTNR = 28333;
+        break;
+    }
     return answer;
 }
 
 FillAddressDBAction::FillAddressDBAction(DownloadManager *parent)
     : Action(parent),
     m_resolver(parent->service()),
-    m_seeders(fillSeeders())
+    m_seeders(fillSeeders(parent->chain()))
 {
     assert(!m_seeders.empty());
 }
@@ -58,7 +70,8 @@ void FillAddressDBAction::execute(const boost::system::error_code &error)
             }
             else {
                 logDebug() << "Start to resolve DNS entry" << m_seeders.at(index);
-                boost::asio::ip::tcp::resolver::query query(m_seeders.at(index), "8333");
+                const std::string port = strprintf("%d", PORTNR);
+                boost::asio::ip::tcp::resolver::query query(m_seeders.at(index), port);
                 m_resolver.async_resolve(query, std::bind(&FillAddressDBAction::onAddressResolveComplete,
                                     this, std::placeholders::_1, std::placeholders::_2));
             }
@@ -111,7 +124,7 @@ void FillAddressDBAction::onAddressResolveComplete(const boost::system::error_co
     if (!error) {
         boost::asio::ip::tcp::resolver::iterator it_end;
         while (iterator != it_end) {
-            EndPoint ep(iterator->endpoint().address(), 8333);
+            EndPoint ep(iterator->endpoint().address(), PORTNR);
             m_dlm->connectionManager().peerAddressDb().addOne(ep);
             iterator++;
         }

@@ -89,6 +89,9 @@ public:
     void saveDatabase(const boost::filesystem::path &basedir);
     void loadDatabase(const boost::filesystem::path &basedir);
 
+    int defaultPortNr() const;
+    void setDefaultPortNr(int defaultPortNr);
+
 private:
     friend class PeerAddress;
     struct PeerInfo {
@@ -109,6 +112,7 @@ private:
     std::map<int, PeerInfo> m_peers;
     int m_nextPeerId = 0;
     int m_disabledPeerCount = 0; // amount of peers with punishment >= 1000
+    int m_defaultPortNr = 8333;
 
     ConnectionManager *m_parent;
 };
@@ -122,7 +126,7 @@ inline Log::Item operator<<(Log::Item item, const PeerAddress &pa) {
             item << ep.hostname;
         else
             item << ep.ipAddress.to_string().c_str();
-        if (ep.announcePort != 8333)
+        if (ep.announcePort != 8333 && ep.announcePort != 28333)
             item << ':' << ep.announcePort;
         item << '}';
         if (old)

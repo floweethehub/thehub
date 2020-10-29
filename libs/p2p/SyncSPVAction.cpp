@@ -125,15 +125,16 @@ void SyncSPVAction::execute(const boost::system::error_code &error)
 
             // is behind. Is someone downloading?
             if (w->second.downloading) {
-                auto cur = w->second.downloading;
+                auto curPeer = w->second.downloading;
                 // remember the downloader so we avoid asking the same peer to download twice.
-                info.previousDownloadedBy.insert(cur->connectionId());
+                info.previousDownloadedBy.insert(curPeer->connectionId());
 
                 // lets see if the peer is making progress.
                 const uint32_t timePassed = (now - info.lastCheckedTime).total_milliseconds();;
-                const uint32_t blocksDone = cur->lastReceivedMerkle() - info.lastHeight;
-                if (blocksDone < timePassed * 3 / 1000) {
-                    // peer is stalling. I expect at least 3 blocks a second.
+                const uint32_t blocksDone = curPeer->lastReceivedMerkle() - info.lastHeight;
+logFatal() << privSegment->segmentId() << "] done" << blocksDone << "blocks in" << timePassed << "ms";
+                if (blocksDone < timePassed / 1000) {
+                    // peer is stalling. I expect at least 1 block a second.
                     if (info.slowPunishment++ > 3) {
                         logInfo() << "SyncSPV disconnects peer that is stalling download of merkle-blocks"
                                   << w->second.downloading->connectionId();
