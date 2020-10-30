@@ -2,7 +2,7 @@
  * This file is part of the Flowee project
  * Copyright (C) 2009-2010 Satoshi Nakamoto
  * Copyright (C) 2009-2015 The Bitcoin Core developers
- * Copyright (C) 2019 Tom Zander <tomz@freedommail.ch>
+ * Copyright (C) 2019-2020 Tom Zander <tomz@freedommail.ch>
  *
  * This program is free software: you can redistribute it and/or modify
  * it under the terms of the GNU General Public License as published by
@@ -94,6 +94,25 @@ public:
     bool isMainnetPkh() const;
     bool isMainnetSh() const;
     bool isMainnetPrivKey() const;
+
+    /**
+     * Returns true if this is testnet public-key-hash encoded data.
+     * Notice that this is all of the following networks:
+     *      testnet3, testnet4, scalenet and regtest.
+     */
+    bool isTestnetPkh() const;
+    /**
+     * Returns true if this is testnet p2sh encoded data.
+     * Notice that this is all of the following networks:
+     *      testnet3, testnet4, scalenet and regtest.
+     */
+    bool isTestnetSh() const;
+    /**
+     * Returns true if this is a testnet private key.
+     * Notice that this is all of the following networks:
+     *      testnet3, testnet4, scalenet and regtest.
+     */
+    bool isTestnetPrivKey() const;
 
     inline const std::vector<uint8_t> &data() const {
         return vchData;

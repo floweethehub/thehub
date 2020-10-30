@@ -1,7 +1,7 @@
 /*
  * This file is part of the Flowee project
  * Copyright (c) 2014-2015 The Bitcoin Core developers
- * Copyright (C) 2019 Tom Zander <tomz@freedommail.ch>
+ * Copyright (C) 2019-2020 Tom Zander <tomz@freedommail.ch>
  *
  * This program is free software: you can redistribute it and/or modify
  * it under the terms of the GNU General Public License as published by
@@ -226,3 +226,19 @@ bool CBase58Data::isMainnetPrivKey() const
     return vchData.size() == 32 || (vchData.size() == 33 && vchData.at(32) == 1);
 }
 
+bool CBase58Data::isTestnetPkh() const
+{
+    return vchVersion.size() == 1 && vchVersion.at(0) == 111 && vchData.size() == 20;
+}
+
+bool CBase58Data::isTestnetSh() const
+{
+    return vchVersion.size() == 1 && vchVersion.at(0) == 196 && vchData.size() == 20;
+}
+
+bool CBase58Data::isTestnetPrivKey() const
+{
+    if (vchVersion.size() != 1 || vchVersion.at(0) != 239)
+        return false;
+    return vchData.size() == 32 || (vchData.size() == 33 && vchData.at(32) == 1);
+}
