@@ -422,20 +422,21 @@ public:
         consensus.hf201711Height = 3000;
         consensus.hf201805Height = 4000;
         consensus.hf201811Height = 4000;
-        consensus.hf201905Height = 5000;
+        consensus.hf201905Height = 0;   // we use schnorr from the start.
         consensus.hf201911Height = 5000;
-        consensus.hf202005Height = 0; // sigop counting irrelevant on this chain.
+        consensus.hf202005Height = 0;   // sigop counting irrelevant on this chain.
         consensus.hf202011Time = GetArg("-axionactivationtime", 1605441600);
 
         checkpointData = CCheckpointData{
             boost::assign::map_list_of
             (0, uint256S("0x00000000e6453dc2dfe1ffa19023f86002eb11dbb8e87d0291a4599f0430be52"))
             (45, uint256S("0x00000000d75a7c9098d02b321e9900b16ecbd552167e65683fe86e5ecf88b320"))
+            (9999, uint256S("0x000000007fb3362740efd1435aa414f54171993483799782f83c61bc7bf1b1be"))
             ,
-            0,          // * UNIX timestamp of last checkpoint block
-            0,          // * total number of transactions between genesis and last checkpoint
+            1601685801, // * UNIX timestamp of last checkpoint block
+            12467,      // * total number of transactions between genesis and last checkpoint
                         //   (the tx=... number in the SetBestChain hub.log lines)
-            0           // * estimated number of transactions per day after checkpoint
+            90000       // * estimated number of transactions per day after checkpoint
         };
     }
 };
