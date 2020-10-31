@@ -46,10 +46,10 @@ public:
     uint64_t readLong();
     uint64_t readCompactInt();
     bool readBool();
-    std::vector<char> readBytes(int count);
+    std::vector<char> readBytes(int32_t count);
     uint256 readUint256();
 
-    inline void skip(int bytes) {
+    inline void skip(int32_t bytes) {
         if (m_data + bytes > m_end)
             throw Streaming::ParsingException("Out of range");
         m_data += bytes;

@@ -130,7 +130,7 @@ bool Streaming::P2PParser::readBool()
     return *m_data++ == true;
 }
 
-std::vector<char> Streaming::P2PParser::readBytes(int count)
+std::vector<char> Streaming::P2PParser::readBytes(int32_t count)
 {
     assert(count > 0);
     if (m_data + count > m_end)

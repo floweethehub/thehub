@@ -44,19 +44,19 @@ public:
 
     void writeByteArray(const ConstBuffer &data, LengthIndicator length);
     void writeByteArray(const void *data, int bytes, LengthIndicator length);
-    inline void writeByteArray(const std::vector<char> &data, LengthIndicator length) {
+    inline void writeByteArray(const std::vector<int8_t> &data, LengthIndicator length) {
         writeByteArray(data.data(), static_cast<int>(data.size()), length);
     }
-    inline void writeByteArray(const std::vector<unsigned char> &data, LengthIndicator length) {
+    inline void writeByteArray(const std::vector<uint8_t> &data, LengthIndicator length) {
         writeByteArray(reinterpret_cast<const void*>(data.data()), static_cast<int>(data.size()), length);
     }
     void writeLong(uint64_t value);
     void writeBool(bool value);
     void writeInt(int32_t value);
     void writeFloat(double value);
-    template<unsigned int BITS>
+    template<uint32_t BITS>
     void writeByteArray(const base_blob<BITS> &value, LengthIndicator length) {
-        writeByteArray(static_cast<const void*>(value.begin()), static_cast<int>(value.size()), length);
+        writeByteArray(static_cast<const void*>(value.begin()), static_cast<int32_t>(value.size()), length);
     }
     inline void writeFloat(float value) {
         writeFloat((double) value);
