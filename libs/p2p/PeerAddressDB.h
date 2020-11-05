@@ -46,7 +46,7 @@ public:
     bool askedAddresses() const;
     void setAskedAddresses(bool on);
     bool hasEverConnected() const;
-    int lastReceivedGoodHeaders() const;
+    uint32_t lastReceivedGoodHeaders() const;
 
     uint16_t segment() const;
     void setSegment(uint16_t segment);

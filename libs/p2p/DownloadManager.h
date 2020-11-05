@@ -62,6 +62,10 @@ public:
     inline const Blockchain &blockchain() const {
         return m_blockchain;
     }
+    /// We sync our chain using headers only, this returns true if we found the tip
+    inline bool isChainUpToDate() {
+        return std::abs(m_blockchain.expectedBlockHeight() - m_blockchain.height()) < 3;
+    }
 
     inline uint64_t servicesBitfield() const {
         return m_connectionManager.servicesBitfield();

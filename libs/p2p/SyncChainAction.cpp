@@ -117,10 +117,12 @@ void SyncChainAction::execute(const boost::system::error_code &error)
 
     std::set<int> existingPeersToAsk;
     int goodPeers = 0;
+    uint32_t now = time(nullptr);
     for (auto peer: m_dlm->connectionManager().connectedPeers()) {
         if (peer->receivedHeaders()
                 // or we did that recently anyway.
-                || (peer->peerAddress().lastReceivedGoodHeaders() && peer->peerAddress().punishment() <= 300)) {
+                || (now - peer->peerAddress().lastReceivedGoodHeaders() < 60 * 60 * 48
+                    && peer->peerAddress().punishment() <= 300)) {
             auto i = m_doubtfulPeers.find(peer->connectionId());
             if (i != m_doubtfulPeers.end())
                 m_doubtfulPeers.erase(i);
@@ -135,6 +137,9 @@ void SyncChainAction::execute(const boost::system::error_code &error)
                 // new peer. it looks promising
                 // But lets wait to see if the headers call will be sent.
                 m_doubtfulPeers.insert(std::make_pair(peer->connectionId(), time(nullptr)));
+
+                // just in case nobody is downloading yet, lets start.
+                m_dlm->getMoreHeaders();
             }
             else if (time(nullptr) - i->second > 10) { // previously seen as new.
                 existingPeersToAsk.insert(peer->connectionId());

@@ -194,7 +194,9 @@ void ConnectionManager::connectionEstablished(const std::shared_ptr<Peer> &peer)
     assert(peerIter != m_peers.end());
     m_connectedPeers.insert(peer->connectionId());
 
-    if (time(nullptr) - peer->peerAddress().lastReceivedGoodHeaders() > 3600 * 36) {
+    if (m_dlManager->isChainUpToDate()
+            && (peer->peerAddress().lastReceivedGoodHeaders() == 0
+                ||  time(nullptr) - peer->peerAddress().lastReceivedGoodHeaders() > 3600 * 36)) {
         // check if this peer is using the same chain as us.
         requestHeaders(peerIter->second);
     }

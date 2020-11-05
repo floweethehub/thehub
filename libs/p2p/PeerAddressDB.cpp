@@ -130,7 +130,7 @@ bool PeerAddress::hasEverConnected() const
     return i->second.everConnected;
 }
 
-int PeerAddress::lastReceivedGoodHeaders() const
+uint32_t PeerAddress::lastReceivedGoodHeaders() const
 {
     auto i = d->m_peers.find(m_id);
     assert(d->m_peers.end() != i);
