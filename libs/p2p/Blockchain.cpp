@@ -17,6 +17,7 @@
  */
 #include "Blockchain.h"
 #include "DownloadManager.h"
+#include "Peer.h"
 
 #include <streaming/BufferPool.h>
 #include <streaming/P2PBuilder.h>
@@ -154,8 +155,17 @@ void Blockchain::processBlockHeaders(Message message, int peerId)
             ++height;
         }
 
-        if (chainWork <= m_tip.chainWork)
+        if (chainWork <= m_tip.chainWork) {
+            if (chainWork == m_tip.chainWork) { // Good headers, same tip we already had
+                // since we return below, lets tell the PeerAddressDB that
+                // this peer got good headers, since that DB is persisted between
+                // restarts, we improve our performance by remembering success.
+                auto peer = m_dlmanager->connectionManager().peer(peerId);
+                if (peer.get())
+                    peer->peerAddress().gotGoodHeaders();
+            }
             return;
+        }
 
         // The new chain has more PoW, apply it.
         parser = Streaming::P2PParser(message);
