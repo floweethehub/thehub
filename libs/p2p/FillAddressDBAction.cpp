@@ -46,12 +46,16 @@ static std::vector<std::string> fillSeeders(P2PNet::Chain chain)
     return answer;
 }
 
+static int s_minAddressEntries = 2000;
+
 FillAddressDBAction::FillAddressDBAction(DownloadManager *parent)
     : Action(parent),
     m_resolver(parent->service()),
     m_seeders(fillSeeders(parent->chain()))
 {
     assert(!m_seeders.empty());
+    if (parent->chain() != P2PNet::MainChain)
+        s_minAddressEntries = 25;
 }
 
 void FillAddressDBAction::execute(const boost::system::error_code &error)
@@ -77,7 +81,7 @@ void FillAddressDBAction::execute(const boost::system::error_code &error)
         }
     }
 
-    if (m_dlm->connectionManager().peerAddressDb().peerCount() > 2000) {
+    if (m_dlm->connectionManager().peerAddressDb().peerCount() > s_minAddressEntries) {
         logDebug() << "FillAddressDb done";
         m_dlm->done(this);
         return;

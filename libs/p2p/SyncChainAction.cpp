@@ -24,7 +24,7 @@
 #include <time.h>
 
 constexpr int MinGoodPeers = 4;
-constexpr int MaxGoodPeers = 8;
+static int MaxGoodPeers = 8;
 constexpr int RINGBUF_SIZE = 10;
 
 SyncChainAction::SyncChainAction(DownloadManager *parent)
@@ -32,6 +32,8 @@ SyncChainAction::SyncChainAction(DownloadManager *parent)
 {
     m_startHeight = parent->blockHeight();
     m_states.resize(RINGBUF_SIZE);
+    if (parent->chain() != P2PNet::MainChain)
+        MaxGoodPeers = 4;
 }
 
 void SyncChainAction::execute(const boost::system::error_code &error)
