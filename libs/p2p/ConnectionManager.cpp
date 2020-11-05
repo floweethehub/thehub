@@ -334,6 +334,19 @@ std::deque<std::shared_ptr<Peer>> ConnectionManager::connectedPeers() const
     return answer;
 }
 
+int ConnectionManager::unconnectedPeerCount() const
+{
+    std::unique_lock<std::mutex> lock(m_lock);
+    int answer = 0;
+    if (m_shuttingDown)
+        return answer;
+    for (auto i : m_peers) {
+        if (i.second.get() && m_connectedPeers.find(i.first) == m_connectedPeers.end())
+            ++answer;
+    }
+    return answer;
+}
+
 std::shared_ptr<Peer> ConnectionManager::peer(int connectionId) const
 {
     std::unique_lock<std::mutex> lock(m_lock);

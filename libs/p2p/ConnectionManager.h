@@ -100,6 +100,8 @@ public:
     /// returns a list of connected peers.
     std::deque<std::shared_ptr<Peer> > connectedPeers() const;
 
+    int unconnectedPeerCount() const;
+
     /// Share the peer addresses DB
     inline const PeerAddressDB &peerAddressDb() const {
         return m_peerAddressDb;

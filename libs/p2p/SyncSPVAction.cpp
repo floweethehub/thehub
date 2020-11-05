@@ -74,6 +74,7 @@ void SyncSPVAction::execute(const boost::system::error_code &error)
     std::sort(segments.begin(), segments.end(), [](PrivacySegment *a, PrivacySegment *b){
         return a->priority() < b->priority();
     });
+    const int unconnectedPeerCount = m_dlm->connectionManager().unconnectedPeerCount();
     for (auto segment : segments) {
         if (segment->firstBlock() == -1 || segment->firstBlock() > currentBlockHeight)
             continue;
@@ -95,9 +96,9 @@ void SyncSPVAction::execute(const boost::system::error_code &error)
 
         assert(infoIter != m_segmentInfos.end());
         Info &info = infoIter->second;
-        if (nowInSec - info.peersCreatedTime > 30) {
+        if (unconnectedPeerCount <= 2 || nowInSec - info.peersCreatedTime > 30) {
             // try to find new connections.
-            while (peers < MIN_PEERS_PER_WALLET) { // do we want to make minimum peers configurable?
+            while (peers < MIN_PEERS_PER_WALLET) {
                 auto address = m_dlm->connectionManager().peerAddressDb()
                         .findBest(/*network and bloom*/ 1 | 4, segment->segmentId());
                 if (!address.isValid())
