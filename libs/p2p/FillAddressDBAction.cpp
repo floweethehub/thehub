@@ -59,25 +59,22 @@ void FillAddressDBAction::execute(const boost::system::error_code &error)
     if (error)
         return;
 
-    if (m_dlm->connectionManager().peerAddressDb().peerCount() < 10) {
-        if ((m_dnsLookupState % 2) != 0) { // skip if request in progress
-            // start a new one, odd numbers means we initiate a lookup, even if they finished
-            const auto state = ++m_dnsLookupState;
-            const auto index = state / 2;
-            if (index > int(m_seeders.size())) {
-                logCritical() << "Asked all seed DNS's without result";
-                m_dnsLookupState = -1;
-            }
-            else {
-                logDebug() << "Start to resolve DNS entry" << m_seeders.at(index);
-                const std::string port = strprintf("%d", PORTNR);
-                boost::asio::ip::tcp::resolver::query query(m_seeders.at(index), port);
-                m_resolver.async_resolve(query, std::bind(&FillAddressDBAction::onAddressResolveComplete,
-                                    this, std::placeholders::_1, std::placeholders::_2));
-            }
+    if (m_dlm->connectionManager().peerAddressDb().peerCount() < 50
+            && (m_dnsLookupState == -1 || (m_dnsLookupState % 2) != 0)) { // skip if request in progress
+
+        // start a new DNS lookup
+        const auto state = ++m_dnsLookupState;
+        const auto index = state / 2;
+        if (index >= int(m_seeders.size())) {
+            logInfo() << "Asked all DNS seeds";
         }
-        again();
-        return;
+        else {
+            logDebug() << "Start to resolve DNS entry" << m_seeders.at(index);
+            const std::string port = strprintf("%d", PORTNR);
+            boost::asio::ip::tcp::resolver::query query(m_seeders.at(index), port);
+            m_resolver.async_resolve(query, std::bind(&FillAddressDBAction::onAddressResolveComplete,
+                                this, std::placeholders::_1, std::placeholders::_2));
+        }
     }
 
     if (m_dlm->connectionManager().peerAddressDb().peerCount() > 2000) {
