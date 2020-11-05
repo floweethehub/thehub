@@ -52,7 +52,7 @@ Message Blockchain::createGetHeadersRequest(Streaming::P2PBuilder &builder)
 {
     std::unique_lock<std::mutex> lock(m_lock);
     uint256 tip;
-    if (m_tip.height < 1000) {
+    if (m_tip.height <= 1000) {
         builder.writeCompactSize(1);
         builder.writeByteArray(tip.begin(), 32, Streaming::RawBytes);
     } else {
@@ -116,7 +116,7 @@ void Blockchain::processBlockHeaders(Message message, int peerId)
                 height = startHeight = iter->second + 1;
                 if (m_tip.height + 1 == startHeight) {
                     chainWork = m_tip.chainWork;
-                    previousTime = m_longestChain.end()->nTime;
+                    previousTime = m_longestChain.back().nTime;
                 } else if (m_tip.height - startHeight > (int) count) {
                     throw std::runtime_error("is on a different chain, headers don't extend ours");
                 } else {

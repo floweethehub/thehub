@@ -313,7 +313,7 @@ void ConnectionManager::requestHeaders(const std::shared_ptr<Peer> &peer)
 {
     if (m_shuttingDown)
         return;
-    Streaming::P2PBuilder builder(pool(4 + 32 * 10));
+    Streaming::P2PBuilder builder(pool(4 + 32 * 11));
     builder.writeInt(PROTOCOL_VERSION);
     auto message = m_dlManager->blockchain().createGetHeadersRequest(builder);
     peer->setRequestedHeader(true);
