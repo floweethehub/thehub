@@ -125,6 +125,20 @@ public:
         return m_userAgent;
     }
 
+    /**
+     * Allow apps to broadcast a transaction to peers.
+     *
+     * This method takes a BroadcastTxData which has several reasons:
+     * - It combines the actual transaction and the private segment.
+     * - It gives the ConnectionManager some call-backs to report
+     *   success or failure.
+     * - It allows the caller of this method to set the lifetime
+     *   of the broadcast order by simply deleting the txOwner when
+     *   it wants to stop the broadcast.
+     *
+     * This class will keep a weak-pointer to the txOwner only, so lifetime
+     * management lies with the caller.
+     */
     void broadcastTransaction(const std::shared_ptr<BroadcastTxData> &txOwner);
 
     /// returns the amount of peers we currently have. Even unconnected ones.
