@@ -87,6 +87,7 @@ public:
         return m_connectionManager.service();
     }
 
+    /// Returns which chain this DownloadManager is following.
     P2PNet::Chain chain() const;
 
     /**
