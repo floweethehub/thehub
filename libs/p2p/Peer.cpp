@@ -173,6 +173,7 @@ void Peer::processMessage(const Message &message)
                             m_transactions.erase(i); // it can only be rejected once...
                             return;
                         }
+                        ++i;
                     } else {
                         i = m_transactions.erase(i);
                     }
