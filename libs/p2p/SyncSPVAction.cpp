@@ -133,13 +133,13 @@ void SyncSPVAction::execute(const boost::system::error_code &error)
                 // lets see if the peer is making progress.
                 const uint32_t timePassed = (now - info.lastCheckedTime).total_milliseconds();;
                 const uint32_t blocksDone = curPeer->lastReceivedMerkle() - info.lastHeight;
-logFatal() << privSegment->segmentId() << "] done" << blocksDone << "blocks in" << timePassed << "ms";
                 if (blocksDone < timePassed / 1000) {
                     // peer is stalling. I expect at least 1 block a second.
                     if (info.slowPunishment++ > 3) {
                         logInfo() << "SyncSPV disconnects peer that is stalling download of merkle-blocks"
                                   << w->second.downloading->connectionId();
-                        m_dlm->connectionManager().punish(w->second.downloading, PUNISHMENT_MAX);
+                        m_dlm->connectionManager().punish(w->second.downloading, 10);
+                        m_dlm->connectionManager().disconnect(w->second.downloading);
                         w->second.peers.erase(w->second.peers.find(w->second.downloading));
                         w->second.downloading = nullptr;
                     }
@@ -181,18 +181,17 @@ logFatal() << privSegment->segmentId() << "] done" << blocksDone << "blocks in" 
                 if (preferred) {
                     w->second.downloading = preferred;
                     logDebug() << "Wallet merkle-download started on peer" << preferred->connectionId()
-                               << privSegment->lastBlockSynched()
-                               << privSegment->backupSyncHeight();
-                    int from = privSegment->lastBlockSynched() + 1;// +1 because we start one after the last download
+                               << privSegment->backupSyncHeight()
+                               << privSegment->lastBlockSynched();
+                    int from = privSegment->lastBlockSynched() + 1; // +1 because we start one after the last download
                     if (privSegment->backupSyncHeight() == privSegment->lastBlockSynched()) {
+                        logDebug() << "   making bloom backup" << privSegment->lastBlockSynched();
                         info.bloom = privSegment->bloomFilter();
-                        info.bloomPos = privSegment->backupSyncHeight() + 1;
+                        info.bloomPos = privSegment->lastBlockSynched();
                     } else {
                         from = info.bloomPos;
+                        logDebug() << "   using bloom backup, restarting at" << from;
                         preferred->sendFilter(info.bloom, info.bloomPos);
-                        if (from + 1 != privSegment->backupSyncHeight())
-                            logDebug() << "Re-re-requesting some blocks. From" << from
-                                       << "to" << privSegment->backupSyncHeight();
                     }
                     preferred->startMerkleDownload(from);
                     info.previousDownloadedBy.insert(preferred->connectionId());
