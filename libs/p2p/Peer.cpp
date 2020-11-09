@@ -221,10 +221,9 @@ void Peer::processMessage(const Message &message)
             m_segment->blockSynched(blockHeight);
             logDebug() << "Merkle received by" << connectionId() << "height:" << blockHeight;
 
-            if (m_lastReceivedMerkle == m_merkleDownloadTo - 1) {
-                m_merkleDownloadFrom = m_merkleDownloadTo;
-                // we limit our INVs to 100 per request.  Notice that the protocol allows for 50000
-                m_merkleDownloadTo = std::min(m_merkleDownloadFrom + 100, m_connectionManager->blockHeight() + 1);
+            const int to = merkleDownloadTo();
+            if (m_lastReceivedMerkle == to) {
+                m_merkleDownloadFrom = to + 1;
                 requestMerkleBlocks();
             }
         }
@@ -306,7 +305,7 @@ int Peer::lastReceivedMerkle() const
 bool Peer::merkleDownloadInProgress() const
 {
     return m_merkleDownloadFrom >= m_bloomUploadHeight // started
-            && m_merkleDownloadFrom < m_merkleDownloadTo; // and has not stopped yet
+            && m_merkleDownloadFrom <= merkleDownloadTo(); // and has not stopped yet
 }
 
 void Peer::startMerkleDownload(int from)
@@ -319,8 +318,6 @@ void Peer::startMerkleDownload(int from)
         sendFilter_priv(); // then send updated filter
 
     m_merkleDownloadFrom = from;
-    // we limit our INVs to 100 per message.  Notice that the protocol allows for 50000
-    m_merkleDownloadTo = std::min(from + 100, m_connectionManager->blockHeight() + 1);
     requestMerkleBlocks();
 }
 
@@ -328,17 +325,25 @@ void Peer::requestMerkleBlocks()
 {
     if (m_peerStatus == ShuttingDown)
         return;
-    const int count = m_merkleDownloadTo - m_merkleDownloadFrom;
-    if (count == 0)
+    const int to = merkleDownloadTo();
+    const int count = 1 + to - m_merkleDownloadFrom;
+    if (count == 0) {
         return;
+    }
     Streaming::P2PBuilder builder(m_connectionManager->pool(40 * count));
     builder.writeCompactSize(count);
-    for (int i = m_merkleDownloadFrom; i < m_merkleDownloadTo; ++i) {
+    for (int i = m_merkleDownloadFrom; i <= to; ++i) {
         // write INV data-type
         builder.writeInt(InventoryItem::MerkleBlock);
         builder.writeByteArray(m_connectionManager->blockHashFor(i), Streaming::RawBytes);
     }
     m_con.send(builder.message(Api::P2P::GetData));
+}
+
+int Peer::merkleDownloadTo() const
+{
+    // we limit our INVs to 100 per request.  Notice that the protocol allows for 50000
+    return std::min(m_merkleDownloadFrom + 100, m_connectionManager->blockHeight());
 }
 
 int Peer::bloomUploadHeight() const

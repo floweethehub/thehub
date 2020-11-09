@@ -40,6 +40,7 @@ void SyncSPVAction::execute(const boost::system::error_code &error)
         return;
 
     const int currentBlockHeight = m_dlm->blockHeight();
+    logDebug() << "SyncSPVAction aiming for currentBlockHeight:" << currentBlockHeight;
     const auto now = boost::posix_time::microsec_clock::universal_time();
     uint32_t nowInSec = time(nullptr);
 
@@ -96,7 +97,7 @@ void SyncSPVAction::execute(const boost::system::error_code &error)
 
         assert(infoIter != m_segmentInfos.end());
         Info &info = infoIter->second;
-        if (unconnectedPeerCount <= 2 || nowInSec - info.peersCreatedTime > 30) {
+        if (unconnectedPeerCount <= 2 || nowInSec - info.peersCreatedTime > 4) {
             // try to find new connections.
             while (peers < MIN_PEERS_PER_WALLET) {
                 auto address = m_dlm->connectionManager().peerAddressDb()
@@ -119,6 +120,11 @@ void SyncSPVAction::execute(const boost::system::error_code &error)
             continue;
         Info &info = infoIter->second;
 
+        logDebug() << "WalletID:" << privSegment->segmentId()
+                   << "origStart:" << privSegment->firstBlock()
+                   << "lastBlockSynched:" << privSegment->lastBlockSynched()
+                   << "backupSyncHeight:" << privSegment->backupSyncHeight();
+
         if (currentBlockHeight > privSegment->firstBlock()
                 && (privSegment->lastBlockSynched() < currentBlockHeight
                     || privSegment->backupSyncHeight() < currentBlockHeight)) {
@@ -127,24 +133,35 @@ void SyncSPVAction::execute(const boost::system::error_code &error)
             // is behind. Is someone downloading?
             if (w->second.downloading) {
                 auto curPeer = w->second.downloading;
-                // remember the downloader so we avoid asking the same peer to download twice.
-                info.previousDownloadedBy.insert(curPeer->connectionId());
+                // remember the downloader so we avoid asking the same peer to download the backup.
 
                 // lets see if the peer is making progress.
-                const uint32_t timePassed = (now - info.lastCheckedTime).total_milliseconds();;
-                const uint32_t blocksDone = curPeer->lastReceivedMerkle() - info.lastHeight;
-                if (blocksDone < timePassed / 1000) {
-                    // peer is stalling. I expect at least 1 block a second.
-                    if (info.slowPunishment++ > 3) {
-                        logInfo() << "SyncSPV disconnects peer that is stalling download of merkle-blocks"
-                                  << w->second.downloading->connectionId();
-                        m_dlm->connectionManager().punish(w->second.downloading, 10);
-                        m_dlm->connectionManager().disconnect(w->second.downloading);
-                        w->second.peers.erase(w->second.peers.find(w->second.downloading));
-                        w->second.downloading = nullptr;
+                const int64_t timePassed = (now - info.lastCheckedTime).total_milliseconds();;
+                const int32_t blocksDone = curPeer->lastReceivedMerkle() - info.lastHeight;
+                logDebug() << "Downloading using peer" << curPeer->connectionId()
+                           << "prevHeight:" << info.lastHeight
+                           << "curHeight:" << curPeer->lastReceivedMerkle();
+
+                if (timePassed > 4200) {
+                    if (blocksDone < timePassed / 1000) {
+                        // peer is stalling. I expect at least 1 block a second.
+                        // we give them 2 segments try, or only one if they never started a single merkle dl
+                        if (info.slowPunishment++ > 2 || curPeer->lastReceivedMerkle() == 0) {
+                            logWarning() << "SyncSPV disconnects peer"
+                                      << w->second.downloading->connectionId()
+                                      << "that is stalling download of merkle-blocks";
+                            m_dlm->connectionManager().punish(w->second.downloading, PUNISHMENT_MAX);
+                            w->second.peers.erase(w->second.peers.find(w->second.downloading));
+                            w->second.downloading = nullptr;
+                            curPeer = nullptr;
+                        }
+                    } else if (blocksDone > 20) {
+                        info.slowPunishment = 0;
                     }
-                } else if (blocksDone > 20) {
-                    info.slowPunishment = 0;
+                    if (curPeer) { // start new section every couple of seconds
+                        info.lastHeight = curPeer->lastReceivedMerkle();
+                        info.lastCheckedTime = now;
+                    }
                 }
             }
 
@@ -183,9 +200,9 @@ void SyncSPVAction::execute(const boost::system::error_code &error)
                     logDebug() << "Wallet merkle-download started on peer" << preferred->connectionId()
                                << privSegment->backupSyncHeight()
                                << privSegment->lastBlockSynched();
-                    int from = privSegment->lastBlockSynched() + 1; // +1 because we start one after the last download
+                    int from = privSegment->lastBlockSynched();
                     if (privSegment->backupSyncHeight() == privSegment->lastBlockSynched()) {
-                        logDebug() << "   making bloom backup" << privSegment->lastBlockSynched();
+                        logDebug() << "   [checkpoint]. Starting sync at" << privSegment->lastBlockSynched();
                         info.bloom = privSegment->bloomFilter();
                         info.bloomPos = privSegment->lastBlockSynched();
                     } else {
@@ -193,14 +210,11 @@ void SyncSPVAction::execute(const boost::system::error_code &error)
                         logDebug() << "   using bloom backup, restarting at" << from;
                         preferred->sendFilter(info.bloom, info.bloomPos);
                     }
-                    preferred->startMerkleDownload(from);
+                    preferred->startMerkleDownload(from + 1); // +1 because we start one after the last download
                     info.previousDownloadedBy.insert(preferred->connectionId());
+                    info.lastHeight = from - 1;
+                    info.lastCheckedTime = now;
                 }
-            }
-
-            if (w->second.downloading) {
-                info.lastHeight = w->second.downloading->lastReceivedMerkle();
-                info.lastCheckedTime = now;
             }
         }
     }

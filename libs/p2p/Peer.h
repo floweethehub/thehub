@@ -141,7 +141,7 @@ public:
     /// Return true if the merkle-block based fetches are in-progress.
     bool merkleDownloadInProgress() const;
 
-    /// start downloads of merkle (aka SPV) blocks to the current height
+    /// start downloads of merkle (aka SPV) blocks to the current height.
     void startMerkleDownload(int from);
     /// send to the peer the bloom filter arg, with the promise that that it looked like that at \a blockHeight
     void sendFilter(const CBloomFilter &bloom, int blockHeight);
@@ -155,6 +155,7 @@ private:
     void processMessage(const Message &message);
     void processTransaction(const Tx &tx);
     void requestMerkleBlocks();
+    int merkleDownloadTo() const;
 
     /// sends the bloom filter to peer.
     void sendFilter_priv();
@@ -186,7 +187,6 @@ private:
     int m_bloomUploadHeight = 0;
     int m_lastReceivedMerkle = 0;
     int m_merkleDownloadFrom = -1;
-    int m_merkleDownloadTo = -1;
 
     // SPV merkle block data
     int m_merkleBlockHeight = -1;
