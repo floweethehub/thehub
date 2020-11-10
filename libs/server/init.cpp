@@ -488,12 +488,12 @@ void InitParameterInteraction()
         logCritical(Log::Mining) << "parameter -blockmaxsize is too large. Max is 31bit int";
         throw std::runtime_error("invalid parameter passed to -blockmaxsize");
     }
-    int32_t acceptSize = Policy::blockSizeAcceptLimit();
 
+    int32_t acceptSize = Policy::blockSizeAcceptLimit();
     if (GetBoolArg("-scalenet", false) && acceptSize < 268435456) {
         logCritical(Log::Net) << "parameter interaction: -scalenet -> setting -blockmaxsize";
         miningSize = acceptSize = 268435456;
-        SoftSetArg("-blocksizeacceptlimit", "268.5");
+        SoftSetArg("-blocksizeacceptlimit", "270");
         SoftSetArg("-blockmaxsize", "268435456");
     }
     if ((int) miningSize > acceptSize) {
