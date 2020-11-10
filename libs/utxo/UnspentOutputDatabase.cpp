@@ -1223,7 +1223,7 @@ void DataFile::commit(const UODBPrivate *priv)
                 && move < UODBPrivate::limits.ChangesToSave) {
             // Saving is too slow! We are more than an entire chunk-size behind.
             // forcefully slow down adding data into memory.
-            logInfo() << "saving too slow. Count:" << cc << "sleeping a little";
+            logWarning() << m_path.string() << "saving too slow. Count:" << cc << "sleeping a little";
             boost::this_thread::sleep_for(boost::chrono::microseconds(std::min(cc, 100000)));
         }
         bool old = false;
