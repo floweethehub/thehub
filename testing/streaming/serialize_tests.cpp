@@ -166,6 +166,9 @@ void Test_Serialize::varints()
     }
 }
 
+
+constexpr unsigned int MAX_SIZE = 0x02000000;
+
 void Test_Serialize::compactsize()
 {
     CDataStream ss(SER_DISK, 0);

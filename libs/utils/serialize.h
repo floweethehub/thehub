@@ -37,8 +37,6 @@
 
 #include <streaming/BufferPool.h>
 
-static const unsigned int MAX_SIZE = 0x02000000;
-
 /**
  * Used to bypass the rule against non-const reference to temporary
  * where it makes sense with wrappers such as CFlatData or CTxDB
@@ -312,8 +310,6 @@ uint64_t ReadCompactSize(Stream& is)
         if (nSizeRet < 0x100000000ULL)
             throw std::ios_base::failure("non-canonical ReadCompactSize()");
     }
-    if (nSizeRet > (uint64_t)MAX_SIZE)
-        throw std::ios_base::failure("ReadCompactSize(): size too large");
     return nSizeRet;
 }
 

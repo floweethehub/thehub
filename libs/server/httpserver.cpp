@@ -20,6 +20,7 @@
 
 #include <SettingsDefaults.h>
 #include "chainparamsbase.h"
+#include <policy/policy.h>
 #include "compat.h"
 #include "util.h"
 #include "netbase.h"
@@ -55,7 +56,13 @@
 #include <boost/scoped_ptr.hpp>
 
 /** Maximum size of http request (request line + headers) */
-static const size_t MAX_HEADERS_SIZE = 8192;
+static constexpr size_t MAX_HEADERS_SIZE = 8192;
+
+/**
+ * Maximum HTTP post body size. Twice the maximum block size is added to this
+ * value in practice.
+ */
+static constexpr size_t MIN_SUPPORTED_BODY_SIZE = 0x02000000;
 
 /** HTTP request work item */
 class HTTPWorkItem : public HTTPClosure
@@ -431,7 +438,8 @@ bool InitHTTPServer()
 
     evhttp_set_timeout(http, GetArg("-rpcservertimeout", Settings::DefaultHttpServerTimeout));
     evhttp_set_max_headers_size(http, MAX_HEADERS_SIZE);
-    evhttp_set_max_body_size(http, MAX_SIZE);
+    evhttp_set_max_body_size(http, MIN_SUPPORTED_BODY_SIZE + 2 * Policy::blockSizeAcceptLimit());
+
     evhttp_set_gencb(http, http_request_cb, NULL);
 
     if (!HTTPBindAddresses(http)) {
