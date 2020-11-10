@@ -828,15 +828,19 @@ bool AppInit2(boost::thread_group& threadGroup, CScheduler& scheduler)
                 if (fReindex) {
                     boost::system::error_code error;
                     // delete all files under unspent. Don't delete itself, it may be a symlink.
-                    boost::filesystem::directory_iterator iter(utxoDir);
-                    while (iter != boost::filesystem::directory_iterator()) {
+                    boost::filesystem::directory_iterator iter(utxoDir, error);
+                    while (!error && iter != boost::filesystem::directory_iterator()) {
                         boost::filesystem::remove_all(*iter, error);
+                        ++iter;
+                    }
+                    if (error) {
+                        // then try to delete the utxo dir itself.
+                        boost::filesystem::remove_all(utxoDir, error);
                         if (error) {
                             fRequestShutdown = true;
                             logFatal(Log::Bitcoin) << "Can't remove the unspent dir to do a reindex" << error.message();
                             break;
                         }
-                        ++iter;
                     }
                 }
                 g_utxo = new UnspentOutputDatabase(Application::instance()->ioService(), utxoDir);
