@@ -38,12 +38,12 @@ struct BlockHeader
     // write the header in P2P syntax (just like on the blockchain)
     Streaming::ConstBuffer write(Streaming::BufferPool &pool) const;
 
-    int32_t nVersion;
+    int32_t nVersion = 0;
     uint256 hashPrevBlock;
     uint256 hashMerkleRoot;
-    uint32_t nTime;
-    uint32_t nBits;
-    uint32_t nNonce;
+    uint32_t nTime = 0;
+    uint32_t nBits = 0;
+    uint32_t nNonce = 0;
 };
 
 #endif
