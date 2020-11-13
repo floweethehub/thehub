@@ -53,7 +53,6 @@ ConnectionManager::ConnectionManager(boost::asio::io_service &service, const boo
     table.insert(std::make_pair(Api::P2P::Inventory, "inv"));
     table.insert(std::make_pair(Api::P2P::GetAddr, "getaddr"));
     table.insert(std::make_pair(Api::P2P::Addresses, "addr"));
-    table.insert(std::make_pair(Api::P2P::Inventory, "inv"));
     table.insert(std::make_pair(Api::P2P::Data_Transaction, "tx"));
     table.insert(std::make_pair(Api::P2P::Data_MerkleBlock, "merkleblock"));
     table.insert(std::make_pair(Api::P2P::FilterLoad, "filterload"));
