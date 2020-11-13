@@ -81,22 +81,43 @@ void SyncSPVAction::execute(const boost::system::error_code &error)
             continue;
         if (segment->priority() == PrivacySegment::OnlyManual)
             break;
-        auto i = wallets.find(segment);
+        auto walletInfoIter = wallets.find(segment);
         size_t peers = 0;
-        if (i != wallets.end())
-            peers = i->second.peers.size();
+        if (walletInfoIter != wallets.end())
+            peers = walletInfoIter->second.peers.size();
         auto infoIter = m_segmentInfos.find(segment);
         if (infoIter == m_segmentInfos.end()) {
             m_segmentInfos.insert(std::make_pair(segment, Info()));
             infoIter = m_segmentInfos.find(segment);
         }
-        if (peers >= MIN_PEERS_PER_WALLET)
-            continue;
-
-        didSomething = true; // keep going, so we can wait for the peers to get ready.
-
         assert(infoIter != m_segmentInfos.end());
         Info &info = infoIter->second;
+
+        if (!info.previousDownloads.empty()) {
+            PeerDownloadInfo &pdi = info.previousDownloads.back();
+            if (pdi.toBlock == 0  // started download
+                    && walletInfoIter != wallets.end() // have info
+                    && walletInfoIter->second.downloading == nullptr) { // finished download
+
+                // So it started a download and nobody is downloading anymore. Lets
+                // update the PeerDownloadInfo with the last blockheight we downloaded.
+                if (pdi.fromBlock == segment->backupSyncHeight() + 1)
+                    pdi.toBlock = segment->lastBlockSynched();
+                else
+                    pdi.toBlock = segment->backupSyncHeight();
+
+                if (pdi.fromBlock > pdi.toBlock) // download aborted
+                    pdi.fromBlock = 0;
+                logDebug() << "registring a download completed for"
+                           << pdi.peerId << "from" << pdi.fromBlock << "to" << pdi.toBlock;
+                assert(pdi.toBlock >= pdi.fromBlock);
+            }
+        }
+
+        if (peers >= MIN_PEERS_PER_WALLET)
+            continue;
+        didSomething = true; // keep going, so we can wait for the peers to get ready.
+
         if (unconnectedPeerCount <= 2 || nowInSec - info.peersCreatedTime > 4) {
             // try to find new connections.
             while (peers < MIN_PEERS_PER_WALLET) {
@@ -112,6 +133,15 @@ void SyncSPVAction::execute(const boost::system::error_code &error)
             }
         }
     }
+
+
+    /*
+     * So far we made sure that enough peers have been connected for each wallet,
+     * we manage these peers actions here.
+     *
+     * This specifically means we ask them to download blocks for our wallet
+     * and act on them being slow or similar issues.
+     */
 
     for (auto w = wallets.begin(); w != wallets.end(); ++w) {
         PrivacySegment *privSegment = w->first;
@@ -181,38 +211,68 @@ void SyncSPVAction::execute(const boost::system::error_code &error)
              *  int lastBlockSynched() const;
              *  /// a backup peer doing a second sync has reached this height
              *  int backupSyncHeight() const;
+             *
+             * On the Peer side we have the `int peerHeight() const`  method.
              */
             if (w->second.downloading == nullptr && !w->second.peers.empty()) {
+                // logDebug() << "looking for a new downloader";
+                int from;
+                if (privSegment->backupSyncHeight() == privSegment->lastBlockSynched())
+                    from = privSegment->lastBlockSynched();
+                else
+                    from = info.bloomPos;
                 std::shared_ptr<Peer> preferred;
                 for (auto p : w->second.peers) {
-                    if (info.previousDownloadedBy.find(p->connectionId()) != info.previousDownloadedBy.end())
-                        continue;
-                    if (p->lastReceivedMerkle() == 0)
-                        preferred = p;
-                    if (privSegment->lastBlockSynched() == p->lastReceivedMerkle()) {
-                        // then this is going to be downloader for now.
-                        preferred = p;
-                        break;
+                    // logDebug() << "  + " << p->connectionId();
+                    bool ok = true;
+                    for (auto pdi : info.previousDownloads) {
+                        if (pdi.peerId == p->connectionId()) {
+                            if (from < pdi.toBlock) {// this one already downloaded for us
+                                // logDebug() << "Skipping peer because it downloaded before";
+                                ok = false;
+                                break;
+                            }
+                        }
+                        if (!ok)
+                            break;
                     }
+                    if (!ok)
+                        continue;
+
+                    if (from >= p->peerHeight()) {// peer isn't up-to-date yet
+                        // logDebug() << "Skipping peer because its behind. Height:" << p->peerHeight();
+                        continue;
+                    }
+
+                    if (!p->receivedHeaders()
+                            // or we did that recently anyway.
+                            && !(nowInSec - p->peerAddress().lastReceivedGoodHeaders() < 60 * 60 * 48)) {
+                        // logDebug() << "Not picking peer because it didn't send us headers yet";
+                        if (preferred == nullptr)
+                            preferred = p;
+                        continue;
+                    }
+
+                    // TODO use peer speed for preference
+                    preferred = p;
+                    break;
                 }
                 if (preferred) {
                     w->second.downloading = preferred;
                     logDebug() << "Wallet merkle-download started on peer" << preferred->connectionId()
                                << privSegment->backupSyncHeight()
                                << privSegment->lastBlockSynched();
-                    int from = privSegment->lastBlockSynched();
                     if (privSegment->backupSyncHeight() == privSegment->lastBlockSynched()) {
                         logDebug() << "   [checkpoint]. Starting sync at" << privSegment->lastBlockSynched();
                         info.bloom = privSegment->bloomFilter();
                         info.bloomPos = privSegment->lastBlockSynched();
                     } else {
-                        from = info.bloomPos;
                         logDebug() << "   using bloom backup, restarting at" << from;
                         preferred->sendFilter(info.bloom, info.bloomPos);
                     }
-                    preferred->startMerkleDownload(from + 1); // +1 because we start one after the last download
-                    info.previousDownloadedBy.insert(preferred->connectionId());
-                    info.lastHeight = from - 1;
+                    preferred->startMerkleDownload(from + 1); // +1 because we start one after the last downloaded
+                    info.previousDownloads.push_back({preferred->connectionId(), from + 1, 0});
+                    info.lastHeight = from;
                     info.lastCheckedTime = now;
                 }
             }

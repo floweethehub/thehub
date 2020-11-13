@@ -149,13 +149,24 @@ public:
     /// Return the timestamp of first-connection time.
     uint32_t connectTime() const;
 
+    /**
+     * The peer-local blockheight. nnything higher than this is
+     * likely not present on that peer yet.
+     *
+     * Notice that the height is counted as it is in OUR blockchain.
+     */
+    int peerHeight() const;
+    /**
+     * This is called when our messages are processed and they show
+     * our peer has a (possibly) higher blockHeight.
+     */
+    void updatePeerHeight(int peerHeight);
+
 private:
     void connected(const EndPoint&);
     void disconnected(const EndPoint&);
     void processMessage(const Message &message);
     void processTransaction(const Tx &tx);
-    void requestMerkleBlocks();
-    int merkleDownloadTo() const;
 
     /// sends the bloom filter to peer.
     void sendFilter_priv();
@@ -165,12 +176,13 @@ private:
 
     void registerTxToSend(std::shared_ptr<BroadcastTxData> txOwner);
 
+    std::string m_userAgent;
     uint64_t m_services = 0;
     int m_timeOffset = 0;
     uint32_t m_connectTime = 0;
     int m_protocolVersion = 0;
-    std::string m_userAgent;
     int m_startHeight = 0;
+    int m_peerHeight = 0;
     bool m_relaysTransactions = false;
     bool m_preferHeaders = false;
     bool m_requestedHeader = false;
@@ -187,6 +199,7 @@ private:
     int m_bloomUploadHeight = 0;
     int m_lastReceivedMerkle = 0;
     int m_merkleDownloadFrom = -1;
+    int m_merkleDownloadTo = -1;
 
     // SPV merkle block data
     int m_merkleBlockHeight = -1;

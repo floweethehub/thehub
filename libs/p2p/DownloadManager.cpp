@@ -51,13 +51,16 @@ void DownloadManager::headersDownloadFinished(int newBlockHeight, int peerId)
 {
     if (m_shuttingDown)
         return;
+    // The blockchain lets us know the result of a successful headers-download.
     assert(m_strand.running_in_this_thread());
     if (m_peerDownloadingHeaders == peerId)
         m_peerDownloadingHeaders = -1;
 
     auto peer = m_connectionManager.peer(peerId);
-    if (peer.get())
+    if (peer.get()) {
         peer->peerAddress().gotGoodHeaders();
+        peer->updatePeerHeight(newBlockHeight);
+    }
 
     m_connectionManager.setBlockHeight(newBlockHeight);
     getMoreHeaders();
@@ -86,6 +89,8 @@ void DownloadManager::parseInvMessage(Message message, int sourcePeerId)
 {
     if (m_shuttingDown)
         return;
+    // this is called as a result of an INV received by a peer.
+    // We check this and insert into the m_downloadQueue a target to download.
     try {
         Streaming::P2PParser parser(message);
         const size_t count = parser.readCompactInt();
@@ -94,6 +99,17 @@ void DownloadManager::parseInvMessage(Message message, int sourcePeerId)
         for (size_t i = 0; i < count; ++i) {
             uint32_t type = parser.readInt();
             auto inv = InventoryItem(parser.readUint256(), type);
+            if (type == InventoryItem::BlockType) {
+                auto height = m_blockchain.blockHeightFor(inv.hash());
+                if (height > 0) {
+                    // a block-inv we already have seen and approved of.
+                    auto peer = m_connectionManager.peer(sourcePeerId);
+                    if (peer)
+                        peer->updatePeerHeight(height);
+                    // no need for further action.
+                    continue;
+                }
+            }
             if (type == InventoryItem::TransactionType || type == InventoryItem::BlockType) {
                 auto findIter = m_downloadTargetIds.find(inv.hash());
                 if (findIter == m_downloadTargetIds.end()) {
@@ -122,6 +138,9 @@ void DownloadManager::parseInvMessage(Message message, int sourcePeerId)
 
 void DownloadManager::parseTransaction(Tx tx, int sourcePeerId)
 {
+    // we get called by the peer about a transaction just received.
+    // Now we find the downloads data that requested it and update
+    // m_downloads and m_downloadTargetIds and m_downloadQueue.
     auto hash = tx.createHash();
     std::unique_lock<std::mutex> lock(m_downloadsLock);
     const size_t downloadSlots = m_downloads.size();
@@ -273,6 +292,8 @@ void DownloadManager::runQueue()
     const size_t downloadSlots = m_downloads.size();
     for (size_t i = 0; i < downloadSlots; ++i) {
         if (m_downloads[i].targetId == 0) { // slot unoccupied.
+
+            // iterate through downloadqueue to find a new job
             while (true) {
                 if (iter == m_downloadQueue.end())
                     return; // nothing left to download
@@ -288,11 +309,20 @@ void DownloadManager::runQueue()
                     continue;
                 }
                 if (dt.inv.type() == InventoryItem::BlockType) {
-                    if (m_blockchain.isKnown(dt.inv.hash())) {
-                        // hash already known. No need to download it.
+                    auto height = m_blockchain.blockHeightFor(dt.inv.hash());
+                    if (height > 0) {
+                        // hash already known.
+                        // No need to download it.
                         auto tIter = m_downloadTargetIds.find(dt.inv.hash());
                         if (m_downloadTargetIds.end() != tIter)
                             m_downloadTargetIds.erase(tIter);
+
+                        // let the peer know the height that is related to the INV
+                        for (auto id : iter->second.sourcePeers) {
+                            auto peer = m_connectionManager.peer(id);
+                            if (peer)
+                                peer->updatePeerHeight(height);
+                        }
                         iter = m_downloadQueue.erase(iter);
                         continue;
                     }
@@ -333,10 +363,10 @@ void DownloadManager::runQueue()
                         builder.writeByteArray(dt.inv.hash(), Streaming::RawBytes);
                         peer->sendMessage(builder.message(Api::P2P::GetData));
                     }
-                    else {
-                        assert(dt.inv.type() == InventoryItem::BlockType);
+                    else if (dt.inv.type() == InventoryItem::BlockType) {
                         m_connectionManager.requestHeaders(peer);
                     }
+                    // else if (dt.inv.type() == InventoryItem::DoubleSpendType)
                 }
                 break;
             }

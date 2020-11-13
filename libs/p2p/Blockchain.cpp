@@ -161,8 +161,10 @@ void Blockchain::processBlockHeaders(Message message, int peerId)
                 // this peer got good headers, since that DB is persisted between
                 // restarts, we improve our performance by remembering success.
                 auto peer = m_dlmanager->connectionManager().peer(peerId);
-                if (peer.get())
+                if (peer.get()) {
                     peer->peerAddress().gotGoodHeaders();
+                    peer->updatePeerHeight(height);
+                }
             }
             return;
         }

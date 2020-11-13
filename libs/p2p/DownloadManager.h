@@ -189,7 +189,7 @@ private:
     std::map<uint32_t, DownloadTarget> m_downloadQueue;
     typedef boost::unordered_map<uint256, uint32_t, HashShortener> DownloadTargetIds;
     DownloadTargetIds m_downloadTargetIds; // uint256 -> downloadQueue-Id
-    uint32_t m_nextDownloadTarget = 0;
+    uint32_t m_nextDownloadTarget = 1;
     std::array<ActiveDownload, 10> m_downloads;
 };
 

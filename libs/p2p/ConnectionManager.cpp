@@ -312,7 +312,7 @@ bool ConnectionManager::punish(int connectionId, int amount)
 
 void ConnectionManager::requestHeaders(const std::shared_ptr<Peer> &peer)
 {
-    if (m_shuttingDown)
+    if (m_shuttingDown || peer.get() == nullptr)
         return;
     Streaming::P2PBuilder builder(pool(4 + 32 * 11));
     builder.writeInt(PROTOCOL_VERSION);

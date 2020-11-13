@@ -38,13 +38,24 @@ protected:
 private:
     int m_quietCount = 0;
 
+    struct PeerDownloadInfo {
+        int peerId;
+        int fromBlock;
+        int toBlock; // to-and-including
+    };
+
     struct Info {
         boost::posix_time::ptime lastCheckedTime;
         uint32_t peersCreatedTime;
         int lastHeight = 0;
         int slowPunishment = 0; // punishment score for being slow
 
-        std::set<int> previousDownloadedBy;
+        /**
+         * Remember which blocks were downloaded by which peer in order to actually
+         * get our security that when we ask multiple peers for the same blocks, we
+         * don't mess up and ask the same one twice.
+         */
+        std::vector<PeerDownloadInfo> previousDownloads;
 
         // for the second peer we ask to download we make a backup of the bloom as it was
         // at the start of the run.
