@@ -23,7 +23,7 @@
 
 #include <time.h>
 
-constexpr int MinGoodPeers = 4;
+static int MinGoodPeers = 4;
 static int MaxGoodPeers = 8;
 constexpr int RINGBUF_SIZE = 10;
 
@@ -32,8 +32,10 @@ SyncChainAction::SyncChainAction(DownloadManager *parent)
 {
     m_startHeight = parent->blockHeight();
     m_states.resize(RINGBUF_SIZE);
-    if (parent->chain() != P2PNet::MainChain)
-        MaxGoodPeers = 4;
+    if (parent->chain() != P2PNet::MainChain) {
+        MinGoodPeers = 3;
+        MaxGoodPeers = 3;
+    }
 }
 
 void SyncChainAction::execute(const boost::system::error_code &error)
@@ -57,12 +59,12 @@ void SyncChainAction::execute(const boost::system::error_code &error)
      * Last, we use the date to guestimate the chain-height so we know we are
      * stuck on a dead couple of nodes if stay get behind too much.
      */
+    const uint32_t now = time(nullptr);
     if (m_dlm->peerDownloadingHeaders() != -1) { // a download is in progress
         // no need to do anything, just wait.
 
         // We will check if we are actually progressing up in block-height since
         // our peer might stop sending us headers for some reason.
-        const uint32_t now = time(nullptr);
 
         int score = 0;
         int prevHeight = 0;
@@ -115,39 +117,31 @@ void SyncChainAction::execute(const boost::system::error_code &error)
         return;
     }
 
-    std::set<int> existingPeersToAsk;
     int goodPeers = 0;
-    uint32_t now = time(nullptr);
+    bool receivedHeaders = false;
     for (auto peer: m_dlm->connectionManager().connectedPeers()) {
-        if (peer->receivedHeaders()
-                // or we did that recently anyway.
-                || (now - peer->peerAddress().lastReceivedGoodHeaders() < 60 * 60 * 48
-                    && peer->peerAddress().punishment() <= 300)) {
+        receivedHeaders |= peer->receivedHeaders();
+        if (peer->receivedHeaders() && peer->peerAddress().punishment() <= 300) {
             auto i = m_doubtfulPeers.find(peer->connectionId());
             if (i != m_doubtfulPeers.end())
                 m_doubtfulPeers.erase(i);
-
             goodPeers++;
             if (goodPeers >= MaxGoodPeers)
                 break;
         }
-        else if (peer->startHeight() > m_dlm->blockHeight()) {
+        else if (peer->startHeight() >= m_dlm->blockHeight()) {
             auto i = m_doubtfulPeers.find(peer->connectionId());
             if (i == m_doubtfulPeers.end()) {
                 // new peer. it looks promising
-                // But lets wait to see if the headers call will be sent.
-                m_doubtfulPeers.insert(std::make_pair(peer->connectionId(), time(nullptr)));
-
-                // just in case nobody is downloading yet, lets start.
-                m_dlm->getMoreHeaders();
-            }
-            else if (time(nullptr) - i->second > 10) { // previously seen as new.
-                existingPeersToAsk.insert(peer->connectionId());
+                // But lets wait to see if the headers message will be sent by them.
+                m_doubtfulPeers.insert(std::make_pair(peer->connectionId(), now));
+                if (!peer->requestedHeader())
+                    m_dlm->connectionManager().requestHeaders(peer);
             }
         }
     }
 
-    if (goodPeers > 0) {
+    if (goodPeers > 0 && !receivedHeaders && m_doubtfulPeers.empty()) {
         // make sure that we actually try to download headers if we weren't already
         m_dlm->getMoreHeaders();
     }
@@ -163,11 +157,6 @@ void SyncChainAction::execute(const boost::system::error_code &error)
         logDebug() << "SyncChain done";
         m_dlm->done(this);
         return;
-    }
-    else if (!existingPeersToAsk.empty()) {
-        auto peer = m_dlm->connectionManager().peer(*existingPeersToAsk.begin());
-        logDebug() << "SyncChain requests headers from" << peer->connectionId();
-        peer->sendMessage(Message(Api::LegacyP2P, Api::P2P::GetHeaders));
     }
     else {
         // ok, this is annoying.
