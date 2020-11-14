@@ -238,7 +238,12 @@ BlockHeader Blockchain::block(int height) const
 
 void Blockchain::save()
 {
-    boost::filesystem::create_directories(m_basedir);
+    boost::system::error_code error;
+    boost::filesystem::create_directories(m_basedir, error);
+    if (error && !boost::filesystem::exists(m_basedir) && !boost::filesystem::is_directory(m_basedir)) {
+        logFatal() << "P2P.Blockchain can't save. Failed creating the dir:" << m_basedir.string();
+        return;
+    }
     std::unique_lock<std::mutex> lock(m_lock);
 
     std::ofstream out((m_basedir / "blockchain").string());

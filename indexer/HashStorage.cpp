@@ -484,7 +484,12 @@ void HashList::finalize()
 HashStoragePrivate::HashStoragePrivate(const boost::filesystem::path &basedir_)
     : basedir(QString::fromStdWString(basedir_.wstring()))
 {
-    boost::filesystem::create_directories(basedir_);
+    boost::system::error_code error;
+    boost::filesystem::create_directories(basedir_, error);
+    if (error && !boost::filesystem::exists(basedir_) && !boost::filesystem::is_directory(basedir_)) {
+        logFatal() << "HashStorage can't save. Failed creating the dir:" << basedir_.string();
+        return;
+    }
     int index = 1;
     const QString fileBase = QString("%1/hashlist-%2").arg(basedir);
     while (true) {

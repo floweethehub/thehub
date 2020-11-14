@@ -308,7 +308,12 @@ void PeerAddressDB::saveDatabase(const boost::filesystem::path &basedir)
     auto data = builder.buffer();
 
     try {
-        boost::filesystem::create_directories(basedir);
+        boost::system::error_code error;
+        boost::filesystem::create_directories(basedir, error);
+        if (error && !boost::filesystem::exists(basedir) && !boost::filesystem::is_directory(basedir)) {
+            logFatal() << "P2P.PeerAddressDB can't save. Failed creating the dir:" << basedir.string();
+            return;
+        }
         boost::filesystem::remove(basedir / "peers.dat~");
 
         std::ofstream outFile((basedir / "peers.dat~").string());
