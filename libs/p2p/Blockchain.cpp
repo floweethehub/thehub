@@ -287,6 +287,7 @@ void Blockchain::loadMainchainCheckpoints()
     checkpoints.insert(std::make_pair(582680, uint256S("000000000000000001b4b8e36aec7d4f9671a47872cb9a74dc16ca398c7dcc18")));
     checkpoints.insert(std::make_pair(609136, uint256S("000000000000000000b48bb207faac5ac655c313e41ac909322eaa694f5bc5b1")));
     checkpoints.insert(std::make_pair(635259, uint256S("00000000000000000033dfef1fc2d6a5d5520b078c55193a9bf498c5b27530f7")));
+    checkpoints.insert(std::make_pair(661648, uint256S("0000000000000000029e471c41818d24b8b74c911071c4ef0b4a0509f9b5a8ce")));
 }
 
 void Blockchain::createTestnet4Genesis()
