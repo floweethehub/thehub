@@ -1,6 +1,6 @@
 /*
  * This file is part of the Flowee project
- * Copyright (C) 2019 Tom Zander <tomz@freedommail.ch>
+ * Copyright (C) 2019-2020 Tom Zander <tomz@freedommail.ch>
  *
  * This program is free software: you can redistribute it and/or modify
  * it under the terms of the GNU General Public License as published by
@@ -29,6 +29,7 @@
 #include <boost/asio.hpp>
 #ifdef Qt5Network_FOUND
 #include <QtNetwork/QNetworkInterface>
+#include <QTcpServer>
 #endif
 
 namespace {
@@ -232,7 +233,50 @@ void FloweeServiceApplication::handleSigHub() const
     emit reparseConfig();
 }
 
-QStringList FloweeServiceApplication::bindingAddressArguments()
+int FloweeServiceApplication::bindTo(QTcpServer *server, int defaultPort)
 {
-    return m_parser->values(m_bindAddress);
+#ifdef Qt5Network_FOUND
+    QStringList addresses = m_parser->values(m_bindAddress);
+    QHostAddress address;
+    int port = defaultPort;
+    if (!addresses.empty()) {
+        if (addresses.size() > 1) {
+            logFatal() << "More than one --bind passsed, please limit to one or use 'localhost' / '0.0.0.0' wildcards";
+            return 1;
+        }
+        QString ip(addresses.front());
+        int index = ip.indexOf(":");
+        if (index > 0) {
+            bool ok;
+            port = ip.mid(index + 1).toInt(&ok);
+            if (!ok) {
+                logFatal() << "Could not parse port portion of bind address.";
+                return 2;
+            }
+            ip = ip.left(index);
+        }
+        if (ip.compare("localhost", Qt::CaseInsensitive) == 0)
+            address = QHostAddress::LocalHost;
+        else if (ip == QLatin1String("0.0.0.0"))
+            address = QHostAddress::Any;
+        else {
+            address = QHostAddress(ip);
+        }
+        if (address.isNull()) {
+            logFatal() << "Did not understand bind address";
+            return 2;
+        }
+    }
+    else {
+        address = QHostAddress::Any;
+    }
+
+    if (!server->listen(address, port)) {
+        logCritical() << "  Failed to listen on interface";
+        return 1;
+    }
+    return 0;
+#else
+    return 1; // it obviously failed if we didn't do anything.
+#endif
 }

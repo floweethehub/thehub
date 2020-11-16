@@ -30,6 +30,8 @@
 void HandleSIGTERM(int);
 void HandleSIGHUP(int);
 
+class QTcpServer;
+
 class FloweeServiceApplication : public QCoreApplication {
     Q_OBJECT
 public:
@@ -65,8 +67,7 @@ public:
 
     void handleSigHub() const;
 
-    /// return the user-passed argument for --bind
-    QStringList bindingAddressArguments();
+    int bindTo(QTcpServer *server, int defaultPort);
 
 signals:
     void reparseConfig() const;

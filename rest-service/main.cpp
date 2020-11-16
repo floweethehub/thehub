@@ -66,37 +66,12 @@ int main(int argc, char **argv)
     qRegisterMetaType<Message>();
 
     RestService handler;
+    // become a server
     Server server(std::bind(&RestService::onIncomingConnection, &handler, std::placeholders::_1));
     server.setProxy(&handler);
-
-    // become a server
-    QStringList addresses = app.bindingAddressArguments();
-    QHostAddress address;
-    if (!addresses.empty()) {
-        if (addresses.size() > 1) {
-            logFatal() << "More than one --bind passsed, please limit to one or use 'localhost' / '0.0.0.0' wildcards";
-            return 1;
-        }
-        auto a = addresses.front();
-        if (a.compare("localhost", Qt::CaseInsensitive) == 0)
-            address = QHostAddress::LocalHost;
-        else if (a.compare("0.0.0.0", Qt::CaseInsensitive) == 0)
-            address = QHostAddress::Any;
-        else
-            address = QHostAddress(a);
-        if (address.isNull()) {
-            logFatal() << "Did not understand bind address";
-            return 2;
-        }
-    }
-    else {
-        address = QHostAddress::Any;
-    }
-
-    if (!server.listen(address, PORT)) {
-        logCritical() << "  Failed to listen on interface";
-        return 1;
-    }
+    int rc = app.bindTo(&server, PORT);
+    if (rc != 0)
+        return rc;
     Q_ASSERT(server.isListening());
 
     try {

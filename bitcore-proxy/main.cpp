@@ -1,6 +1,6 @@
 /*
  * This file is part of the Flowee project
- * Copyright (C) 2019 Tom Zander <tomz@freedommail.ch>
+ * Copyright (C) 2019-2020 Tom Zander <tomz@freedommail.ch>
  *
  * This program is free software: you can redistribute it and/or modify
  * it under the terms of the GNU General Public License as published by
@@ -66,33 +66,13 @@ int main(int argc, char **argv)
     qRegisterMetaType<Message>();
 
     BitcoreProxy handler;
+    // become a server
     Server server(std::bind(&BitcoreProxy::onIncomingConnection, &handler, std::placeholders::_1));
     server.setProxy(&handler);
-
-    auto listenAddresses = app.bindingEndPoints(parser, PORT);
-    if (listenAddresses.isEmpty()) {
-        using boost::asio::ip::tcp;
-        listenAddresses.push_back(tcp::endpoint(boost::asio::ip::address_v4::loopback(), PORT));
-        listenAddresses.push_back(tcp::endpoint(boost::asio::ip::address_v6::loopback(), PORT));
-    }
-    bool success = false;
-    for (auto ep : listenAddresses) {
-        logCritical().nospace() << "Binding http server to " << ep.address().to_string().c_str() << ":" << ep.port();
-        try {
-            if (!server.listen(QHostAddress(QString::fromStdString(ep.address().to_string())), ep.port())) {
-                logCritical() << "  Failed to listen on interface";
-            } else {
-                success = true;
-                break;
-            }
-        } catch (std::exception &e) {
-            logCritical() << "  " << e << "skipping";
-        }
-    }
-    if (!success) {
-        logFatal() << "Please pass --bind to tell me which network to listen to";
-        return 1;
-    }
+    int rc = app.bindTo(&server, PORT);
+    if (rc != 0)
+        return rc;
+    Q_ASSERT(server.isListening());
 
     try {
         auto ep = app.serverAddressFromArguments(1235);
