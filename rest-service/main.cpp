@@ -71,7 +71,7 @@ int main(int argc, char **argv)
 
     // become a server
     bool success = false;
-    for (auto ep : app.bindingEndPoints(parser, 1234, FloweeServiceApplication::LocalhostAsDefault)) {
+    for (auto ep : app.bindingEndPoints(parser, 1234, FloweeServiceApplication::AllInterfacesAsDefault)) {
         logCritical().nospace() << "Trying to bind to " << ep.address().to_string().c_str() << ":" << ep.port();
         try {
             if (!server.listen(QHostAddress(QString::fromStdString(ep.address().to_string())), ep.port())) {

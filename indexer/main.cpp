@@ -50,7 +50,7 @@ int main(int argc, char **argv)
     Indexer indexer(basedir.toStdString());
 
     // become a server
-    for (auto ep : app.bindingEndPoints(parser, 1234, FloweeServiceApplication::LocalhostAsDefault)) {
+    for (auto ep : app.bindingEndPoints(parser, 1234, FloweeServiceApplication::AllInterfacesAsDefault)) {
         logCritical().nospace() << "Trying to bind to " << ep.address().to_string().c_str() << ":" << ep.port();
         try {
             indexer.bind(ep);
