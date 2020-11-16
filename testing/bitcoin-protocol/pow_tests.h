@@ -42,7 +42,6 @@ private slots:
     // asert (from 2020)
     void asert_difficulty_test();
     void calculate_asert_test();
-    void asert_activation_anchor_test();
 };
 
 #endif

@@ -152,7 +152,7 @@ public:
         consensus.hf201905Height = 582680;
         consensus.hf201911Height = 609135;
         consensus.hf202005Height = 635258;
-        consensus.hf202011Time = 1605441600;
+        consensus.hf202011Height = 661648;
 
         checkpointData = CCheckpointData {
             boost::assign::map_list_of
@@ -174,9 +174,10 @@ public:
             (582680, uint256S("000000000000000001b4b8e36aec7d4f9671a47872cb9a74dc16ca398c7dcc18"))
             (609136, uint256S("000000000000000000b48bb207faac5ac655c313e41ac909322eaa694f5bc5b1"))
             (635259, uint256S("00000000000000000033dfef1fc2d6a5d5520b078c55193a9bf498c5b27530f7"))
+            (661648, uint256S("0000000000000000029e471c41818d24b8b74c911071c4ef0b4a0509f9b5a8ce"))
             ,
-            1573825449, // * UNIX timestamp of last checkpoint block
-            281198294,  // * total number of transactions between genesis and last checkpoint
+            1605449609, // * UNIX timestamp of last checkpoint block
+            292537436,  // * total number of transactions between genesis and last checkpoint
                         //   (the tx=... number in the new best hub.log lines)
             40000.0     // * estimated number of transactions per day after checkpoint
         };
@@ -250,7 +251,7 @@ public:
         consensus.hf201905Height = 1303885;
         consensus.hf201911Height = 1341711;
         consensus.hf202005Height = 1378460;
-        consensus.hf202011Time = GetArg("-axionactivationtime", 1605441600);
+        consensus.hf202011Height = 1421482;
 
         checkpointData = CCheckpointData {
             boost::assign::map_list_of
@@ -261,6 +262,7 @@ public:
             (1267997, uint256S("00000000000002773f8970352e4a3368a1ce6ef91eb606b64389b36fdbf1bd56"))
             (1303885, uint256S("00000000000000479138892ef0e4fa478ccc938fb94df862ef5bde7e8dee23d3"))
             (1341712, uint256S("00000000fffc44ea2e202bd905a9fbbb9491ef9e9d5a9eed4039079229afa35b"))
+            (1421482, uint256S("0000000023e0680a8a062b3cc289a4a341124ce7fcb6340ede207e194d73b60a"))
             ,
             1522608381, // * UNIX timestamp of last checkpoint block
             15052068,    // * total number of transactions between genesis and last checkpoint
@@ -341,7 +343,7 @@ public:
         consensus.hf201905Height = 0;   // we use schnorr from the start.
         consensus.hf201911Height = 5000;
         consensus.hf202005Height = 0;   // sigop counting irrelevant on this chain.
-        consensus.hf202011Time = GetArg("-axionactivationtime", 1605441600);
+        consensus.hf202011Height = 16845;
 
         checkpointData = CCheckpointData{
             boost::assign::map_list_of
@@ -425,7 +427,7 @@ public:
         consensus.hf201905Height = 0;   // we use schnorr from the start.
         consensus.hf201911Height = 5000;
         consensus.hf202005Height = 0;   // sigop counting irrelevant on this chain.
-        consensus.hf202011Time = GetArg("-axionactivationtime", 1605441600);
+        consensus.hf202011Height = 16869;
 
         checkpointData = CCheckpointData{
             boost::assign::map_list_of
@@ -497,7 +499,7 @@ public:
         consensus.hf201905Height = 1;
         consensus.hf201911Height = 0;
         consensus.hf202005Height = 0;
-        consensus.hf202011Time = 1;
+        consensus.hf202011Height = 0;
 
         checkpointData = CCheckpointData {
             boost::assign::map_list_of

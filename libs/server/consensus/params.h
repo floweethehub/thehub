@@ -63,9 +63,7 @@ struct Params {
     int hf201905Height;
     int hf201911Height;
     int hf202005Height;
-    int64_t hf202011Time; // asert DAA
-
-
+    int hf202011Height; // asert DAA
 };
 } // namespace Consensus
 

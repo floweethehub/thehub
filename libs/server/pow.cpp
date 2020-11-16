@@ -142,33 +142,13 @@ arith_uint256 ComputeTarget(const CBlockIndex *pindexFirst, const CBlockIndex *p
 const CBlockIndex *GetASERTAnchorBlock(const CBlockIndex *const pindex, const Consensus::Params &params)
 {
     assert(pindex);
-
     const CBlockIndex *cached = cachedAnchor.load();
-    // double check we are on the same chain.
-    if (cached && pindex->GetAncestor(cached->nHeight) == cached)
+    if (cached)
         return cached;
-
-    // Slow path: walk back until we find the first ancestor for which IsAxionEnabled() == true.
-    const CBlockIndex *anchor = pindex;
-
-    // Activation will be based on MTP, with the last
-    // pre-fork block used as the anchor block.
-    // This walks back to the first parent that has the MTP after the HF 2020-11 time
-    while (true) {
-        if (anchor->pskip && anchor->pskip->GetMedianTimePast() >= params.hf202011Time)
-            anchor = anchor->pskip; // use skip-list to jump further.
-        else if (!anchor->pprev // at genesis
-                 || anchor->pprev->GetMedianTimePast() < params.hf202011Time) // found our block!
-            break;
-        anchor = anchor->pprev;
-    }
-
-    // Overwrite the cache with the anchor we found. More likely than not, the next
-    // time we are asked to validate a header it will be part of same / similar chain, not
-    // some other unrelated chain with a totally different anchor.
+    assert(params.hf202011Height > 0);
+    const CBlockIndex *anchor = pindex->GetAncestor(params.hf202011Height - 1);
     cachedAnchor.compare_exchange_strong(cached, anchor);
     return anchor;
-
 }
 
 }
@@ -218,7 +198,7 @@ uint32_t CalculateNextWorkRequired(const CBlockIndex *pindexPrev, const CBlockHe
         return pindexPrev->nBits;
 
     if (pindexPrev->nHeight >= params.hf201711Height) {
-        if (pindexPrev->GetMedianTimePast() >= params.hf202011Time)
+        if (pindexPrev->nHeight >= params.hf202011Height)
             return CalculateNextASERTWorkRequired(pindexPrev, pblock, params,
                   GetASERTAnchorBlock(pindexPrev, params));
         // then the 3 year period of cw144

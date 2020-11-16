@@ -370,7 +370,6 @@ static void addDebuggingOptions(AllowedArgs& allowedArgs, HelpMessageMode)
 #endif
         .addArg("shrinkdebugfile", optionalBool, _("Shrink hub.log file on client startup (default: true when no -debug)"))
         .addDebugArg("catch-crash", optionalBool, "Enable the crash-catcher which creates a backtrace file on segfault")
-        .addArg("axionactivationtime", requiredInt, "Activation time of the November 2020 Bitcoin Cash Network Upgrade (only honored on TestNet)")
         ;
 }
 
