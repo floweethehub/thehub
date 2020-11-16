@@ -231,3 +231,8 @@ void FloweeServiceApplication::handleSigHub() const
 
     emit reparseConfig();
 }
+
+QStringList FloweeServiceApplication::bindingAddressArguments()
+{
+    return m_parser->values(m_bindAddress);
+}

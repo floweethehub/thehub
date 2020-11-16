@@ -70,24 +70,34 @@ int main(int argc, char **argv)
     server.setProxy(&handler);
 
     // become a server
-    bool success = false;
-    for (auto ep : app.bindingEndPoints(parser, 1234, FloweeServiceApplication::AllInterfacesAsDefault)) {
-        logCritical().nospace() << "Trying to bind to " << ep.address().to_string().c_str() << ":" << ep.port();
-        try {
-            if (!server.listen(QHostAddress(QString::fromStdString(ep.address().to_string())), ep.port())) {
-                logCritical() << "  Failed to listen on interface";
-            } else {
-                success = true;
-            }
-        } catch (std::exception &e) {
-            logCritical() << "   nope, not binding there due to:" << e;
+    QStringList addresses = app.bindingAddressArguments();
+    QHostAddress address;
+    if (!addresses.empty()) {
+        if (addresses.size() > 1) {
+            logFatal() << "More than one --bind passsed, please limit to one or use 'localhost' / '0.0.0.0' wildcards";
+            return 1;
+        }
+        auto a = addresses.front();
+        if (a.compare("localhost", Qt::CaseInsensitive) == 0)
+            address = QHostAddress::LocalHost;
+        else if (a.compare("0.0.0.0", Qt::CaseInsensitive) == 0)
+            address = QHostAddress::Any;
+        else
+            address = QHostAddress(a);
+        if (address.isNull()) {
+            logFatal() << "Did not understand bind address";
+            return 2;
         }
     }
+    else {
+        address = QHostAddress::Any;
+    }
 
-    if (!success) {
-        logFatal() << "Please pass --bind to tell me which network to listen to";
+    if (!server.listen(address, PORT)) {
+        logCritical() << "  Failed to listen on interface";
         return 1;
     }
+    Q_ASSERT(server.isListening());
 
     try {
         auto ep = app.serverAddressFromArguments(1235);

@@ -65,6 +65,9 @@ public:
 
     void handleSigHub() const;
 
+    /// return the user-passed argument for --bind
+    QStringList bindingAddressArguments();
+
 signals:
     void reparseConfig() const;
 
