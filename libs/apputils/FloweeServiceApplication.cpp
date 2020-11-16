@@ -137,7 +137,9 @@ void FloweeServiceApplication::setup(const char *logFilename, const QString &con
         }
 
         Log::Manager::instance()->parseConfig(m_logsconf.toLocal8Bit().toStdString(), m_logFile.toLocal8Bit().toStdString());
-        logCritical().nospace() << applicationName() << " starting. (main log-ID: " << m_appLogSection << ")";
+        logFatal().nospace() << "Flowee " << applicationName() << " starting. Version: "
+                                << FormatFullVersion().c_str();
+        logCritical() <<  "Main Log-Section:" << m_appLogSection;
     }
 
     // Reopen log on SIGHUP (to allow for log-rotate)
