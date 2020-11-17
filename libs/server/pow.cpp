@@ -198,7 +198,7 @@ uint32_t CalculateNextWorkRequired(const CBlockIndex *pindexPrev, const CBlockHe
         return pindexPrev->nBits;
 
     if (pindexPrev->nHeight >= params.hf201711Height) {
-        if (pindexPrev->nHeight >= params.hf202011Height)
+        if (pindexPrev->nHeight + 1 >= params.hf202011Height)
             return CalculateNextASERTWorkRequired(pindexPrev, pblock, params,
                   GetASERTAnchorBlock(pindexPrev, params));
         // then the 3 year period of cw144
