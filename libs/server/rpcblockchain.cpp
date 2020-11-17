@@ -28,6 +28,7 @@
 #include "main.h"
 #include "policy/policy.h"
 #include "primitives/transaction.h"
+#include "primitives/FastBlock.h"
 #include "rpcserver.h"
 #include "streaming/streams.h"
 #include "sync.h"
@@ -810,7 +811,12 @@ UniValue reconsiderblock(const UniValue& params, bool fHelp)
         throw JSONRPCError(RPC_INVALID_ADDRESS_OR_KEY, "Block not found");
     Blocks::Index::reconsiderBlock(pblockindex);
 
-    auto future = Application::instance()->validation()->addBlock(pblockindex->GetBlockPos()).start();
+    Validation::Settings future;
+    if (pblockindex->nStatus & BLOCK_HAVE_DATA) {
+        future = Application::instance()->validation()->addBlock(pblockindex->GetBlockPos()).start();
+    } else {
+        future = Application::instance()->validation()->addBlock(FastBlock::fromOldBlock(pblockindex->GetBlockHeader()), 0).start();
+    }
     future.waitUntilFinished();
 
     auto acceptedBlock = Blocks::DB::instance()->headerChain()[pblockindex->nHeight];
