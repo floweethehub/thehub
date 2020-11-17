@@ -222,12 +222,14 @@ bool Validation::Engine::disconnectTip(const FastBlock &tip, CBlockIndex *index,
 {
     assert(index);
     assert(tip.isFullBlock());
-    assert(d->mempool);
-    assert(d->mempool->utxo());
-    assert(tip.createHash() == d->mempool->utxo()->blockId());
-
     if (!d.get() || d->shuttingDown)
         return true;
+
+    assert(d->mempool);
+    assert(d->mempool->utxo());
+
+    if (tip.createHash() != d->mempool->utxo()->blockId())
+        return false;
 
     bool clean = true;
     bool error = false; // essentially our return-value, since our helper doesn't remember that.
