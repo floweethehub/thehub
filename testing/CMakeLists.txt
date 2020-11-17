@@ -44,6 +44,7 @@ if (${Qt5Core_FOUND})
             test_protocol
             test_prevector
             test_hub
+            test_hubOld
             test_streaming
             test_networkmanager
             test_hashstorage
