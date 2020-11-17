@@ -504,9 +504,12 @@ UODBPrivate::UODBPrivate(boost::asio::io_service &service, const boost::filesyst
                     for (int i3 = 0; i3 < dataFiles.size(); ++i3) {
                         DataFile *dataFile = dataFiles.at(i3);
                         bool ok = dataFile->openInfo(oldestHeight);
-                        if (!ok)
+                        if (!ok) {
+                            // if we can't find something before 'oldestHeight', then we have nothing more to search
                             logWarning() << "finding the wanted block info file (height:" << oldestHeight << ") failed for"
-                                         << df->m_path.string();
+                                         << dataFile->m_path.string();
+                            throw UTXOInternalError("Can't find a usable UTXO state");
+                        }
                     }
                     break;
                 }
@@ -592,6 +595,22 @@ DataFile::DataFile(const boost::filesystem::path &filename, int beforeHeight)
             break; // all ok
         cache.m_validInfoFiles.erase(highest);
     }
+}
+
+DataFile::DataFile(int startHeight, int endHeight)
+    :  m_fileFull(0),
+      m_memBuffers(0),
+      m_nextBucketIndex(1),
+      m_nextLeafIndex(1),
+      m_initialBlockHeight(startHeight),
+      m_lastBlockHeight(endHeight),
+      m_changeCountBlock(0),
+      m_changeCount(0),
+      m_flushScheduled(false),
+      m_usageCount(1)
+{
+    // Notice that this constructor is only for unit testing purposes
+    memset(m_jumptables, 1, sizeof(m_jumptables));
 }
 
 void DataFile::insert(const UODBPrivate *priv, const uint256 &txid, int firstOutput, int lastOutput, int blockHeight, int offsetInBlock)

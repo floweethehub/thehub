@@ -163,6 +163,8 @@ class DataFile {
    */
 public:
     DataFile(const boost::filesystem::path &filename, int beforeHeight = INT_MAX);
+    // This constructor is only used for unit testing.
+    DataFile(int startHeight, int endHeight);
 
     void insert(const UODBPrivate *priv, const uint256 &txid, int firstOutput, int lastOutput, int blockHeight, int offsetInBlock);
     void insertAll(const UODBPrivate *priv, const UnspentOutputDatabase::BlockData &data, size_t start, size_t end);

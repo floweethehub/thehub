@@ -1,6 +1,6 @@
 /*
  * This file is part of the Flowee project
- * Copyright (C) 2018 Tom Zander <tomz@freedommail.ch>
+ * Copyright (C) 2018-2020 Tom Zander <tomz@freedommail.ch>
  *
  * This program is free software: you can redistribute it and/or modify
  * it under the terms of the GNU General Public License as published by
@@ -408,6 +408,56 @@ void TestUtxo::restore()
     UnspentOutputDatabase db(ioService, m_testPath);
     logDebug() << db.blockheight();
     QCOMPARE(db.blockheight(), result);
+}
+
+static void createDBInfo(boost::filesystem::path db, int from, int to) {
+    DataFileCache cache(db);
+    DataFile df(from, to);
+    cache.writeInfoFile(&df);
+
+    db.concat(".db");
+    boost::filesystem::ofstream file(db);
+    file.close();
+    boost::filesystem::resize_file(db, 100);
+}
+
+void TestUtxo::rollback()
+{
+    // create a bunch of info files and try to follback to different states.
+    boost::filesystem::create_directories(m_testPath);
+
+    // create checkpoints!
+    createDBInfo(m_testPath / "data-1", 0, 500);
+    createDBInfo(m_testPath / "data-1", 0, 702);
+    createDBInfo(m_testPath / "data-1", 0, 900);
+    createDBInfo(m_testPath / "data-2", 200, 250);
+    createDBInfo(m_testPath / "data-2", 200, 400);
+    createDBInfo(m_testPath / "data-2", 200, 702);
+    createDBInfo(m_testPath / "data-3", 300, 400);
+    createDBInfo(m_testPath / "data-3", 300, 702);
+    createDBInfo(m_testPath / "data-3", 300, 900);
+    // There is only 1 valid checkpoint in this miserable setup: 702
+
+    boost::asio::io_service dummy;
+    UODBPrivate p1(dummy, m_testPath);
+    p1.memOnly = true;
+    QCOMPARE(p1.dataFiles.size(), 3);
+    DataFile *db = p1.dataFiles.at(0);
+    QCOMPARE(db->m_initialBlockHeight, 0);
+    QCOMPARE(db->m_lastBlockHeight, 702);
+    db = p1.dataFiles.at(1);
+    QCOMPARE(db->m_initialBlockHeight, 200);
+    QCOMPARE(db->m_lastBlockHeight, 702);
+    db = p1.dataFiles.at(2);
+    QCOMPARE(db->m_initialBlockHeight, 300);
+    QCOMPARE(db->m_lastBlockHeight, 702);
+
+    try {
+        UODBPrivate p2(dummy, m_testPath, 702);
+        QFAIL("Should have thrown");
+    } catch (const UTXOInternalError &e) {
+        logDebug() << "Successfully failed" << e;
+    }
 }
 
 QTEST_MAIN(TestUtxo)
