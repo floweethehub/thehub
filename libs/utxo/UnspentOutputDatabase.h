@@ -102,6 +102,7 @@ class UnspentOutputDatabase
 public:
     UnspentOutputDatabase(boost::asio::io_service &service, const boost::filesystem::path &basedir);
     UnspentOutputDatabase(UODBPrivate *priv);
+    UnspentOutputDatabase(const UnspentOutputDatabase &other) = delete;
     ~UnspentOutputDatabase();
 
     static UnspentOutputDatabase *createMemOnlyDB(const boost::filesystem::path &basedir);
@@ -218,6 +219,8 @@ public:
 
     /// \internal
     inline UODBPrivate *priv() { return d; }
+
+    UnspentOutputDatabase& operator=(const UnspentOutputDatabase &other) = delete;
 
 private:
     UODBPrivate *d;

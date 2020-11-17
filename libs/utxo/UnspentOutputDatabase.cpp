@@ -461,7 +461,7 @@ UODBPrivate::UODBPrivate(boost::asio::io_service &service, const boost::filesyst
     }
 #endif
     int i = 1;
-    while(true) {
+    while (true) {
         auto path = filepathForIndex(i);
         auto dbFile(path);
         dbFile.concat(".db");
