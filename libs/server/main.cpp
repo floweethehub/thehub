@@ -1868,8 +1868,10 @@ bool static ProcessMessage(CNode* pfrom, std::string strCommand, CDataStream& vR
             future.waitHeaderFinished();
             if (!future.error().empty()) {
                 logWarning(Log::Net) << "HEADERS received from peer:" << pfrom->GetId() << "returned:" << future.error();
-                LOCK(cs_main);
-                Misbehaving(pfrom->GetId(), Settings::DefaultBanscoreThreshold);
+                if (!pfrom->fWhitelisted) {
+                    LOCK(cs_main);
+                    Misbehaving(pfrom->GetId(), Settings::DefaultBanscoreThreshold);
+                }
                 return false;
             }
         }
