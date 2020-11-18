@@ -770,7 +770,7 @@ void ValidationEnginePrivate::prepareChain()
         }
         if (block.size() == 0)
             fatal("BlockValidationPrivate::prepareChainForBlock: got no block, can't continue.");
-        if (!disconnectTip(block, index))
+        if (!disconnectTip(index))
             fatal("Failed to disconnect block");
 
         tip.store(index->pprev);
@@ -889,12 +889,10 @@ void ValidationEnginePrivate::findMoreJobs()
     }
 }
 
-bool ValidationEnginePrivate::disconnectTip(const FastBlock &tip, CBlockIndex *index, bool *userClean, bool *error)
+bool ValidationEnginePrivate::disconnectTip(CBlockIndex *index, bool *userClean, bool *error)
 {
     assert(index);
     assert(index->pprev);
-    assert(tip.createHash() == mempool->utxo()->blockId());
-    assert(tip.transactions().size() > 0); // make sure we called findTransactions elsewhere
     assert(strand.running_in_this_thread());
 
     CDiskBlockPos pos = index->GetUndoPos();

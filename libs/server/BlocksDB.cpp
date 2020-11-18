@@ -666,7 +666,9 @@ int Blocks::Index::size()
     return static_cast<int>(priv->indexMap.size());
 }
 
-bool Blocks::Index::reconsiderBlock(CBlockIndex *pindex) {
+void Blocks::Index::reconsiderBlock(CBlockIndex *pindex, UnspentOutputDatabase *utxo) {
+    assert(pindex);
+    assert(utxo);
     auto priv = Blocks::DB::instance()->priv();
     std::lock_guard<std::mutex> lock_(priv->blockIndexLock);
 
@@ -676,8 +678,12 @@ bool Blocks::Index::reconsiderBlock(CBlockIndex *pindex) {
     auto it = priv->indexMap.begin();
     while (it != priv->indexMap.end()) {
         if (!it->second->IsValid() && it->second->GetAncestor(nHeight) == pindex) {
+            const auto oldStatus = it->second->nStatus;
             it->second->nStatus &= static_cast<uint32_t>(~BLOCK_FAILED_MASK);
-            MarkIndexUnsaved(it->second);
+            if (oldStatus != it->second->nStatus) {
+                MarkIndexUnsaved(it->second);
+                utxo->clearFailedBlockId(it->second->GetBlockHash());
+            }
         }
         it++;
     }
@@ -687,10 +693,10 @@ bool Blocks::Index::reconsiderBlock(CBlockIndex *pindex) {
         if (pindex->nStatus & BLOCK_FAILED_MASK) {
             pindex->nStatus &= static_cast<uint32_t>(~BLOCK_FAILED_MASK);
             MarkIndexUnsaved(pindex);
+            utxo->clearFailedBlockId(pindex->GetBlockHash());
         }
         pindex = pindex->pprev;
     }
-    return true;
 }
 
 std::set<int> Blocks::Index::fileIndexes()

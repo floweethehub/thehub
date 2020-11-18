@@ -96,7 +96,7 @@ bool VerifyDB::verifyDB(int nCheckLevel, int nCheckDepth)
             auto fastBlock = Blocks::DB::instance()->loadBlock(pindex->GetBlockPos());
             try {
                 fastBlock.findTransactions();
-                if (!validator.disconnectTip(fastBlock, pindex, &fClean))
+                if (!validator.disconnectTip(pindex, &fClean))
                     return error("VerifyDB(): *** irrecoverable inconsistency in block data at %d, hash=%s", pindex->nHeight, pindex->GetBlockHash().ToString());
             } catch (const std::runtime_error &e) {
                 logDebug() << e;

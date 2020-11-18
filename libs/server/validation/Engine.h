@@ -136,7 +136,6 @@ public:
 
     /**
      * Undo the effects of this block (with given index) on the UTXO set represented by view.
-     * @param tip the block to undo,
      * @param index the blockindex representing the block that we should undo.
      * @param the UTXO view we should undo the changes on.
      * @param clean is an optional bool that is set based on non-fatal issues in disconnecting,
@@ -147,7 +146,7 @@ public:
      *
      * Note that in any case, coins may be modified.
      */
-    bool disconnectTip(const FastBlock &tip, CBlockIndex *index, bool *clean = nullptr);
+    bool disconnectTip(CBlockIndex *index, bool *clean = nullptr);
 
     /**
      * Request the validation engine to stop validating.

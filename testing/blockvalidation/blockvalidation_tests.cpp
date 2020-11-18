@@ -406,7 +406,7 @@ void TestBlockValidation::rollback()
     block.findTransactions();
     QCOMPARE(block.transactions().size(), txs.size() + 1);
     bool clean = false, error = false;
-    priv->strand.post(std::bind(&ValidationEnginePrivate::disconnectTip, priv, block, bv->blockchain()->Tip(), &clean, &error));
+    priv->strand.post(std::bind(&ValidationEnginePrivate::disconnectTip, priv, bv->blockchain()->Tip(), &clean, &error));
     waitForStrand(*bv);
     QCOMPARE(clean, true);
     QCOMPARE(error, false);
@@ -460,6 +460,67 @@ void TestBlockValidation::minimalPush()
     future.waitUntilFinished();
     QCOMPARE(future.error(), std::string("non-mandatory-script-verify-flag (Data push larger than necessary)"));
     QCOMPARE(bv->blockchain()->Height(), 110);
+}
+
+void TestBlockValidation::manualAdjustments()
+{
+    CKey coinbaseKey;
+    // create a chain of 101 blocks.
+    std::vector<FastBlock> blocks = bv->appendChain(15, coinbaseKey);
+    assert(blocks.size() == 15);
+
+    QCOMPARE(Blocks::DB::instance()->headerChain().Height(), 15);
+
+     // do an invalidateblock of the last block.
+    auto tip = Blocks::Index::get(blocks.back().createHash());
+    QVERIFY(tip);
+    QCOMPARE(tip->nHeight, 15);
+
+    QCOMPARE(Blocks::DB::instance()->headerChain().Tip(), tip);
+    bv->invalidateBlock(tip);
+    QCOMPARE(Blocks::DB::instance()->headerChain().Height(), 14);
+    QCOMPARE(Blocks::DB::instance()->headerChain().Tip(), tip->pprev);
+    auto utxo = bv->mempool()->utxo();
+    QVERIFY(utxo->blockIdHasFailed(tip->GetBlockHash()));
+
+     // do a reconsiderBlock of the same. Should undo the work.
+    Blocks::Index::reconsiderBlock(tip, utxo);
+    QCOMPARE(utxo->blockIdHasFailed(tip->GetBlockHash()), false);
+
+    // Do what the RPC reconsiderBlock does: try to validate it again.
+    Validation::Settings future = bv->addBlock(blocks.back(), 0);
+    future.start();
+    future.waitUntilFinished();
+    QCOMPARE(Blocks::DB::instance()->headerChain().Height(), 15);
+    QCOMPARE(Blocks::DB::instance()->headerChain().Tip(), tip);
+
+
+    auto block13 = Blocks::Index::get(blocks.at(12).createHash());
+    QVERIFY(block13);
+    QCOMPARE(block13->nHeight, 13);
+    QVERIFY(Blocks::DB::instance()->headerChain().Contains(block13));
+    bv->invalidateBlock(block13);
+    QCOMPARE(Blocks::DB::instance()->headerChain().Height(), 12);
+    QCOMPARE(Blocks::DB::instance()->headerChain().Tip(), block13->pprev);
+    QVERIFY(utxo->blockIdHasFailed(block13->GetBlockHash()));
+    QCOMPARE(utxo->blockIdHasFailed(tip->GetBlockHash()), false);
+    QCOMPARE(utxo->blockIdHasFailed(block13->pprev->GetBlockHash()), false);
+
+     // do a reconsiderBlock of block 14. Should still redo the work.
+    auto block14 = Blocks::Index::get(blocks.at(13).createHash());
+    QVERIFY(block14);
+    QCOMPARE(block14->nHeight, 14);
+    Blocks::Index::reconsiderBlock(block14, utxo);
+    QCOMPARE(utxo->blockIdHasFailed(tip->GetBlockHash()), false);
+    QCOMPARE(utxo->blockIdHasFailed(block13->GetBlockHash()), false);
+    QCOMPARE(utxo->blockIdHasFailed(block14->GetBlockHash()), false);
+
+    // Do what the RPC reconsiderBlock does: try to validate it again.
+    future = bv->addBlock(blocks.at(14), 0);
+    future.start();
+    future.waitUntilFinished();
+    QCOMPARE(Blocks::DB::instance()->headerChain().Height(), 15);
+    QCOMPARE(Blocks::DB::instance()->headerChain().Tip(), tip);
 }
 
 QTEST_MAIN(TestBlockValidation)

@@ -211,6 +211,8 @@ public:
      */
     bool blockIdHasFailed(const uint256 &blockId) const;
 
+    void clearFailedBlockId(const uint256 &blockId);
+
 
     /// return the last committed blockHeight
     int blockheight() const;

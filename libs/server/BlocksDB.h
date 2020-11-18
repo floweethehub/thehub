@@ -158,7 +158,7 @@ namespace Index {
     CBlockIndex *get(const uint256 &hash);
     bool empty();
     int size();
-    bool reconsiderBlock(CBlockIndex *pindex);
+    void reconsiderBlock(CBlockIndex *pindex, UnspentOutputDatabase *utxo);
 
     /** Find the last common ancestor two blocks have.
      *  Both pa and pb must be non-NULL. */

@@ -242,7 +242,7 @@ public:
         return (int(boost::thread::hardware_concurrency()));
     }
 
-    bool disconnectTip(const FastBlock &tip, CBlockIndex *index, bool *userClean = nullptr, bool *error = nullptr);
+    bool disconnectTip(CBlockIndex *index, bool *userClean = nullptr, bool *error = nullptr);
 
     boost::asio::io_context::strand strand;
     std::atomic<bool> shuttingDown;

@@ -806,16 +806,18 @@ UniValue reconsiderblock(const UniValue& params, bool fHelp)
     std::string strHash = params[0].get_str();
     uint256 hash(uint256S(strHash));
 
+    auto validator = Application::instance()->validation();
     CBlockIndex* pblockindex = Blocks::Index::get(hash);
     if (!pblockindex)
         throw JSONRPCError(RPC_INVALID_ADDRESS_OR_KEY, "Block not found");
-    Blocks::Index::reconsiderBlock(pblockindex);
+    Blocks::Index::reconsiderBlock(pblockindex, validator->mempool()->utxo());
 
+    // try to actually validate the block again.
     Validation::Settings future;
     if (pblockindex->nStatus & BLOCK_HAVE_DATA) {
-        future = Application::instance()->validation()->addBlock(pblockindex->GetBlockPos()).start();
+        future = validator->addBlock(pblockindex->GetBlockPos()).start();
     } else {
-        future = Application::instance()->validation()->addBlock(FastBlock::fromOldBlock(pblockindex->GetBlockHeader()), 0).start();
+        future = validator->addBlock(FastBlock::fromOldBlock(pblockindex->GetBlockHeader()), 0).start();
     }
     future.waitUntilFinished();
 

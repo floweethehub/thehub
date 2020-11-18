@@ -218,22 +218,18 @@ void ValidationEnginePrivate::prepareChain_priv()
     findMoreJobs();
 }
 
-bool Validation::Engine::disconnectTip(const FastBlock &tip, CBlockIndex *index, bool *userClean)
+bool Validation::Engine::disconnectTip(CBlockIndex *index, bool *userClean)
 {
     assert(index);
-    assert(tip.isFullBlock());
     if (!d.get() || d->shuttingDown)
         return true;
 
     assert(d->mempool);
     assert(d->mempool->utxo());
 
-    if (tip.createHash() != d->mempool->utxo()->blockId())
-        return false;
-
     bool clean = true;
     bool error = false; // essentially our return-value, since our helper doesn't remember that.
-    WaitUntilFinishedHelper helper(std::bind(&ValidationEnginePrivate::disconnectTip, d, tip, index, &clean, &error), &d->strand);
+    WaitUntilFinishedHelper helper(std::bind(&ValidationEnginePrivate::disconnectTip, d, index, &clean, &error), &d->strand);
     helper.run();
     if (userClean) {
         *userClean = clean;

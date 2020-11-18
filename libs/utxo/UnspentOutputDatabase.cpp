@@ -409,6 +409,19 @@ bool UnspentOutputDatabase::blockIdHasFailed(const uint256 &blockId) const
     return df->m_rejectedBlocks.find(blockId) != df->m_rejectedBlocks.end();
 }
 
+void UnspentOutputDatabase::clearFailedBlockId(const uint256 &blockId)
+{
+    auto dfs(d->dataFiles);
+    assert(dfs.size() > 0);
+    auto df = dfs.last();
+    std::lock_guard<std::recursive_mutex> lock(df->m_lock);
+    auto i = df->m_rejectedBlocks.find(blockId);
+    if (i == df->m_rejectedBlocks.end()) // wasn't there, nothing to clear.
+        return;
+    df->m_rejectedBlocks.erase(i);
+    df->m_needsSave = true;
+}
+
 bool UnspentOutputDatabase::loadOlderState()
 {
     assert(d);

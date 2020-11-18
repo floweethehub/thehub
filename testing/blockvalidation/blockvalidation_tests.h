@@ -36,6 +36,8 @@ private slots:
     void rollback();
     void minimalPush();
 
+    void manualAdjustments();
+
 private:
     FastBlock createHeader(const FastBlock &full) const;
     // this only works if the input is a p2pkh script!
