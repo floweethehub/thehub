@@ -298,6 +298,8 @@ static const CRPCCommand vRPCCommands[] =
     { "blockchain",         "gettxout",               &gettxout,               true  },
     { "blockchain",         "verifytxoutproof",       &verifytxoutproof,       true  },
     { "blockchain",         "verifychain",            &verifychain,            true  },
+    { "blockchain",         "invalidateblock",        &invalidateblock,        true  },
+    { "blockchain",         "reconsiderblock",        &reconsiderblock,        true  },
 
     /* Mining */
     { "mining",             "setcoinbase",            &setcoinbase,            true  },
@@ -334,8 +336,6 @@ static const CRPCCommand vRPCCommands[] =
     { "util",               "createaddress",          &createaddress,          true  },
 
     /* Not shown in help */
-    { "hidden",             "invalidateblock",        &invalidateblock,        true  },
-    { "hidden",             "reconsiderblock",        &reconsiderblock,        true  },
     { "hidden",             "setmocktime",            &setmocktime,            true  },
 #ifdef ENABLE_WALLET
     { "hidden",             "resendwallettransactions", &resendwallettransactions, true},
