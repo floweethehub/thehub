@@ -52,3 +52,9 @@ install(PROGRAMS ${CMAKE_CURRENT_BINARY_DIR}/bitcore-proxy DESTINATION bin)
 add_executable(bitcore-proxy-tester TestApi.cpp)
 target_link_libraries(bitcore-proxy-tester ${LIBS})
 install(PROGRAMS ${CMAKE_CURRENT_BINARY_DIR}/bitcore-proxy-tester DESTINATION bin)
+install(FILES ${CMAKE_SOURCE_DIR}/support/bitcore-proxy.conf
+    CONFIGURATIONS Release RelWithDebInfo
+    DESTINATION etc/flowee)
+install(FILES ${CMAKE_SOURCE_DIR}/support/bitcore-proxy.service
+    CONFIGURATIONS Release RelWithDebInfo
+    DESTINATION systemd/system/)
