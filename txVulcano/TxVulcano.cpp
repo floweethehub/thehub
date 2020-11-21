@@ -36,14 +36,18 @@
 #include <cashaddr.h>
 #include <qtimer.h>
 
-TxVulcano::TxVulcano(boost::asio::io_service &ioService)
+enum PrivateTags {
+    LastBlockInChunk = Api::UserTag1
+};
+
+TxVulcano::TxVulcano(boost::asio::io_service &ioService, const QString &walletname)
     : m_networkManager(ioService),
       m_transactionsToCreate(5000000),
       m_transactionsCreated(0),
       m_blockSizeLeft(-1),
       m_timer(ioService),
       m_walletMutex(QMutex::Recursive),
-      m_wallet(QStandardPaths::writableLocation(QStandardPaths::AppDataLocation) + "/mywallet")
+      m_wallet(QStandardPaths::writableLocation(QStandardPaths::AppDataLocation) + "/" + walletname)
 {
     qRegisterMetaType<Message>("Message");
     moveToThread(&m_workerThread);
@@ -87,6 +91,11 @@ void TxVulcano::setMaxBlockSize(int sizeInMb)
     logCritical() << "Setting block size wanted to" << (m_blockSizeLeft / 1000000) << "MB";
 }
 
+void TxVulcano::setAddressesAreOwned(bool yes)
+{
+    m_ownAddresses = yes;
+}
+
 void TxVulcano::connectionEstablished(const EndPoint &)
 {
     logCritical() << "Connection established";
@@ -94,13 +103,16 @@ void TxVulcano::connectionEstablished(const EndPoint &)
     m_serverSupportsAsync = false;
     m_connection.send(Message(Api::APIService, Api::Meta::Version));
 
-    // fill the wallet with private keys
-    int count = 100 - m_wallet.keyCount();
-    Message createAddressRequest(Api::UtilService, Api::Util::CreateAddress);
-    while (--count > 0) {
-        if (count == 1)
-            createAddressRequest.setHeaderInt(Api::RequestId, 1);
-        m_connection.send(createAddressRequest);
+    QMutexLocker lock(&m_walletMutex);
+    if (m_ownAddresses) {
+        // fill the wallet with private keys
+        int count = 100 - m_wallet.keyCount();
+        Message createAddressRequest(Api::UtilService, Api::Util::CreateAddress);
+        while (--count > 0) {
+            if (count == 1)
+                createAddressRequest.setHeaderInt(Api::RequestId, 1);
+            m_connection.send(createAddressRequest);
+        }
     }
 
     m_pool.reserve(50);
@@ -118,6 +130,7 @@ void TxVulcano::connectionEstablished(const EndPoint &)
 void TxVulcano::disconnected()
 {
     logCritical() << "TxVulcano::disconnect received";
+    QMutexLocker lock(&m_walletMutex);
     m_wallet.saveKeys();
 }
 
@@ -148,6 +161,10 @@ void TxVulcano::incomingMessage(const Message& message)
         //     << "incoming message recived a '" << errorMessage  << "` notification. S/C: " << serviceId << "/" << messageId;
     }
     else if (message.serviceId() == Api::UtilService && message.messageId() == Api::Util::CreateAddressReply) {
+        if (!m_ownAddresses) {
+            logFatal() << "Hub sent us unsolicited new addresses";
+            return;
+        }
         Streaming::MessageParser parser(message.body());
         while (parser.next() == Streaming::FoundTag) {
             if (parser.tag() == Api::Util::PrivateKey) {
@@ -187,19 +204,11 @@ void TxVulcano::incomingMessage(const Message& message)
             return;
         }
         Streaming::MessageParser parser(message.body());
-        bool first = true;
         while (parser.next() == Streaming::FoundTag) {
             if (parser.tag() == Api::BlockChain::BlockHeight) {
                 m_highestBlock = parser.intData();
                 QMutexLocker lock(&m_walletMutex);
-                const auto ids = m_wallet.publicKeys();
-                m_pool.reserve((m_highestBlock - m_lastSeenBlock) * 4 + ids.size() * 25);
-                Streaming::MessageBuilder builder(m_pool);
-                for (int i = m_lastSeenBlock + 1; i <= m_highestBlock; ++i) {
-                    builder.add(Api::BlockChain::BlockHeight, i);
-                    buildGetBlockRequest(builder, first);
-                    m_connection.send(builder.message(Api::BlockChainService, Api::BlockChain::GetBlock));
-                }
+                requestNextBlocksChunk();
                 break;
             }
         }
@@ -264,7 +273,7 @@ void TxVulcano::incomingMessage(const Message& message)
                     auto constBuf = iter.byteData();
                     CScript script = CScript(reinterpret_cast<const unsigned char*>(constBuf.begin()),
                             reinterpret_cast<const unsigned char*>(constBuf.end()));
-                    assert(txData.pubKeys.size() > outIndex);
+                    assert(int(txData.pubKeys.size()) > outIndex);
                     m_wallet.addOutput(hash, outIndex, amount, txData.pubKeys.at(outIndex),
                                        txData.unconfirmedDepth + 1, script);
                     ++outIndex;
@@ -303,6 +312,29 @@ void TxVulcano::incomingMessage(const Message& message)
     }
     else {
         Streaming::MessageParser::debugMessage(message);
+    }
+}
+
+void TxVulcano::requestNextBlocksChunk()
+{
+    bool first = true;
+    const auto ids = m_wallet.publicKeys();
+    if (ids.empty()) {
+        Q_ASSERT(!m_ownAddresses);
+        logFatal() << "No private keys known to txVulcano, please add some";
+        QCoreApplication::exit(1);
+        return;
+    }
+    const int max = std::min(m_lastSeenBlock + 1000, m_highestBlock);
+    m_pool.reserve((max - m_lastSeenBlock) * 4 + ids.size() * 25);
+    Streaming::MessageBuilder builder(m_pool);
+    for (int i = m_lastSeenBlock + 1; i <= max; ++i) {
+        builder.add(Api::BlockChain::BlockHeight, i);
+        buildGetBlockRequest(builder, first);
+        auto m = builder.message(Api::BlockChainService, Api::BlockChain::GetBlock);
+        if (i == max && max != m_highestBlock)
+            m.setHeaderInt(LastBlockInChunk, 1);
+        m_connection.send(m);
     }
 }
 
@@ -356,6 +388,10 @@ void TxVulcano::processNewBlock(const Message &message)
     }
     if (m_lastSeenBlock == m_highestBlock)
         m_connection.postOnStrand(std::bind(&TxVulcano::nowCurrent, this));
+    if (message.headerInt(LastBlockInChunk) == 1) {
+        // lets ask for the next blocks-chunk
+        requestNextBlocksChunk();
+    }
 }
 
 void TxVulcano::createTransactions(const boost::system::error_code& error)
@@ -507,6 +543,10 @@ void TxVulcano::nowCurrent()
 
 void TxVulcano::generate(int blockCount)
 {
+    if (!m_canRunGenerate) {
+        logCritical() << "Waiting for miners to mine a block";
+        return;
+    }
     m_pool.reserve(30);
     Streaming::MessageBuilder builder(m_pool);
     QMutexLocker lock(&m_walletMutex);
@@ -519,4 +559,42 @@ void TxVulcano::generate(int blockCount)
     if (m_blockSizeLeft >= 1000)
         log << "The block size we aimed for is still" << (m_blockSizeLeft / 1000) << "KB away";
     m_connection.send(builder.message(Api::RegTestService, Api::RegTest::GenerateBlock));
+}
+
+bool TxVulcano::canRunGenerate() const
+{
+    return m_canRunGenerate;
+}
+
+void TxVulcano::setCanRunGenerate(bool canRunGenerate)
+{
+    m_canRunGenerate = canRunGenerate;
+}
+
+bool TxVulcano::addPrivKey(const QString &key)
+{
+    CBase58Data encoded;
+    encoded.SetString(key.toStdString());
+    if (encoded.isMainnetPrivKey()) {
+        logFatal() << "Priv key is mainnet, not acceptable!";
+        return false;
+    }
+    if (!encoded.isTestnetPrivKey()) {
+        logFatal() << "Priv key did not parse. Please provide a WIF encoded priv key.";
+        logCritical() << "Example: cQuN3nAuS4VZNscSJqzBQSWzLix1SEfCtxitMsDyS5Mz7ddAXvMo";
+        return false;
+    }
+    QMutexLocker lock(&m_walletMutex);
+    CKey privKey;
+    logFatal() << "size:" << encoded.data().size();
+
+    const auto &data = encoded.data();
+    assert(data.size() >= 32);
+    privKey.Set(data.begin(), data.begin() + 32, data.size() > 32 && data[32] == 1);
+    if (!privKey.IsValid()) {
+        logFatal() << "Private key did not validate";
+        return false;
+    }
+    m_wallet.addKey(privKey);
+    return true;
 }

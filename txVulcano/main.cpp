@@ -38,6 +38,10 @@ int main(int argc, char **argv)
     parser.addOption(sizeLimit);
     QCommandLineOption txLimit(QStringList() << "num-transactions" << "n", "Limits number of transactions created (default=5000000)", "amount");
     parser.addOption(txLimit);
+    QCommandLineOption scalenet(QStringList() << "scalenet", "Run on Scalenet");
+    parser.addOption(scalenet);
+    QCommandLineOption privkey(QStringList() << "key", "Pass in a private key which is used on scalenet", "key");
+    parser.addOption(privkey);
 
     app.addClientOptions(parser);
     parser.process(app.arguments());
@@ -45,10 +49,14 @@ int main(int argc, char **argv)
 
     // Wallet needs this to work;
     ECC_Start();
-    SelectParams("regtest");
+    const bool useScalenet = parser.isSet(scalenet);
+    if (useScalenet)
+        SelectParams("scale");
+    else
+        SelectParams("regtest");
 
     WorkerThreads workers;
-    TxVulcano vulcano(workers.ioService());
+    TxVulcano vulcano(workers.ioService(), useScalenet ? "scalenet_wallet" : "mywallet");
     if (parser.isSet(sizeLimit)) {
         bool ok;
         int sl = parser.value(sizeLimit).toInt(&ok);
@@ -75,7 +83,15 @@ int main(int argc, char **argv)
         }
         vulcano.setMaxNumTransactions(lim);
     }
-    vulcano.tryConnect(app.serverAddressFromArguments(11235));
+    if (useScalenet) {
+        vulcano.setAddressesAreOwned(false);
+        vulcano.setCanRunGenerate(false);
+    }
+    for (auto privKey : parser.values(privkey)) {
+        if (!vulcano.addPrivKey(privKey)) // method prints error for us.
+            return 1;
+    }
+    vulcano.tryConnect(app.serverAddressFromArguments(parser.isSet(scalenet) ? 31235 : 11235));
 
     return app.exec();
 }

@@ -43,7 +43,7 @@ class TxVulcano : public QObject
 {
     Q_OBJECT
 public:
-    TxVulcano(boost::asio::io_service &ioService);
+    TxVulcano(boost::asio::io_service &ioService, const QString &walletname);
     ~TxVulcano();
 
     void tryConnect(const EndPoint &ep);
@@ -53,6 +53,18 @@ public:
         assert(num > 0);
         m_transactionsToCreate = num;
     }
+
+    /**
+     * A setup where the TxVulcano owns the addresses
+     * means we can ask the Hub to mine some blocks with addresses we create
+     * as coinbase. This implies we run on regtest.
+     */
+    void setAddressesAreOwned(bool yes);
+
+    bool canRunGenerate() const;
+    void setCanRunGenerate(bool canRunGenerate);
+
+    bool addPrivKey(const QString &key);
 
 signals:
     void newBlockFound(const Message &message);
@@ -66,6 +78,8 @@ private:
     void connectionEstablished(const EndPoint &ep);
     void disconnected();
     void incomingMessage(const Message &message);
+    // requires m_walletMutex to be locked by caller
+    void requestNextBlocksChunk();
 
     void createTransactions(const boost::system::error_code& error);
     std::vector<char> createOutScript(const std::vector<char> &address);
@@ -100,8 +114,10 @@ private:
     QMutex m_miscMutex;
     std::map<int, UnvalidatedTransaction> m_transactionsInProgress;
     int m_lastId = 0;
+    bool m_canRunGenerate = false; // i.e. we run on regtest where mining is an API command.
 
     QMutex m_walletMutex;
+    bool m_ownAddresses = true; // i.e. we mine our own coin
     Wallet m_wallet;
     int m_lastSeenBlock = -1;
     int m_highestBlock = -1; // the block that we learned that the remote has.
