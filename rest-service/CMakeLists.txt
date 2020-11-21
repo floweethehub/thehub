@@ -49,3 +49,9 @@ install(PROGRAMS ${CMAKE_CURRENT_BINARY_DIR}/rest-service DESTINATION bin)
 add_executable(rest-service-tester TestApi.cpp)
 target_link_libraries(rest-service-tester ${LIBS})
 install(PROGRAMS ${CMAKE_CURRENT_BINARY_DIR}/rest-service-tester DESTINATION bin)
+install(FILES ${CMAKE_SOURCE_DIR}/support/rest-service.conf
+    CONFIGURATIONS Release RelWithDebInfo
+    DESTINATION etc/flowee)
+install(FILES ${CMAKE_SOURCE_DIR}/support/rest-service.service
+    CONFIGURATIONS Release RelWithDebInfo
+    DESTINATION systemd/system/)
