@@ -205,7 +205,7 @@ void TxVulcano::incomingMessage(const Message& message)
         }
         if (m_highestBlock == m_lastSeenBlock)
             nowCurrent();
-        else if (m_lastSeenBlock > m_lastSeenBlock) {
+        else if (m_lastSeenBlock > m_highestBlock) {
             logFatal() << "Hub went backwards in time...";
             QCoreApplication::exit(1);
         }
