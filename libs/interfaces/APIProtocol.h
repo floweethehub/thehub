@@ -65,7 +65,10 @@ enum ApiTags {
     BitcoinScriptHashed, ///< a (single) sha256 hash of a script (typically output) used as a unique ID for the payment 'address'.
 
     ASyncRequest = 10,   ///< Use only in headers.
-    RequestId            ///< Use only in headers.
+    RequestId,           ///< Use only in headers.
+    UserTag1,
+    UserTag2,
+    UserTag3
 };
 
 
