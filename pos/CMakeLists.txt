@@ -23,9 +23,6 @@ set(CMAKE_AUTOUIC ON)
 # set the default log section (for logDebug() with no args) to the POS value
 add_definitions(-DLOG_DEFAULT_SECTION=7000)
 
-find_package(Qt5Quick)
-find_package(Qt5Sql)
-
 include_directories(${LIBAPPUTILS_INCLUDES} ${CMAKE_BINARY_DIR}/include)
 
 set (POS_LIBS
@@ -37,27 +34,32 @@ set (POS_LIBS
     ${BOOST_THREAD_LIBRARY}
 )
 
-set (CASHIER_SOURCES
-    cashier.cpp
-    Calculator.cpp
-    DBConfig.cpp
-    ExchangeRateResolver.cpp
-    HubConfig.cpp
-    NetworkPaymentProcessor.cpp
-    Payment.cpp
-    PaymentDataProvider.cpp
-    QRCreator.cpp
-    qrc_qml.cpp
-)
+if (enable_gui)
+  find_package(Qt5Quick)
+  find_package(Qt5Sql)
 
-if (${Qt5Sql_FOUND} AND ${Qt5Quick_FOUND})
-    qt5_add_resources(qrc_qml.cpp qml.qrc)
-    set_property(SOURCE qrc_qml.cpp PROPERTY SKIP_AUTOGEN ON)
+  set (CASHIER_SOURCES
+      cashier.cpp
+      Calculator.cpp
+      DBConfig.cpp
+      ExchangeRateResolver.cpp
+      HubConfig.cpp
+      NetworkPaymentProcessor.cpp
+      Payment.cpp
+      PaymentDataProvider.cpp
+      QRCreator.cpp
+      qrc_qml.cpp
+  )
 
-    add_executable(cashier ${CASHIER_SOURCES})
+  if (${Qt5Sql_FOUND} AND ${Qt5Quick_FOUND})
+      qt5_add_resources(qrc_qml.cpp qml.qrc)
+      set_property(SOURCE qrc_qml.cpp PROPERTY SKIP_AUTOGEN ON)
 
-    target_link_libraries(cashier ${POS_LIBS} Qt5::Quick Qt5::Sql ${QREncode_LIBRARIES})
-    install(PROGRAMS ${CMAKE_CURRENT_BINARY_DIR}/cashier DESTINATION bin)
+      add_executable(cashier ${CASHIER_SOURCES})
+
+      target_link_libraries(cashier ${POS_LIBS} Qt5::Quick Qt5::Sql ${QREncode_LIBRARIES})
+      install(PROGRAMS ${CMAKE_CURRENT_BINARY_DIR}/cashier DESTINATION bin)
+  endif ()
 endif ()
 
 
