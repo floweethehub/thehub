@@ -117,10 +117,10 @@ private:
     bool m_canRunGenerate = false; // i.e. we run on regtest where mining is an API command.
 
     QMutex m_walletMutex;
-    bool m_ownAddresses = true; // i.e. we mine our own coin
     Wallet m_wallet;
     int m_lastSeenBlock = -1;
     int m_highestBlock = -1; // the block that we learned that the remote has.
+    bool m_outOfCoin = false; // set to true if there are no unspent coins
 
     QThread m_workerThread;
 };

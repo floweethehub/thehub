@@ -83,10 +83,7 @@ int main(int argc, char **argv)
         }
         vulcano.setMaxNumTransactions(lim);
     }
-    if (useScalenet) {
-        vulcano.setAddressesAreOwned(false);
-        vulcano.setCanRunGenerate(false);
-    }
+    vulcano.setCanRunGenerate(!useScalenet);
     for (auto privKey : parser.values(privkey)) {
         if (!vulcano.addPrivKey(privKey)) // method prints error for us.
             return 1;
