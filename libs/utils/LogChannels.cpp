@@ -208,7 +208,8 @@ void FileLogChannel::reopenLogFiles()
         fclose(m_fileout);
     if (m_logFilename.empty())
         return;
-    boost::filesystem::create_directories(m_logFilename.parent_path());
+    boost::system::error_code error;
+    boost::filesystem::create_directories(m_logFilename.parent_path(), error);
 
     m_fileout = fopen(m_logFilename.string().c_str(), "a");
     if (!m_fileout)

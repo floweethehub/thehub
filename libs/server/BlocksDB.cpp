@@ -373,7 +373,8 @@ static FILE* OpenDiskFile(const CDiskBlockPos &pos, const char *prefix, bool fRe
     if (pos.IsNull())
         return nullptr;
     boost::filesystem::path path = Blocks::getFilepathForIndex(pos.nFile, prefix, true);
-    boost::filesystem::create_directories(path.parent_path());
+    boost::system::error_code error;
+    boost::filesystem::create_directories(path.parent_path(), error);
     FILE* file = fopen(path.string().c_str(), "rb+");
     if (!file && !fReadOnly)
         file = fopen(path.string().c_str(), "wb+");

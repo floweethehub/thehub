@@ -76,7 +76,8 @@ CDBWrapper::CDBWrapper(const boost::filesystem::path& path, size_t nCacheSize, b
             leveldb::Status result = leveldb::DestroyDB(path.string(), options);
             HandleError(result);
         }
-        TryCreateDirectory(path);
+        boost::system::error_code error;
+        boost::filesystem::create_directories(path, error);
         logCritical(Log::DB) << "Opening LevelDB in" << path.string();
     }
     leveldb::Status status = leveldb::DB::Open(options, path.string(), &pdb);
