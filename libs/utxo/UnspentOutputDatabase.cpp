@@ -458,7 +458,8 @@ UODBPrivate::UODBPrivate(boost::asio::io_service &service, const boost::filesyst
     : ioService(service),
       basedir(basedir)
 {
-    boost::filesystem::create_directories(basedir);
+    boost::system::error_code error;
+    boost::filesystem::create_directories(basedir, error);
 #ifdef linux
     // make sure that the dir we open up in has the "NO-CoW" flag set, in case this is
     // a btrfs filesystem. We are much slower when copy-on-write is enabled.
@@ -1502,7 +1503,8 @@ DataFile *DataFile::createDatafile(const boost::filesystem::path &filename, int 
         }
         // now create the file.
         assert(!filename.parent_path().string().empty());
-        boost::filesystem::create_directories(filename.parent_path());
+        boost::system::error_code error;
+        boost::filesystem::create_directories(filename.parent_path(), error);
         boost::filesystem::ofstream file(dbFile);
         file.close();
         boost::filesystem::resize_file(dbFile, UODBPrivate::limits.DBFileSize);
