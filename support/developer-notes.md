@@ -136,7 +136,7 @@ that run in -regtest mode.
 
 **DEBUG_LOCKORDER**
 
-Bitcoin Classic is a multithreaded application, and deadlocks or other multithreading bugs
+Flowee the Hub is a multithreaded application, and deadlocks or other multithreading bugs
 can be very difficult to track down. Compiling with -DDEBUG_LOCKORDER (configure
 CXXFLAGS="-DDEBUG_LOCKORDER -g") inserts run-time checks to keep track of which locks
 are held, and adds warnings to the hub.log file if inconsistencies are detected.
@@ -147,7 +147,7 @@ Locking/mutex usage notes
 The code is multi-threaded, and uses mutexes and the
 LOCK/TRY_LOCK macros to protect data structures.
 
-The LOCK/TRY_LOCk are a legacy idea from a past era and essentially just wrap
+The LOCK/TRY_LOCK are a legacy idea from a past era and essentially just wrap
 boost::recursive_mutex and a scoped_lock. Please use actual mutexes in new code,
 or even better, use atomics and write lock-free code.
 
@@ -234,45 +234,12 @@ Development guidelines
 A few non-style-related recommendations for developers, as well as points to
 pay attention to for reviewers of Bitcoin code.
 
-General Bitcoin
-----------------------
-
-- New features should be exposed on RPC first, then can be made available in the GUI
-
-  - *Rationale*: RPC allows for better automatic testing. The test suite for
-    the GUI is very limited
-
-- Make sure pull requests pass Teamcity CI before merging
-
-  - *Rationale*: Makes sure that they pass thorough testing, and that the tester will keep passing
-     on the master branch. Otherwise all new pull requests will start failing the tests, resulting in
-     confusion and mayhem
-
-  - *Explanation*: If the test suite is to be updated for a change, this has to
-    be done first
-
-Wallet
--------
-
-- Make sure that no crashes happen with run-time option `-disablewallet`.
-
-  - *Rationale*: In RPC code that conditionally uses the wallet (such as
-    `validateaddress`) it is easy to forget that global pointer `pwalletMain`
-    can be NULL. See `qa/rpc-tests/disablewallet.py` for functional tests
-    exercising the API with `-disablewallet`
-
-- Include `db_cxx.h` (BerkeleyDB header) only when `ENABLE_WALLET` is set
-
-  - *Rationale*: Otherwise compilation of the disable-wallet build will fail in environments without BerkeleyDB
-
 General C++
 -------------
 
 - Assertions should not have side-effects
 
-  - *Rationale*: Even though the source code is set to to refuse to compile
-    with assertions disabled, having side-effects in assertions is unexpected and
-    makes the code harder to understand
+  - *Rationale*: stuff breaks because asserts are not compiled in release mode.
 
 - If you use the `.h`, you must link the `.cpp`
 
@@ -321,11 +288,6 @@ C++ data structures
 
 Strings and formatting
 ------------------------
-
-- Be careful of `LogPrint` versus `LogPrintf`. `LogPrint` takes a `category` argument, `LogPrintf` does not.
-
-  - *Rationale*: Confusion of these can result in runtime exceptions due to
-    formatting mismatch, and it is easy to get wrong because of subtly similar naming
 
 - Use `std::string`, avoid C string manipulation functions
 
@@ -383,11 +345,3 @@ Source code organization
 
   - *Rationale*: Avoids symbol conflicts
 
-GUI
------
-
-- Do not display or manipulate dialogs in model code (classes `*Model`)
-
-  - *Rationale*: Model classes pass through events and data from the core, they
-    should not interact with the user. That's where View classes come in. The converse also
-    holds: try to not directly access core data structures from Views.
