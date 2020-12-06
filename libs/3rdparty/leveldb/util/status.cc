@@ -53,7 +53,7 @@ std::string Status::ToString() const {
         type = "Not implemented: ";
         break;
       case kInvalidArgument:
-        type = "Invalid argument: ";
+        type = "LevelDB: Invalid argument: ";
         break;
       case kIOError:
         type = "IO error: ";
