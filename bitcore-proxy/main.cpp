@@ -61,7 +61,7 @@ int main(int argc, char **argv)
     app.addServerOptions(parser);
     parser.process(app.arguments());
 
-    app.setup("webserver.log", parser.value(conf));
+    app.setup("bitcore-proxy.log", parser.value(conf));
 
     qRegisterMetaType<Message>();
 
