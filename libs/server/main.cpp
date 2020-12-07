@@ -2526,7 +2526,8 @@ bool ProcessMessages(CNode* pfrom)
 
             if (memcmp(msg.hdr.pchMessageStart, chainparams.magic(), MESSAGE_START_SIZE) != 0) {
                 logWarning(Log::Net) << "ProcessMessage: handshake invalid messageStart"
-                                     << SanitizeString(msg.hdr.GetCommand()) << "peer:" << pfrom->id;
+                                     << SanitizeString(msg.hdr.GetCommand()) << "peer:" << pfrom->id
+                                     << pfrom->addr.ToString();
                 addrman.increaseUselessness(pfrom->addr);
                 fOk = false;
                 break;
