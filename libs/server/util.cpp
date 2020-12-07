@@ -288,11 +288,11 @@ boost::filesystem::path GetConfigFile(const std::string &filename)
     namespace fs = boost::filesystem;
 
     fs::path pathConfigFile = filename;
-    if (filename.empty()) { // its the global config file.
-        pathConfigFile = GetArg("-conf", Settings::hubConfFilename());
-        if (pathConfigFile.is_complete())
-            return pathConfigFile;
-    }
+    pathConfigFile = GetArg("-conf", Settings::hubConfFilename());
+    if (!filename.empty())
+        pathConfigFile = pathConfigFile.parent_path()  / filename;
+    if (pathConfigFile.is_complete())
+        return pathConfigFile;
 
 #if defined(WIN32) || defined(MAC_OSX)
     // Windows and Mac
