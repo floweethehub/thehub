@@ -76,6 +76,17 @@ port=1234
 ip=192.168.4.120
 port=1234
 
+# AddressDB SQL requirement
+
+The AddressDB component of the Indexer is optional and requires a SQL backend.
+If you want to run this on mainnet we have tested and had good results with PostgreSQL
+version 10 and also version 12.
+Tests with MySQL have given much less positive results, functional but extremely slow,
+not adviced at this time.
+
+When it comes to postgres it is relevant to know that both username and database-name
+are always lowercase, please consider this while configuring your setup.
+
 
 #######################
 
