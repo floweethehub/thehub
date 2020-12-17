@@ -33,6 +33,7 @@ private slots:
     void bloom_match();
     void merkle_block_1();
     void merkle_block_2();
+    void merkle_block_2_reversed();
     void merkle_block_2_with_update_none();
     void merkle_block_3_and_serialize();
     void merkle_block_4();

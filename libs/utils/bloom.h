@@ -119,8 +119,18 @@ public:
     //! (catch a filter which was just deserialized which was too big)
     bool IsWithinSizeConstraints() const;
 
-    //! Also adds any outputs which match the filter to the filter (to match their spending txes)
-    bool isRelevantAndUpdate(const CTransaction& tx);
+    //! Scans output scripts for matches and adds those outpoints to the filter
+    //! for spend detection. Returns true if any output matched, or the txid
+    //! matches.
+    bool matchAndInsertOutputs(const CTransaction &tx);
+
+    //! Scan inputs to see if the spent outpoints are a match, or the input
+    //! scripts contain matching elements.
+    bool matchInputs(const CTransaction &tx);
+
+    bool isRelevantAndUpdate(const CTransaction &tx) {
+        return matchAndInsertOutputs(tx) || matchInputs(tx);
+    }
 
     //! Checks for empty and full filters to avoid wasting cpu
     void updateEmptyFull();
