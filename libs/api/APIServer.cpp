@@ -1,6 +1,6 @@
 /*
  * This file is part of the Flowee project
- * Copyright (C) 2016, 2019 Tom Zander <tomz@freedommail.ch>
+ * Copyright (C) 2016-2020 Tom Zander <tomz@freedommail.ch>
  *
  * This program is free software: you can redistribute it and/or modify
  * it under the terms of the GNU General Public License as published by
@@ -111,7 +111,7 @@ Api::Server::Server(boost::asio::io_service &service)
     for (auto endpoint : endpoints) {
         try {
             m_networkManager.bind(endpoint, std::bind(&Api::Server::newConnection, this, std::placeholders::_1));
-            logInfo(Log::ApiServer) << "Api Server listening on" << endpoint;
+            logCritical(Log::ApiServer) << "Api Server listening on" << endpoint;
         } catch (const std::exception &e) {
             logCritical(Log::ApiServer) << "Api Server failed to listen on" << endpoint << "due to:" << e;
         }
