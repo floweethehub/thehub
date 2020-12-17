@@ -268,6 +268,7 @@ void SyncSPVAction::execute(const boost::system::error_code &error)
                         info.bloomPos = privSegment->lastBlockSynched();
                     } else {
                         logDebug() << "   using bloom backup, restarting at" << from;
+                        assert(info.bloom.flags() == BLOOM_UPDATE_ALL);
                         preferred->sendFilter(info.bloom, info.bloomPos);
                     }
                     preferred->startMerkleDownload(from + 1); // +1 because we start one after the last downloaded

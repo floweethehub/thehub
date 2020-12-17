@@ -99,6 +99,8 @@ public:
         READWRITE(nFlags);
     }
 
+    uint8_t flags() const { return nFlags; }
+
     void store(Streaming::P2PBuilder &builder) const;
 
     void insert(const std::vector<unsigned char> &vKey);
