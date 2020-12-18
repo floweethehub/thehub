@@ -2,7 +2,7 @@
  * This file is part of the Flowee project
  * Copyright (C) 2010 Satoshi Nakamoto
  * Copyright (C) 2009-2015 The Bitcoin Core developers
- * Copyright (C) 2017-2018 Tom Zander <toms@freedommail.ch>
+ * Copyright (C) 2017-2020 Tom Zander <tom@flowee.org>
  *
  * This program is free software: you can redistribute it and/or modify
  * it under the terms of the GNU General Public License as published by
@@ -771,4 +771,46 @@ UniValue setcoinbase(const UniValue& params, bool fHelp)
     auto script = Mining::ScriptForCoinbase(params[0].get_str());
     Mining::instance()->SetCoinbase(script);
     return  UniValue(UniValue::VOBJ);
+}
+
+UniValue validateblocktemplate(const UniValue &params, bool fHelp)
+{
+    if (fHelp || params.size() < 1 || params.size() > 1)
+        throw std::runtime_error(
+            "validateblocktemplate \"hexdata\"\n"
+            "\nReturns whether this block template will be accepted if a hash solution is found.\n"
+            "See https://en.bitcoin.it/wiki/BIP_0022 for full specification.\n"
+
+            "\nArguments\n"
+            "1. \"hexdata\"    (string, required) the hex-encoded block to validate (same format as submitblock)\n"
+            "\nResult:\n"
+            "true (boolean) submitted block template is valid\n"
+            "JSONRPCException if submitted block template is invalid\n");
+
+    FastBlock block;
+    {   // go via the old serialization since it does extra checks right here.
+        CBlock oldBlock;
+        if (!DecodeHexBlk(oldBlock, params[0].get_str()))
+            throw JSONRPCError(RPC_DESERIALIZATION_ERROR, "Block decode failed");
+        block = FastBlock::fromOldBlock(oldBlock);
+    }
+
+    auto pindexPrev = Blocks::Index::get(block.previousBlockId());
+    if (!pindexPrev)
+        throw std::runtime_error("invalid block: unknown parent");
+    if (pindexPrev != chainActive.Tip())
+        throw std::runtime_error("invalid block: does not build on chain tip");
+    auto settings = Application::instance()->validation()->addBlock(block, 0);
+    settings.setCheckMerkleRoot(true);
+    settings.setCheckPoW(false);
+    settings.setOnlyCheckValidity(true);
+    logInfo(Log::RPC) << "Block submitted for validation" << block.createHash() << block.size() << "bytes";
+    settings.start();
+    logInfo(Log::RPC) << "Validation started";
+    settings.waitUntilFinished();
+    logInfo(Log::RPC) << "Validation finished with:" << settings.error();
+    if (!settings.error().empty())
+        throw std::runtime_error(std::string("invalid block: ") + settings.error());
+
+    return UniValue(true);
 }
