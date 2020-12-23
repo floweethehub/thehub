@@ -153,6 +153,9 @@ enum MessageIds {
 
     SearchMempool,
     SearchMempoolReply,
+
+    GetMempoolInfo,
+    GetMempoolInfoReply,
 };
 enum Tags {
     Separator = Api::Separator,
@@ -186,6 +189,13 @@ enum Tags {
     Include_OutputAddresses,///< bool. If the output is a p2pkh, return the hash160 of the address paid to.
     Include_OutputScriptHash,///< bool. Include Tx_Out_ScriptHash
     FilterOutputIndex,  	///< integer of output. This filters to only return data for those.
+
+    // GetMempoolInfo
+    MempoolSize = 60, ///< long-int. Current tx count
+    MempoolBytes,     ///< long-int. Sum of all tx sizes (bytes)
+    MempoolUsage,     ///< long-int. Total memory usage for the mempool (bytes)
+    MaxMempool,       ///< long-int. Maximum memory usage for the mempool (bytes)
+    MempoolMinFee,    ///< double. Minimum fee for tx to be accepted (Satoshi-per-1000-bytes)
 };
 }
 

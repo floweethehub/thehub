@@ -1005,6 +1005,25 @@ public:
 private:
     uint256 m_txid;
 };
+
+class GetMempoolInfo : public Api::RpcParser
+{
+public:
+    GetMempoolInfo() : RpcParser("getmempoolinfo", Api::LiveTransactions::GetMempoolInfoReply, 60) {}
+
+    virtual void buildReply(Streaming::MessageBuilder& builder, const UniValue& result) override {
+        const UniValue& size = find_value(result, "size");
+        builder.add(Api::LiveTransactions::MempoolSize, (uint64_t) size.get_int64());
+        const UniValue& bytes = find_value(result, "bytes");
+        builder.add(Api::LiveTransactions::MempoolBytes, (uint64_t) bytes.get_int64());
+        const UniValue& usage = find_value(result, "usage");
+        builder.add(Api::LiveTransactions::MempoolUsage, (uint64_t) usage.get_int64());
+        const UniValue& maxmempool = find_value(result, "maxmempool");
+        builder.add(Api::LiveTransactions::MaxMempool, (uint64_t) maxmempool.get_int64());
+        const UniValue& mempoolminfee = find_value(result, "mempoolminfee");
+        builder.add(Api::LiveTransactions::MempoolMinFee, mempoolminfee.get_real());
+    }
+};
 }
 
 
@@ -1043,6 +1062,8 @@ Api::Parser *Api::createParser(const Message &message)
             return new UtxoFetcher(Api::LiveTransactions::GetUnspentOutputReply);
         case Api::LiveTransactions::SearchMempool:
             return new MempoolSearch();
+        case Api::LiveTransactions::GetMempoolInfo:
+            return new GetMempoolInfo();
         }
         break;
     case Api::UtilService:
