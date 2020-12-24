@@ -19,7 +19,8 @@
 #define BLACKBOXTEST_H
 
 #include <QtTest/QtTest>
-#include <QObject>
+
+#include <common/TestFloweeBase.h>
 
 #include <NetworkConnection.h>
 #include <NetworkManager.h>
@@ -32,11 +33,11 @@
 class QProcess;
 class NetworkManager;
 
-class BlackBoxTest : public QObject
+class BlackBoxTest : public TestFloweeBase
 {
     Q_OBJECT
 public:
-    BlackBoxTest(QObject *parent = nullptr);
+    BlackBoxTest();
     static void setHubExecutable(const QString &path);
 
 protected slots:

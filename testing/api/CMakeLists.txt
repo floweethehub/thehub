@@ -29,6 +29,7 @@ add_executable(test_api
     data.qrc
 )
 target_link_libraries(test_api
+    flowee_testlib
     flowee_networkmanager
     flowee_utils
     ${TEST_LIBS} ${OPENSSL_LIBRARIES})

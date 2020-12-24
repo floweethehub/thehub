@@ -38,9 +38,8 @@ void writeLogsConf(const QString &nodePath)
 
 QString BlackBoxTest::s_hubPath = QString();
 
-BlackBoxTest::BlackBoxTest(QObject *parent)
-    : QObject(parent),
-      m_network(m_workers.ioService())
+BlackBoxTest::BlackBoxTest()
+    : m_network(m_workers.ioService())
 {
     srand(QTime::currentTime().msecsSinceStartOfDay());
     if (s_hubPath.isEmpty()) // assume running from builddir directly
