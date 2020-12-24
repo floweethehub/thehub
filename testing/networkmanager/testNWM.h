@@ -19,7 +19,7 @@
 #ifndef TEST_NWM_H
 #define TEST_NWM_H
 
-#include <common/TestFloweeEnvPlusNet.h>
+#include <common/TestFloweeBase.h>
 
 class TestNWM : public TestFloweeBase
 {
