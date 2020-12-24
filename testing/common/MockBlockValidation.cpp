@@ -31,7 +31,7 @@ MockBlockValidation::MockBlockValidation()
 
 void MockBlockValidation::initSingletons()
 {
-    // set all the stuff that has been created in the Fixture (TestingSetup::TestingSetup())
+    // set all the stuff that has been created in TestFloweeSession::init()
     mp.setUtxo(g_utxo);
     setMempool(&mp);
     chainActive.SetTip(nullptr);
@@ -40,7 +40,7 @@ void MockBlockValidation::initSingletons()
 
 MockBlockValidation::~MockBlockValidation()
 {
-    g_utxo = 0;
+    g_utxo = nullptr;
 }
 
 FastBlock MockBlockValidation::createBlock(CBlockIndex *parent, const CScript& scriptPubKey, const std::vector<CTransaction>& txns) const

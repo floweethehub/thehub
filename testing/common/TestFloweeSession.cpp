@@ -86,6 +86,7 @@ void TestFloweeSession::cleanup()
 #endif
     UnloadBlockIndex();
     delete g_utxo;
+    g_utxo = nullptr;
 #ifdef ENABLE_WALLET
     bitdb.Flush(true);
     bitdb.Reset();
