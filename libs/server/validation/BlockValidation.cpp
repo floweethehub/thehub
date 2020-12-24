@@ -226,7 +226,7 @@ void ValidationEnginePrivate::blockHeaderValidated(std::shared_ptr<BlockValidati
     CBlockIndex *currentHeaderTip = Blocks::DB::instance()->headerChain().Tip();
     adoptees.insert(adoptees.begin(), state);
     const auto &cpMap = Params().Checkpoints().mapCheckpoints;
-    for (auto item : adoptees) {
+    for (const auto &item : adoptees) {
         if (item->m_checkValidityOnly)
             continue;
         if (item->m_ownsIndex) {
@@ -470,7 +470,7 @@ void ValidationEnginePrivate::startOrphanWithParent(std::list<std::shared_ptr<Bl
                     match = true;
 
                     bool alreadyThere = false;
-                    for (auto child : parent->m_chainChildren) {
+                    for (const auto &child : parent->m_chainChildren) {
                         if (child.lock() == orphan) {
                             alreadyThere = true;
                             break;
@@ -793,7 +793,7 @@ void ValidationEnginePrivate::prepareChain()
             std::shared_ptr<TxValidationState> state(new TxValidationState(me, tx, TxValidationState::FromMempool));
             state->checkTransaction();
 
-            for (CTransaction tx2 : deps) {// dependent transactions
+            for (const CTransaction &tx2 : deps) {// dependent transactions
                 state.reset(new TxValidationState(me, Tx::fromOldTransaction(tx2, &pool), TxValidationState::FromMempool));
                 state->checkTransaction();
             }
@@ -1115,7 +1115,7 @@ void BlockValidationState::blockFailed(int punishment, const std::string &error,
 
 void BlockValidationState::signalChildren() const
 {
-    for (auto child_weak : m_chainChildren) {
+    for (const auto &child_weak : m_chainChildren) {
         std::shared_ptr<BlockValidationState> child = child_weak.lock();
         if (child.get()) {
             assert(child->m_blockIndex->nHeight == m_blockIndex->nHeight + 1);
@@ -1139,7 +1139,7 @@ void BlockValidationState::recursivelyMark(BlockValidationStatus value, Recursiv
         m_validationStatus.fetch_or(value);
     else
         m_validationStatus.fetch_and(0xFF^value);
-    for (auto child : m_chainChildren) {
+    for (const auto &child : m_chainChildren) {
         std::shared_ptr<BlockValidationState> state = child.lock();
         if (state)
             state->recursivelyMark(value, option);
@@ -1301,7 +1301,7 @@ void BlockValidationState::checks2HaveParentHeaders()
         }
 
         if (flags.hf201811Active) {
-            for (auto tx : m_block.transactions()) {
+            for (const auto &tx : m_block.transactions()) {
                 // Impose a minimum transaction size of 100 bytes after the Nov, 15 2018 HF
                 // this is stated to be done to avoid a leaf node weakness in bitcoin's merkle tree design
                 if (tx.size() < 100)
@@ -1393,11 +1393,9 @@ void BlockValidationState::updateUtxoAndStartValidation()
             }
         }
 
-        int chunks, itemsPerChunk;
+        int chunks;
         if (m_checkValidityOnly) { // no UTXO interaction allowed.
             chunks = 1;
-            itemsPerChunk = m_block.transactions().size();
-
             for (auto tx : data.outputs) {
                 assert(tx.firstOutput == 0);
                 std::deque<std::pair<int, int> > outputs;
@@ -1409,6 +1407,7 @@ void BlockValidationState::updateUtxoAndStartValidation()
             }
         }
         else {
+            int itemsPerChunk; // not used here.
             calculateTxCheckChunks(chunks, itemsPerChunk);
 #ifdef ENABLE_BENCHMARKS
             int64_t start = GetTimeMicros();
@@ -1457,10 +1456,11 @@ void BlockValidationState::checkSignaturesChunk()
     assert(chunkToStart >= 0);
     DEBUGBV << chunkToStart << m_block.createHash();
 
-    int chunks, itemsPerChunk;
+    int itemsPerChunk;
     if (m_checkValidityOnly) {
-        chunks = 1; itemsPerChunk = totalTxCount;
+        itemsPerChunk = totalTxCount;
     } else {
+        int chunks = 0; // unused
         calculateTxCheckChunks(chunks, itemsPerChunk);
     }
     bool blockValid = (m_validationStatus.load() & BlockInvalid) == 0;
