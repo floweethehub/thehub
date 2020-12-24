@@ -1324,8 +1324,10 @@ void DataFile::rollback()
     for (int i = 0; i < 0x100000; ++i) {
         uint32_t bucketId = m_jumptables[i];
         assert((bucketId < MEMBIT) || (bucketId & MEMMASK) <= m_lastCommittedBucketIndex);
-        if (bucketId >= MEMBIT)
-            assert(*m_buckets.lock(bucketId & MEMMASK));
+        if (bucketId >= MEMBIT) {
+            auto holder = m_buckets.lock(bucketId & MEMMASK);
+            assert(*holder);
+        }
     }
     for (auto iter = m_buckets.begin(); iter != m_buckets.end(); ++iter) {
         const int bucketId = iter.key();
@@ -1446,7 +1448,8 @@ void DataFile::rollback()
         uint32_t bucketId = m_jumptables[i];
         assert(bucketId < MEMBIT || static_cast<int>(bucketId & MEMMASK) < m_nextBucketIndex);
         if (bucketId >= MEMBIT) {
-            assert(*m_buckets.lock(bucketId & MEMMASK));
+            auto holder = m_buckets.lock(bucketId & MEMMASK);
+            assert(*holder);
         }
     }
     for (auto iter = m_buckets.begin(); iter != m_buckets.end(); ++iter) {
