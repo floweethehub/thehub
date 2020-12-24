@@ -1,6 +1,6 @@
 /*
  * This file is part of the Flowee project
- * Copyright (C) 2019 Tom Zander <tomz@freedommail.ch>
+ * Copyright (C) 2019-2020 Tom Zander <tomz@freedommail.ch>
  *
  * This program is free software: you can redistribute it and/or modify
  * it under the terms of the GNU General Public License as published by
@@ -20,8 +20,11 @@
 
 #include <Message.h>
 
+#include <streaming/BufferPool.h>
 #include <streaming/MessageBuilder.h>
 #include <streaming/MessageParser.h>
+
+#include <primitives/FastTransaction.h>
 
 void TestApiLive::testBasic()
 {
@@ -238,6 +241,87 @@ void TestApiLive::testUtxo()
             QCOMPARE(parser.boolData(), true);
         }
     }
+}
+
+void TestApiLive::testGetMempoolInfo()
+{
+    startHubs(1);
+    feedDefaultBlocksToHub(0);
+
+    const Message request(Api::LiveTransactionService, Api::LiveTransactions::GetMempoolInfo);
+    Message m = waitForReply(0, request,
+             Api::LiveTransactionService, Api::LiveTransactions::GetMempoolInfoReply);
+
+    Streaming::MessageParser parser(m.body());
+    while (parser.next() == Streaming::FoundTag) {
+        if (parser.tag() == Api::LiveTransactions::MempoolSize) {
+            QVERIFY(parser.isLong());
+            QCOMPARE(parser.intData(), 0);
+        }
+        if (parser.tag() == Api::LiveTransactions::MempoolBytes) {
+            QVERIFY(parser.isLong());
+            QCOMPARE(parser.intData(), 0);
+        }
+        if (parser.tag() == Api::LiveTransactions::MempoolUsage) {
+            QVERIFY(parser.isLong());
+            QCOMPARE(parser.intData(), 0);
+        }
+        if (parser.tag() == Api::LiveTransactions::MaxMempool) {
+            QVERIFY(parser.isLong());
+        }
+    }
+
+    // known valid transaction on this chain.
+    Streaming::BufferPool pool;
+    pool.writeHex("0x01000000010b9d14b709aa59bd594edca17db2951c6660ebc8daa31ceae233a5550314f158000000006b483045022100b34a120e69bc933ae16c10db0f565cb2da1b80a9695a51707e8a80c9aa5c22bf02206c390cb328763ab9ab2d45f874d308af2837d6d8cfc618af76744b9eeb69c3934121022708a547a1d14ba6df79ec0f4216eeec65808cf0a32f09ad1cf730b44e8e14a6ffffffff01faa7be00000000001976a9148438266ad57aa9d9160e99a046e39027e4fb6b2a88ac00000000");
+    Tx tx1(pool.commit());
+    Streaming::MessageBuilder builder(pool);
+    builder.add(Api::LiveTransactions::Transaction, tx1.data());
+
+    // Send it.
+    m = waitForReply(0, builder.message(Api::LiveTransactionService, Api::LiveTransactions::SendTransaction),
+                             Api::LiveTransactionService, Api::LiveTransactions::SendTransactionReply);
+
+    // it got accepted.
+    QCOMPARE(m.serviceId(), Api::LiveTransactionService);
+    // ask again.
+    m = waitForReply(0, request,
+             Api::LiveTransactionService, Api::LiveTransactions::GetMempoolInfoReply);
+
+    bool seenMempoolSize = false;
+    bool seenMempoolBytes = false;
+    bool seenMempoolUsage = false;
+    bool seenMax = false;
+    Streaming::MessageParser parser2(m.body());
+    while (parser2.next() == Streaming::FoundTag) {
+        if (parser2.tag() == Api::LiveTransactions::MempoolSize) {
+            seenMempoolSize = true;
+            QVERIFY(parser2.isLong());
+            QCOMPARE(parser2.intData(), 1);
+        }
+        if (parser2.tag() == Api::LiveTransactions::MempoolBytes) {
+            seenMempoolBytes = true;
+            QVERIFY(parser2.isLong());
+            QCOMPARE(parser2.intData(), 192);
+        }
+        if (parser2.tag() == Api::LiveTransactions::MempoolUsage) {
+            seenMempoolUsage = true;
+            QVERIFY(parser2.isLong());
+            QVERIFY(parser2.intData() > 192); // don't know exact size, this includes overhead
+        }
+        if (parser2.tag() == Api::LiveTransactions::MaxMempool) {
+            seenMax = true;
+            QVERIFY(parser2.isLong());
+            QVERIFY(parser2.intData() >= 300000000); // 300MB, or more.
+        }
+        if (parser2.tag() == Api::LiveTransactions::MempoolMinFee) {
+            QVERIFY(parser2.isDouble());
+        }
+    }
+    QVERIFY(seenMempoolSize);
+    QVERIFY(seenMempoolBytes);
+    QVERIFY(seenMempoolUsage);
+    QVERIFY(seenMax);
 }
 
 Streaming::ConstBuffer TestApiLive::generate100(int nodeId)
