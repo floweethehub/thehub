@@ -285,7 +285,7 @@ void Blockchain::SearchEnginePrivate::findServices()
         if (it->string_key == "services.indexer" && !it->value.empty()) {
             std::vector<std::string> indexers;
             boost::split(indexers, it->value[0], boost::is_any_of(" \t;,"));
-            for (auto indexer : indexers) {
+            for (auto &indexer : indexers) {
                 try {
                     ep.announcePort = 1234;
                     SplitHostPort(indexer, ep.announcePort, ep.hostname);
@@ -299,7 +299,7 @@ void Blockchain::SearchEnginePrivate::findServices()
         else if (it->string_key == "services.hub" && !it->value.empty()) {
             std::vector<std::string> hubs;
             boost::split(hubs, it->value[0], boost::is_any_of(" \t;,"));
-            for (auto hub : hubs) {
+            for (auto &hub : hubs) {
                 try {
                     ep.announcePort = 1235;
                     SplitHostPort(hub, ep.announcePort, ep.hostname);

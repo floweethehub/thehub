@@ -255,7 +255,7 @@ void NetworkManagerPrivate::cronHourly(const boost::system::error_code &error)
         else
             ++bannedNode;
     }
-    for (auto connection : connections) {
+    for (auto &connection : connections) {
         connection.second->m_punishment = std::max<short>(0, connection.second->m_punishment - 100);
         // logDebug(Log::NWM) << "peer ban scrore;" << connection.second->m_punishment;
     }
@@ -458,7 +458,7 @@ void NetworkManagerConnection::errorDetected(const boost::system::error_code &er
     for (auto it = m_onErrorCallbacks.begin(); it != m_onErrorCallbacks.end(); ++it) {
         callbacks.push_back(it->second);
     }
-    for (auto callback : callbacks) {
+    for (auto &callback : callbacks) {
         try {
             callback(m_remote.connectionId, error);
         } catch (const std::exception &e) {
@@ -656,7 +656,7 @@ void NetworkManagerConnection::receivedSomeBytes(const boost::system::error_code
             callbacks.push_back(it->second);
         }
 
-        for (auto callback : callbacks) {
+        for (auto &callback : callbacks) {
             try {
                 callback(m_remote);
             } catch (const std::exception &ex) {
@@ -935,7 +935,7 @@ bool NetworkManagerConnection::processPacket(const std::shared_ptr<char> &buffer
         callbacks.push_back(it->second);
     }
 
-    for (auto callback : callbacks) {
+    for (auto &callback : callbacks) {
         try {
             callback(message);
         } catch (const NetworkQueueFullError &e) {
@@ -993,7 +993,7 @@ bool NetworkManagerConnection::processLegacyPacket(const std::shared_ptr<char> &
         callbacks.push_back(it->second);
     }
 
-    for (auto callback : callbacks) {
+    for (auto &callback : callbacks) {
         try {
             callback(message);
         } catch (const NetworkQueueFullError &e) {

@@ -729,7 +729,7 @@ void BitcoreWebRequest::threadSafeFinished()
     case TxForHeight:
     case TxForBlockHash: {
         QJsonArray root;
-        for (auto tx : answer) {
+        for (auto &tx : answer) {
             QJsonObject o = toJson(tx, m_map);
 
             auto header = blockHeaders.find(tx.blockHeight);
@@ -775,7 +775,7 @@ void BitcoreWebRequest::threadSafeFinished()
                         for (const Blockchain::Transaction &t : answer) {
                             if (t.txid.size() == 32 && memcmp(t.txid.begin(), prevTx.begin(), 32) == 0) {
                                 // we fetched this tx with outputs only, lets dig out what we need.
-                                if (t.outputs.size() > iter.intData()) {
+                                if (int(t.outputs.size()) > iter.intData()) {
                                     auto output = t.outputs.at(iter.intData());
                                     cur.insert("value", (qint64) output.amount);
                                     parseScriptAndAddress(cur, output.outScript);

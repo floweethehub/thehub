@@ -163,7 +163,7 @@ void Indexer::loadConfig(const QString &filename, const EndPoint &prioHubLocatio
 
     bool enableTxDB = false, enableAddressDb = false, enableSpentDb = false;
     const QStringList groups = settings.childGroups();
-    for (auto group : groups) {
+    for (auto &group : groups) {
         if (group == "addressdb") {
             enableAddressDb = settings.value("addressdb/enabled", "false").toBool();
         }

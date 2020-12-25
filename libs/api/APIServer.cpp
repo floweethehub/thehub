@@ -79,7 +79,7 @@ Api::Server::Server(boost::asio::io_service &service)
     std::list<tcp::endpoint> endpoints;
 
     if (mapArgs.count("-apilisten")) {
-        for (auto strAddress : mapMultiArgs["-apilisten"]) {
+        for (auto &strAddress : mapMultiArgs["-apilisten"]) {
             uint16_t port = defaultPort;
             std::string host;
             SplitHostPort(strAddress, port, host);
@@ -91,7 +91,7 @@ Api::Server::Server(boost::asio::io_service &service)
                 continue;
 #ifdef __linux__
             } else if (host == "0.0.0.0") {
-                for (auto iface : allInterfaces()) {
+                for (auto &iface : allInterfaces()) {
                     endpoints.push_back(tcp::endpoint(boost::asio::ip::address::from_string(iface), port));
                 }
                 continue;
@@ -108,7 +108,7 @@ Api::Server::Server(boost::asio::io_service &service)
         endpoints.push_back(tcp::endpoint(boost::asio::ip::address_v6::loopback(), defaultPort));
     }
 
-    for (auto endpoint : endpoints) {
+    for (auto &endpoint : endpoints) {
         try {
             m_networkManager.bind(endpoint, std::bind(&Api::Server::newConnection, this, std::placeholders::_1));
             logCritical(Log::ApiServer) << "Api Server listening on" << endpoint;

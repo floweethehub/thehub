@@ -128,7 +128,7 @@ void FloweeServiceApplication::setup(const char *logFilename, const QString &con
             + QString("/%1").arg(logFilename);
         if (m_logsconf.isEmpty()) {
             logCritical().nospace() << applicationName() << "] No logs config found";
-            for (auto p : QStandardPaths::standardLocations(QStandardPaths::AppConfigLocation)) {
+            for (auto &p : QStandardPaths::standardLocations(QStandardPaths::AppConfigLocation)) {
                 logWarning(m_appLogSection).nospace() << "  tried " << p << "/logs.conf";
             }
             logCritical().nospace() << "Log output goes to: " << m_logFile;
@@ -190,7 +190,7 @@ QList<boost::asio::ip::tcp::endpoint> FloweeServiceApplication::bindingEndPoints
     }
 
     QList<boost::asio::ip::tcp::endpoint> answer;
-    for (const QString &address : addresses) {
+    for (QString &address : addresses) {
         std::string hostname;
         uint16_t port = defaultPort;
         SplitHostPort(address.toStdString(), port, hostname);
@@ -201,7 +201,7 @@ QList<boost::asio::ip::tcp::endpoint> FloweeServiceApplication::bindingEndPoints
             answer.push_back(tcp::endpoint(boost::asio::ip::address_v6::loopback(), port));
             if (hostname == "0.0.0.0") {
 #ifdef Qt5Network_FOUND
-                for (auto net : QNetworkInterface::allAddresses()) {
+                for (auto &net : QNetworkInterface::allAddresses()) {
                     if (!net.isLoopback()) {
                         try {
                             answer.push_back(tcp::endpoint(boost::asio::ip::address::from_string(net.toString().toStdString()), port));
@@ -248,7 +248,7 @@ int FloweeServiceApplication::bindTo(QTcpServer *server, int defaultPort)
         int index = ip.indexOf(":");
         if (index > 0) {
             bool ok;
-            port = ip.mid(index + 1).toInt(&ok);
+            port = ip.midRef(index + 1).toInt(&ok);
             if (!ok) {
                 logFatal() << "Could not parse port portion of bind address.";
                 return 2;

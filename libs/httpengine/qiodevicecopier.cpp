@@ -29,12 +29,12 @@ const qint64 DefaultBufferSize = 65536;
 
 QIODeviceCopierPrivate::QIODeviceCopierPrivate(QIODeviceCopier *copier, QIODevice *srcDevice, QIODevice *destDevice)
     : QObject(copier),
-      q(copier),
       src(srcDevice),
       dest(destDevice),
       bufferSize(DefaultBufferSize),
       rangeFrom(0),
-      rangeTo(-1)
+      rangeTo(-1),
+      q(copier)
 {
 }
 

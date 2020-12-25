@@ -90,7 +90,7 @@ int main(int argc, char **argv)
         confFile = QStandardPaths::locate(QStandardPaths::AppConfigLocation, "bitcore-proxy.conf");
         if (confFile.isEmpty()) {
             logCritical() << "No config file (bitcore-proxy.conf) found, assuming defaults and no indexer";
-            for (auto dir : QStandardPaths::standardLocations(QStandardPaths::AppConfigLocation)) {
+            for (auto &dir : QStandardPaths::standardLocations(QStandardPaths::AppConfigLocation)) {
                 logInfo() << " - not found in" << dir + '/';
             }
         }

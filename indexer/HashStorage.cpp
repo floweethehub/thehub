@@ -76,7 +76,7 @@ struct HashCollector {
     void sortInTip(int partIndex) {
         PartHashTip tip;
         tip.partIndex = partIndex;
-        Q_ASSERT(m_parts.size() > partIndex);
+        Q_ASSERT(int(m_parts.size()) > partIndex);
         HashListPartProxy &p = m_parts.at(partIndex);
         Q_ASSERT(p.pos < p.rows);
         const uchar *recordStart = (p.file + p.pos * (WIDTH + sizeof(int)));
@@ -453,7 +453,7 @@ void HashList::finalize()
     collector.writeHashesToFile(&m_sortedFile);
     collector.writeRevertLookup(&m_reverseLookupFile);
 
-    for (auto p : m_parts) {
+    for (auto &p : m_parts) {
         p->closeFiles();
         p->reverseLookupFile.remove();
         p->sortedFile.remove();

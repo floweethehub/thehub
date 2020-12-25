@@ -42,10 +42,10 @@ ServerPrivate::ServerPrivate(Server *httpServer)
 
 ServerPrivate::~ServerPrivate()
 {
-    for (auto t : threads) {
+    for (auto &t : threads) {
         t->quit();
     }
-    for (auto t : threads) {
+    for (auto &t : threads) {
         t->wait();
         delete t;
     }

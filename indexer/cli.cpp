@@ -52,7 +52,7 @@ int main(int argc, char **argv)
         client.tryConnectHub(ep);
     }
     client.tryConnectIndexer(app.serverAddressFromArguments(1234));
-    for (auto a : args) {
+    for (auto &a : args) {
         client.resolve(a);
     }
 

@@ -192,7 +192,7 @@ void AddressIndexer::insert(const Streaming::ConstBuffer &outScriptHashed, int o
     assert(result.db >= 0);
     assert(result.row >= 0);
 
-    if (result.db >= m_uncommittedData.size())
+    if (result.db >= int(m_uncommittedData.size()))
         m_uncommittedData.resize(result.db + 1);
 
     std::deque<Entry> &data = m_uncommittedData[result.db];

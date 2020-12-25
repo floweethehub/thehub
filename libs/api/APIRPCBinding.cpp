@@ -801,7 +801,7 @@ public:
         int size = (m_utxos.size() - validCount) + validCount * 20;
         if (isVerbose) {
             // since I can't assume the max-size of the output-script, I need to actually fetch them here.
-            for (auto unspent : m_utxos) {
+            for (auto &unspent : m_utxos) {
                 if (unspent.isValid()) {
                     size += 10; // for amount
                     UnspentOutputData uod(unspent);
@@ -814,7 +814,7 @@ public:
     void buildReply(const Message&, Streaming::MessageBuilder &builder) override {
         const bool verbose = replyMessageId() == Api::LiveTransactions::GetUnspentOutputReply;
         bool first = true;
-        for (auto unspent : m_utxos) {
+        for (auto &unspent : m_utxos) {
             if (first)
                 first = false;
             else
