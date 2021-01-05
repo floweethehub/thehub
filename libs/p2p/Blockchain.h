@@ -43,7 +43,13 @@ public:
 
     void processBlockHeaders(Message message, int peerId);
 
+    /**
+     * Return the chain-height that we actually are at, based on validated headers.
+     */
     int height() const;
+    /**
+     * Return the chain-height that based on the date/time we expect to be at.
+     */
     int expectedBlockHeight() const;
 
     bool isKnown(const uint256 &blockId) const;
