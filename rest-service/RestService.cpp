@@ -37,9 +37,6 @@ enum Base58Type {
     PUBKEY_ADDRESS,
     SCRIPT_ADDRESS
 };
-// TODO make configurable to show different data for testnet.
-static std::vector<uint8_t> legacyPubKeyPrefix = std::vector<unsigned char>(1,0);
-static std::vector<uint8_t> legacyScriptPrefix = std::vector<unsigned char>(1,5);
 
 static QJsonDocument::JsonFormat s_JsonFormat = QJsonDocument::Compact;
 static QString s_servicePrefixPath = QString("/v2/");
@@ -93,16 +90,17 @@ struct AddressListingData : public AnswerDataBase {
     QSet<TransactionId> m_fetchedTransactions;
 };
 
+// TODO make configurable to show different data for testnet.
 static QString ripeToLegacyAddress(const std::vector<quint8> &in, CashAddress::AddressType type)
 {
     CBase58Data answer;
     CKeyID id(reinterpret_cast<const char *>(in.data()));
     switch (type) {
     case CashAddress::PUBKEY_TYPE:
-        answer.SetData(legacyPubKeyPrefix, in.data(), 20);
+        answer.setData(id, CBase58Data::PubkeyType, CBase58Data::Mainnet);
         break;
     case CashAddress::SCRIPT_TYPE:
-        answer.SetData(legacyScriptPrefix, in.data(), 20);
+        answer.setData(id, CBase58Data::ScriptType, CBase58Data::Mainnet);
         break;
     default:
         assert(false);

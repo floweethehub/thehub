@@ -1,7 +1,7 @@
 /*
  * This file is part of the Flowee project
  * Copyright (c) 2014-2015 The Bitcoin Core developers
- * Copyright (C) 2019-2020 Tom Zander <tomz@freedommail.ch>
+ * Copyright (C) 2019-2021 Tom Zander <tom@flowee.org>
  *
  * This program is free software: you can redistribute it and/or modify
  * it under the terms of the GNU General Public License as published by
@@ -161,6 +161,23 @@ void CBase58Data::SetData(const std::vector<unsigned char>& vchVersionIn, const 
     vchData.resize(nSize);
     if (!vchData.empty())
         memcpy(&vchData[0], pdata, nSize);
+}
+
+void CBase58Data::setData(const uint160 &key, CBase58Data::KeyType type, Chain chain)
+{
+    constexpr uint8_t TestPubkeyType = 111;
+    constexpr uint8_t TestScriptType = 196;
+    constexpr uint8_t PubkeyType = 0;
+    constexpr uint8_t ScriptType = 5;
+
+    uint8_t ver;
+    if (type == PubkeyType)
+        ver = chain == Mainnet ? PubkeyType : TestPubkeyType;
+    else
+        ver = chain == Mainnet ? ScriptType : TestScriptType;
+
+    std::vector<uint8_t> version(1, ver);
+    SetData(version, key.begin(), 20);
 }
 
 void CBase58Data::SetData(const std::vector<unsigned char>& vchVersionIn, const unsigned char* pbegin, const unsigned char* pend)

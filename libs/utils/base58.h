@@ -2,7 +2,7 @@
  * This file is part of the Flowee project
  * Copyright (C) 2009-2010 Satoshi Nakamoto
  * Copyright (C) 2009-2015 The Bitcoin Core developers
- * Copyright (C) 2019-2020 Tom Zander <tomz@freedommail.ch>
+ * Copyright (C) 2019-2021 Tom Zander <tom@flowee.org>
  *
  * This program is free software: you can redistribute it and/or modify
  * it under the terms of the GNU General Public License as published by
@@ -31,6 +31,8 @@
 
 #include <string>
 #include <vector>
+
+class uint160;
 
 /**
  * Encode a byte sequence as a base58-encoded string.
@@ -118,7 +120,20 @@ public:
         return vchData;
     }
 
+    /// \deprecated use setData() instead
     void SetData(const std::vector<unsigned char> &vchVersionIn, const void* pdata, size_t nSize);
+
+
+    enum KeyType {
+        PubkeyType,
+        ScriptType
+    };
+
+    enum Chain {
+        Mainnet,
+        Testnet
+    };
+    void setData(const uint160 &key, KeyType type, Chain chain);
 
 protected:
     //! the version byte(s)
