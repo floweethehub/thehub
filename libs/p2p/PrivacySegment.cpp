@@ -19,6 +19,7 @@
 #include "PrivacySegmentListener.h"
 #include "DataListenerInterface.h"
 
+#include <crypto/common.h>
 #include <streaming/P2PBuilder.h>
 #include <streaming/P2PParser.h>
 #include <primitives/FastTransaction.h>

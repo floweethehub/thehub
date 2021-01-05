@@ -19,6 +19,7 @@
 #include "Pruner_p.h"
 #include "UnspentOutputDatabase.h"
 #include "UnspentOutputDatabase_p.h"
+#include <crypto/common.h>
 #include <streaming/MessageBuilder.h>
 #include <streaming/MessageParser.h>
 #include <utils/hash.h>

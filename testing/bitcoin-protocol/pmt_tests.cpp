@@ -22,6 +22,7 @@
 #include "arith_uint256.h"
 #include "random.h"
 #include <streaming/streams.h>
+#include <version.h>
 
 #include <boost/assign/list_of.hpp>
 

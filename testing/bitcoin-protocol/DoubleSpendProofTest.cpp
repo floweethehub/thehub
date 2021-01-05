@@ -25,6 +25,7 @@
 #include <amount.h>
 
 #include <primitives/key.h>
+#include <version.h>
 #include <streaming/streams.h>
 
 namespace {

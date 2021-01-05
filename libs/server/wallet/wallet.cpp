@@ -23,6 +23,7 @@
 #include <SettingsDefaults.h>
 
 #include <Application.h>
+#include <hash.h>
 #include "encodings_legacy.h"
 #include "checkpoints.h"
 #include "chain.h"

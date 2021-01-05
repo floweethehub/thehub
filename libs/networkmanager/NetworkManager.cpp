@@ -22,6 +22,7 @@
 #include <NetworkEnums.h>
 #include <APIProtocol.h>
 
+#include <crypto/common.h>
 #include <utils/hash.h>
 #include <utils/streaming/MessageBuilder.h>
 #include <utils/streaming/MessageParser.h>

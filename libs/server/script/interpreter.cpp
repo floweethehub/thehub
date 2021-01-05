@@ -24,10 +24,11 @@
 
 #include "interpreter.h"
 
-#include "primitives/transaction.h"
+#include <hash.h>
 #include <ripemd160.h>
 #include <sha1.h>
 #include <sha256.h>
+#include "primitives/transaction.h"
 #include <primitives/pubkey.h>
 #include <primitives/script.h>
 #include "uint256.h"

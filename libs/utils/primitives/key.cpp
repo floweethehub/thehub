@@ -17,12 +17,12 @@
  */
 
 #include "key.h"
+#include "pubkey.h"
 
-// #include "arith_uint256.h"
 #include <crypto/common.h>
+#include <hash.h>
 #include <hmac_sha512.h>
-#include <primitives/pubkey.h>
-#include "random.h"
+#include <random.h>
 
 #include <secp256k1.h>
 #include <secp256k1_recovery.h>

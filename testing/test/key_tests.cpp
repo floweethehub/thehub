@@ -17,6 +17,7 @@
  */
 
 #include <encodings_legacy.h>
+#include <hash.h>
 #include "test/test_bitcoin.h"
 #include <utilstrencodings.h>
 

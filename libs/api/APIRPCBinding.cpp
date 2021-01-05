@@ -20,6 +20,7 @@
 
 #include <APIProtocol.h>
 #include <univalue.h>
+#include <hash.h>
 #include <streaming/MessageParser.h>
 #include <streaming/MessageBuilder.h>
 #include <primitives/FastBlock.h>

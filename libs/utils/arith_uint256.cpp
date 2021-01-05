@@ -18,6 +18,7 @@
  */
 
 #include "arith_uint256.h"
+#include <crypto/common.h>
 #include "uint256.h"
 
 template <unsigned int BITS>

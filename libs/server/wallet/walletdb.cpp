@@ -29,6 +29,7 @@
 #include "protocol.h"
 #include "serialize.h"
 #include "sync.h"
+#include <hash.h>
 #include "util.h"
 #include "utiltime.h"
 #include "wallet.h"

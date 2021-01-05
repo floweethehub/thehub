@@ -22,6 +22,7 @@
 #include "clientversion.h"
 #include "init.h"
 #include "main.h"
+#include <hash.h>
 #include "net.h"
 #include "netbase.h"
 #include "rpcserver.h"

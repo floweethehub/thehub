@@ -21,6 +21,7 @@
 #include "SpentOuputIndexer.h"
 
 #include <Logger.h>
+#include <hash.h>
 #include <cashaddr.h>
 #include <streaming/MessageBuilder.h>
 #include <streaming/MessageParser.h>

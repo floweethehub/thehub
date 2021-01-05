@@ -18,8 +18,9 @@
  */
 
 #include "checkdatasig_tests.h"
-#include "policy/policy.h"
-#include "script/interpreter.h"
+#include <hash.h>
+#include <script/interpreter.h>
+#include <policy/policy.h>
 
 typedef std::vector<uint8_t> valtype;
 typedef std::vector<valtype> stacktype;

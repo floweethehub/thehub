@@ -22,11 +22,9 @@
 #define FLOWEE_PUBKEY_H
 
 #include "pubkey_utils.h"
-#include "hash.h"
 #include "serialize.h"
 #include "uint256.h"
 
-#include <stdexcept>
 #include <vector>
 
 /** 

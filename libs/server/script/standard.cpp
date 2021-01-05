@@ -20,6 +20,7 @@
 #include "script/standard.h"
 
 #include <SettingsDefaults.h>
+#include <hash.h>
 #include <primitives/pubkey.h>
 #include "primitives/script.h"
 #include "util.h"

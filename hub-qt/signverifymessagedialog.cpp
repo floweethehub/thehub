@@ -25,6 +25,7 @@
 #include "walletmodel.h"
 
 #include "base58.h"
+#include <hash.h>
 #include "init.h"
 #include "main.h" // For strMessageMagic
 #include "wallet/wallet.h"

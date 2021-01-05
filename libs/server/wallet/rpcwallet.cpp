@@ -18,6 +18,7 @@
  */
 
 #include "amount.h"
+#include <hash.h>
 #include "encodings_legacy.h"
 #include "chain.h"
 #include "core_io.h"

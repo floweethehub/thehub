@@ -18,6 +18,7 @@
 
 #include "txmempool.h"
 #include "util.h"
+#include <hash.h>
 
 #include "test/test_bitcoin.h"
 

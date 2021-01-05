@@ -16,6 +16,7 @@
  * along with this program.  If not, see <http://www.gnu.org/licenses/>.
  */
 #include "AbstractCommand.h"
+#include <crypto/common.h>
 #include <Logger.h>
 // private header as we read the db tags directly
 #include <utxo/UnspentOutputDatabase_p.h>

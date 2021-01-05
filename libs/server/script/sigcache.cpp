@@ -19,6 +19,7 @@
 
 #include "sigcache.h"
 
+#include <hash.h>
 #include "cuckoocache.h"
 #include "memusage.h"
 #include <SettingsDefaults.h>

@@ -17,6 +17,7 @@
  */
 #include "TransactionBuilder.h"
 
+#include <hash.h>
 #include <primitives/pubkey.h>
 #include <primitives/transaction.h>
 

@@ -21,13 +21,8 @@
 #ifndef FLOWEE_UINT256_H
 #define FLOWEE_UINT256_H
 
-#include <crypto/common.h>
 #include "Logger.h"
 
-#include <cassert>
-#include <cstring>
-#include <stdexcept>
-#include <cstdint>
 #include <string>
 #include <vector>
 
@@ -156,10 +151,7 @@ public:
      * when the value can easily be influenced from outside as e.g. a network adversary could
      * provide values to trigger worst-case behavior.
      */
-    uint64_t GetCheapHash() const
-    {
-        return ReadLE64(data);
-    }
+    uint64_t GetCheapHash() const;
 };
 
 /* uint256 from const char *.
@@ -202,7 +194,7 @@ inline Log::Item operator<<(Log::Item item, const base_blob<BITS> &data) {
     return item;
 }
 template<unsigned int BITS>
-inline Log::SilentItem operator<<(Log::SilentItem item, const base_blob<BITS> &data) {
+inline Log::SilentItem operator<<(Log::SilentItem item, const base_blob<BITS>&) {
     return item;
 }
 
