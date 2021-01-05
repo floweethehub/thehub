@@ -412,7 +412,7 @@ bool Script::solver(const CScript &scriptPubKey, Script::TxnOutType &typeRet, st
 
     // Scan templates
     const CScript& script1 = scriptPubKey;
-    for (const PAIRTYPE(TxnOutType, CScript)& tplate : sh.templates) {
+    for (const std::pair<const Script::TxnOutType, CScript> &tplate : sh.templates) {
         const CScript& script2 = tplate.second;
         vSolutionsRet.clear();
 
