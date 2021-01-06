@@ -119,8 +119,6 @@ void TestBuffers::testParser()
     ParsedType type = parser.next();
     QVERIFY(type == FoundTag);
     QVERIFY(parser.tag() == 1);
-    variant v = parser.data();
-    QVERIFY(boost::get<std::string>(v) == std::string("bla"));
 
     type = parser.next();
     QVERIFY(parser.tag() == 3);
@@ -144,18 +142,11 @@ void TestBuffers::testParser()
     QVERIFY(parser.tag() == 6);
     QVERIFY(type == FoundTag);
     QVERIFY(parser.isByteArray());
-    v = parser.data();
-    std::vector<char> byteArray = boost::get<std::vector<char> >(v);
-    QVERIFY(byteArray == data);
 
     type = parser.next();
     QVERIFY(parser.tag() == 9);
     QVERIFY(type == FoundTag);
     QVERIFY(parser.isDouble());
-    v = parser.data();
-    double doubleData = boost::get<double>(v);
-    QVERIFY(doubleData == 15.5);
-    QVERIFY(parser.doubleData() == 15.5);
 
     type = parser.next();
     QVERIFY(parser.tag() == 10);

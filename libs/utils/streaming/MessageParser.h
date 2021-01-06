@@ -1,6 +1,6 @@
 /*
  * This file is part of the Flowee project
- * Copyright (C) 2016-2017, 2019 Tom Zander <tomz@freedommail.ch>
+ * Copyright (C) 2016-2021, 2019 Tom Zander <tomz@freedommail.ch>
  *
  * This program is free software: you can redistribute it and/or modify
  * it under the terms of the GNU General Public License as published by
@@ -37,7 +37,7 @@ enum ParsedType {
     Error
 };
 
-typedef boost::variant<int32_t, bool, uint64_t, std::string, std::vector<char>, double> variant;
+typedef boost::variant<int32_t, bool, uint64_t, double> variant;
 
 /**
  * @brief The MessageParser class is a SOX-like parser of messages.
@@ -83,8 +83,6 @@ public:
 
     /// returns the tag of the current item.
     uint32_t tag() const;
-    /// \internal
-    variant data();
 
     inline bool isInt() const {
         return m_valueState == ValueParsed && m_value.which() == 0;
@@ -93,16 +91,16 @@ public:
         return m_valueState == ValueParsed && (m_value.which() == 2 || m_value.which() == 0);
     }
     inline bool isString() const {
-        return m_valueState == LazyString || m_value.which() == 3;
+        return m_valueState == LazyString;
     }
     inline bool isBool() const {
         return m_valueState == ValueParsed && m_value.which() == 1;
     }
     inline bool isByteArray() const {
-        return m_valueState == LazyByteArray || m_value.which() == 4;
+        return m_valueState == LazyByteArray;
     }
     inline bool isDouble() const {
-        return m_valueState == ValueParsed && m_value.which() == 5;
+        return m_valueState == ValueParsed && m_value.which() == 3;
     }
 
     int32_t intData() const;
@@ -154,8 +152,4 @@ private:
     ConstBuffer m_constBuffer;
 };
 }
-
-inline Log::SilentItem operator<<(Log::SilentItem item, const Streaming::variant&) { return item; }
-Log::Item operator<<(Log::Item item, const Streaming::variant &data);
-
 #endif

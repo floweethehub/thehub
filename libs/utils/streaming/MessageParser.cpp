@@ -1,6 +1,6 @@
 /*
  * This file is part of the Flowee project
- * Copyright (C) 2016-2017 Tom Zander <tomz@freedommail.ch>
+ * Copyright (C) 2016-2021 Tom Zander <tomz@freedommail.ch>
  *
  * This program is free software: you can redistribute it and/or modify
  * it under the terms of the GNU General Public License as published by
@@ -155,24 +155,6 @@ uint32_t Streaming::MessageParser::tag() const
     return m_tag;
 }
 
-Streaming::variant Streaming::MessageParser::data()
-{
-    if (m_valueState != ValueParsed) {
-        // It hurts me that in order to use std::variant this code does two copies, one copy should be enough.
-        if (m_valueState == LazyByteArray) {
-             std::vector<char> data;
-             data.resize(m_dataLength);
-             memcpy(&data[0], m_privData + m_dataStart, m_dataLength);
-             m_value = data;
-        } else {
-            m_value = std::string(m_privData + m_dataStart, m_dataLength);
-        }
-        m_valueState = ValueParsed;
-    }
-
-    return m_value;
-}
-
 int32_t Streaming::MessageParser::intData() const
 {
     if (isInt())
@@ -193,7 +175,7 @@ uint64_t Streaming::MessageParser::longData() const
 
 double Streaming::MessageParser::doubleData() const
 {
-    if (m_value.which() == 5)
+    if (m_value.which() == 3)
         return boost::get<double>(m_value);
     return 0.0;
 }
@@ -202,9 +184,8 @@ std::string Streaming::MessageParser::stringData()
 {
     if (!isString())
         return std::string();
-    if (m_valueState == LazyString)
-        return std::string(m_privData + m_dataStart, m_dataLength);
-    return boost::get<std::string>(m_value);
+    assert(m_valueState == LazyString);
+    return std::string(m_privData + m_dataStart, m_dataLength);
 }
 
 boost::string_ref Streaming::MessageParser::rstringData() const
@@ -225,13 +206,11 @@ std::vector<char> Streaming::MessageParser::bytesData() const
 {
     if (!isByteArray())
         return std::vector<char>();
-    if (m_valueState == LazyByteArray) {
-        std::vector<char> data;
-        data.resize(m_dataLength);
-        memcpy(&data[0], m_privData + m_dataStart, m_dataLength);
-        return data;
-    }
-    return boost::get<std::vector<char> >(m_value);
+    assert(m_valueState == LazyByteArray);
+    std::vector<char> data;
+    data.resize(m_dataLength);
+    memcpy(&data[0], m_privData + m_dataStart, m_dataLength);
+    return data;
 }
 
 Streaming::ConstBuffer Streaming::MessageParser::bytesDataBuffer() const
@@ -316,21 +295,4 @@ int16_t Streaming::MessageParser::read16int(const char *buffer)
     answer = answer << 8;
     answer += buffer[0] & 0xFF;
     return answer;
-}
-
-Log::Item operator<<(Log::Item item, const Streaming::variant &data) {
-    const bool old = item.useSpace();
-    item.nospace() << "Streaming::variant[";
-    switch (data.which()) {
-    case 0: item << boost::get<int32_t>(data); break;
-    case 1: item << boost::get<bool>(data); break;
-    case 2: item << boost::get<uint64_t>(data); break;
-    case 3: item << boost::get<std::string>(data); break;
-    case 4: item << boost::get<std::vector<char> >(data); break;
-    case 5: item << boost::get<double>(data); break;
-    }
-    item << "]";
-    if (old)
-        return item.space();
-    return item;
 }
