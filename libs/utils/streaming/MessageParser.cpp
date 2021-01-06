@@ -215,7 +215,7 @@ std::vector<char> Streaming::MessageParser::bytesData() const
 
 Streaming::ConstBuffer Streaming::MessageParser::bytesDataBuffer() const
 {
-    if (!isByteArray())
+    if (!isByteArray() && !isString())
         return Streaming::ConstBuffer();
     return Streaming::ConstBuffer(m_constBuffer.internal_buffer(), m_privData + m_dataStart, m_privData + m_dataStart + m_dataLength);
 }
