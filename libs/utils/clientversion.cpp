@@ -1,6 +1,7 @@
 /*
  * This file is part of the Flowee project
  * Copyright (c) 2012-2014 The Bitcoin Core developers
+ * Copyright (C) 2021 Tom Zander <tom@flowee.org>
  *
  * This program is free software: you can redistribute it and/or modify
  * it under the terms of the GNU General Public License as published by
@@ -47,7 +48,10 @@
 //! First, include build.h if requested
 #ifdef HAVE_BUILD_INFO
 #include "build.h"
-#else
+#endif
+
+// Make sure that git not found (or similar) is Ok
+#ifndef GIT_COMMIT_ID
 # define GIT_COMMIT_ID ":"
 #endif
 
