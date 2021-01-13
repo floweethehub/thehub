@@ -35,6 +35,17 @@ DownloadManager::DownloadManager(boost::asio::io_service &service, const boost::
       m_shuttingDown(false)
 {
     m_connectionManager.setBlockHeight(m_blockchain.height());
+
+    // create basedir, and fail-fast if we don't have writing rights to do that.
+    try {
+        boost::filesystem::create_directories(basedir);
+    } catch (const boost::filesystem::filesystem_error&) {
+        if (!boost::filesystem::exists(basedir) || !boost::filesystem::is_directory(basedir)) {
+            logFatal() << "Failed to create datadir" << basedir.string();
+            throw;
+        }
+        // errors like "already exists" are safe to ignore.
+    }
 }
 
 const ConnectionManager &DownloadManager::connectionManager() const
