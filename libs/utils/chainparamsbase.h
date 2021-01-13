@@ -33,7 +33,6 @@ public:
     static const std::string TESTNET;
     static const std::string TESTNET4;
     static const std::string SCALENET;
-    static const std::string FLEXTRANSTESTNET;
     static const std::string REGTEST;
 
     const std::string& DataDir() const { return strDataDir; }
