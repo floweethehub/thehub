@@ -2,7 +2,7 @@
  * This file is part of the Flowee project
  * Copyright (c) 2010 Satoshi Nakamoto
  * Copyright (c) 2009-2015 The Bitcoin Core developers
- * Copyright (C) 2016-2020 Tom Zander <tomz@freedommail.ch>
+ * Copyright (C) 2016-2021 Tom Zander <tom@flowee.org>
  *
  * This program is free software: you can redistribute it and/or modify
  * it under the terms of the GNU General Public License as published by
@@ -318,6 +318,7 @@ public:
 
         vFixedSeeds.clear();
         vSeeds.clear();
+        vSeeds.push_back(CDNSSeedData("flowee", "testnet4-seed.flowee.cash"));
         vSeeds.push_back(CDNSSeedData("toomim", "testnet4-seed-bch.toom.im"));
         vSeeds.push_back(CDNSSeedData("bitcoinforks.org", "testnet4-seed-bch.bitcoinforks.org"));
         vSeeds.push_back(CDNSSeedData("loping.net", "seed.tbch4.loping.net"));
