@@ -1,6 +1,6 @@
 /*
  * This file is part of the Flowee project
- * Copyright (C) 2020 Tom Zander <tomz@freedommail.ch>
+ * Copyright (C) 2020-2021 Tom Zander <tom@flowee.org>
  *
  * This program is free software: you can redistribute it and/or modify
  * it under the terms of the GNU General Public License as published by
@@ -382,8 +382,11 @@ void PeerAddressDB::insert(PeerInfo &pi)
     if (!hasIp && pi.address.hostname.empty())
         return;
     for (auto i = m_peers.begin(); i != m_peers.end(); ++i) {
-        if (hasIp && i->second.address.ipAddress == pi.address.ipAddress)
+        if (hasIp && i->second.address.ipAddress == pi.address.ipAddress) {
+            if (i->second.punishment > 400)
+                i->second.punishment -= 200;
             return;
+        }
         if (!hasIp && i->second.address.hostname == pi.address.hostname)
             return;
     }

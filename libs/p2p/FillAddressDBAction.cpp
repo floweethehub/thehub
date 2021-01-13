@@ -1,6 +1,6 @@
 /*
  * This file is part of the Flowee project
- * Copyright (C) 2020 Tom Zander <tomz@freedommail.ch>
+ * Copyright (C) 2020-2021 Tom Zander <tom@flowee.org>
  *
  * This program is free software: you can redistribute it and/or modify
  * it under the terms of the GNU General Public License as published by
@@ -63,6 +63,10 @@ void FillAddressDBAction::execute(const boost::system::error_code &error)
     if (error)
         return;
 
+    if ((m_dnsLookupState % 2) == 0) { // skip if request in progress
+        again();
+        return;
+    }
     if (m_dlm->connectionManager().peerAddressDb().peerCount() < 50
             && (m_dnsLookupState == -1 || (m_dnsLookupState % 2) != 0)) { // skip if request in progress
 
@@ -78,6 +82,8 @@ void FillAddressDBAction::execute(const boost::system::error_code &error)
             boost::asio::ip::tcp::resolver::query query(m_seeders.at(index), port);
             m_resolver.async_resolve(query, std::bind(&FillAddressDBAction::onAddressResolveComplete,
                                 this, std::placeholders::_1, std::placeholders::_2));
+            again();
+            return;
         }
     }
 
