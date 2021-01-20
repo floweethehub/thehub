@@ -373,7 +373,7 @@ UniValue verifymessage(const UniValue& params, bool fHelp)
     ss << strMessage;
 
     CPubKey pubkey;
-    if (!pubkey.RecoverCompact(ss.GetHash(), vchSig))
+    if (!pubkey.RecoverCompact(ss.finalizeHash(), vchSig))
         return false;
 
     return (pubkey.GetID() == keyID);

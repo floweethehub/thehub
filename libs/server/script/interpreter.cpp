@@ -1606,7 +1606,7 @@ uint256 GetPrevoutHash(const CTransaction &txTo)
     for (size_t n = 0; n < txTo.vin.size(); ++n) {
         ss << txTo.vin[n].prevout;
     }
-    return ss.GetHash();
+    return ss.finalizeHash();
 }
 
 uint256 GetSequenceHash(const CTransaction &txTo)
@@ -1615,7 +1615,7 @@ uint256 GetSequenceHash(const CTransaction &txTo)
     for (size_t n = 0; n < txTo.vin.size(); ++n) {
         ss << txTo.vin[n].nSequence;
     }
-    return ss.GetHash();
+    return ss.finalizeHash();
 }
 
 uint256 GetOutputsHash(const CTransaction &txTo)
@@ -1624,7 +1624,7 @@ uint256 GetOutputsHash(const CTransaction &txTo)
     for (size_t n = 0; n < txTo.vout.size(); ++n) {
         ss << txTo.vout[n];
     }
-    return ss.GetHash();
+    return ss.finalizeHash();
 }
 
 } // anon namespace
@@ -1667,7 +1667,7 @@ uint256 SignatureHash(const CScript& scriptCode, const CTransaction& txTo, unsig
                    nIn < txTo.vout.size()) {
             CHashWriter ss(SER_GETHASH, 0);
             ss << txTo.vout[nIn];
-            hashOutputs = ss.GetHash();
+            hashOutputs = ss.finalizeHash();
         }
 
         CHashWriter ss(SER_GETHASH, 0);
@@ -1690,7 +1690,7 @@ uint256 SignatureHash(const CScript& scriptCode, const CTransaction& txTo, unsig
         // Sighash type
         ss << nHashType;
 
-        return ss.GetHash();
+        return ss.finalizeHash();
     }
 
     static const uint256 one(uint256S("0000000000000000000000000000000000000000000000000000000000000001"));
@@ -1713,7 +1713,7 @@ uint256 SignatureHash(const CScript& scriptCode, const CTransaction& txTo, unsig
     // Serialize and hash
     CHashWriter ss(SER_GETHASH, 0);
     ss << txTmp << nHashType;
-    return ss.GetHash();
+    return ss.finalizeHash();
 }
 
 bool TransactionSignatureChecker::VerifySignature(const std::vector<unsigned char>& vchSig, const CPubKey& pubkey, const uint256& sighash, uint32_t flags) const

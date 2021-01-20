@@ -211,7 +211,7 @@ Tx TransactionBuilder::createTransaction(Streaming::BufferPool *pool)
             for (size_t n = 0; n < d->transaction.vin.size(); ++n) {
                 ss << d->transaction.vin[n].prevout;
             }
-            hashPrevouts = ss.GetHash();
+            hashPrevouts = ss.finalizeHash();
         }
         uint256 hashSequence;
         if (!(si.hashType & SignOnlyThisInput) && (si.hashType & 0x1f) != SignSingleOutput
@@ -220,7 +220,7 @@ Tx TransactionBuilder::createTransaction(Streaming::BufferPool *pool)
             for (size_t n = 0; n < d->transaction.vin.size(); ++n) {
                 ss << d->transaction.vin[n].nSequence;
             }
-            hashSequence = ss.GetHash();
+            hashSequence = ss.finalizeHash();
         }
         uint256 hashOutputs;
         if ((si.hashType & 0x1f) != SignSingleOutput && (si.hashType & 0x1f) != SignNoOutputs) {
@@ -228,11 +228,11 @@ Tx TransactionBuilder::createTransaction(Streaming::BufferPool *pool)
             for (size_t n = 0; n < d->transaction.vout.size(); ++n) {
                 ss << d->transaction.vout[n];
             }
-            hashOutputs = ss.GetHash();
+            hashOutputs = ss.finalizeHash();
         } else if ((si.hashType & 0x1f) == SignSingleOutput && i < d->transaction.vout.size()) {
             CHashWriter ss(SER_GETHASH, 0);
             ss << d->transaction.vout[i];
-            hashOutputs = ss.GetHash();
+            hashOutputs = ss.finalizeHash();
         }
 
         // use FORKID based creation of the hash we will sign.
@@ -242,7 +242,7 @@ Tx TransactionBuilder::createTransaction(Streaming::BufferPool *pool)
         ss << static_cast<const CScriptBase &>(si.prevOutScript);
         ss << si.amount << d->transaction.vin[i].nSequence << hashOutputs;
         ss << d->transaction.nLockTime << (int) si.hashType;
-        const uint256 hash = ss.GetHash();
+        const uint256 hash = ss.finalizeHash();
 
         // the rest assumes P2PKH for now.
         std::vector<unsigned char> vchSig;

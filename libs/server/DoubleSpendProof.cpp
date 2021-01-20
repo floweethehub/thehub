@@ -49,7 +49,7 @@ namespace {
             for (size_t n = 0; n < tx.vin.size(); ++n) {
                 ss << tx.vin[n].prevout;
             }
-            spender.hashPrevOutputs = ss.GetHash();
+            spender.hashPrevOutputs = ss.finalizeHash();
         }
         if (!(hashType & SIGHASH_ANYONECANPAY) && (hashType & 0x1f) != SIGHASH_SINGLE
                 && (hashType & 0x1f) != SIGHASH_NONE) {
@@ -57,18 +57,18 @@ namespace {
             for (size_t n = 0; n < tx.vin.size(); ++n) {
                 ss << tx.vin[n].nSequence;
             }
-            spender.hashSequence = ss.GetHash();
+            spender.hashSequence = ss.finalizeHash();
         }
         if ((hashType & 0x1f) != SIGHASH_SINGLE && (hashType & 0x1f) != SIGHASH_NONE) {
             CHashWriter ss(SER_GETHASH, 0);
             for (size_t n = 0; n < tx.vout.size(); ++n) {
                 ss << tx.vout[n];
             }
-            spender.hashOutputs = ss.GetHash();
+            spender.hashOutputs = ss.finalizeHash();
         } else if ((hashType & 0x1f) == SIGHASH_SINGLE && inputIndex < tx.vout.size()) {
             CHashWriter ss(SER_GETHASH, 0);
             ss << tx.vout[inputIndex];
-            spender.hashOutputs = ss.GetHash();
+            spender.hashOutputs = ss.finalizeHash();
         }
     }
 
@@ -97,7 +97,7 @@ namespace {
             ss << static_cast<const CScriptBase &>(scriptCode);
             ss << m_amount << m_spender.outSequence << m_spender.hashOutputs;
             ss << m_spender.lockTime << (int) m_spender.pushData.front().back();
-            const uint256 sighash = ss.GetHash();
+            const uint256 sighash = ss.finalizeHash();
 
             if (vchSig.size() == 64)
                 return pubkey.verifySchnorr(sighash, vchSig);

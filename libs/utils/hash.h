@@ -2,6 +2,7 @@
  * This file is part of the Flowee project
  * Copyright (C) 2009-2010 Satoshi Nakamoto
  * Copyright (C) 2009-2015 The Bitcoin Core developers
+ * Copyright (C) 2021 Tom Zander <tom@flowee.org>
  *
  * This program is free software: you can redistribute it and/or modify
  * it under the terms of the GNU General Public License as published by
@@ -157,8 +158,9 @@ public:
         return (*this);
     }
 
-    // invalidates the object
-    uint256 GetHash() {
+    /// This finalizes the data and returns the (double)hashed results.
+    // Please note that this invalidates the object.
+    uint256 finalizeHash() {
         uint256 result;
         ctx.Finalize((unsigned char*)&result);
         return result;
@@ -178,7 +180,7 @@ uint256 SerializeHash(const T& obj, int nType=SER_GETHASH, int nVersion=PROTOCOL
 {
     CHashWriter ss(nType, nVersion);
     ss << obj;
-    return ss.GetHash();
+    return ss.finalizeHash();
 }
 
 unsigned int MurmurHash3(unsigned int nHashSeed, const std::vector<unsigned char>& vDataToHash);
