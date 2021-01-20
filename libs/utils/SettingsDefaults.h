@@ -25,121 +25,121 @@
 namespace Settings {
 
 // /////// Validation
-static const signed int DefaultCheckBlocks = 5;
-static const unsigned int DefaultCheckLevel = 3;
+constexpr int DefaultCheckBlocks = 5;
+constexpr uint32_t DefaultCheckLevel = 3;
 
 // /////// NET
 
 /** Default for -blocksizeacceptlimit */
-static const int32_t DefaultBlockAcceptSize = 128000000;
+constexpr int32_t DefaultBlockAcceptSize = 128000000;
 
-static const bool DefaultAcceptDataCarrier = true;
-static const unsigned int MaxOpReturnRelay = 223; //! bytes (+1 for OP_RETURN, +2 for the pushdata opcodes)
-static const bool DefaultRelayPriority = true;
+constexpr bool DefaultAcceptDataCarrier = true;
+constexpr uint32_t MaxOpReturnRelay = 223; //! bytes (+1 for OP_RETURN, +2 for the pushdata opcodes)
+constexpr bool DefaultRelayPriority = true;
 
 /** Default for setting that we download and accept blocks only (no transactions, no mempool) */
-static const bool DefaultBlocksOnly = false;
-static const unsigned int DefaultBanscoreThreshold = 100;
+constexpr bool DefaultBlocksOnly = false;
+constexpr uint32_t DefaultBanscoreThreshold = 100;
 
 // NOTE: When adjusting this, update rpcnet:setban's help ("24h")
-static const unsigned int DefaultMisbehavingBantime = 60 * 60 * 24;  // Default 24-hour ban
+constexpr uint32_t DefaultMisbehavingBantime = 60 * 60 * 24;  // Default 24-hour ban
 
 //! -dns default
-static const int DefaultNameLookup = true;
+constexpr int DefaultNameLookup = true;
 
 /// download peers from DNS
-static const bool DefaultForceDnsSeed = false;
+constexpr bool DefaultForceDnsSeed = false;
 
-static const int DefaultHttpThreads=4;
-static const int DefaultHttpWorkQueue=16;
-static const int DefaultHttpServerTimeout=30;
+constexpr int DefaultHttpThreads=4;
+constexpr int DefaultHttpWorkQueue=16;
+constexpr int DefaultHttpServerTimeout=30;
 
 /// Tor
-static const bool DefaultListenOnion = false;
+constexpr bool DefaultListenOnion = false;
 static const std::string DefaultTorControl = "127.0.0.1:9051";
 
 /** The default for -maxuploadtarget. 0 = Unlimited */
-static const uint64_t DefaultMaxUploadTarget = 0;
+constexpr uint64_t DefaultMaxUploadTarget = 0;
 
 /** The maximum number of peer connections to maintain. */
-static const unsigned int DefaultMaxPeerConnections = 125;
+constexpr uint32_t DefaultMaxPeerConnections = 125;
 
 /** The default minimum number of thin nodes to connect to */
-static const int DefaultMinThinPeers = 0;
+constexpr int DefaultMinThinPeers = 0;
 
-static const unsigned int DefaultMaxReceiveBuffer = 5 * 1000;
-static const unsigned int DefaultMaxSendBuffer    = 1 * 1000;
+constexpr uint32_t DefaultMaxReceiveBuffer = 5 * 1000;
+constexpr uint32_t DefaultMaxSendBuffer    = 1 * 1000;
 
-static const int DefaultMainnetPort = 8333;
-static const int DefaultTestnetPort = 18333;
-static const int DefaultTestnet4Port = 28333;
-static const int DefaultScalenetPort = 38333;
+constexpr int DefaultMainnetPort = 8333;
+constexpr int DefaultTestnetPort = 18333;
+constexpr int DefaultTestnet4Port = 28333;
+constexpr int DefaultScalenetPort = 38333;
 
-static const bool DefaultProxyRandomize = true;
+constexpr bool DefaultProxyRandomize = true;
 
 //! -timeout default
-static const int DefaultConnectTimeout = 5000;
+constexpr int DefaultConnectTimeout = 5000;
 
-static const bool DefaultWhitelistRelay = true;
-static const bool DefaultWhitelistForceRelay = true;
+constexpr bool DefaultWhitelistRelay = true;
+constexpr bool DefaultWhitelistForceRelay = true;
 
 // /////// Mempool
 
 /** Default for -maxorphantx, maximum number of orphan transactions kept in memory */
-static const unsigned int DefaultMaxOrphanTransactions = 5000;
+constexpr uint32_t DefaultMaxOrphanTransactions = 5000;
 
 /** Default for -maxmempool, maximum megabytes of mempool memory usage */
-static const unsigned int DefaultMaxMempoolSize = 300;
+constexpr uint32_t DefaultMaxMempoolSize = 300;
 
 /** Default for -mempoolexpiry, expiration time for mempool transactions in hours */
-static const unsigned int DefaultMempoolExpiry = 5;
+constexpr uint32_t DefaultMempoolExpiry = 5;
 
 /** Default for -permitbaremultisig */
-static const bool DefaultPermitBareMultisig = true;
+constexpr bool DefaultPermitBareMultisig = true;
 
 /** Default for -limitancestorcount, max number of in-mempool ancestors */
-static const unsigned int DefaultAncestorLimit = 50;
+constexpr uint32_t DefaultAncestorLimit = 50;
 /** Default for -limitancestorsize, maximum kilobytes of tx + all in-mempool ancestors */
-static const unsigned int DefaultAncestorSizeLimit = 101;
+constexpr uint32_t DefaultAncestorSizeLimit = 101;
 /** Default for -limitdescendantcount, max number of in-mempool descendants */
-static const unsigned int DefaultDescendantLimit = 50;
+constexpr uint32_t DefaultDescendantLimit = 50;
 /** Default for -limitdescendantsize, maximum kilobytes of in-mempool descendants */
-static const unsigned int DefaultDescendantSizeLimit = 101;
+constexpr uint32_t DefaultDescendantSizeLimit = 101;
 
-static const unsigned int DefaultLimitFreeRelay = 15;
+constexpr uint32_t DefaultLimitFreeRelay = 15;
 
 // ///////// Wallet
 
-static const unsigned int DefaultKeypoolSize = 100;
+constexpr uint32_t DefaultKeypoolSize = 100;
 //! -fallbackfee default
-static const int64_t DefaultFallbackFee = 20000;
+constexpr int64_t DefaultFallbackFee = 20000;
 
 //! -mintxfee default
-static const int64_t DefaultTransactionMinfee = 1000;
+constexpr int64_t DefaultTransactionMinfee = 1000;
 
 //! -maxtxfee default
-static const int64_t DefaultTransactionMaxFee= 0.1 * COIN;
+constexpr int64_t DefaultTransactionMaxFee= 0.1 * COIN;
 
 
 //! -paytxfee default
-static const int64_t DefaultTransactionFee = 0;
+constexpr int64_t DefaultTransactionFee = 0;
 
 //! Default for -sendfreetransactions
-static const bool DefaultSendFreeTransactions = false;
+constexpr bool DefaultSendFreeTransactions = false;
 
 //! Default for -spendzeroconfchange
-static const bool DefaultSpendZeroconfChange = true;
+constexpr bool DefaultSpendZeroconfChange = true;
 
 //! -txconfirmtarget default
-static const unsigned int defaultTxConfirmTarget = 2;
+constexpr uint32_t defaultTxConfirmTarget = 2;
 
-static const bool DefaultWalletBroadcast = true;
+constexpr bool DefaultWalletBroadcast = true;
 
-static const unsigned int DefaultWalletDBLogSize = 100;
+constexpr uint32_t DefaultWalletDBLogSize = 100;
 
-static const bool DefaultFlushWallet = true;
+constexpr bool DefaultFlushWallet = true;
 
-static const bool DefaultWalletPrivDb = true;
+constexpr bool DefaultWalletPrivDb = true;
 
 // //// config (soo meta)
 
@@ -154,20 +154,20 @@ inline const char * hubConfFilename() {
 // //// Mining
 
 /** Default for -blockmaxsize and -blockminsize, which control the range of sizes the mining code will create **/
-static const unsigned int DefaultBlockMAxSize = 8000000;
-static const unsigned int DefaultBlockMinSize = 0;
+constexpr uint32_t DefaultBlockMAxSize = 8000000;
+constexpr uint32_t DefaultBlockMinSize = 0;
 /** Default for -blockprioritysize, maximum space for zero/low-fee transactions **/
-static const unsigned int DefaultBlockPrioritySize = 100000;
+constexpr uint32_t DefaultBlockPrioritySize = 100000;
 
-static const bool DefaultGenerateCoins = false;
-static const int DefaultGenerateThreads = 1;
-static const bool DefaultGeneratePriorityLogging = false;
+constexpr bool DefaultGenerateCoins = false;
+constexpr int DefaultGenerateThreads = 1;
+constexpr bool DefaultGeneratePriorityLogging = false;
 
 
 // /////// Qt GUI
-static const bool DefaultChooseDatadir = false;
-static const bool DefaultSelfsignedRootcerts = false;
-static const bool DefaultSplashscreen = true;
+constexpr bool DefaultChooseDatadir = false;
+constexpr bool DefaultSelfsignedRootcerts = false;
+constexpr bool DefaultSplashscreen = true;
 
 static const std::string DefaultUIPlatform =
 #if defined(Q_OS_MAC)
@@ -183,18 +183,18 @@ static const std::string DefaultUIPlatform =
 // entries on 64-bit systems).
 // systems). Due to how we count cache size, actual memory usage is slightly
 // more (~32.25 MB)
-static const unsigned int DefaultMaxSigCacheSize = 32;
+constexpr uint32_t DefaultMaxSigCacheSize = 32;
 
-static const bool DefaultRestEnable = false;
-static const bool DefaultDisableSafemode = false;
-static const bool DefaultStopAfterBlockImport = false;
+constexpr bool DefaultRestEnable = false;
+constexpr bool DefaultDisableSafemode = false;
+constexpr bool DefaultStopAfterBlockImport = false;
 
-static const bool DefaultCheckpointsEnabled = true;
+constexpr bool DefaultCheckpointsEnabled = true;
 
-static const bool DefaultTestSafeMode = false;
+constexpr bool DefaultTestSafeMode = false;
 
 /** Default for -minrelaytxfee, minimum relay fee for transactions */
-static const unsigned int DefaultMinRelayTxFee = 1000;
+constexpr uint32_t DefaultMinRelayTxFee = 1000;
 
 }
 #endif
