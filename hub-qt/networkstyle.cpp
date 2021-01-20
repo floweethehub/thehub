@@ -1,7 +1,7 @@
 /*
  * This file is part of the Flowee project
  * Copyright (C) 2014-2015 The Bitcoin Core developers
- * Copyright (C) 2017 Tom Zander <tomz@freedommail.ch>
+ * Copyright (C) 2017-2021 Tom Zander <tom@flowee.org>
  *
  * This program is free software: you can redistribute it and/or modify
  * it under the terms of the GNU General Public License as published by
@@ -102,8 +102,9 @@ NetworkStyle::NetworkStyle(const QString &networkId)
     if (appName.isEmpty())
         throw std::runtime_error("Unknown networkId passed into NetworkStyle");
 
-    appIcon = fixIcon(QImage(":/icons/hub"), iconColorHueShift, iconColorSaturationReduction);
-    Q_ASSERT(appIcon.width() == 1000);
-    Q_ASSERT(appIcon.height() == 655);
-    trayAndWindowIcon = QIcon(QPixmap::fromImage(appIcon.scaled(256, 164)));
+    appIcon = QImage(":/icons/hub");
+    auto trayIcon = fixIcon(QImage(":/icons/hub.ico"), iconColorHueShift, iconColorSaturationReduction);
+    Q_ASSERT(trayIcon.width() == 128);
+    Q_ASSERT(trayIcon.height() == 114);
+    trayAndWindowIcon = QIcon(QPixmap::fromImage(trayIcon.scaled(128, 114)));
 }

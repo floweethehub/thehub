@@ -1,6 +1,7 @@
 /*
  * This file is part of the Flowee project
  * Copyright (C) 2011-2015 The Bitcoin Core developers
+ * Copyright (C) 2016-2021 Tom Zander <tom@flowee.org>
  *
  * This program is free software: you can redistribute it and/or modify
  * it under the terms of the GNU General Public License as published by
@@ -40,8 +41,8 @@ SplashScreen::SplashScreen(const NetworkStyle &networkStyle, Qt::WindowFlags f) 
     QWidget(0, f), curAlignment(0)
 {
     // set reference point, paddings
-    int paddingRight = 30;
-    int paddingTop = 38;
+    int paddingRight = 20;
+    int paddingTop = 30;
 
     // define text to place
     QString titleText       = "Flowee the Hub";
@@ -52,23 +53,17 @@ SplashScreen::SplashScreen(const NetworkStyle &networkStyle, Qt::WindowFlags f) 
     // create a bitmap according to device pixelratio
     float devicePixelRatio;
     bool useMorePixels = false;
-#if QT_VERSION > 0x050100
     devicePixelRatio = qobject_cast<QGuiApplication*>(QCoreApplication::instance())->devicePixelRatio();
     if (qFuzzyCompare(devicePixelRatio, (float) 1)) {
         useMorePixels = true;
         devicePixelRatio = logicalDpiX() / (float) 96;
     }
-#else
-    devicePixelRatio = 1.0;
-#endif
 
-    QSize splashSize(350 * devicePixelRatio, 250 * devicePixelRatio);
+    QSize splashSize(440 * devicePixelRatio, 130 * devicePixelRatio);
     pixmap = QPixmap(splashSize);
 
-#if QT_VERSION > 0x050100
     if (!useMorePixels) // change to HiDPI if it makes sense
         pixmap.setDevicePixelRatio(devicePixelRatio);
-#endif
 
     QPainter pixPaint(&pixmap);
     pixPaint.setPen(QColor(220,220,220));
@@ -76,19 +71,15 @@ SplashScreen::SplashScreen(const NetworkStyle &networkStyle, Qt::WindowFlags f) 
     if (useMorePixels) // change to HiDPI if it makes sense
         pixPaint.scale(devicePixelRatio, devicePixelRatio);
 
-    // draw a slightly radial gradient
-    QRadialGradient gradient(QPoint(0,0), splashSize.width()/devicePixelRatio);
-    gradient.setColorAt(0, Qt::white);
-    gradient.setColorAt(1, QColor(247,247,247));
-    QRect rGradient(QPoint(0,0), splashSize);
-    pixPaint.fillRect(rGradient, gradient);
+    // draw the background
+    pixPaint.fillRect(QRect(QPoint(0,0), splashSize), QColor(11, 16, 136));
 
-    // draw the bitcoin icon, expected size of PNG: 1000x655
-    QRect rectIcon(QPoint(8, 5), QSize(333, 218));
+    // draw the flowee logo, expected size of PNG: 854x203
+    QRect rectIcon(QPoint(8, 12), QSize(427, 102));
 
     QImage icon = networkStyle.getAppIcon();
-    Q_ASSERT(icon.width() == 1000);
-    Q_ASSERT(icon.height() == 655);
+    Q_ASSERT(icon.width() == 854);
+    Q_ASSERT(icon.height() == 203);
     pixPaint.drawImage(rectIcon, icon);
 
     // check font size and drawing width
@@ -113,13 +104,13 @@ SplashScreen::SplashScreen(const NetworkStyle &networkStyle, Qt::WindowFlags f) 
         pixPaint.setFont(boldFont);
         fm = pixPaint.fontMetrics();
         int titleAddTextWidth  = fm.width(titleAddText);
-        pixPaint.drawText(pixmap.width()/devicePixelRatio-titleAddTextWidth-paddingRight, 22 ,titleAddText);
+        pixPaint.drawText(pixmap.width()/devicePixelRatio-titleAddTextWidth-paddingRight, 15 ,titleAddText);
     }
 
     pixPaint.end();
 
     // Set window title
-    setWindowTitle(titleText + " " + titleAddText);
+    setWindowTitle(titleText + ' ' + titleAddText);
 
     if (useMorePixels) // if scaling uses more pixels, actually allow the windows to have larger pixelsize
         devicePixelRatio = 1;
@@ -141,7 +132,7 @@ SplashScreen::~SplashScreen()
 void SplashScreen::slotFinish(QWidget *mainWin)
 {
     Q_UNUSED(mainWin);
-    hide();
+    // hide();
 }
 
 static void InitMessage(SplashScreen *splash, const std::string &message)
@@ -150,7 +141,7 @@ static void InitMessage(SplashScreen *splash, const std::string &message)
         Qt::QueuedConnection,
         Q_ARG(QString, QString::fromStdString(message)),
         Q_ARG(int, Qt::AlignBottom|Qt::AlignHCenter),
-        Q_ARG(QColor, QColor(55,55,55)));
+        Q_ARG(QColor, QColor(240,240,240)));
 }
 
 static void ShowProgress(SplashScreen *splash, const std::string &title, int nProgress)
