@@ -25,12 +25,8 @@
 #include <cstdlib>
 #include <string>
 
-typedef int64_t CAmount;
-
-static const CAmount COIN = 100000000;
-static const CAmount CENT = 1000000;
-
-static const std::string CURRENCY_UNIT = "BCH";
+constexpr int64_t COIN = 100000000;
+constexpr int64_t CENT = 1000000;
 
 /** No amount larger than this (in satoshi) is valid.
  *
@@ -41,8 +37,8 @@ static const std::string CURRENCY_UNIT = "BCH";
  * critical; in unusual circumstances like a(nother) overflow bug that allowed
  * for the creation of coins out of thin air modification could lead to a fork.
  * */
-static const CAmount MAX_MONEY = 21000000 * COIN;
-inline bool MoneyRange(const CAmount& nValue) { return (nValue >= 0 && nValue <= MAX_MONEY); }
+static const int64_t MAX_MONEY = 21000000 * COIN;
+inline bool MoneyRange(const int64_t& nValue) { return (nValue >= 0 && nValue <= MAX_MONEY); }
 
 /** Type-safe wrapper class for fee rates
  * (how much to pay based on transaction size)
@@ -50,15 +46,15 @@ inline bool MoneyRange(const CAmount& nValue) { return (nValue >= 0 && nValue <=
 class CFeeRate
 {
 private:
-    CAmount nSatoshisPerK; // unit is satoshis-per-1,000-bytes
+    int64_t nSatoshisPerK; // unit is satoshis-per-1,000-bytes
 public:
     CFeeRate() : nSatoshisPerK(0) { }
-    explicit CFeeRate(const CAmount& _nSatoshisPerK): nSatoshisPerK(_nSatoshisPerK) { }
-    CFeeRate(const CAmount& nFeePaid, size_t nSize);
+    explicit CFeeRate(int64_t _nSatoshisPerK): nSatoshisPerK(_nSatoshisPerK) { }
+    CFeeRate(int64_t nFeePaid, size_t nSize);
     CFeeRate(const CFeeRate& other) { nSatoshisPerK = other.nSatoshisPerK; }
 
-    CAmount GetFee(size_t size) const; // unit returned is satoshis
-    CAmount GetFeePerK() const { return GetFee(1000); } // satoshis-per-1000-bytes
+    int64_t GetFee(size_t size) const; // unit returned is satoshis
+    int64_t GetFeePerK() const { return GetFee(1000); } // satoshis-per-1000-bytes
 
     friend bool operator<(const CFeeRate& a, const CFeeRate& b) { return a.nSatoshisPerK < b.nSatoshisPerK; }
     friend bool operator>(const CFeeRate& a, const CFeeRate& b) { return a.nSatoshisPerK > b.nSatoshisPerK; }

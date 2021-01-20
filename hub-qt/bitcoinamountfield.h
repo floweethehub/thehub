@@ -35,18 +35,18 @@ class BitcoinAmountField: public QWidget
 {
     Q_OBJECT
 
-    // ugly hack: for some unknown reason CAmount (instead of qint64) does not work here as expected
+    // ugly hack: for some unknown reason int64_t (instead of qint64) does not work here as expected
     // discussion: https://github.com/bitcoin/bitcoin/pull/5117
     Q_PROPERTY(qint64 value READ value WRITE setValue NOTIFY valueChanged USER true)
 
 public:
     explicit BitcoinAmountField(QWidget *parent = 0);
 
-    CAmount value(bool *value=0) const;
-    void setValue(const CAmount& value);
+    int64_t value(bool *value=0) const;
+    void setValue(const int64_t& value);
 
     /** Set single step in satoshis **/
-    void setSingleStep(const CAmount& step);
+    void setSingleStep(const int64_t& step);
 
     /** Make read-only **/
     void setReadOnly(bool fReadOnly);

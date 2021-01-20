@@ -161,7 +161,7 @@ void SendCoinsDialog::setModel(WalletModel *model)
 
         setBalance(model->getBalance(), model->getUnconfirmedBalance(), model->getImmatureBalance(),
                    model->getWatchBalance(), model->getWatchUnconfirmedBalance(), model->getWatchImmatureBalance());
-        connect(model, SIGNAL(balanceChanged(CAmount,CAmount,CAmount,CAmount,CAmount,CAmount)), this, SLOT(setBalance(CAmount,CAmount,CAmount,CAmount,CAmount,CAmount)));
+        connect(model, SIGNAL(balanceChanged(int64_t,int64_t,int64_t,int64_t,int64_t,int64_t)), this, SLOT(setBalance(int64_t,int64_t,int64_t,int64_t,int64_t,int64_t)));
         connect(model->getOptionsModel(), SIGNAL(displayUnitChanged(int)), this, SLOT(updateDisplayUnit()));
         updateDisplayUnit();
 
@@ -264,7 +264,7 @@ void SendCoinsDialog::on_sendButton_clicked()
         return;
     }
 
-    CAmount txFee = currentTransaction.getTransactionFee();
+    int64_t txFee = currentTransaction.getTransactionFee();
 
     // Format confirmation message
     QStringList formatted;
@@ -320,7 +320,7 @@ void SendCoinsDialog::on_sendButton_clicked()
 
     // add total amount in all subdivision units
     questionString.append("<hr />");
-    CAmount totalAmount = currentTransaction.getTotalTransactionAmount() + txFee;
+    int64_t totalAmount = currentTransaction.getTotalTransactionAmount() + txFee;
     QStringList alternativeUnits;
     Q_FOREACH(BitcoinUnits::Unit u, BitcoinUnits::availableUnits())
     {
@@ -488,8 +488,8 @@ bool SendCoinsDialog::handlePaymentRequest(const SendCoinsRecipient &rv)
     return true;
 }
 
-void SendCoinsDialog::setBalance(const CAmount& balance, const CAmount& unconfirmedBalance, const CAmount& immatureBalance,
-                                 const CAmount& watchBalance, const CAmount& watchUnconfirmedBalance, const CAmount& watchImmatureBalance)
+void SendCoinsDialog::setBalance(const int64_t& balance, const int64_t& unconfirmedBalance, const int64_t& immatureBalance,
+                                 const int64_t& watchBalance, const int64_t& watchUnconfirmedBalance, const int64_t& watchImmatureBalance)
 {
     Q_UNUSED(unconfirmedBalance);
     Q_UNUSED(immatureBalance);

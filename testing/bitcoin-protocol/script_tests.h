@@ -1,6 +1,6 @@
 /*
  * This file is part of the Flowee project
- * Copyright (C) 2018 Tom Zander <tomz@freedommail.ch>
+ * Copyright (C) 2018-2021 Tom Zander <tom@flowee.org>
  *
  * This program is free software: you can redistribute it and/or modify
  * it under the terms of the GNU General Public License as published by
@@ -35,20 +35,20 @@ private:
     std::vector<unsigned char> push;
     QString comment;
     int flags;
-    CAmount nValue;
+    int64_t nValue;
 
     void DoPush();
 
     void DoPush(const std::vector<unsigned char>& data);
 
 public:
-    TestBuilder(const CScript& redeemScript, const QString& comment, int flags, bool P2SH = false, CAmount nValue_ = 0);
+    TestBuilder(const CScript& redeemScript, const QString& comment, int flags, bool P2SH = false, int64_t nValue_ = 0);
 
     TestBuilder& Add(const CScript& script);
     TestBuilder& Num(int num);
     TestBuilder& Push(const std::string& hex);
 
-    TestBuilder& PushSig(const CKey& key, int nHashType = SIGHASH_ALL, unsigned int lenR = 32, unsigned int lenS = 32, CAmount amount = 0);
+    TestBuilder& PushSig(const CKey& key, int nHashType = SIGHASH_ALL, unsigned int lenR = 32, unsigned int lenS = 32, int64_t amount = 0);
 
     TestBuilder& Push(const CPubKey& pubkey);
 

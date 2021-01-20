@@ -21,8 +21,10 @@
 #define FLOWEE_SCRIPT_SIGCACHE_H
 
 #include "script/interpreter.h"
+#include <uint256.h>
 
 #include <vector>
+#include <cstring>
 
 class CPubKey;
 
@@ -53,7 +55,7 @@ private:
     bool store;
 
 public:
-    CachingTransactionSignatureChecker(const CTransaction* txToIn, unsigned int nInIn, const CAmount& amount, bool storeIn=true) : TransactionSignatureChecker(txToIn, nInIn, amount), store(storeIn) {}
+    CachingTransactionSignatureChecker(const CTransaction* txToIn, unsigned int nInIn, int64_t amount, bool storeIn=true) : TransactionSignatureChecker(txToIn, nInIn, amount), store(storeIn) {}
 
     bool VerifySignature(const std::vector<unsigned char>& vchSig, const CPubKey& vchPubKey, const uint256& sighash, uint32_t flags) const override;
 };

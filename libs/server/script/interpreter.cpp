@@ -2,7 +2,7 @@
  * This file is part of the Flowee project
  * Copyright (C) 2009-2010 Satoshi Nakamoto
  * Copyright (C) 2009-2015 The Bitcoin Core developers
- * Copyright (C) 2016-2018 Tom Zander <tomz@freedommail.ch>
+ * Copyright (C) 2016-2021 Tom Zander <tom@flowee.org>
  * Copyright (C) 2018 Jason B. Cox <contact@jasonbcox.com>
  * Copyright (C) 2018 Awemany <awemany@protonmail.com>
  * Copyright (C) 2018 Amaury Séchet <deadalnix@gmail.com>
@@ -31,10 +31,7 @@
 #include "primitives/transaction.h"
 #include <primitives/pubkey.h>
 #include <primitives/script.h>
-#include "uint256.h"
-#include <cstdint>
-
-#include <boost/atomic.hpp>
+#include <uint256.h>
 
 typedef std::vector<unsigned char> valtype;
 
@@ -1646,7 +1643,7 @@ uint256 GetOutputsHash(const CTransaction &txTo)
  * \param nHashType is a binary flags field indicating  what kind of payment this is. See SIGHASH_SINGLE and others.
  * \param flags a binary flags field indicating the state of the (bitcoin) macro system.
  */
-uint256 SignatureHash(const CScript& scriptCode, const CTransaction& txTo, unsigned int nIn, CAmount amount, int nHashType, uint32_t flags)
+uint256 SignatureHash(const CScript& scriptCode, const CTransaction& txTo, unsigned int nIn, int64_t amount, int nHashType, uint32_t flags)
 {
     if ((nHashType & SIGHASH_FORKID) && (flags & SCRIPT_ENABLE_SIGHASH_FORKID)) {
         uint256 hashPrevouts;

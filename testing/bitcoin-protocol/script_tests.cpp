@@ -1,7 +1,7 @@
 /*
  * This file is part of the Flowee project
  * Copyright (C) 2011-2015 The Bitcoin Core developers
- * Copyright (C) 2016 Tom Zander <tomz@freedommail.ch>
+ * Copyright (C) 2016-2021 Tom Zander <tom@flowee.org>
  * Copyright (C) 2018 Jason B. Cox <contact@jasonbcox.com>
  *
  * This program is free software: you can redistribute it and/or modify
@@ -53,7 +53,7 @@ UniValue read_json(const std::string& jsondata)
     return v.get_array();
 }
 
-CMutableTransaction BuildCreditingTransaction(const CScript& scriptPubKey, CAmount amount = 0)
+CMutableTransaction BuildCreditingTransaction(const CScript& scriptPubKey, int64_t amount = 0)
 {
     CMutableTransaction txCredit;
     txCredit.nVersion = 1;
@@ -86,7 +86,7 @@ CMutableTransaction BuildSpendingTransaction(const CScript& scriptSig, const CMu
     return txSpend;
 }
 
-void DoTest(const CScript& scriptPubKey, const CScript& scriptSig, int flags, bool expect, const QString &message, CAmount nValue)
+void DoTest(const CScript& scriptPubKey, const CScript& scriptSig, int flags, bool expect, const QString &message, int64_t nValue)
 {
     CMutableTransaction tx = BuildSpendingTransaction(scriptSig, BuildCreditingTransaction(scriptPubKey, nValue));
     CMutableTransaction tx2 = tx;
@@ -190,7 +190,7 @@ void TestBuilder::DoPush(const std::vector<unsigned char>& data)
      havePush = true;
 }
 
-TestBuilder::TestBuilder(const CScript& redeemScript, const QString &comment, int flags_, bool P2SH, CAmount nValue_)
+TestBuilder::TestBuilder(const CScript& redeemScript, const QString &comment, int flags_, bool P2SH, int64_t nValue_)
     : scriptPubKey(redeemScript), havePush(false), comment(comment), flags(flags_), nValue(nValue_)
 {
     if (P2SH) {
@@ -221,7 +221,7 @@ TestBuilder& TestBuilder::Push(const std::string& hex)
     return *this;
 }
 
-TestBuilder& TestBuilder::PushSig(const CKey& key, int nHashType, unsigned int lenR, unsigned int lenS, CAmount amount)
+TestBuilder& TestBuilder::PushSig(const CKey& key, int nHashType, unsigned int lenR, unsigned int lenS, int64_t amount)
 {
     uint256 hash = SignatureHash(scriptPubKey, spendTx, 0, amount, nHashType);
     std::vector<unsigned char> vchSig, r, s;
@@ -567,7 +567,7 @@ void TestScript::script_build()
                                "P2SH with CLEANSTACK", SCRIPT_VERIFY_CLEANSTACK | SCRIPT_VERIFY_P2SH, true
                               ).PushSig(keys.key0).PushRedeem());
 
-    static const CAmount TEST_AMOUNT = 12345000000000;
+    static const int64_t TEST_AMOUNT = 12345000000000;
     good.push_back(TestBuilder(CScript() << ToByteVector(keys.pubkey0) << OP_CHECKSIG, "P2PK FORKID", SCRIPT_ENABLE_SIGHASH_FORKID, false, TEST_AMOUNT)
                     .PushSig(keys.key0, SIGHASH_ALL | SIGHASH_FORKID, 32, 32, TEST_AMOUNT));
 
@@ -641,7 +641,7 @@ void TestScript::script_valid()
     for (unsigned int idx = 0; idx < tests.size(); idx++) {
         UniValue test = tests[idx];
         QString strTest = QString::fromStdString(test.write());
-        CAmount nValue = 0;
+        int64_t nValue = 0;
         unsigned int pos = 0;
         if (test.size() > 0 && test[pos].isArray()) {
             nValue = AmountFromValue(test[pos][0]);
@@ -673,7 +673,7 @@ void TestScript::script_invalid()
     for (unsigned int idx = 0; idx < tests.size(); idx++) {
         UniValue test = tests[idx];
         QString strTest = QString::fromStdString(test.write());
-        CAmount nValue = 0;
+        int64_t nValue = 0;
         unsigned int pos = 0;
         if (test.size() > 0 && test[pos].isArray()) {
             nValue = AmountFromValue(test[pos][0]);
@@ -732,7 +732,7 @@ void TestScript::script_PushData()
 
 CScript TestScript::sign_multisig(CScript scriptPubKey, std::vector<CKey> keys, CTransaction transaction)
 {
-    const CAmount amountZero = 0;
+    const int64_t amountZero = 0;
     uint256 hash = SignatureHash(scriptPubKey, transaction, 0, amountZero, SIGHASH_ALL);
 
     CScript result;
@@ -876,7 +876,7 @@ void TestScript::script_CHECKMULTISIG23()
 void TestScript::script_combineSigs()
 {
     // Test the CombineSignatures function
-    CAmount amount = 0;
+    int64_t amount = 0;
     CBasicKeyStore keystore;
     std::vector<CKey> keys;
     std::vector<CPubKey> pubkeys;

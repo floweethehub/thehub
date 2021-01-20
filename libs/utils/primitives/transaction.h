@@ -2,7 +2,7 @@
  * This file is part of the Flowee project
  * Copyright (C) 2009-2010 Satoshi Nakamoto
  * Copyright (C) 2009-2015 The Bitcoin Core developers
- * Copyright (C) 2016-2019 Tom Zander <tomz@freedommail.ch>
+ * Copyright (C) 2016-2021 Tom Zander <tom@flowee.org>
  *
  * This program is free software: you can redistribute it and/or modify
  * it under the terms of the GNU General Public License as published by
@@ -143,7 +143,7 @@ public:
 class CTxOut
 {
 public:
-    CAmount nValue;
+    int64_t nValue;
     CScript scriptPubKey;
 
     CTxOut()
@@ -151,7 +151,7 @@ public:
         SetNull();
     }
 
-    CTxOut(const CAmount& nValueIn, CScript scriptPubKeyIn);
+    CTxOut(int64_t nValueIn, CScript scriptPubKeyIn);
 
     ADD_SERIALIZE_METHODS
 
@@ -174,7 +174,7 @@ public:
 
     uint256 GetHash() const;
 
-    CAmount GetDustThreshold(const CFeeRate &minRelayTxFee) const
+    int64_t GetDustThreshold(const CFeeRate &minRelayTxFee) const
     {
         // "Dust" is defined in terms of ::minRelayTxFee,
         // which has units satoshis-per-kilobyte.
@@ -274,7 +274,7 @@ public:
     }
 
     // Return sum of txouts.
-    CAmount GetValueOut() const;
+    int64_t GetValueOut() const;
     // GetValueIn() is a method on CCoinsViewCache, because
     // inputs must be known to compute value in.
 

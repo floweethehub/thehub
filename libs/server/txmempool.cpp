@@ -2,7 +2,7 @@
  * This file is part of the Flowee project
  * Copyright (C) 2009-2010 Satoshi Nakamoto
  * Copyright (C) 2009-2015 The Bitcoin Core developers
- * Copyright (C) 2017-2020 Tom Zander <tomz@freedommail.ch>
+ * Copyright (C) 2017-2021 Tom Zander <tom@flowee.org>
  *
  * This program is free software: you can redistribute it and/or modify
  * it under the terms of the GNU General Public License as published by
@@ -52,9 +52,9 @@ CTxMemPoolEntry::CTxMemPoolEntry(const Tx &tx)
     feeDelta = 0;
 }
 
-CTxMemPoolEntry::CTxMemPoolEntry(const CTransaction &tx, const CAmount& _nFee,
+CTxMemPoolEntry::CTxMemPoolEntry(const CTransaction &tx, int64_t _nFee,
                                  int64_t _nTime, double _entryPriority, unsigned int _entryHeight,
-                                 bool poolHasNoInputsOf, CAmount _inChainInputValue,
+                                 bool poolHasNoInputsOf, int64_t _inChainInputValue,
                                  bool _spendsCoinbase, LockPoints lp)
     : CTxMemPoolEntry(Tx::fromOldTransaction(tx))
 {
@@ -146,7 +146,7 @@ bool CTxMemPool::UpdateForDescendants(txiter updateIt, int maxDescendantsToVisit
     // setAllDescendants now contains all in-mempool descendants of updateIt.
     // Update and add to cached descendant map
     int64_t modifySize = 0;
-    CAmount modifyFee = 0;
+    int64_t modifyFee = 0;
     int64_t modifyCount = 0;
     for (txiter cit : setAllDescendants) {
         if (!setExclude.count(cit->GetTx().GetHash())) {
@@ -281,7 +281,7 @@ void CTxMemPool::UpdateAncestorsOf(bool add, txiter it, const setEntries &setAnc
     }
     const int64_t updateCount = (add ? 1 : -1);
     const int64_t updateSize = updateCount * it->GetTxSize();
-    const CAmount updateFee = updateCount * it->GetModifiedFee();
+    const int64_t updateFee = updateCount * it->GetModifiedFee();
     for (txiter ancestorIt : setAncestors) {
         mapTx.modify(ancestorIt, update_descendant_state(updateSize, updateFee, updateCount));
     }
@@ -344,7 +344,7 @@ void CTxMemPoolEntry::SetDirty()
     nModFeesWithDescendants = GetModifiedFee();
 }
 
-void CTxMemPoolEntry::UpdateState(int64_t modifySize, CAmount modifyFee, int64_t modifyCount)
+void CTxMemPoolEntry::UpdateState(int64_t modifySize, int64_t modifyFee, int64_t modifyCount)
 {
     if (!IsDirty()) {
         nSizeWithDescendants += modifySize;
@@ -392,9 +392,9 @@ void CTxMemPool::addUnchecked(const uint256& hash, const CTxMemPoolEntry &entry,
     // Update transaction for any feeDelta created by PrioritiseTransaction
     // TODO: refactor so that the fee delta is calculated before inserting
     // into mapTx.
-    std::map<uint256, std::pair<double, CAmount> >::const_iterator pos = mapDeltas.find(hash);
+    std::map<uint256, std::pair<double, int64_t> >::const_iterator pos = mapDeltas.find(hash);
     if (pos != mapDeltas.end()) {
-        const std::pair<double, CAmount> &deltas = pos->second;
+        const std::pair<double, int64_t> &deltas = pos->second;
         if (deltas.second) {
             mapTx.modify(newit, update_fee_delta(deltas.second));
         }
@@ -733,11 +733,11 @@ bool CTxMemPool::lookup(const COutPoint &outpoint, Tx& result) const
     return true;
 }
 
-void CTxMemPool::PrioritiseTransaction(const uint256 hash, const std::string strHash, double dPriorityDelta, const CAmount& nFeeDelta)
+void CTxMemPool::PrioritiseTransaction(const uint256 hash, const std::string strHash, double dPriorityDelta, const int64_t& nFeeDelta)
 {
     {
         LOCK(cs);
-        std::pair<double, CAmount> &deltas = mapDeltas[hash];
+        std::pair<double, int64_t> &deltas = mapDeltas[hash];
         deltas.first += dPriorityDelta;
         deltas.second += nFeeDelta;
         txiter it = mapTx.find(hash);
@@ -756,13 +756,13 @@ void CTxMemPool::PrioritiseTransaction(const uint256 hash, const std::string str
     LogPrintf("PrioritiseTransaction: %s priority += %f, fee += %d\n", strHash, dPriorityDelta, FormatMoney(nFeeDelta));
 }
 
-void CTxMemPool::ApplyDeltas(const uint256 hash, double &dPriorityDelta, CAmount &nFeeDelta) const
+void CTxMemPool::ApplyDeltas(const uint256 hash, double &dPriorityDelta, int64_t &nFeeDelta) const
 {
     LOCK(cs);
-    std::map<uint256, std::pair<double, CAmount> >::const_iterator pos = mapDeltas.find(hash);
+    std::map<uint256, std::pair<double, int64_t> >::const_iterator pos = mapDeltas.find(hash);
     if (pos == mapDeltas.end())
         return;
-    const std::pair<double, CAmount> &deltas = pos->second;
+    const std::pair<double, int64_t> &deltas = pos->second;
     dPriorityDelta += deltas.first;
     nFeeDelta += deltas.second;
 }

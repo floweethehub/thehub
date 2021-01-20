@@ -50,12 +50,12 @@ unsigned int WalletModelTransaction::getTransactionSize()
     return (!walletTransaction ? 0 : (::GetSerializeSize(*(CTransaction*)walletTransaction, SER_NETWORK, PROTOCOL_VERSION)));
 }
 
-CAmount WalletModelTransaction::getTransactionFee()
+int64_t WalletModelTransaction::getTransactionFee()
 {
     return fee;
 }
 
-void WalletModelTransaction::setTransactionFee(const CAmount& newFee)
+void WalletModelTransaction::setTransactionFee(const int64_t& newFee)
 {
     fee = newFee;
 }
@@ -69,7 +69,7 @@ void WalletModelTransaction::reassignAmounts(int nChangePosRet)
 
         if (rcp.paymentRequest.IsInitialized())
         {
-            CAmount subtotal = 0;
+            int64_t subtotal = 0;
             const payments::PaymentDetails& details = rcp.paymentRequest.getDetails();
             for (int j = 0; j < details.outputs_size(); j++)
             {
@@ -92,9 +92,9 @@ void WalletModelTransaction::reassignAmounts(int nChangePosRet)
     }
 }
 
-CAmount WalletModelTransaction::getTotalTransactionAmount()
+int64_t WalletModelTransaction::getTotalTransactionAmount()
 {
-    CAmount totalTransactionAmount = 0;
+    int64_t totalTransactionAmount = 0;
     Q_FOREACH(const SendCoinsRecipient &rcp, recipients)
     {
         totalTransactionAmount += rcp.amount;

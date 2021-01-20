@@ -2,7 +2,7 @@
  * This file is part of the Flowee project
  * Copyright (c) 2009-2010 Satoshi Nakamoto
  * Copyright (c) 2009-2015 The Bitcoin Core developers
- * Copyright (C) 2016, 2018 Tom Zander <tomz@freedommail.ch>
+ * Copyright (C) 2016-2021 Tom Zander <tom@flowee.org>
  *
  * This program is free software: you can redistribute it and/or modify
  * it under the terms of the GNU General Public License as published by
@@ -169,7 +169,7 @@ CBlockTemplate* Mining::CreateNewBlock(Validation::Engine &validationEngine) con
     uint64_t nBlockSize = nCoinbaseReserveSize;
     uint64_t nBlockTx = 0;
     int lastFewTxs = 0;
-    CAmount nFees = 0;
+    int64_t nFees = 0;
 
     {
         CTxMemPool *mempool = validationEngine.mempool();
@@ -199,7 +199,7 @@ CBlockTemplate* Mining::CreateNewBlock(Validation::Engine &validationEngine) con
                  mi != mempool->mapTx.end(); ++mi)
             {
                 double dPriority = mi->GetPriority(nHeight);
-                CAmount dummy;
+                int64_t dummy;
                 mempool->ApplyDeltas(mi->GetTx().GetHash(), dPriority, dummy);
                 vecPriority.push_back(TxCoinAgePriority(dPriority, mi));
             }
@@ -273,7 +273,7 @@ CBlockTemplate* Mining::CreateNewBlock(Validation::Engine &validationEngine) con
             if (!IsFinalTx(tx, nHeight, nLockTimeCutoff))
                 continue;
 
-            CAmount nTxFees = iter->GetFee();
+            int64_t nTxFees = iter->GetFee();
             // Added
             pblock->vtx.push_back(tx);
             pblocktemplate->vTxFees.push_back(nTxFees);
@@ -283,7 +283,7 @@ CBlockTemplate* Mining::CreateNewBlock(Validation::Engine &validationEngine) con
 
             if (fPrintPriority) {
                 double dPriority = iter->GetPriority(nHeight);
-                CAmount dummy;
+                int64_t dummy;
                 mempool->ApplyDeltas(tx.GetHash(), dPriority, dummy);
                 logInfo(Log::Mining) << "priority" << dPriority << "fee" << CFeeRate(iter->GetModifiedFee(), nTxSize).ToString() << "txid" << tx.GetHash();
             }

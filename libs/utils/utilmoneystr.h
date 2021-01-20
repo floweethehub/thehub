@@ -26,10 +26,10 @@
 #include <cstdint>
 #include <string>
 
-typedef int64_t CAmount;
+typedef int64_t int64_t;
 
-std::string FormatMoney(const CAmount& n);
-bool ParseMoney(const std::string& str, CAmount& nRet);
-bool ParseMoney(const char* pszIn, CAmount& nRet);
+std::string FormatMoney(int64_t n);
+bool ParseMoney(const std::string& str, int64_t& nRet);
+bool ParseMoney(const char* pszIn, int64_t& nRet);
 
 #endif

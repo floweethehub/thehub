@@ -1,6 +1,6 @@
 /*
  * This file is part of the flowee project
- * Copyright (C) 2017-2019 Tom Zander <tomz@freedommail.ch>
+ * Copyright (C) 2017-2021 Tom Zander <tom@flowee.org>
  *
  * This program is free software: you can redistribute it and/or modify
  * it under the terms of the GNU General Public License as published by
@@ -123,7 +123,7 @@ void Validation::checkTransaction(const CTransaction &tx)
         throw Exception("bad-txns-oversize", 100);
 
     // Check for negative or overflow output values
-    CAmount nValueOut = 0;
+    int64_t nValueOut = 0;
     for (const CTxOut& txout : tx.vout) {
         if (txout.nValue < 0)
             throw Exception("bad-txns-vout-negative", 100);
@@ -268,7 +268,7 @@ void TxValidationState::checkTransaction()
                     if (outputs - 1 < prevoutIndex) {
                         throw Exception("missing-inputs", 10); // we have a tx it is trying to spend, but the input doesn't exist.
                     }
-                    prevOut.amount = static_cast<CAmount>(iter.longData());
+                    prevOut.amount = static_cast<int64_t>(iter.longData());
                     auto type = iter.next();
                     assert(type == Tx::OutputScript); // if it made it into the mempool, its supposed to be well formed.
                     prevOut.outputScript = iter.byteData();
@@ -315,7 +315,7 @@ void TxValidationState::checkTransaction()
             }
 
             // nModifiedFees includes any fee deltas from PrioritiseTransaction
-            CAmount nModifiedFees = entry.nFee;
+            int64_t nModifiedFees = entry.nFee;
             double nPriorityDummy = 0;
             parent->mempool->ApplyDeltas(txid, nPriorityDummy, nModifiedFees);
             entry.entryPriority = entry.oldTx.ComputePriority(txPriority, entry.tx.size());
@@ -323,7 +323,7 @@ void TxValidationState::checkTransaction()
 
             const size_t nSize = entry.GetTxSize();
 
-            CAmount mempoolRejectFee = parent->mempool->GetMinFee().GetFee(nSize);
+            int64_t mempoolRejectFee = parent->mempool->GetMinFee().GetFee(nSize);
             if (mempoolRejectFee > 0 && nModifiedFees < mempoolRejectFee) {
                 logInfo(Log::Mempool) << "transaction rejected, low fee:" << nModifiedFees << "<" << mempoolRejectFee << "sat";
                 throw Exception("mempool min fee not met", Validation::RejectInsufficientFee, 0);

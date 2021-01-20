@@ -69,11 +69,11 @@ WalletModel::~WalletModel()
     unsubscribeFromCoreSignals();
 }
 
-CAmount WalletModel::getBalance(const CCoinControl *coinControl) const
+int64_t WalletModel::getBalance(const CCoinControl *coinControl) const
 {
     if (coinControl)
     {
-        CAmount nBalance = 0;
+        int64_t nBalance = 0;
         std::vector<COutput> vCoins;
         wallet->AvailableCoins(vCoins, true, coinControl);
         BOOST_FOREACH(const COutput& out, vCoins)
@@ -86,12 +86,12 @@ CAmount WalletModel::getBalance(const CCoinControl *coinControl) const
     return wallet->GetBalance();
 }
 
-CAmount WalletModel::getUnconfirmedBalance() const
+int64_t WalletModel::getUnconfirmedBalance() const
 {
     return wallet->GetUnconfirmedBalance();
 }
 
-CAmount WalletModel::getImmatureBalance() const
+int64_t WalletModel::getImmatureBalance() const
 {
     return wallet->GetImmatureBalance();
 }
@@ -101,17 +101,17 @@ bool WalletModel::haveWatchOnly() const
     return fHaveWatchOnly;
 }
 
-CAmount WalletModel::getWatchBalance() const
+int64_t WalletModel::getWatchBalance() const
 {
     return wallet->GetWatchOnlyBalance();
 }
 
-CAmount WalletModel::getWatchUnconfirmedBalance() const
+int64_t WalletModel::getWatchUnconfirmedBalance() const
 {
     return wallet->GetUnconfirmedWatchOnlyBalance();
 }
 
-CAmount WalletModel::getWatchImmatureBalance() const
+int64_t WalletModel::getWatchImmatureBalance() const
 {
     return wallet->GetImmatureWatchOnlyBalance();
 }
@@ -151,12 +151,12 @@ void WalletModel::pollBalanceChanged()
 
 void WalletModel::checkBalanceChanged()
 {
-    CAmount newBalance = getBalance();
-    CAmount newUnconfirmedBalance = getUnconfirmedBalance();
-    CAmount newImmatureBalance = getImmatureBalance();
-    CAmount newWatchOnlyBalance = 0;
-    CAmount newWatchUnconfBalance = 0;
-    CAmount newWatchImmatureBalance = 0;
+    int64_t newBalance = getBalance();
+    int64_t newUnconfirmedBalance = getUnconfirmedBalance();
+    int64_t newImmatureBalance = getImmatureBalance();
+    int64_t newWatchOnlyBalance = 0;
+    int64_t newWatchUnconfBalance = 0;
+    int64_t newWatchImmatureBalance = 0;
     if (haveWatchOnly())
     {
         newWatchOnlyBalance = getWatchBalance();
@@ -205,7 +205,7 @@ bool WalletModel::validateAddress(const QString &address)
 
 WalletModel::SendCoinsReturn WalletModel::prepareTransaction(WalletModelTransaction &transaction, const CCoinControl *coinControl)
 {
-    CAmount total = 0;
+    int64_t total = 0;
     bool fSubtractFeeFromAmount = false;
     QList<SendCoinsRecipient> recipients = transaction.getRecipients();
     std::vector<CRecipient> vecSend;
@@ -226,7 +226,7 @@ WalletModel::SendCoinsReturn WalletModel::prepareTransaction(WalletModelTransact
 
         if (rcp.paymentRequest.IsInitialized())
         {   // PaymentRequest...
-            CAmount subtotal = 0;
+            int64_t subtotal = 0;
             const payments::PaymentDetails& details = rcp.paymentRequest.getDetails();
             for (int i = 0; i < details.outputs_size(); i++)
             {
@@ -235,7 +235,7 @@ WalletModel::SendCoinsReturn WalletModel::prepareTransaction(WalletModelTransact
                 subtotal += out.amount();
                 const unsigned char* scriptStr = (const unsigned char*)out.script().data();
                 CScript scriptPubKey(scriptStr, scriptStr+out.script().size());
-                CAmount nAmount = out.amount();
+                int64_t nAmount = out.amount();
                 CRecipient recipient = {scriptPubKey, nAmount, rcp.fSubtractFeeFromAmount};
                 vecSend.push_back(recipient);
             }
@@ -270,7 +270,7 @@ WalletModel::SendCoinsReturn WalletModel::prepareTransaction(WalletModelTransact
         return DuplicateAddress;
     }
 
-    CAmount nBalance = getBalance(coinControl);
+    int64_t nBalance = getBalance(coinControl);
 
     if(total > nBalance)
     {
@@ -282,7 +282,7 @@ WalletModel::SendCoinsReturn WalletModel::prepareTransaction(WalletModelTransact
 
         transaction.newPossibleKeyChange(wallet);
 
-        CAmount nFeeRequired = 0;
+        int64_t nFeeRequired = 0;
         int nChangePosRet = -1;
         std::string strFailReason;
 

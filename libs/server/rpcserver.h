@@ -20,7 +20,6 @@
 #ifndef FLOWEE_RPCSERVER_H
 #define FLOWEE_RPCSERVER_H
 
-#include "amount.h"
 #include "rpcprotocol.h"
 #include "uint256.h"
 
@@ -168,8 +167,8 @@ extern std::vector<unsigned char> ParseHexV(const UniValue& v, std::string strNa
 extern std::vector<unsigned char> ParseHexO(const UniValue& o, std::string strKey);
 
 extern int64_t nWalletUnlockTime;
-extern CAmount AmountFromValue(const UniValue& value);
-extern UniValue ValueFromAmount(const CAmount& amount);
+extern int64_t AmountFromValue(const UniValue& value);
+extern UniValue ValueFromAmount(int64_t amount);
 extern double GetDifficulty(const CBlockIndex* blockindex = NULL);
 extern std::string HelpRequiringPassphrase();
 extern std::string HelpExampleCli(const std::string& methodname, const std::string& args);

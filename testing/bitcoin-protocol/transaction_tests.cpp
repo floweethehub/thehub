@@ -1,7 +1,7 @@
 /*
  * This file is part of the Flowee project
  * Copyright (C) 2011-2015 The Bitcoin Core developers
- * Copyright (C) 2016 Tom Zander <tomz@freedommail.ch>
+ * Copyright (C) 2016-2021 Tom Zander <tom@flowee.org>
  *
  * This program is free software: you can redistribute it and/or modify
  * it under the terms of the GNU General Public License as published by
@@ -146,7 +146,7 @@ void TransactionTests::tx_valid()
                 if (!mapprevOutScriptPubKeys.count(tx.vin[i].prevout))
                     QFAIL("Bad test");
 
-                CAmount amount = 0;
+                int64_t amount = 0;
                 unsigned int verify_flags = parseScriptFlags(test[2].get_str());
                 Script::State state(verify_flags);
                 const bool ok = Script::verify(tx.vin[i].scriptSig, mapprevOutScriptPubKeys[tx.vin[i].prevout],
@@ -214,7 +214,7 @@ void TransactionTests::tx_invalid()
                 if (!mapprevOutScriptPubKeys.count(tx.vin[i].prevout))
                     QFAIL("Bad test");
 
-                CAmount amount = 0;
+                int64_t amount = 0;
                 scriptState.flags = parseScriptFlags(test[2].get_str());
                 fValid = Script::verify(tx.vin[i].scriptSig, mapprevOutScriptPubKeys[tx.vin[i].prevout],
                                       TransactionSignatureChecker(&tx, i, amount), scriptState);
@@ -307,8 +307,8 @@ void TransactionTests::test_IsStandard()
     QVERIFY(IsStandardTx(t, reason));
 
     // Check dust with default relay fee:
-    CAmount nDustThreshold = 182 * minRelayTxFee.GetFeePerK()/1000 * 3;
-    QCOMPARE(nDustThreshold, (CAmount) 546);
+    int64_t nDustThreshold = 182 * minRelayTxFee.GetFeePerK()/1000 * 3;
+    QCOMPARE(nDustThreshold, (int64_t) 546);
     // dust:
     t.vout[0].nValue = nDustThreshold - 1;
     QVERIFY(!IsStandardTx(t, reason));

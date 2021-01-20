@@ -2,7 +2,7 @@
  * This file is part of the Flowee project
  * Copyright (C) 2009-2010 Satoshi Nakamoto
  * Copyright (C) 2009-2015 The Bitcoin Core developers
- * Copyright (C) 2017-2020 Tom Zander <tomz@freedommail.ch>
+ * Copyright (C) 2017-2021 Tom Zander <tom@flowee.org>
  *
  * This program is free software: you can redistribute it and/or modify
  * it under the terms of the GNU General Public License as published by
@@ -92,7 +92,7 @@ class CTxMemPoolEntry
 public:
     Tx tx;
     CTransaction oldTx;
-    CAmount nFee; //! Cached to avoid expensive parent-transaction lookups
+    int64_t nFee; //! Cached to avoid expensive parent-transaction lookups
     size_t nTxSize; //! ... and avoid recomputing tx size
     size_t nModSize; //! ... and modified size for priority
     size_t nUsageSize; //! ... and total memory usage
@@ -100,7 +100,7 @@ public:
     double entryPriority; //! Priority when entering the mempool
     unsigned int entryHeight; //! Chain height when entering the mempool
     bool hadNoDependencies; //! Not dependent on any other txs when it entered the mempool
-    CAmount inChainInputValue; //! Sum of all txin values that are already in blockchain
+    int64_t inChainInputValue; //! Sum of all txin values that are already in blockchain
     bool spendsCoinbase; //! keep track of transactions that spend a coinbase
     int64_t feeDelta; //! Used for determining the priority of the transaction for mining in a block
     LockPoints lockPoints; //! Track the height and time at which tx was final
@@ -112,14 +112,14 @@ public:
     // correct.
     uint64_t nCountWithDescendants; //! number of descendant transactions
     uint64_t nSizeWithDescendants;  //! ... and size
-    CAmount nModFeesWithDescendants;  //! ... and total fees (all including us)
+    int64_t nModFeesWithDescendants;  //! ... and total fees (all including us)
     int dsproof = -1;
 
     CTxMemPoolEntry(const Tx &tx);
 
-    CTxMemPoolEntry(const CTransaction &tx, const CAmount& _nFee,
+    CTxMemPoolEntry(const CTransaction &tx, int64_t _nFee,
                     int64_t _nTime, double _entryPriority, unsigned int _entryHeight,
-                    bool poolHasNoInputsOf, CAmount _inChainInputValue, bool spendsCoinbase,
+                    bool poolHasNoInputsOf, int64_t _inChainInputValue, bool spendsCoinbase,
                     LockPoints lp);
     CTxMemPoolEntry(const CTxMemPoolEntry& other);
 
@@ -129,7 +129,7 @@ public:
      * from entry priority. Only inputs that were originally in-chain will age.
      */
     double GetPriority(unsigned int currentHeight) const;
-    const CAmount& GetFee() const { return nFee; }
+    const int64_t& GetFee() const { return nFee; }
     size_t GetTxSize() const { return nTxSize; }
     int64_t GetTime() const { return nTime; }
     unsigned int GetHeight() const { return entryHeight; }
@@ -139,7 +139,7 @@ public:
     const LockPoints& GetLockPoints() const { return lockPoints; }
 
     // Adjusts the descendant state, if this entry is not dirty.
-    void UpdateState(int64_t modifySize, CAmount modifyFee, int64_t modifyCount);
+    void UpdateState(int64_t modifySize, int64_t modifyFee, int64_t modifyCount);
     // Updates the fee delta used for mining priority score, and the
     // modified fees with descendants.
     void UpdateFeeDelta(int64_t feeDelta);
@@ -155,7 +155,7 @@ public:
 
     uint64_t GetCountWithDescendants() const { return nCountWithDescendants; }
     uint64_t GetSizeWithDescendants() const { return nSizeWithDescendants; }
-    CAmount GetModFeesWithDescendants() const { return nModFeesWithDescendants; }
+    int64_t GetModFeesWithDescendants() const { return nModFeesWithDescendants; }
 
     bool GetSpendsCoinbase() const { return spendsCoinbase; }
 };
@@ -163,7 +163,7 @@ public:
 // Helpers for modifying CTxMemPool::mapTx, which is a boost multi_index.
 struct update_descendant_state
 {
-    update_descendant_state(int64_t _modifySize, CAmount _modifyFee, int64_t _modifyCount) :
+    update_descendant_state(int64_t _modifySize, int64_t _modifyFee, int64_t _modifyCount) :
         modifySize(_modifySize), modifyFee(_modifyFee), modifyCount(_modifyCount)
     {}
 
@@ -172,7 +172,7 @@ struct update_descendant_state
 
     private:
         int64_t modifySize;
-        CAmount modifyFee;
+        int64_t modifyFee;
         int64_t modifyCount;
 };
 
@@ -454,7 +454,7 @@ private:
 
 public:
     std::map<COutPoint, CInPoint> mapNextTx;
-    std::map<uint256, std::pair<double, CAmount> > mapDeltas;
+    std::map<uint256, std::pair<double, int64_t> > mapDeltas; // int64 is the amount in satoshis
 
     /** Create a new CTxMemPool.
      */
@@ -501,8 +501,8 @@ public:
     bool HasNoInputsOf(const CTransaction& tx) const;
 
     /** Affect CreateNewBlock prioritisation of transactions */
-    void PrioritiseTransaction(const uint256 hash, const std::string strHash, double dPriorityDelta, const CAmount& nFeeDelta);
-    void ApplyDeltas(const uint256 hash, double &dPriorityDelta, CAmount &nFeeDelta) const;
+    void PrioritiseTransaction(const uint256 hash, const std::string strHash, double dPriorityDelta, const int64_t& nFeeDelta);
+    void ApplyDeltas(const uint256 hash, double &dPriorityDelta, int64_t &nFeeDelta) const;
     void ClearPrioritisation(const uint256 hash);
 
 public:

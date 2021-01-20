@@ -2,7 +2,7 @@
  * This file is part of the Flowee project
  * Copyright (c) 2009-2010 Satoshi Nakamoto
  * Copyright (c) 2009-2015 The Bitcoin Core developers
- * Copyright (C) 2019-2020 Tom Zander <tomz@freedommail.ch>
+ * Copyright (C) 2019-2021 Tom Zander <tom@flowee.org>
  *
  * This program is free software: you can redistribute it and/or modify
  * it under the terms of the GNU General Public License as published by
@@ -631,7 +631,7 @@ bool AppInit2(boost::thread_group& threadGroup, CScheduler& scheduler)
     // cost to you of processing a transaction.
     if (mapArgs.count("-minrelaytxfee"))
     {
-        CAmount n = 0;
+        int64_t n = 0;
         if (ParseMoney(mapArgs["-minrelaytxfee"], n) && n > 0) {
             logCritical(Log::Bitcoin) << "Setting min relay Transaction fee to" << n << "satoshi";
             ::minRelayTxFee = CFeeRate(n);
@@ -645,7 +645,7 @@ bool AppInit2(boost::thread_group& threadGroup, CScheduler& scheduler)
 #ifdef ENABLE_WALLET
     if (mapArgs.count("-mintxfee"))
     {
-        CAmount n = 0;
+        int64_t n = 0;
         if (ParseMoney(mapArgs["-mintxfee"], n) && n > 0)
             CWallet::minTxFee = CFeeRate(n);
         else
@@ -653,7 +653,7 @@ bool AppInit2(boost::thread_group& threadGroup, CScheduler& scheduler)
     }
     if (mapArgs.count("-fallbackfee"))
     {
-        CAmount nFeePerK = 0;
+        int64_t nFeePerK = 0;
         if (!ParseMoney(mapArgs["-fallbackfee"], nFeePerK))
             return InitError(strprintf(_("Invalid amount for -fallbackfee=<amount>: '%s'"), mapArgs["-fallbackfee"]));
         if (nFeePerK > nHighTransactionFeeWarning)
@@ -662,7 +662,7 @@ bool AppInit2(boost::thread_group& threadGroup, CScheduler& scheduler)
     }
     if (mapArgs.count("-paytxfee"))
     {
-        CAmount nFeePerK = 0;
+        int64_t nFeePerK = 0;
         if (!ParseMoney(mapArgs["-paytxfee"], nFeePerK))
             return InitError(strprintf(_("Invalid amount for -paytxfee=<amount>: '%s'"), mapArgs["-paytxfee"]));
         if (nFeePerK > nHighTransactionFeeWarning)
@@ -676,7 +676,7 @@ bool AppInit2(boost::thread_group& threadGroup, CScheduler& scheduler)
     }
     if (mapArgs.count("-maxtxfee"))
     {
-        CAmount nMaxFee = 0;
+        int64_t nMaxFee = 0;
         if (!ParseMoney(mapArgs["-maxtxfee"], nMaxFee))
             return InitError(strprintf(_("Invalid amount for -maxtxfee=<amount>: '%s'"), mapArgs["-maxtxfee"]));
         if (nMaxFee > nHighTransactionMaxFeeWarning)

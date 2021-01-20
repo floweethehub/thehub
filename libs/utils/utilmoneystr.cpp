@@ -18,14 +18,13 @@
  */
 
 #include "utilmoneystr.h"
+#include "amount.h"
 
 #include "tinyformat.h"
 #include "utilstrencodings.h"
 
-static const CAmount COIN = 100000000;
-static const CAmount CENT = 1000000;
 
-std::string FormatMoney(const CAmount& n)
+std::string FormatMoney(int64_t n)
 {
     // Note: not using straight sprintf here because we do NOT want
     // localized number formatting.
@@ -47,12 +46,12 @@ std::string FormatMoney(const CAmount& n)
 }
 
 
-bool ParseMoney(const std::string& str, CAmount& nRet)
+bool ParseMoney(const std::string& str, int64_t& nRet)
 {
     return ParseMoney(str.c_str(), nRet);
 }
 
-bool ParseMoney(const char* pszIn, CAmount& nRet)
+bool ParseMoney(const char* pszIn, int64_t& nRet)
 {
     std::string strWhole;
     std::int64_t nUnits = 0;
@@ -86,7 +85,7 @@ bool ParseMoney(const char* pszIn, CAmount& nRet)
     if (nUnits < 0 || nUnits > COIN)
         return false;
     std::int64_t nWhole = atoi64(strWhole);
-    CAmount nValue = nWhole*COIN + nUnits;
+    int64_t nValue = nWhole*COIN + nUnits;
 
     nRet = nValue;
     return true;

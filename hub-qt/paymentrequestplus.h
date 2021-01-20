@@ -48,7 +48,7 @@ public:
     bool getMerchant(X509_STORE* certStore, QString& merchant) const;
 
     // Returns list of outputs, amount
-    QList<std::pair<CScript,CAmount> > getPayTo() const;
+    QList<std::pair<CScript,int64_t> > getPayTo() const;
 
     const payments::PaymentDetails& getDetails() const { return details; }
 

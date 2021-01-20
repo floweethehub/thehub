@@ -19,7 +19,7 @@
 
 #include "amount.h"
 
-CFeeRate::CFeeRate(const CAmount& nFeePaid, size_t nSize)
+CFeeRate::CFeeRate(int64_t nFeePaid, size_t nSize)
 {
     if (nSize > 0)
         nSatoshisPerK = nFeePaid*1000/nSize;
@@ -27,9 +27,9 @@ CFeeRate::CFeeRate(const CAmount& nFeePaid, size_t nSize)
         nSatoshisPerK = 0;
 }
 
-CAmount CFeeRate::GetFee(size_t nSize) const
+int64_t CFeeRate::GetFee(size_t nSize) const
 {
-    CAmount nFee = nSatoshisPerK*nSize / 1000;
+    int64_t nFee = nSatoshisPerK*nSize / 1000;
 
     if (nFee == 0 && nSatoshisPerK > 0)
         nFee = nSatoshisPerK;
@@ -39,5 +39,5 @@ CAmount CFeeRate::GetFee(size_t nSize) const
 
 std::string CFeeRate::ToString() const
 {
-    return strprintf("%d.%08d %s/kB", nSatoshisPerK / COIN, nSatoshisPerK % COIN, CURRENCY_UNIT);
+    return strprintf("%d.%08d BCH/kB", nSatoshisPerK / COIN, nSatoshisPerK % COIN);
 }

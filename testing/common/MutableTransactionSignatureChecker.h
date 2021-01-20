@@ -28,7 +28,7 @@
 class MutableTransactionSignatureChecker : public TransactionSignatureChecker
 {
 public:
-    MutableTransactionSignatureChecker(const CMutableTransaction *txToIn, unsigned int nInIn, const CAmount &amount)
+    MutableTransactionSignatureChecker(const CMutableTransaction *txToIn, unsigned int nInIn, const int64_t &amount)
         : TransactionSignatureChecker(&txTo, nInIn, amount), txTo(*txToIn) {
     }
 

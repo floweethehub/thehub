@@ -31,7 +31,7 @@ public:
     //! Includes watch only addresses which match the ISMINE_WATCH_SOLVABLE criteria
     bool fAllowWatchOnly;
     //! Minimum absolute fee (not per kilobyte)
-    CAmount nMinimumTotalFee;
+    int64_t nMinimumTotalFee;
 
     CCoinControl()
     {

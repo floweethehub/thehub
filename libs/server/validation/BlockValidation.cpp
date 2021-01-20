@@ -1,6 +1,6 @@
 /*
  * This file is part of the flowee project
- * Copyright (C) 2017-2020 Tom Zander <tomz@freedommail.ch>
+ * Copyright (C) 2017-2021 Tom Zander <tom@flowee.org>
  *
  * This program is free software: you can redistribute it and/or modify
  * it under the terms of the GNU General Public License as published by
@@ -566,7 +566,7 @@ void ValidationEnginePrivate::processNewBlock(std::shared_ptr<BlockValidationSta
 
                 CBlock block = state->m_block.createOldBlock();
                 if (state->flags.enableValidation) {
-                    CAmount blockReward = state->m_blockFees.load() + GetBlockSubsidy(index->nHeight, Params().GetConsensus());
+                    int64_t blockReward = state->m_blockFees.load() + GetBlockSubsidy(index->nHeight, Params().GetConsensus());
                     if (block.vtx[0].GetValueOut() > blockReward)
                         throw Exception("bad-cb-amount");
                 }
@@ -1467,12 +1467,12 @@ void BlockValidationState::checkSignaturesChunk()
     int txIndex = itemsPerChunk * chunkToStart;
     const int txMax = std::min(txIndex + itemsPerChunk, totalTxCount);
     uint32_t chunkSigChecks = 0;
-    CAmount chunkFees = 0;
+    int64_t chunkFees = 0;
     std::unique_ptr<std::deque<FastUndoBlock::Item> >undoItems(new std::deque<FastUndoBlock::Item>());
 
     try {
         for (;blockValid && txIndex < txMax; ++txIndex) {
-            CAmount fees = 0;
+            int64_t fees = 0;
             Tx tx = m_block.transactions().at(static_cast<size_t>(txIndex));
             const uint256 hash = tx.createHash();
 

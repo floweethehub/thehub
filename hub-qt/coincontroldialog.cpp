@@ -45,7 +45,7 @@
 #include <QTreeWidget>
 #include <QTreeWidgetItem>
 
-QList<CAmount> CoinControlDialog::payAmounts;
+QList<int64_t> CoinControlDialog::payAmounts;
 CCoinControl* CoinControlDialog::coinControl = new CCoinControl();
 bool CoinControlDialog::fSubtractFeeFromAmount = false;
 
@@ -473,10 +473,10 @@ void CoinControlDialog::updateLabels(WalletModel *model, QDialog* dialog)
         return;
 
     // nPayAmount
-    CAmount nPayAmount = 0;
+    int64_t nPayAmount = 0;
     bool fDust = false;
     CMutableTransaction txDummy;
-    Q_FOREACH(const CAmount &amount, CoinControlDialog::payAmounts)
+    Q_FOREACH(const int64_t &amount, CoinControlDialog::payAmounts)
     {
         nPayAmount += amount;
 
@@ -490,10 +490,10 @@ void CoinControlDialog::updateLabels(WalletModel *model, QDialog* dialog)
     }
 
     QString sPriorityLabel      = tr("fine");
-    CAmount nAmount             = 0;
-    CAmount nPayFee             = 0;
-    CAmount nAfterFee           = 0;
-    CAmount nChange             = 0;
+    int64_t nAmount             = 0;
+    int64_t nPayFee             = 0;
+    int64_t nAfterFee           = 0;
+    int64_t nChange             = 0;
     unsigned int nBytes         = 0;
     unsigned int nBytesInputs   = 0;
     double dPriority            = 0;
@@ -708,7 +708,7 @@ void CoinControlDialog::updateView()
             itemWalletAddress->setText(COLUMN_ADDRESS, sWalletAddress);
         }
 
-        CAmount nSum = 0;
+        int64_t nSum = 0;
         double dPrioritySum = 0;
         int nChildren = 0;
         int nInputSum = 0;

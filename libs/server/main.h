@@ -170,7 +170,7 @@ bool IsInitialBlockDownload();
  */
 std::string GetWarnings(const std::string& strFor);
 /** Find the best known block, and make it the tip of the block chain */
-CAmount GetBlockSubsidy(int nHeight, const Consensus::Params& consensusParams);
+int64_t GetBlockSubsidy(int nHeight, const Consensus::Params& consensusParams);
 
 bool MarkBlockAsReceived(const uint256& hash);
 bool IsBlockInFlight(const uint256 &hash);

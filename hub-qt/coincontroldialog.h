@@ -56,7 +56,7 @@ public:
     static void updateLabels(WalletModel*, QDialog*);
     static QString getPriorityLabel(double dPriority, double mempoolEstimatePriority);
 
-    static QList<CAmount> payAmounts;
+    static QList<int64_t> payAmounts;
     static CCoinControl *coinControl;
     static bool fSubtractFeeFromAmount;
 

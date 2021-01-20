@@ -30,7 +30,7 @@
 
 typedef std::vector<unsigned char> valtype;
 
-TransactionSignatureCreator::TransactionSignatureCreator(const CKeyStore* keystoreIn, const CTransaction* txToIn, unsigned int nInIn, CAmount amountIn, int nHashTypeIn) : BaseSignatureCreator(keystoreIn), txTo(txToIn), nIn(nInIn), amount(amountIn), nHashType(nHashTypeIn), checker(txTo, nIn, amountIn) {}
+TransactionSignatureCreator::TransactionSignatureCreator(const CKeyStore* keystoreIn, const CTransaction* txToIn, unsigned int nInIn, int64_t amountIn, int nHashTypeIn) : BaseSignatureCreator(keystoreIn), txTo(txToIn), nIn(nInIn), amount(amountIn), nHashType(nHashTypeIn), checker(txTo, nIn, amountIn) {}
 
 bool TransactionSignatureCreator::CreateSig(std::vector<unsigned char>& vchSig, const CKeyID& address, const CScript& scriptCode) const
 {
@@ -144,7 +144,7 @@ bool ProduceSignature(const BaseSignatureCreator& creator, const CScript& fromPu
             || Script::verify(scriptSig, fromPubKey, creator.Checker(), after);
 }
 
-bool SignSignature(const CKeyStore &keystore, const CScript& fromPubKey, CMutableTransaction& txTo, unsigned int nIn, CAmount amount, int nHashType)
+bool SignSignature(const CKeyStore &keystore, const CScript& fromPubKey, CMutableTransaction& txTo, unsigned int nIn, int64_t amount, int nHashType)
 {
     assert(nIn < txTo.vin.size());
     CTxIn& input = txTo.vin[nIn];
@@ -281,7 +281,7 @@ static CScript CombineSignatures(const CScript& scriptPubKey, const BaseSignatur
 }
 
 CScript CombineSignatures(const CScript& scriptPubKey, const CTransaction& txTo, unsigned int nIn,
-                          const CAmount &amount, const CScript& scriptSig1, const CScript& scriptSig2)
+                          int64_t amount, const CScript& scriptSig1, const CScript& scriptSig2)
 {
     TransactionSignatureChecker checker(&txTo, nIn, amount);
     return CombineSignatures(scriptPubKey, checker, scriptSig1, scriptSig2);

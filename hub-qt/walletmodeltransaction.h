@@ -41,10 +41,10 @@ public:
     CWalletTx *getTransaction();
     unsigned int getTransactionSize();
 
-    void setTransactionFee(const CAmount& newFee);
-    CAmount getTransactionFee();
+    void setTransactionFee(const int64_t& newFee);
+    int64_t getTransactionFee();
 
-    CAmount getTotalTransactionAmount();
+    int64_t getTotalTransactionAmount();
 
     void newPossibleKeyChange(CWallet *wallet);
     CReserveKey *getPossibleKeyChange();
@@ -55,7 +55,7 @@ private:
     QList<SendCoinsRecipient> recipients;
     CWalletTx *walletTransaction;
     CReserveKey *keyChange;
-    CAmount fee;
+    int64_t fee;
 };
 
 #endif

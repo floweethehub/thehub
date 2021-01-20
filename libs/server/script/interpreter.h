@@ -21,7 +21,8 @@
 #define FLOWEE_SCRIPT_INTERPRETER_H
 
 #include "script_error.h"
-#include <amount.h>
+#include <cstdint>
+#include <vector>
 
 class CPubKey;
 class CScript;
@@ -121,7 +122,7 @@ enum
     SCRIPT_ENABLE_OP_REVERSEBYTES = (1U << 21),
 };
 
-uint256 SignatureHash(const CScript &scriptCode, const CTransaction& txTo, unsigned int nIn, CAmount amount, int nHashType, uint32_t flags = SCRIPT_ENABLE_SIGHASH_FORKID);
+uint256 SignatureHash(const CScript &scriptCode, const CTransaction& txTo, unsigned int nIn, int64_t amount, int nHashType, uint32_t flags = SCRIPT_ENABLE_SIGHASH_FORKID);
 
 class BaseSignatureChecker
 {
@@ -149,13 +150,13 @@ class TransactionSignatureChecker : public BaseSignatureChecker
 private:
     const CTransaction* txTo;
     unsigned int nIn;
-    CAmount amount;
+    int64_t amount;
 
 protected:
     virtual bool VerifySignature(const std::vector<unsigned char>& vchSig, const CPubKey& vchPubKey, const uint256& sighash, uint32_t flags) const;
 
 public:
-    TransactionSignatureChecker(const CTransaction* txToIn, unsigned int nInIn, const CAmount& amountIn) : txTo(txToIn), nIn(nInIn), amount(amountIn) {}
+    TransactionSignatureChecker(const CTransaction* txToIn, unsigned int nInIn, int64_t amountIn) : txTo(txToIn), nIn(nInIn), amount(amountIn) {}
     bool CheckSig(const std::vector<unsigned char>& scriptSig, const std::vector<unsigned char>& vchPubKey, const CScript& scriptCode, uint32_t flags) const override;
     bool CheckLockTime(const CScriptNum& nLockTime) const override;
     bool CheckSequence(const CScriptNum& nSequence) const override;

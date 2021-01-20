@@ -1,6 +1,20 @@
-// Copyright (c) 2011-2015 The Bitcoin Core developers
-// Distributed under the MIT software license, see the accompanying
-// file COPYING or http://www.opensource.org/licenses/mit-license.php.
+/*
+ * This file is part of the Flowee project
+ * Copyright (C) 2011-2015 The Bitcoin developers
+ *
+ * This program is free software: you can redistribute it and/or modify
+ * it under the terms of the GNU General Public License as published by
+ * the Free Software Foundation, either version 3 of the License, or
+ * (at your option) any later version.
+ *
+ * This program is distributed in the hope that it will be useful,
+ * but WITHOUT ANY WARRANTY; without even the implied warranty of
+ * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
+ * GNU General Public License for more details.
+ *
+ * You should have received a copy of the GNU General Public License
+ * along with this program.  If not, see <http://www.gnu.org/licenses/>.
+ */
 
 #include "paymentserver.h"
 
@@ -519,10 +533,10 @@ bool PaymentServer::processPaymentRequest(const PaymentRequestPlus& request, Sen
 
     request.getMerchant(PaymentServer::certStore, recipient.authenticatedMerchant);
 
-    QList<std::pair<CScript, CAmount> > sendingTos = request.getPayTo();
+    QList<std::pair<CScript, int64_t> > sendingTos = request.getPayTo();
     QStringList addresses;
 
-    Q_FOREACH(const PAIRTYPE(CScript, CAmount)& sendingTo, sendingTos) {
+    Q_FOREACH(const PAIRTYPE(CScript, int64_t)& sendingTo, sendingTos) {
         // Extract and check destination addresses
         CTxDestination dest;
         if (ExtractDestination(sendingTo.first, dest)) {
@@ -540,7 +554,7 @@ bool PaymentServer::processPaymentRequest(const PaymentRequestPlus& request, Sen
         }
 
         // Bitcoin amounts are stored as (optional) uint64 in the protobuf messages (see paymentrequest.proto),
-        // but CAmount is defined as int64_t. Because of that we need to verify that amounts are in a valid range
+        // but int64_t is defined as int64_t. Because of that we need to verify that amounts are in a valid range
         // and no overflow has happened.
         if (!verifyAmount(sendingTo.second)) {
             Q_EMIT message(tr("Payment request rejected"), tr("Invalid payment request."), CClientUIInterface::MSG_ERROR);
@@ -763,7 +777,7 @@ bool PaymentServer::verifySize(qint64 requestSize)
     return fVerified;
 }
 
-bool PaymentServer::verifyAmount(const CAmount& requestAmount)
+bool PaymentServer::verifyAmount(const int64_t& requestAmount)
 {
     bool fVerified = MoneyRange(requestAmount);
     if (!fVerified) {

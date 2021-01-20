@@ -1,6 +1,6 @@
 /*
  * This file is part of the Flowee project
- * Copyright (C) 2018 Tom Zander <tomz@freedommail.ch>
+ * Copyright (C) 2018-2021 Tom Zander <tom@flowee.org>
  *
  * This program is free software: you can redistribute it and/or modify
  * it under the terms of the GNU General Public License as published by
@@ -112,17 +112,17 @@ static const unsigned int DefaultLimitFreeRelay = 15;
 
 static const unsigned int DefaultKeypoolSize = 100;
 //! -fallbackfee default
-static const CAmount DefaultFallbackFee = 20000;
+static const int64_t DefaultFallbackFee = 20000;
 
 //! -mintxfee default
-static const CAmount DefaultTransactionMinfee = 1000;
+static const int64_t DefaultTransactionMinfee = 1000;
 
 //! -maxtxfee default
-static const CAmount DefaultTransactionMaxFee= 0.1 * COIN;
+static const int64_t DefaultTransactionMaxFee= 0.1 * COIN;
 
 
 //! -paytxfee default
-static const CAmount DefaultTransactionFee = 0;
+static const int64_t DefaultTransactionFee = 0;
 
 //! Default for -sendfreetransactions
 static const bool DefaultSendFreeTransactions = false;

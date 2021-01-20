@@ -1,6 +1,20 @@
-// Copyright (c) 2012-2015 The Bitcoin Core developers
-// Distributed under the MIT software license, see the accompanying
-// file COPYING or http://www.opensource.org/licenses/mit-license.php.
+/*
+ * This file is part of the Flowee project
+ * Copyright (C) 2012-2015 The Bitcoin Core developers
+ *
+ * This program is free software: you can redistribute it and/or modify
+ * it under the terms of the GNU General Public License as published by
+ * the Free Software Foundation, either version 3 of the License, or
+ * (at your option) any later version.
+ *
+ * This program is distributed in the hope that it will be useful,
+ * but WITHOUT ANY WARRANTY; without even the implied warranty of
+ * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
+ * GNU General Public License for more details.
+ *
+ * You should have received a copy of the GNU General Public License
+ * along with this program.  If not, see <http://www.gnu.org/licenses/>.
+ */
 
 #include "wallet/wallet.h"
 
@@ -28,7 +42,7 @@ BOOST_FIXTURE_TEST_SUITE(wallet_tests, TestingSetup)
 static CWallet wallet;
 static std::vector<COutput> vCoins;
 
-static void add_coin(const CAmount& nValue, int nAge = 6*24, bool fIsFromMe = false, int nInput=0)
+static void add_coin(const int64_t& nValue, int nAge = 6*24, bool fIsFromMe = false, int nInput=0)
 {
     static int nextLockTime = 0;
     CMutableTransaction tx;
@@ -66,7 +80,7 @@ static bool equal_sets(CoinSet a, CoinSet b)
 BOOST_AUTO_TEST_CASE(coin_selection_tests)
 {
     CoinSet setCoinsRet, setCoinsRet2;
-    CAmount nValueRet;
+    int64_t nValueRet;
 
     LOCK(wallet.cs_wallet);
 
@@ -262,7 +276,7 @@ BOOST_AUTO_TEST_CASE(coin_selection_tests)
         BOOST_CHECK_EQUAL(setCoinsRet.size(), 2U);
 
         // test with many inputs
-        for (CAmount amt=1500; amt < COIN; amt*=10) {
+        for (int64_t amt=1500; amt < COIN; amt*=10) {
              empty_wallet();
              // Create 676 inputs (= MAX_STANDARD_TX_SIZE / 148 bytes per input)
              for (uint16_t j = 0; j < 676; j++)
@@ -271,7 +285,7 @@ BOOST_AUTO_TEST_CASE(coin_selection_tests)
              if (amt - 2000 < MIN_CHANGE) {
                  // needs more than one input:
                  uint16_t returnSize = std::ceil((2000.0 + MIN_CHANGE)/amt);
-                 CAmount returnValue = amt * returnSize;
+                 int64_t returnValue = amt * returnSize;
                  BOOST_CHECK_EQUAL(nValueRet, returnValue);
                  BOOST_CHECK_EQUAL(setCoinsRet.size(), returnSize);
              } else {
@@ -329,7 +343,7 @@ BOOST_AUTO_TEST_CASE(coin_selection_tests)
 BOOST_AUTO_TEST_CASE(ApproximateBestSubset)
 {
     CoinSet setCoinsRet;
-    CAmount nValueRet;
+    int64_t nValueRet;
 
     LOCK(wallet.cs_wallet);
 
