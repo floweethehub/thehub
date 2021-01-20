@@ -592,15 +592,6 @@ public:
     }
 };
 
-class CReserveScript
-{
-public:
-    CScript reserveScript;
-    virtual void KeepScript() {}
-    CReserveScript() {}
-    virtual ~CReserveScript();
-};
-
 std::vector<uint8_t> MinimalizeBigEndianArray(const std::vector<uint8_t> &data);
 
 namespace Script

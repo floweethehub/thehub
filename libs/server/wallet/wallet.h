@@ -811,7 +811,6 @@ public:
         }
     }
 
-    void GetScriptForMining(boost::shared_ptr<CReserveScript> &script);
     void ResetRequestCount(const uint256 &hash)
     {
         LOCK(cs_wallet);
@@ -874,6 +873,16 @@ public:
     /* Mark a transaction (and it in-wallet descendants) as abandoned so its inputs may be respent. */
     bool AbandonTransaction(const uint256& hashTx);
 };
+
+class CReserveScript
+{
+public:
+    CScript reserveScript;
+    virtual void KeepScript() {}
+    CReserveScript() {}
+    virtual ~CReserveScript() {}
+};
+
 
 /** A key allocated from the key pool. */
 class CReserveKey : public CReserveScript

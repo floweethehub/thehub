@@ -483,8 +483,3 @@ bool Script::solver(const CScript &scriptPubKey, Script::TxnOutType &typeRet, st
     return false;
 }
 
-
-CReserveScript::~CReserveScript()
-{
-
-}

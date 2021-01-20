@@ -65,11 +65,6 @@ void ValidationInterfaceBroadcaster::ResendWalletTransactions(int64_t nBestBlock
     for (auto i : m_listeners) i->ResendWalletTransactions(nBestBlockTime);
 }
 
-void ValidationInterfaceBroadcaster::GetScriptForMining(boost::shared_ptr<CReserveScript> s)
-{
-    for (auto i : m_listeners) i->GetScriptForMining(s);
-}
-
 void ValidationInterfaceBroadcaster::DoubleSpendFound(const Tx &first, const Tx &duplicate)
 {
     for (auto i : m_listeners) i->DoubleSpendFound(first, duplicate);

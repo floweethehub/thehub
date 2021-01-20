@@ -566,7 +566,7 @@ CScript Mining::ScriptForCoinbase(const std::string &coinbase)
     throw std::runtime_error("address not in recognized format");
 }
 
-void Mining::GenerateBitcoins(bool fGenerate, int nThreads, const CChainParams& chainparams, const std::string &coinbase_)
+void Mining::GenerateBitcoins(bool fGenerate, int nThreads, const CChainParams& chainparams, const std::string &coinbase)
 {
     if (nThreads < 0)
         nThreads = boost::thread::physical_concurrency();
@@ -582,25 +582,6 @@ void Mining::GenerateBitcoins(bool fGenerate, int nThreads, const CChainParams& 
 
     if (nThreads == 0 || !fGenerate)
         return;
-
-    std::string coinbase(coinbase_);
-#ifdef ENABLE_WALLET
-    if (coinbase.empty()) {
-        // try to get it from the wallet
-        boost::shared_ptr<CReserveScript> coinbaseScript;
-        ValidationNotifier().GetScriptForMining(coinbaseScript);
-
-        if (pwalletMain) {
-            boost::shared_ptr<CReserveKey> rKey(new CReserveKey(pwalletMain));
-            CPubKey pubkey;
-            if (rKey->GetReservedKey(pubkey)) {
-                std::vector<unsigned char> v = ToByteVector(pubkey);
-                boost::algorithm::hex(v.begin(), v.end(), back_inserter(coinbase));
-                rKey->KeepKey();
-            }
-        }
-    }
-#endif
 
     miningInstance->SetCoinbase(ScriptForCoinbase(coinbase));
     miningInstance->m_minerThreads = new boost::thread_group();
