@@ -37,7 +37,6 @@
 #include "net.h"
 #include "policy/policy.h"
 #include "primitives/block.h"
-#include "primitives/transaction.h"
 #include <primitives/FastBlock.h>
 #include "primitives/script.h"
 #include "script/sign.h"

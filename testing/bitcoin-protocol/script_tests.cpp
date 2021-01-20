@@ -25,11 +25,13 @@
 #include "rpcserver.h"
 #include "transaction_utils.h"
 
-#include "core_io.h"
-#include "keystore.h"
-#include "primitives/script.h"
+#include <common/MutableTransactionSignatureChecker.h>
+
+#include <core_io.h>
+#include <keystore.h>
+#include <primitives/script.h>
 #include <script/standard.h>
-#include "script/sign.h"
+#include <script/sign.h>
 #include <utilstrencodings.h>
 
 // Uncomment if you want to output updated JSON tests.

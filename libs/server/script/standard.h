@@ -22,6 +22,7 @@
 
 #include "interpreter.h"
 #include <uint256.h>
+#include <primitives/script.h>
 #include <boost/variant.hpp>
 
 class CKeyID;

@@ -21,10 +21,11 @@
 #define FLOWEE_SCRIPT_INTERPRETER_H
 
 #include "script_error.h"
-#include "primitives/transaction.h"
+#include <amount.h>
 
 class CPubKey;
 class CScript;
+class CScriptNum;
 class CTransaction;
 class uint256;
 
@@ -158,15 +159,6 @@ public:
     bool CheckSig(const std::vector<unsigned char>& scriptSig, const std::vector<unsigned char>& vchPubKey, const CScript& scriptCode, uint32_t flags) const override;
     bool CheckLockTime(const CScriptNum& nLockTime) const override;
     bool CheckSequence(const CScriptNum& nSequence) const override;
-};
-
-class MutableTransactionSignatureChecker : public TransactionSignatureChecker
-{
-private:
-    const CTransaction txTo;
-
-public:
-    MutableTransactionSignatureChecker(const CMutableTransaction* txToIn, unsigned int nInIn, const CAmount& amount) : TransactionSignatureChecker(&txTo, nInIn, amount), txTo(*txToIn) {}
 };
 
 

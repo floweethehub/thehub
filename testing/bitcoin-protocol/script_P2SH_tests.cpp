@@ -17,7 +17,8 @@
  * along with this program.  If not, see <http://www.gnu.org/licenses/>.
  */
 
-#include <common/TestFloweeBase.h>
+#include <common/MutableTransactionSignatureChecker.h>
+
 #include "script_P2SH_tests.h"
 #include "keystore.h"
 #include "main.h"

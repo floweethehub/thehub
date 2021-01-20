@@ -18,6 +18,7 @@
  */
 
 #include "multisig_tests.h"
+#include <common/MutableTransactionSignatureChecker.h>
 
 #include <primitives/transaction.h>
 #include "keystore.h"

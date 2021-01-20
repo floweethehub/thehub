@@ -29,6 +29,7 @@
 #include "crypter.h"
 #include "wallet_ismine.h"
 #include "walletdb.h"
+#include <primitives/transaction.h>
 
 #include <stdexcept>
 
