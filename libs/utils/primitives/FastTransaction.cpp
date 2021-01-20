@@ -60,6 +60,7 @@ int64_t Tx::offsetInBlock(const FastBlock &block) const
 {
     assert(m_data.isValid());
     assert(block.data().isValid());
+    assert(block.data().internal_buffer() == m_data.internal_buffer());
     return m_data.begin() - block.data().begin();
 }
 
