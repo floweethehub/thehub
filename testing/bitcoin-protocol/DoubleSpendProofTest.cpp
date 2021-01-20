@@ -1,6 +1,6 @@
 /*
  * This file is part of the Flowee project
- * Copyright (C) 2019 Tom Zander <tomz@freedommail.ch>
+ * Copyright (C) 2019-2021 Tom Zander <tom@flowee.org>
  *
  * This program is free software: you can redistribute it and/or modify
  * it under the terms of the GNU General Public License as published by
@@ -171,6 +171,15 @@ void DoubleSpendProofTest::serialization()
     // check if the second one validates
     bv->mempool()->insertTx(second);
     QCOMPARE(dsp2.validate(*bv->mempool()), DoubleSpendProof::Valid);
+
+    Streaming::BufferPool pool;
+    pool.reserve(blob.size());
+    memcpy(pool.begin(), &blob[0], blob.size());
+    DoubleSpendProof dsp3 = DoubleSpendProof::load(pool.commit(blob.size()));
+    QCOMPARE(dsp1.createHash(), dsp3.createHash());
+
+    // check if the 3rd one validates
+    QCOMPARE(dsp3.validate(*bv->mempool()), DoubleSpendProof::Valid);
 }
 
 void DoubleSpendProofTest::testStupidUsage()

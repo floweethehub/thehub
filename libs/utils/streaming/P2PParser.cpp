@@ -1,6 +1,6 @@
 /*
  * This file is part of the Flowee project
- * Copyright (C) 2020 Tom Zander <tomz@freedommail.ch>
+ * Copyright (C) 2020-2021 Tom Zander <tom@flowee.org>
  *
  * This program is free software: you can redistribute it and/or modify
  * it under the terms of the GNU General Public License as published by
@@ -136,6 +136,20 @@ std::vector<char> Streaming::P2PParser::readBytes(int32_t count)
     if (m_data + count > m_end)
         throw ParsingException("Out of range");
     std::vector<char> answer;
+    answer.resize(count);
+    for (int i = 0; i < count; ++i) {
+        answer[i] = m_data[i];
+    }
+    m_data += count;
+    return answer;
+}
+
+std::vector<uint8_t> Streaming::P2PParser::readUnsignedBytes(int32_t count)
+{
+    assert(count > 0);
+    if (m_data + count > m_end)
+        throw ParsingException("Out of range");
+    std::vector<uint8_t> answer;
     answer.resize(count);
     for (int i = 0; i < count; ++i) {
         answer[i] = m_data[i];

@@ -1,6 +1,6 @@
 /*
  * This file is part of the Flowee project
- * Copyright (C) 2019 Tom Zander <tomz@freedommail.ch>
+ * Copyright (C) 2019-2021 Tom Zander <tom@flowee.org>
  *
  * This program is free software: you can redistribute it and/or modify
  * it under the terms of the GNU General Public License as published by
@@ -37,6 +37,9 @@ public:
 
     /** Create a proof object, given two conflicting transactions */
     static DoubleSpendProof create(const Tx &tx1, const Tx &tx2);
+
+    /** loads a DSProof from a serialized stream. */
+    static DoubleSpendProof load(const Streaming::ConstBuffer &buffer);
 
     /** Returns true if this object is invalid, i.e. does not represent a double spend proof */
     bool isEmpty() const;

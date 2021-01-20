@@ -1,6 +1,6 @@
 /*
  * This file is part of the Flowee project
- * Copyright (C) 2020 Tom Zander <tomz@freedommail.ch>
+ * Copyright (C) 2020-2021 Tom Zander <tom@flowee.org>
  *
  * This program is free software: you can redistribute it and/or modify
  * it under the terms of the GNU General Public License as published by
@@ -47,6 +47,7 @@ public:
     uint64_t readCompactInt();
     bool readBool();
     std::vector<char> readBytes(int32_t count);
+    std::vector<uint8_t> readUnsignedBytes(int32_t count);
     uint256 readUint256();
 
     inline void skip(int32_t bytes) {

@@ -1,6 +1,6 @@
 /*
  * This file is part of the Flowee project
- * Copyright (C) 2019-2020 Tom Zander <tomz@freedommail.ch>
+ * Copyright (C) 2019-2021 Tom Zander <tom@flowee.org>
  *
  * This program is free software: you can redistribute it and/or modify
  * it under the terms of the GNU General Public License as published by
@@ -19,13 +19,13 @@
 #include "DoubleSpendProof.h"
 #include "UnspentOutputData.h"
 #include "txmempool.h"
-#include "policy/policy.h"
 #include "script/interpreter.h"
 
 #include <utxo/UnspentOutputDatabase.h>
 #include <hash.h>
 #include <primitives/pubkey.h>
 #include <fstream>
+#include <streaming/P2PParser.h>
 
 namespace {
     enum ScriptType {
@@ -193,6 +193,40 @@ DoubleSpendProof DoubleSpendProof::create(const Tx &tx1, const Tx &tx2)
     answer.checkSanityOrThrow();
 
     return answer;
+}
+
+DoubleSpendProof DoubleSpendProof::load(const Streaming::ConstBuffer &buffer)
+{
+    DoubleSpendProof dsp;
+    Streaming::P2PParser parser(buffer);
+
+    dsp.m_prevTxId = parser.readUint256();
+    dsp.m_prevOutIndex = parser.readInt();
+    dsp.m_spender1.txVersion = parser.readInt();
+    dsp.m_spender1.outSequence = parser.readInt();
+    dsp.m_spender1.lockTime = parser.readInt();
+    dsp.m_spender1.hashPrevOutputs = parser.readUint256();
+    dsp.m_spender1.hashSequence = parser.readUint256();
+    dsp.m_spender1.hashOutputs = parser.readUint256();
+    int count = parser.readCompactInt();
+    for (int i = 0; i < count; ++i) {
+        int vectorSize = parser.readCompactInt();
+        dsp.m_spender1.pushData.push_back(parser.readUnsignedBytes(vectorSize));
+    }
+
+    dsp.m_spender2.txVersion = parser.readInt();
+    dsp.m_spender2.outSequence = parser.readInt();
+    dsp.m_spender2.lockTime = parser.readInt();
+    dsp.m_spender2.hashPrevOutputs = parser.readUint256();
+    dsp.m_spender2.hashSequence = parser.readUint256();
+    dsp.m_spender2.hashOutputs = parser.readUint256();
+    count = parser.readCompactInt();
+    for (int i = 0; i < count; ++i) {
+        int vectorSize = parser.readCompactInt();
+        dsp.m_spender2.pushData.push_back(parser.readUnsignedBytes(vectorSize));
+    }
+
+    return dsp;
 }
 
 DoubleSpendProof::DoubleSpendProof()
