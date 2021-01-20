@@ -1,6 +1,6 @@
 /*
  * This file is part of the Flowee project
- * Copyright (C) 2017-2020 Tom Zander <tomz@freedommail.ch>
+ * Copyright (C) 2017-2021 Tom Zander <tom@flowee.org>
  *
  * This program is free software: you can redistribute it and/or modify
  * it under the terms of the GNU General Public License as published by
@@ -57,8 +57,7 @@ public:
     Tx();
 
     Tx(const Streaming::ConstBuffer &rawTransaction);
-    // Tx(const Tx &other); // mark as having default implementation.
-    // TODO assignment and copy constructor
+    Tx(const Tx &other) = default;
 
     /**
      * @brief isValid returns true if it has a known backing memory store.
@@ -200,6 +199,7 @@ public:
 
     inline bool operator==(const Tx &other) const { return m_data.operator==(other.m_data); }
     inline bool operator!=(const Tx &other) const { return !operator==(other); }
+    Tx &operator=(const Tx &other) = default;
 
 private:
     Streaming::ConstBuffer m_data;
