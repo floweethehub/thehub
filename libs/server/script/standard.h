@@ -20,9 +20,9 @@
 #ifndef FLOWEE_SCRIPT_STANDARD_H
 #define FLOWEE_SCRIPT_STANDARD_H
 
-#include "interpreter.h"
 #include <uint256.h>
 #include <primitives/script.h>
+#include <script/interpreter.h>
 #include <boost/variant.hpp>
 
 class CKeyID;

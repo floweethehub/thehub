@@ -23,7 +23,7 @@
 #include <random.h>
 #include <validation/BlockValidation_p.h>
 #include <server/BlocksDB.h>
-#include <server/script/interpreter.h>
+#include <script/interpreter.h>
 #include <utxo/UnspentOutputDatabase.h>
 #include <WaitUntilFinishedHelper.h>
 

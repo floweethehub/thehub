@@ -35,6 +35,8 @@ add_library(flowee_utils STATIC
     merkleblock.cpp
     PartialMerkleTree.cpp
     random.cpp
+    script/interpreter.cpp
+    script/script_error.cpp
     streaming/BufferPool.cpp
     streaming/ConstBuffer.cpp
     streaming/MessageBuilder.cpp
@@ -105,6 +107,11 @@ install(FILES
     primitives/script.h
     #primitives/transaction.h
 DESTINATION include/flowee/utils/primitives)
+
+install(FILES
+    script/interpreter.h
+    script/script_error.h
+DESTINATION include/flowee/utils/script)
 
 install(FILES support/allocators/secure.h DESTINATION include/flowee/utils/support/allocators)
 install(FILES support/pagelocker.h support/cleanse.h DESTINATION include/flowee/utils/support)

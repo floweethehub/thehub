@@ -56,8 +56,6 @@ set (FLOWEE_SERVER_FILES
     rpcserver.cpp
     scheduler.cpp
     serverutil.cpp
-    script/interpreter.cpp
-    script/script_error.cpp
     script/sigcache.cpp
     script/sign.cpp
     script/standard.cpp
