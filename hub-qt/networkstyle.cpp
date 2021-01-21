@@ -105,6 +105,6 @@ NetworkStyle::NetworkStyle(const QString &networkId)
     appIcon = QImage(":/icons/hub");
     auto trayIcon = fixIcon(QImage(":/icons/hub.ico"), iconColorHueShift, iconColorSaturationReduction);
     Q_ASSERT(trayIcon.width() == 128);
-    Q_ASSERT(trayIcon.height() == 114);
-    trayAndWindowIcon = QIcon(QPixmap::fromImage(trayIcon.scaled(128, 114)));
+    Q_ASSERT(trayIcon.height() == 116);
+    trayAndWindowIcon = QIcon(QPixmap::fromImage(trayIcon.scaled(128, 116)));
 }
