@@ -1,7 +1,0 @@
-#!/bin/sh -e
-
-if [ "$1" = "purge" ]; then
-    rm -rf /var/lib/flowee /var/log/flowee /etc/flowee
-fi
-
-#DEBHELPER#
