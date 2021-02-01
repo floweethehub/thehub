@@ -86,24 +86,6 @@ build-static:
     - systemd
     expire_in: 100 hrs
 
-flowee-deb:
-  stage: deploy
-  image: debian:stable
-  script:
-    - umask 022
-    - mkdir -p $PACKAGE_NAME/usr/lib
-    - mv bin $PACKAGE_NAME/usr
-    - mv etc $PACKAGE_NAME/
-    - mv systemd $PACKAGE_NAME/usr/lib/
-    - mv support/debian $PACKAGE_NAME/DEBIAN
-    - chmod 755 $PACKAGE_NAME/DEBIAN/post* $PACKAGE_NAME/DEBIAN/
-    - dpkg-deb --build $PACKAGE_NAME
-  dependencies:
-    - build-static
-  artifacts:
-    paths:
-    - ${PACKAGE_NAME}.deb
-
 flowee-linux.zip:
   stage: deploy
   script:
