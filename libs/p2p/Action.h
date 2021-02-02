@@ -18,10 +18,9 @@
 #ifndef ACTION_H
 #define ACTION_H
 
-class DownloadManager;
-
-#include <boost/asio/io_service.hpp>
 #include <boost/asio/deadline_timer.hpp>
+
+class DownloadManager;
 
 class Action
 {
