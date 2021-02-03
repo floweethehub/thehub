@@ -1,6 +1,6 @@
 /*
  * This file is part of the Flowee project
- * Copyright (C) 2020 Tom Zander <tom@flowee.org>
+ * Copyright (C) 2020-2021 Tom Zander <tom@flowee.org>
  *
  * This program is free software: you can redistribute it and/or modify
  * it under the terms of the GNU General Public License as published by
@@ -28,8 +28,13 @@ Action::Action(DownloadManager *parent)
 
 void Action::again()
 {
-    m_timer.expires_from_now(boost::posix_time::milliseconds(1500));
+    m_timer.expires_from_now(boost::posix_time::milliseconds(m_interval));
     m_timer.async_wait(m_dlm->strand().wrap(std::bind(&Action::execute, this, std::placeholders::_1)));
+}
+
+void Action::setInterval(int milliseconds)
+{
+    m_interval = milliseconds;
 }
 
 void Action::start()
