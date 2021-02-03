@@ -21,6 +21,7 @@ add_library(flowee_p2p STATIC
     BlockHeader.cpp
     Blockchain.cpp
     ConnectionManager.cpp
+    CleanPeersAction.cpp
     DataListenerInterface.cpp
     DownloadManager.cpp
     FillAddressDBAction.cpp

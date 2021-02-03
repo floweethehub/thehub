@@ -22,6 +22,7 @@
 #include "Peer.h"
 #include "SyncChainAction.h"
 #include "SyncSPVAction.h"
+#include "CleanPeersAction.h"
 
 #include <primitives/FastTransaction.h>
 #include <streaming/P2PParser.h>
@@ -390,4 +391,5 @@ void DownloadManager::start()
     addAction<SyncChainAction>();
     addAction<FillAddressDBAction>();
     addAction<SyncSPVAction>();
+    addAction<CleanPeersAction>();
 }
