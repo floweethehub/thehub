@@ -164,6 +164,12 @@ void Blockchain::processBlockHeaders(Message message, int peerId)
                 if (peer.get()) {
                     peer->peerAddress().gotGoodHeaders();
                     peer->updatePeerHeight(height);
+                    // Now we know its on the same chain as us, a wallet can start downloading from it
+                    if (peer->privacySegment() == nullptr) {
+                        logDebug() << "On Headers-ok: Assign privacy segment to peer:"
+                                   << peer->connectionId() << peer->peerAddress();
+                        m_dlmanager->connectionManager().assignSegmentToPeer(peer);
+                    }
                 }
             }
             return;

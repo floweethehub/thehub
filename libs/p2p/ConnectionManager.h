@@ -164,6 +164,11 @@ public:
      */
     void setMessageQueueSize(int size);
 
+    /**
+     * Assign a privacy-segment to /a peer.
+     */
+    void assignSegmentToPeer(const std::shared_ptr<Peer> &peer);
+
 private:
     void cron(const boost::system::error_code &error);
     void handleError(int remoteId, const boost::system::error_code &error);

@@ -202,35 +202,13 @@ void ConnectionManager::connectionEstablished(const std::shared_ptr<Peer> &peer)
 
     const auto previousSegment = peer->peerAddress().segment();
     if (previousSegment == 0) {
-        std::map<PrivacySegment*, int> segmentUsage;
-        for (auto ps : m_segments) {
-            segmentUsage.insert(std::make_pair(ps, 0));
-        }
-        // now populate it with segment usage.
-        const auto thisId = peer->connectionId();
-        for (auto peerId : m_connectedPeers) {
-            if (peerId != thisId) {
-                auto i = m_peers.find(peerId);
-                assert(i != m_peers.end());
-                auto s = i->second->privacySegment();
-                if (s) {
-                    auto segmentIter = segmentUsage.find(s);
-                    segmentIter->second++;
-                }
-            }
-        }
-
-        PrivacySegment *best = nullptr;
-        int usageCount = 1000;
-        for (auto s : segmentUsage) {
-            if (s.second < usageCount) {
-                usageCount = s.second;
-                best = s.first;
-            }
-        }
-        if (best) {
-            peer->setPrivacySegment(best);
-            peer->peerAddress().setSegment(best->segmentId());
+        // We flagged it as being on the same chain as us not too long ago
+        // get a wallet to start downloading data from it
+        auto last = peer->peerAddress().lastReceivedGoodHeaders();
+        if (last > 0 && time(nullptr) - last > 3600 * 36) {
+            logDebug() << "On connect: Assign privacy segment to peer:"
+                       << peer->connectionId() << peer->peerAddress();
+            assignSegmentToPeer(peer);
         }
     } else {
         for (auto ps : m_segments) {
@@ -544,4 +522,38 @@ void ConnectionManager::setMessageQueueSize(int size)
     assert(size >= 1);
     assert(size <= 0xeFFF);
     m_queueSize = static_cast<short>(size);
+}
+
+void ConnectionManager::assignSegmentToPeer(const std::shared_ptr<Peer> &peer)
+{
+    std::map<PrivacySegment*, int> segmentUsage;
+    for (auto ps : m_segments) {
+        segmentUsage.insert(std::make_pair(ps, 0));
+    }
+    // now populate it with segment usage.
+    const auto thisId = peer->connectionId();
+    for (auto peerId : m_connectedPeers) {
+        if (peerId != thisId) {
+            auto i = m_peers.find(peerId);
+            assert(i != m_peers.end());
+            auto s = i->second->privacySegment();
+            if (s) {
+                auto segmentIter = segmentUsage.find(s);
+                segmentIter->second++;
+            }
+        }
+    }
+
+    PrivacySegment *best = nullptr;
+    int usageCount = 1000;
+    for (auto s : segmentUsage) {
+        if (s.second < usageCount) {
+            usageCount = s.second;
+            best = s.first;
+        }
+    }
+    if (best) {
+        peer->setPrivacySegment(best);
+        peer->peerAddress().setSegment(best->segmentId());
+    }
 }
