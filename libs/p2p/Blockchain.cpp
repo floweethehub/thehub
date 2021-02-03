@@ -1,6 +1,6 @@
 /*
  * This file is part of the Flowee project
- * Copyright (C) 2020 Tom Zander <tom@flowee.org>
+ * Copyright (C) 2020-2021 Tom Zander <tom@flowee.org>
  *
  * This program is free software: you can redistribute it and/or modify
  * it under the terms of the GNU General Public License as published by
@@ -27,12 +27,14 @@
 #include <stdexcept>
 
 Blockchain::Blockchain(DownloadManager *downloadManager, const boost::filesystem::path &basedir, P2PNet::Chain chain)
-    : m_basedir(basedir), m_dlmanager(downloadManager)
+    : m_basedir(basedir),
+      m_blockHeight(chain == P2PNet::MainChain ? 60001 : 1001),
+      m_dlmanager(downloadManager)
 {
     assert(m_dlmanager);
     switch (chain) {
     case P2PNet::MainChain:
-        m_longestChain.reserve(650000); // pre-allocate
+        m_longestChain.reserve(700000); // pre-allocate
         load();
         createMainchainGenesis();
         loadMainchainCheckpoints();

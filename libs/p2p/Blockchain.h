@@ -1,6 +1,6 @@
 /*
  * This file is part of the Flowee project
- * Copyright (C) 2020 Tom Zander <tom@flowee.org>
+ * Copyright (C) 2020-2021 Tom Zander <tom@flowee.org>
  *
  * This program is free software: you can redistribute it and/or modify
  * it under the terms of the GNU General Public License as published by
@@ -25,9 +25,9 @@
 #include <arith_uint256.h>
 #include <uint256.h>
 
-#include <boost/unordered_map.hpp>
 #include <boost/filesystem.hpp>
 #include <mutex>
+#include <unordered_map>
 
 class DownloadManager;
 namespace Streaming {
@@ -80,7 +80,7 @@ private:
     };
     ChainTip m_tip;
 
-    typedef boost::unordered_map<uint256, int, HashShortener> BlockHeightMap;
+    typedef std::unordered_map<uint256, int, HashShortener, HashComparison> BlockHeightMap;
     BlockHeightMap m_blockHeight;
 
     DownloadManager *m_dlmanager;

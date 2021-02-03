@@ -2,7 +2,7 @@
  * This file is part of the Flowee project
  * Copyright (C) 2009-2010 Satoshi Nakamoto
  * Copyright (C) 2009-2015 The Bitcoin Core developers
- * Copyright (C) 2019 Tom Zander <tomz@freedommail.ch>
+ * Copyright (C) 2019-2021 Tom Zander <tom@flowee.org>
  *
  * This program is free software: you can redistribute it and/or modify
  * it under the terms of the GNU General Public License as published by
@@ -185,6 +185,12 @@ struct HashShortener {
     inline size_t operator()(const uint256& hash) const {
         return hash.GetCheapHash();
     }
+};
+
+struct HashComparison {
+     inline bool operator()(const uint256 &a, const uint256 &b) const {
+         return a == b;
+     }
 };
 
 template<unsigned int BITS>
