@@ -248,7 +248,7 @@ void PeerAddressDB::processAddressMessage(const Message &message, int sourcePeer
     try {
         Streaming::P2PParser parser(message);
         const size_t count = parser.readCompactInt();
-        logDebug() << "Received" << count << "addresses" << "from" << sourcePeerId;
+        logDebug() << "Received" << count << "addresses" << "from peer:" << sourcePeerId;
         for (size_t i = 0; i < count; ++i) {
             PeerInfo info;
             info.lastConnected = parser.readInt();
@@ -265,7 +265,7 @@ void PeerAddressDB::processAddressMessage(const Message &message, int sourcePeer
         return;
     }
     if (oldCount != m_peers.size())
-        logInfo().nospace() << "We now have " << m_peers.size() << " addresses (thanks! peer:" << sourcePeerId << ")";
+        logInfo().nospace() << "We now have " << m_peers.size() << " addresses (thanks! peer: " << sourcePeerId << ")";
 }
 
 void PeerAddressDB::addOne(const EndPoint &endPoint)
