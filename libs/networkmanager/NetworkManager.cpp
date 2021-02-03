@@ -1,6 +1,6 @@
 /*
  * This file is part of the Flowee project
- * Copyright (C) 2016,2019-2020 Tom Zander <tomz@freedommail.ch>
+ * Copyright (C) 2016,2019-2021 Tom Zander <tom@flowee.org>
  *
  * This program is free software: you can redistribute it and/or modify
  * it under the terms of the GNU General Public License as published by
@@ -978,7 +978,13 @@ bool NetworkManagerConnection::processLegacyPacket(const std::shared_ptr<char> &
     buf[12] = 0;
     auto m = d->messageIdsReverse.find(std::string(buf));
     if (m == d->messageIdsReverse.end()) {
-        logWarning(Log::NWM) << "Incoming message has unknown type:" << std::string(data + 4, 12);
+        char buf[12]; // sanitized copy
+        for (int i = 0; i < 12; ++i) {
+            buf[i] = data[4 + i];
+            if (buf[i] == 0) // replace zeros with spaces
+                buf[i] = ' ';
+        }
+        logWarning(Log::NWM) << "Incoming message has unknown type:" << std::string(buf, 12);
         return true; // skip
     }
     Message message(buffer, data, data + LEGACY_HEADER_SIZE, data + LEGACY_HEADER_SIZE + bodyLength);
