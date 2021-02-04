@@ -193,6 +193,9 @@ void Peer::processMessage(const Message &message)
             else
                 m_connectionManager->addTransaction(tx, connectionId());
         }
+        else if (message.messageId() == Api::P2P::Data_DSProof) {
+            logCritical() << "Received a DoubleSpendProof from peer:" << connectionId() << "Not implemented yet.";
+        }
         else if (message.messageId() == Api::P2P::Data_MerkleBlock) {
             if (!m_segment) { // Received merkleblock without asking for one
                 logWarning() << "Peer sent merkleblock without us askign for one. PeerId:" << connectionId();

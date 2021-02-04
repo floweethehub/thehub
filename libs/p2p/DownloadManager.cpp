@@ -111,6 +111,8 @@ void DownloadManager::parseInvMessage(Message message, int sourcePeerId)
         for (size_t i = 0; i < count; ++i) {
             uint32_t type = parser.readInt();
             auto inv = InventoryItem(parser.readUint256(), type);
+
+            // if block type, check if we already know about it
             if (type == InventoryItem::BlockType) {
                 auto height = m_blockchain.blockHeightFor(inv.hash());
                 if (height > 0) {
@@ -122,7 +124,10 @@ void DownloadManager::parseInvMessage(Message message, int sourcePeerId)
                     continue;
                 }
             }
-            if (type == InventoryItem::TransactionType || type == InventoryItem::BlockType) {
+
+            // otherwise we update the downloads queue
+            if (type == InventoryItem::TransactionType || type == InventoryItem::BlockType
+                    || type == InventoryItem::DoubleSpendType) {
                 auto findIter = m_downloadTargetIds.find(inv.hash());
                 if (findIter == m_downloadTargetIds.end()) {
                     // new download target.
@@ -368,7 +373,7 @@ void DownloadManager::runQueue()
                     m_downloads[i].downloadStartTime = time(nullptr);
                     m_downloads[i].primary = preferredDownload;
 
-                    if (dt.inv.type() == InventoryItem::TransactionType) {
+                    if (dt.inv.type() == InventoryItem::TransactionType || dt.inv.type() == InventoryItem::DoubleSpendType) {
                         Streaming::P2PBuilder builder(m_connectionManager.pool(40));
                         builder.writeCompactSize(1);
                         builder.writeInt(dt.inv.type());
@@ -378,7 +383,6 @@ void DownloadManager::runQueue()
                     else if (dt.inv.type() == InventoryItem::BlockType) {
                         m_connectionManager.requestHeaders(peer);
                     }
-                    // else if (dt.inv.type() == InventoryItem::DoubleSpendType)
                 }
                 break;
             }
