@@ -1,6 +1,6 @@
 /*
  * This file is part of the Flowee project
- * Copyright (C) 2020 Tom Zander <tom@flowee.org>
+ * Copyright (C) 2020-2021 Tom Zander <tom@flowee.org>
  *
  * This program is free software: you can redistribute it and/or modify
  * it under the terms of the GNU General Public License as published by
@@ -58,6 +58,7 @@ ConnectionManager::ConnectionManager(boost::asio::io_service &service, const boo
     table.insert(std::make_pair(Api::P2P::FilterLoad, "filterload"));
     table.insert(std::make_pair(Api::P2P::FilterClear, "filterclear"));
     table.insert(std::make_pair(Api::P2P::GetData, "getdata"));
+    table.insert(std::make_pair(Api::P2P::Mempool, "mempool"));
     m_network.setMessageIdLookup(table);
 
     // network selection

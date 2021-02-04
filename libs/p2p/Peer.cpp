@@ -1,6 +1,6 @@
 /*
  * This file is part of the Flowee project
- * Copyright (C) 2020 Tom Zander <tom@flowee.org>
+ * Copyright (C) 2020-2021 Tom Zander <tom@flowee.org>
  *
  * This program is free software: you can redistribute it and/or modify
  * it under the terms of the GNU General Public License as published by
@@ -315,13 +315,17 @@ void Peer::startMerkleDownload(int from)
         sendFilter_priv(); // then send updated filter
 
     m_merkleDownloadFrom = from;
-    // we limit our INVs to 100 per request.  Notice that the protocol allows for 50000
+    // we limit our MerkleBlock list to 100 per iteration.
     m_merkleDownloadTo = std::min(m_merkleDownloadFrom + 100,
                                   std::min(m_peerHeight, m_connectionManager->blockHeight()));
 
     const int count = 1 + m_merkleDownloadTo - m_merkleDownloadFrom;
-    if (count == 0)
+    if (count == 0) {
+        // send one last message to get the transactions (via INV)
+        // from the remote peers mempool.
+        m_con.send(Message(Api::LegacyP2P, Api::P2P::Mempool));
         return;
+    }
     Streaming::P2PBuilder builder(m_connectionManager->pool(40 * count));
     builder.writeCompactSize(count);
     for (int i = m_merkleDownloadFrom; i <= m_merkleDownloadTo; ++i) {
