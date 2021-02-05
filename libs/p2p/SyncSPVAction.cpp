@@ -49,7 +49,7 @@ void SyncSPVAction::execute(const boost::system::error_code &error)
      * Privacy Segments are assigned to a number of peers, make an inventory of each segment.
      * For ease, realize that segments are the same thing as wallets here.
      */
-    for (auto peer : m_dlm->connectionManager().connectedPeers()) {
+    for (const auto &peer : m_dlm->connectionManager().connectedPeers()) {
         auto *ps = peer->privacySegment();
         if (ps) {
             auto iter = wallets.find(ps);

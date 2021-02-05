@@ -221,7 +221,7 @@ void ConnectionManager::connectionEstablished(const std::shared_ptr<Peer> &peer)
         }
     }
     if (peer->privacySegment()) {
-        for (auto weakTx : m_transactionsToBroadcast) {
+        for (const auto &weakTx : m_transactionsToBroadcast) {
             auto tx = weakTx.lock();
             if (tx && peer->privacySegment()->segmentId() == tx->privSegment()) {
                 peer->sendTx(tx);
@@ -321,7 +321,7 @@ int ConnectionManager::unconnectedPeerCount() const
     int answer = 0;
     if (m_shuttingDown)
         return answer;
-    for (auto i : m_peers) {
+    for (const auto &i : m_peers) {
         if (i.second.get() && m_connectedPeers.find(i.first) == m_connectedPeers.end())
             ++answer;
     }
@@ -511,7 +511,7 @@ void ConnectionManager::shutdown()
     m_cronTimer.cancel();
 
     auto copy(m_peers);
-    for (auto peer : copy) {
+    for (const auto &peer : copy) {
         removePeer(peer.second);
     }
     assert(m_peers.empty());

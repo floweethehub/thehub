@@ -18,7 +18,8 @@
 #ifndef P2PNET_H
 #define P2PNET_H
 
-namespace P2PNet {
+namespace P2PNet
+{
 enum Chain {
     MainChain,
     Testnet4Chain

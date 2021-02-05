@@ -88,7 +88,7 @@ void DownloadManager::getMoreHeaders()
 {
     if (m_peerDownloadingHeaders == -1) { // check if we need to download more of them.
         // TODO use the fastest peer.
-        for (auto p : m_connectionManager.connectedPeers()) {
+        for (auto &p : m_connectionManager.connectedPeers()) {
             if (p->startHeight() > blockHeight()) {
                 m_peerDownloadingHeaders = p->connectionId();
                 m_connectionManager.requestHeaders(p);
