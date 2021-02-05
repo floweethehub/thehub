@@ -24,6 +24,7 @@
 #include "InventoryItem.h"
 #include "DataListenerInterface.h"
 #include "P2PNet.h"
+#include "NotificationCenter.h"
 #include <uint256.h>
 
 #include <condition_variable>
@@ -62,6 +63,11 @@ public:
     inline const Blockchain &blockchain() const {
         return m_blockchain;
     }
+
+    NotificationCenter &notifications() {
+        return m_notifications;
+    }
+
     /// We sync our chain using headers only, this returns true if we found the tip
     inline bool isChainUpToDate() {
         return std::abs(m_blockchain.expectedBlockHeight() - m_blockchain.height()) < 3;
@@ -160,6 +166,7 @@ private:
     const P2PNet::Chain m_chain;
     ConnectionManager m_connectionManager;
     Blockchain m_blockchain;
+    NotificationCenter m_notifications;
     std::deque<P2PNetInterface*> m_listeners;
 
     std::deque<Action*> m_runningActions;

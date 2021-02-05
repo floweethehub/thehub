@@ -79,6 +79,7 @@ void DownloadManager::headersDownloadFinished(int newBlockHeight, int peerId)
     for (auto iface : m_listeners) {
         iface->blockchainHeightChanged(newBlockHeight);
     }
+    m_notifications.notifyNewBlock(newBlockHeight);
 
     addAction<SyncSPVAction>();
 }

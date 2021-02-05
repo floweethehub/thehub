@@ -1,5 +1,5 @@
 # This file is part of the Flowee project
-# Copyright (C) 2020 Tom Zander <tomz@freedommail.ch>
+# Copyright (C) 2020-2021 Tom Zander <tom@flowwe.org>
 #
 # This program is free software: you can redistribute it and/or modify
 # it under the terms of the GNU General Public License as published by
@@ -26,6 +26,8 @@ add_library(flowee_p2p STATIC
     DownloadManager.cpp
     FillAddressDBAction.cpp
     InventoryItem.cpp
+    NotificationCenter.cpp
+    NotificationListener.cpp
     P2PNetInterface.cpp
     Peer.cpp
     PeerAddressDB.cpp
@@ -49,6 +51,8 @@ install(FILES
     DownloadManager.h
     FillAddressDBAction.h
     InventoryItem.h
+    NotificationCenter.h
+    NotificationListener.h
     P2PNet.h
     P2PNetInterface.h
     Peer.h
