@@ -98,7 +98,6 @@ void Blockchain::processBlockHeaders(Message message, int peerId)
         uint256 prevHash;
         int startHeight = -1;
         int height = 0;
-        int64_t previousTime = 0;
         arith_uint256 chainWork;
         for (size_t i = 0; i < count; ++i) {
             BlockHeader header = BlockHeader::fromMessage(parser);
@@ -118,7 +117,6 @@ void Blockchain::processBlockHeaders(Message message, int peerId)
                 height = startHeight = iter->second + 1;
                 if (m_tip.height + 1 == startHeight) {
                     chainWork = m_tip.chainWork;
-                    previousTime = m_longestChain.back().nTime;
                 } else if (m_tip.height - startHeight > (int) count) {
                     throw std::runtime_error("is on a different chain, headers don't extend ours");
                 } else {
@@ -128,7 +126,6 @@ void Blockchain::processBlockHeaders(Message message, int peerId)
                     for (int height = m_tip.height; height >= startHeight; --height) {
                         chainWork -= m_longestChain.at(height).blockProof();
                     }
-                    previousTime = m_longestChain.at(startHeight - 1).nTime;
                 }
             }
             else if (prevHash != header.hashPrevBlock) { // check if we are really a sequence.
