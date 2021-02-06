@@ -1,6 +1,6 @@
 /*
  * This file is part of the Flowee project
- * Copyright (C) 2019 Tom Zander <tomz@freedommail.ch>
+ * Copyright (C) 2019-2021 Tom Zander <tom@flowee.org>
  *
  * This program is free software: you can redistribute it and/or modify
  * it under the terms of the GNU General Public License as published by
@@ -62,8 +62,10 @@ int main(int argc, char **argv)
     QString confFile;
     if (parser.isSet(conf))
         confFile = parser.value(conf);
-    else
+    else // the next one expects [configs]/flowee/indexer/indexer.conf
         confFile = QStandardPaths::locate(QStandardPaths::AppConfigLocation, "indexer.conf");
+    if (confFile.isEmpty()) // the next one expects [configs]/flowee/indexer.conf
+        confFile = QStandardPaths::locate(QStandardPaths::ConfigLocation, "flowee/indexer.conf");
     indexer.loadConfig(confFile, app.serverAddressFromArguments(1235));
     return app.exec();
 }

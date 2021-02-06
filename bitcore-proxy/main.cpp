@@ -1,6 +1,6 @@
 /*
  * This file is part of the Flowee project
- * Copyright (C) 2019-2020 Tom Zander <tomz@freedommail.ch>
+ * Copyright (C) 2019-2021 Tom Zander <tom@flowee.org>
  *
  * This program is free software: you can redistribute it and/or modify
  * it under the terms of the GNU General Public License as published by
@@ -87,7 +87,10 @@ int main(int argc, char **argv)
     if (parser.isSet(conf)) {
         confFile = parser.value(conf);
     } else {
+         // the next one expects [configs]/flowee/bitcore-proxy/bitcore-proxy.conf
         confFile = QStandardPaths::locate(QStandardPaths::AppConfigLocation, "bitcore-proxy.conf");
+        if (confFile.isEmpty()) // the next one expects [configs]/flowee/bitcore-proxy.conf
+            confFile = QStandardPaths::locate(QStandardPaths::ConfigLocation, "flowee/bitcore-proxy.conf");
         if (confFile.isEmpty()) {
             logCritical() << "No config file (bitcore-proxy.conf) found, assuming defaults and no indexer";
             for (auto &dir : QStandardPaths::standardLocations(QStandardPaths::AppConfigLocation)) {
