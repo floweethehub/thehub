@@ -1,6 +1,6 @@
 /*
  * This file is part of the Flowee project
- * Copyright (C) 2019-2020 Tom Zander <tomz@freedommail.ch>
+ * Copyright (C) 2019-2021 Tom Zander <tom@flowee.org>
  *
  * This program is free software: you can redistribute it and/or modify
  * it under the terms of the GNU General Public License as published by
@@ -260,7 +260,7 @@ void Indexer::loadConfig(const QString &filename, const EndPoint &prioHubLocatio
 
 void Indexer::onIncomingMessage(NetworkService::Remote *con, const Message &message, const EndPoint &)
 {
-    Q_ASSERT(message.serviceId() == Api::IndexerService);
+    assert(message.serviceId() == Api::IndexerService);
     if (message.messageId() == Api::Indexer::GetAvailableIndexers) {
         con->pool.reserve(10);
         Streaming::MessageBuilder builder(con->pool);

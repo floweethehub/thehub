@@ -1,6 +1,6 @@
 /*
  * This file is part of the Flowee project
- * Copyright (C) 2019 Tom Zander <tomz@freedommail.ch>
+ * Copyright (C) 2019-2021 Tom Zander <tom@flowee.org>
  *
  * This program is free software: you can redistribute it and/or modify
  * it under the terms of the GNU General Public License as published by
@@ -81,7 +81,7 @@ void SpentOutputIndexer::run()
         while (parser.next() == Streaming::FoundTag) {
             if (parser.tag() == Api::BlockChain::BlockHeight) {
                 blockHeight = parser.intData();
-                Q_ASSERT(blockHeight == m_txdb.blockheight() + 1);
+                assert(blockHeight == m_txdb.blockheight() + 1);
             } else if (parser.tag() == Api::BlockChain::BlockHash) {
                 blockId = parser.uint256Data();
             } else if (parser.tag() == Api::BlockChain::Separator) {
@@ -92,12 +92,12 @@ void SpentOutputIndexer::run()
                 prevTxId = parser.uint256Data();
                 gotPrevTxId = true;
             } else if (txOffsetInBlock > 90 && parser.tag() == Api::BlockChain::Tx_IN_OutIndex) {
-                Q_ASSERT(gotPrevTxId);
+                assert(gotPrevTxId);
                 gotPrevTxId = false;
-                Q_ASSERT(!prevTxId.IsNull());
-                Q_ASSERT(parser.isInt());
-                Q_ASSERT(blockHeight > 0);
-                Q_ASSERT(txOffsetInBlock > 80);
+                assert(!prevTxId.IsNull());
+                assert(parser.isInt());
+                assert(blockHeight >= 0);
+                assert(txOffsetInBlock > 80);
                 m_txdb.insert(prevTxId, parser.intData(), blockHeight, txOffsetInBlock);
             }
         }

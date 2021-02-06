@@ -1,6 +1,6 @@
 /*
  * This file is part of the Flowee project
- * Copyright (C) 2019 Tom Zander <tomz@freedommail.ch>
+ * Copyright (C) 2019-2021 Tom Zander <tom@flowee.org>
  *
  * This program is free software: you can redistribute it and/or modify
  * it under the terms of the GNU General Public License as published by
@@ -80,12 +80,12 @@ void TxIndexer::run()
             if (parser.tag() == Api::BlockChain::BlockHeight) {
                 assert(blockHeight == -1);
                 blockHeight = parser.intData();
-                Q_ASSERT(blockHeight == m_txdb.blockheight() + 1);
+                assert(blockHeight == m_txdb.blockheight() + 1);
             } else if (parser.tag() == Api::BlockChain::BlockHash) {
                 blockId = parser.uint256Data();
             } else if (parser.tag() == Api::BlockChain::Separator) {
                 if (txOffsetInBlock > 0 && !txid.IsNull()) {
-                    assert(blockHeight > 0);
+                    assert(blockHeight >= 0);
                     assert(blockHeight > m_txdb.blockheight());
                     m_txdb.insert(txid, 0, blockHeight, txOffsetInBlock);
                 }

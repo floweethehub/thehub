@@ -1,6 +1,6 @@
 /*
  * This file is part of the Flowee project
- * Copyright (C) 2019 Tom Zander <tomz@freedommail.ch>
+ * Copyright (C) 2019-2021 Tom Zander <tom@flowee.org>
  *
  * This program is free software: you can redistribute it and/or modify
  * it under the terms of the GNU General Public License as published by
@@ -161,8 +161,6 @@ void AddressIndexer::loadSetting(const QSettings &settings)
         logFatal() << "Failed opening the database-connection" << m_insertDb.lastError().text();
         throw std::runtime_error("Failed to open database connection");
     }
-
-
 }
 
 int AddressIndexer::blockheight()
@@ -172,7 +170,7 @@ int AddressIndexer::blockheight()
 
 void AddressIndexer::blockFinished(int blockheight)
 {
-    Q_ASSERT(blockheight > m_height);
+    assert(blockheight > m_height);
     m_height = blockheight;
     if (++m_uncommittedCount > 150000) {
         commitAllData();
@@ -182,8 +180,8 @@ void AddressIndexer::blockFinished(int blockheight)
 
 void AddressIndexer::insert(const Streaming::ConstBuffer &outScriptHashed, int outputIndex, int blockHeight, int offsetInBlock)
 {
-    Q_ASSERT(outScriptHashed.size() == 32); // a sha256
-    Q_ASSERT(QThread::currentThread() == this);
+    assert(outScriptHashed.size() == 32); // a sha256
+    assert(QThread::currentThread() == this);
 
     const uint256 *address = reinterpret_cast<const uint256*>(outScriptHashed.begin());
     auto result = m_addresses.lookup(*address);
@@ -320,7 +318,7 @@ void AddressIndexer::run()
         while (parser.next() == Streaming::FoundTag) {
             if (parser.tag() == Api::BlockChain::BlockHeight) {
                 blockHeight = parser.intData();
-                Q_ASSERT(blockHeight == m_height + 1);
+                assert(blockHeight == m_height + 1);
             } else if (parser.tag() == Api::BlockChain::Separator) {
                 txOffsetInBlock = 0;
                 outputIndex = -1;
@@ -331,12 +329,12 @@ void AddressIndexer::run()
             } else if (parser.tag() == Api::BlockChain::Tx_Out_ScriptHash) {
                 assert(parser.dataLength() == 32);
                 assert(outputIndex >= 0);
-                assert(blockHeight > 0);
+                assert(blockHeight >= 0);
                 assert(txOffsetInBlock > 0);
                 insert(parser.bytesDataBuffer(), outputIndex, blockHeight, txOffsetInBlock);
             }
         }
-        assert(blockHeight > 0);
+        assert(blockHeight >= 0);
         blockFinished(blockHeight);
         if (blockHeight == tipHeight) { // immediately flush when we processed the tip of the chain
             m_topOfChain.testAndSetAcquire(InInitialSync, FlushRequested);
@@ -347,9 +345,9 @@ void AddressIndexer::run()
 
 void AddressIndexer::commitAllData()
 {
-    Q_ASSERT(QThread::currentThread() == this);
+    assert(QThread::currentThread() == this);
     if (m_height == -1) {
-        Q_ASSERT(m_uncommittedData.empty());
+        assert(m_uncommittedData.empty());
         return;
     }
 
