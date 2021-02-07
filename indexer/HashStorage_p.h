@@ -31,11 +31,11 @@
 #include <qvector.h>
 #include <uint256.h>
 
-#include <boost/unordered_map.hpp>
 #include <boost/filesystem.hpp>
 #include <qfile.h>
 #include <qmap.h>
 #include <qmutex.h>
+#include <unordered_map>
 
 inline uint32_t qHash(const uint256 &key, uint32_t seed) {
     return *reinterpret_cast<const uint32_t*>(key.begin() + (seed % 5));
@@ -88,7 +88,7 @@ public:
 
     // the unsorted part
     QFile *m_log = nullptr;
-    boost::unordered_map<uint256, int, HashShortener> m_cacheMap;
+    std::unordered_map<uint256, int, HashShortener, HashComparison> m_cacheMap;
 
     int m_nextId = 0;
     mutable QMutex m_mutex;

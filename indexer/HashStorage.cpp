@@ -26,6 +26,7 @@
 #include "HashStorage_p.h"
 
 #include <boost/filesystem.hpp>
+#include <unordered_map>
 
 #define WIDTH 32
 
@@ -37,7 +38,7 @@ struct Pair {
 };
 
 struct PairSorter {
-    PairSorter(const boost::unordered_map<uint256, int, HashShortener> &orig) {
+    PairSorter(const std::unordered_map<uint256, int, HashShortener, HashComparison> &orig) {
         pairs.reserve(orig.size());
         for (auto iter = orig.begin(); iter != orig.end(); ++iter) {
             pairs.push_back(Pair(&iter->first, iter->second));
@@ -404,19 +405,19 @@ void HashList::stabilize()
 
     PairSorter sorted(m_cacheMap);
     std::sort(sorted.pairs.begin(), sorted.pairs.end(), &sortPairs);
-    QMap<int, int> lookupTable;
+    std::map<int, int> lookupTable;
     for (auto iter = sorted.pairs.begin(); iter != sorted.pairs.end(); ++iter) {
         assert(iter->index >= 0); // no negative numbers, please.
         part->sortedFile.write(reinterpret_cast<const char*>(iter->hash->begin()), WIDTH);
         part->sortedFile.write(reinterpret_cast<const char*>(&iter->index), sizeof(int));
-        lookupTable.insert(iter->index, lookupTable.size());
+        lookupTable.insert(std::make_pair(iter->index, lookupTable.size()));
     }
     sorted.pairs.clear();
     m_cacheMap.clear();
     part->sortedFile.close();
     part->sortedFileSize = part->sortedFile.size();
     for (auto iter = lookupTable.begin(); iter != lookupTable.end(); ++iter) {
-        part->reverseLookupFile.write(reinterpret_cast<const char*>(&iter.value()), sizeof(int));
+        part->reverseLookupFile.write(reinterpret_cast<const char*>(&iter->second), sizeof(int));
     }
     lookupTable.clear();
     part->reverseLookupFile.close();
