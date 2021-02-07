@@ -1,6 +1,6 @@
 /*
  * This file is part of the Flowee project
- * Copyright (C) 2019 Tom Zander <tomz@freedommail.ch>
+ * Copyright (C) 2019-2021 Tom Zander <tom@flowee.org>
  *
  * This program is free software: you can redistribute it and/or modify
  * it under the terms of the GNU General Public License as published by
@@ -256,13 +256,21 @@ HashList::HashList(const QString &dbBase)
       m_sortedFile(m_filebase + ".db"),
       m_reverseLookupFile(m_filebase + ".index")
 {
+    memset(m_offsets, 0, sizeof(uint32_t) * 256);
     QFile info(m_filebase + ".info");
     int partCount = 0;
     if (info.open(QIODevice::ReadOnly)) {
         QDataStream in(&info);
         in >> m_nextId;
         in >> partCount;
+        // an older file-format did not have the 'offsets' yet.
+        if (!in.atEnd()) {
+            for (int i = 0; i < 256; ++i) {
+                in >> m_offsets[i];
+            }
+        }
     }
+    info.close();
 
     // is it finalized?
     if (m_sortedFile.open(QIODevice::ReadOnly)) {
@@ -273,6 +281,12 @@ HashList::HashList(const QString &dbBase)
         if (m_reverseLookupFile.open(QIODevice::ReadOnly)) {
             m_reverseLookup = m_reverseLookupFile.map(0, m_reverseLookupFile.size());
             m_reverseLookupFile.close();
+        }
+
+        if (m_offsets[100] == 0) {
+            logCritical() << "Upgrading hashlist to have a jumptable" << m_filebase;
+            fillOffsetsTable();
+            writeInfoFile();
         }
     }
     else { // We are not finalized, so we should have a log
@@ -334,24 +348,34 @@ int HashList::lookup(const uint256 &hash) const
     if (item != m_cacheMap.end())
         return item->second;
 
-    int pos = 0;
-    int endpos = m_sortedFileSize / (WIDTH + sizeof(int)) - 1;
-    while (pos <= endpos) {
-        int m = (pos + endpos) / 2;
-        uint256 *item = (uint256*)(m_sorted + m * (WIDTH + sizeof(int)));
-        const int comp = item->Compare(hash);
-        if (comp < 0)
-            pos = m + 1;
-        else if (comp > 0)
-            endpos = m - 1;
+    if (m_sortedFileSize > 0) {
+        const uint8_t firstByte = hash.begin()[WIDTH -1]; // due to our sorting method this is actually the last byte of the hash
+        // Limit our search through the items starting with the same byte
+        int pos = m_offsets[firstByte] / (WIDTH + sizeof(int));
+        int endpos;
+        if (firstByte == 255)
+            endpos = m_sortedFileSize;
         else
-            return *reinterpret_cast<int*>(m_sorted + m * (WIDTH + sizeof(int)) + WIDTH);
+            endpos = m_offsets[firstByte +1];
+        endpos = endpos / (WIDTH + sizeof(int));
+        endpos -= 1; // last item of section
+        while (pos <= endpos) {
+            int m = (pos + endpos) / 2;
+            uint256 *item = (uint256*)(m_sorted + m * (WIDTH + sizeof(int)));
+            const int comp = item->Compare(hash);
+            if (comp < 0)
+                pos = m + 1;
+            else if (comp > 0)
+                endpos = m - 1;
+            else
+                return *reinterpret_cast<int*>(m_sorted + m * (WIDTH + sizeof(int)) + WIDTH);
+        }
     }
     for (auto part : m_parts) {
         Q_ASSERT(part->reverseLookup);
         Q_ASSERT(part->sorted);
-        pos = 0;
-        endpos = part->sortedFileSize / (WIDTH + sizeof(int)) - 1;
+        int pos = 0;
+        int endpos = part->sortedFileSize / (WIDTH + sizeof(int)) - 1;
         while (pos <= endpos) {
             int m = (pos + endpos) / 2;
             uint256 *item = (uint256*)(part->sorted + m * (WIDTH + sizeof(int)));
@@ -427,6 +451,26 @@ void HashList::stabilize()
     writeInfoFile();
 }
 
+void HashList::fillOffsetsTable()
+{
+    Q_ASSERT(m_sorted);
+    uint32_t data = 0;      // the first byte of the KEY
+    uint32_t offset = 0;    // the offset in file.
+    while (offset < m_sortedFileSize) {
+        // we sort the file by the 'WIDTH'-bytes hash, but the least signficant byte first.
+        const uint8_t x = m_sorted[offset + WIDTH - 1];
+        if (x > data) {
+            do {
+                m_offsets[++data] = offset;
+            } while (data < x);
+        }
+        offset += WIDTH + sizeof(int);
+    }
+    while (data < 255) {
+        m_offsets[++data] = offset;
+    }
+}
+
 void HashList::writeInfoFile() const
 {
     QFile info(m_filebase + ".info");
@@ -434,6 +478,10 @@ void HashList::writeInfoFile() const
         QDataStream out(&info);
         out << m_nextId;
         out << m_parts.length();
+
+        for (int i = 0; i < 256; ++i) {
+            out << m_offsets[i];
+        }
     }
 }
 
@@ -475,6 +523,8 @@ void HashList::finalize()
         m_sortedFileSize = m_sortedFile.size();
         m_sorted = m_sortedFile.map(0, m_sortedFileSize);
         m_sortedFile.close();
+
+        fillOffsetsTable();
     }
     m_reverseLookupFile.close();
     if (m_reverseLookupFile.open(QIODevice::ReadOnly)) {

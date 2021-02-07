@@ -1,6 +1,6 @@
 /*
  * This file is part of the Flowee project
- * Copyright (C) 2019 Tom Zander <tomz@freedommail.ch>
+ * Copyright (C) 2019-2021 Tom Zander <tom@flowee.org>
  *
  * This program is free software: you can redistribute it and/or modify
  * it under the terms of the GNU General Public License as published by
@@ -68,6 +68,8 @@ public:
     int append(const uint256 &hash);
     int lookup(const uint256 &hash) const;
     const uint256 &at(int index) const;
+    // iterate over big file and fill 'm_offsets'
+    void fillOffsetsTable();
     void writeInfoFile() const;
 
     // write the m_cache to disk (sorted) and start a new one.
@@ -85,6 +87,7 @@ public:
     qint64 m_sortedFileSize = 0;
     uchar *m_reverseLookup = nullptr;
     QFile m_reverseLookupFile;
+    quint32 m_offsets[256];
 
     // the unsorted part
     QFile *m_log = nullptr;
