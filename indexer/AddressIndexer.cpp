@@ -82,9 +82,9 @@ class MySQLTables : public TableSpecification
 {
 public:
     bool queryTableExists(QSqlQuery &query, const QString &tableName) const override {
-	query.exec("SELECT COUNT(table_name) FROM information_schema.tables WHERE table_schema=DATABASE() AND table_name='"+tableName+"'");
-	query.first();
-	return query.value(0).toInt() == 1;
+        query.exec("SELECT COUNT(table_name) FROM information_schema.tables WHERE table_schema=DATABASE() AND table_name='"+tableName+"'");
+        query.first();
+        return query.value(0).toInt() == 1;
     }
 
     bool createIndexIfNotExists(QSqlQuery &query, const QString &tableName) const override {
@@ -151,7 +151,7 @@ void AddressIndexer::loadSetting(const QSettings &settings)
         m_selectDb.setPassword(valueFromSettings(settings, "db_password"));
         m_selectDb.setHostName(valueFromSettings(settings, "db_hostname"));
         m_selectDb.setPort(valueFromSettings(settings, "db_port", "3306").toInt());
-	m_spec = new MySQLTables();
+        m_spec = new MySQLTables();
     } else if (db == "QSQLITE") {
         m_insertDb.setDatabaseName(m_basedir + "/addresses.db");
         m_selectDb.setDatabaseName(m_basedir + "/addresses.db");
