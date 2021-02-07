@@ -53,6 +53,7 @@ public:
 
     uchar *sorted = nullptr;
     QFile sortedFile;
+    qint64 sortedFileSize = 0;
 
     uchar *reverseLookup = nullptr;
     QFile reverseLookupFile;
@@ -81,6 +82,7 @@ public:
     // for the memmapped, sorted section.
     uchar *m_sorted = nullptr;
     QFile m_sortedFile;
+    qint64 m_sortedFileSize = 0;
     uchar *m_reverseLookup = nullptr;
     QFile m_reverseLookupFile;
 

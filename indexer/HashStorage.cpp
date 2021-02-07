@@ -68,7 +68,7 @@ struct HashCollector {
         m_parts.reserve(parts.size());
         for (int i = 0; i < parts.size(); ++i) {
             auto &p = parts.at(i);
-            m_parts.push_back({p->sorted, 0, (int)(p->sortedFile.size() / (WIDTH + sizeof(int)))});
+            m_parts.push_back({p->sorted, 0, (int)(p->sortedFileSize / (WIDTH + sizeof(int)))});
             sortInTip(i);
         }
     }
@@ -163,7 +163,8 @@ void HashListPart::openFiles()
     Q_ASSERT(sorted == nullptr);
     Q_ASSERT(reverseLookup == nullptr);
     if (sortedFile.open(QIODevice::ReadOnly)) {
-        sorted = sortedFile.map(0, sortedFile.size());
+        sortedFileSize = sortedFile.size();
+        sorted = sortedFile.map(0, sortedFileSize);
         sortedFile.close();
     }
     if (reverseLookupFile.open(QIODevice::ReadOnly)) {
@@ -265,7 +266,8 @@ HashList::HashList(const QString &dbBase)
     // is it finalized?
     if (m_sortedFile.open(QIODevice::ReadOnly)) {
         Q_ASSERT(partCount == 0);
-        m_sorted = m_sortedFile.map(0, m_sortedFile.size());
+        m_sortedFileSize = m_sortedFile.size();
+        m_sorted = m_sortedFile.map(0, m_sortedFileSize);
         m_sortedFile.close();
         if (m_reverseLookupFile.open(QIODevice::ReadOnly)) {
             m_reverseLookup = m_reverseLookupFile.map(0, m_reverseLookupFile.size());
@@ -332,7 +334,7 @@ int HashList::lookup(const uint256 &hash) const
         return item->second;
 
     int pos = 0;
-    int endpos = m_sortedFile.size() / (WIDTH + sizeof(int)) - 1;
+    int endpos = m_sortedFileSize / (WIDTH + sizeof(int)) - 1;
     while (pos <= endpos) {
         int m = (pos + endpos) / 2;
         uint256 *item = (uint256*)(m_sorted + m * (WIDTH + sizeof(int)));
@@ -348,7 +350,7 @@ int HashList::lookup(const uint256 &hash) const
         Q_ASSERT(part->reverseLookup);
         Q_ASSERT(part->sorted);
         pos = 0;
-        endpos = part->sortedFile.size() / (WIDTH + sizeof(int)) - 1;
+        endpos = part->sortedFileSize / (WIDTH + sizeof(int)) - 1;
         while (pos <= endpos) {
             int m = (pos + endpos) / 2;
             uint256 *item = (uint256*)(part->sorted + m * (WIDTH + sizeof(int)));
@@ -412,6 +414,7 @@ void HashList::stabilize()
     sorted.pairs.clear();
     m_cacheMap.clear();
     part->sortedFile.close();
+    part->sortedFileSize = part->sortedFile.size();
     for (auto iter = lookupTable.begin(); iter != lookupTable.end(); ++iter) {
         part->reverseLookupFile.write(reinterpret_cast<const char*>(&iter.value()), sizeof(int));
     }
@@ -466,8 +469,10 @@ void HashList::finalize()
     delete m_log;
     m_log = nullptr;
     m_sortedFile.close();
+    m_sortedFileSize = 0;
     if (m_sortedFile.open(QIODevice::ReadOnly)) {
-        m_sorted = m_sortedFile.map(0, m_sortedFile.size());
+        m_sortedFileSize = m_sortedFile.size();
+        m_sorted = m_sortedFile.map(0, m_sortedFileSize);
         m_sortedFile.close();
     }
     m_reverseLookupFile.close();
