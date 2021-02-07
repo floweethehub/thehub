@@ -125,11 +125,16 @@ void FloweeServiceApplication::setup(const char *logFilename, const QString &con
                 m_logsconf = configFilePath.left(i + 1) + "logs.conf";
         }
         m_logFile = QStandardPaths::writableLocation(QStandardPaths::AppDataLocation)
-            + QString("/%1").arg(logFilename);
+                + QString("/%1").arg(logFilename);
+        if (m_logsconf.isEmpty())
+            m_logsconf = QStandardPaths::locate(QStandardPaths::ConfigLocation, "flowee/logs.conf");
         if (m_logsconf.isEmpty()) {
             logCritical().nospace() << applicationName() << "] No logs config found";
             for (auto &p : QStandardPaths::standardLocations(QStandardPaths::AppConfigLocation)) {
                 logWarning(m_appLogSection).nospace() << "  tried " << p << "/logs.conf";
+            }
+            for (auto &p : QStandardPaths::standardLocations(QStandardPaths::ConfigLocation)) {
+                logWarning(m_appLogSection).nospace() << "  tried " << p << "/flowee/logs.conf";
             }
             logCritical().nospace() << "Log output goes to: " << m_logFile;
             Log::Manager::instance()->setLogLevel(m_appLogSection, Log::WarningLevel);
