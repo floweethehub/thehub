@@ -212,9 +212,14 @@ HashIndexPoint HashStorage::append(const uint256 &hash)
     auto db = dbs.last();
     int index = db->append(hash);
     Q_ASSERT(index >= 0);
-    if (db->m_cacheMap.size() > 833333)
+
+    // Because we are going to memmap the total file we aim to have a file
+    // that is approx (but absolutely not one byte over) a power of two.
+    // Lets aim for 0xFFFFFFF (256MB)
+    // for similar reasons we have 8 parts with an equal share of the whole each
+    if (db->m_cacheMap.size() > 932064)
         db->stabilize();
-    else if (db->m_parts.size() > 10 && dbs == d->dbs)
+    else if (db->m_parts.size() > 7 && dbs == d->dbs)
         finalize();
     return HashIndexPoint(dbs.size() - 1, index);
 }
