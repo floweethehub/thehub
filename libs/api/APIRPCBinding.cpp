@@ -1,6 +1,6 @@
 /*
  * This file is part of the Flowee project
- * Copyright (C) 2016-2017,2019-2020 Tom Zander <tomz@freedommail.ch>
+ * Copyright (C) 2016-2017,2019-2021 Tom Zander <tom@flowee.org>
  *
  * This program is free software: you can redistribute it and/or modify
  * it under the terms of the GNU General Public License as published by
@@ -513,27 +513,62 @@ public:
 
 // Live transactions
 
-class GetLiveTransaction : public Api::RpcParser
+class GetLiveTransaction : public Api::DirectParser
 {
 public:
-    GetLiveTransaction() : RpcParser("getrawtransaction", Api::LiveTransactions::GetTransactionReply) {}
+    GetLiveTransaction() : DirectParser(Api::LiveTransactions::GetTransactionReply) {}
 
-    virtual void createRequest(const Message &message, UniValue &output) override {
-        std::string txid;
-        Streaming::MessageParser parser(message.body());
+    void findByTxid(const uint256 &txid) {
+        bool success = flApp->mempool()->lookup(txid, m_tx);
+        if (!success) {
+            auto block = chainActive.Tip();
+            for (int i = 0; !success && block && i < 6; ++i) {
+                FastBlock fb = Blocks::DB::instance()->loadBlock(block->GetBlockPos());
+                Tx::Iterator iter(fb);
+                bool endFound = false;
+                while (iter.next()){
+                    if (iter.tag() == Tx::End) {
+                        if (endFound)
+                            break;
+                        int comp = iter.prevTx().createHash().Compare(txid);
+                        if (comp == 0) {
+                            m_tx = iter.prevTx();
+                            return;
+                        } else if (comp > 0) {
+                            break; // CTOR, stop searching in sorted list
+                        }
+                        endFound = true;
+                        continue;
+                    }
+                    endFound = false;
+                }
+                block = block->pprev;
+            }
+        }
+        throw JSONRPCError(RPC_INVALID_ADDRESS_OR_KEY, "No information available about transaction");
+    }
+
+    int calculateMessageSize(const Message &request) override
+    {
+        Streaming::MessageParser parser(request.body());
         while (parser.next() == Streaming::FoundTag) {
             if (parser.tag() == Api::LiveTransactions::TxId
-                    || parser.tag() == Api::LiveTransactions::GenericByteData)
-                txid = parser.uint256Data().ToString();
+                    || parser.tag() == Api::LiveTransactions::GenericByteData) {
+                findByTxid(parser.uint256Data());
+                break;
+            }
         }
-        if (txid.empty())
-            throw std::runtime_error("Missing or invalid parameter: TXID should be a sha256 (bytearray)");
-        output.push_back(std::make_pair("parameter 1", UniValue(UniValue::VSTR, txid)));
+        if (m_tx.data().isEmpty())
+            throw std::runtime_error("Missing or invalid search argument");
+        return m_tx.size() + 20;
+    }
+    void buildReply(const Message &request, Streaming::MessageBuilder &builder) override
+    {
+        builder.add(Api::GenericByteData, m_tx.data());
     }
 
-    virtual int calculateMessageSize(const UniValue &result) const override {
-        return result.get_str().size() / 2 + 20;
-    }
+private:
+    Tx m_tx;
 };
 
 class SendLiveTransaction : public Api::RpcParser
