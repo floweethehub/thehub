@@ -1,6 +1,6 @@
 /*
  * This file is part of the Flowee project
- * Copyright (C) 2019-2020 Tom Zander <tomz@freedommail.ch>
+ * Copyright (C) 2019-2021 Tom Zander <tom@flowee.org>
  *
  * This program is free software: you can redistribute it and/or modify
  * it under the terms of the GNU General Public License as published by
@@ -607,8 +607,11 @@ void Blockchain::SearchPolicy::parseMessageFromHub(Search *request, const Messag
                 if (!more)
                     break;
                 request->answer.push_back(fillTx(parser, job, jobId));
+                const Transaction tx = request->answer.back();
                 updateTxRefs(request, jobId);
-                request->transactionAdded(request->answer.back(), request->answer.size() - 1);
+                request->transactionAdded(tx, request->answer.size() - 1);
+                if (tx.outIndex >= 0)
+                    request->addressUsedInOutput(-1, -1, tx.outIndex);
             }
         }
     }
