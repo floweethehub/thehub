@@ -533,6 +533,7 @@ public:
                         int comp = iter.prevTx().createHash().Compare(txid);
                         if (comp == 0) {
                             m_tx = iter.prevTx();
+                            m_blockHeight = block->nHeight;
                             return;
                         } else if (comp > 0) {
                             break; // CTOR, stop searching in sorted list
@@ -548,6 +549,21 @@ public:
         throw JSONRPCError(RPC_INVALID_ADDRESS_OR_KEY, "No information available about transaction");
     }
 
+    void findByScriptHashed(const uint256 &address) {
+        auto mempool = flApp->mempool();
+        LOCK(mempool->cs);
+        for (auto iter = mempool->mapTx.begin(); iter != mempool->mapTx.end(); ++iter) {
+            Tx::Iterator txIter(iter->tx);
+            while (txIter.next(Tx::OutputScript)) {
+                if (txIter.hashedByteData() == address) {
+                    txIter.next(Tx::End);
+                    m_tx = txIter.prevTx();
+                    return;
+                }
+            }
+        }
+    }
+
     int calculateMessageSize(const Message &request) override
     {
         Streaming::MessageParser parser(request.body());
@@ -557,18 +573,26 @@ public:
                 findByTxid(parser.uint256Data());
                 break;
             }
+            else if (parser.tag() == Api::LiveTransactions::BitcoinScriptHashed) {
+                findByScriptHashed(parser.uint256Data());
+                // even if we don't find anything, we return success.
+                return m_tx.size() + 20;
+            }
         }
         if (m_tx.data().isEmpty())
             throw std::runtime_error("Missing or invalid search argument");
-        return m_tx.size() + 20;
+        return m_tx.size() + 26;
     }
     void buildReply(const Message &request, Streaming::MessageBuilder &builder) override
     {
+        if (m_blockHeight != -1)
+            builder.add(Api::LiveTransactions::BlockHeight, m_blockHeight);
         builder.add(Api::GenericByteData, m_tx.data());
     }
 
 private:
     Tx m_tx;
+    int m_blockHeight = -1;
 };
 
 class SendLiveTransaction : public Api::RpcParser

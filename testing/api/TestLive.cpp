@@ -1,6 +1,6 @@
 /*
  * This file is part of the Flowee project
- * Copyright (C) 2019-2020 Tom Zander <tomz@freedommail.ch>
+ * Copyright (C) 2019-2021 Tom Zander <tom@flowee.org>
  *
  * This program is free software: you can redistribute it and/or modify
  * it under the terms of the GNU General Public License as published by
@@ -322,6 +322,88 @@ void TestApiLive::testGetMempoolInfo()
     QVERIFY(seenMempoolBytes);
     QVERIFY(seenMempoolUsage);
     QVERIFY(seenMax);
+}
+
+void TestApiLive::testGetTransaction()
+{
+    startHubs();
+    feedDefaultBlocksToHub(0);
+
+    Streaming::MessageBuilder builder(Streaming::NoHeader);
+    builder.add(Api::BlockChain::BlockHeight, 112);
+    builder.add(Api::BlockChain::Include_TxId, true);
+    Message m = waitForReply(0, builder.message(Api::BlockChainService, Api::BlockChain::GetBlock), Api::BlockChain::GetBlockReply);
+    uint256 txid;
+    Streaming::MessageParser parser(m.body());
+    bool isCoinbase = true;
+    while (parser.next() == Streaming::FoundTag) {
+        if (parser.tag() == Api::BlockChain::TxId) {
+            if (isCoinbase) {
+                isCoinbase = false;
+                continue;
+            }
+            QVERIFY(parser.isByteArray());
+            QCOMPARE(parser.dataLength(), 32);
+            txid = parser.uint256Data();
+            break;
+        }
+    }
+    QVERIFY(!txid.IsNull());
+
+    builder.add(Api::LiveTransactions::TxId, txid);
+    m = waitForReply(0, builder.message(Api::LiveTransactionService,
+                                        Api::LiveTransactions::GetTransaction), Api::LiveTransactions::GetTransactionReply);
+    QVERIFY(!m.body().isEmpty());
+    QCOMPARE(m.serviceId(), Api::LiveTransactionService);
+    QCOMPARE(m.messageId(), Api::LiveTransactions::GetTransactionReply);
+    parser = Streaming::MessageParser(m.body());
+    bool foundTx = false;
+    while (parser.next() == Streaming::FoundTag) {
+        if (parser.tag() == Api::LiveTransactions::BlockHeight) {
+            QVERIFY(parser.isInt());
+            QCOMPARE(parser.intData(), 112);
+        }
+        else if (parser.tag() == Api::GenericByteData) {
+            QVERIFY(parser.isByteArray());
+            QCOMPARE(parser.dataLength(), 838);
+            foundTx = true;
+        }
+    }
+    QVERIFY(foundTx);
+
+    Streaming::BufferPool pool;
+    pool.writeHex("0x01000000010b9d14b709aa59bd594edca17db2951c6660ebc8daa31ceae233a5550314f158000000006b483045022100b34a120e69bc933ae16c10db0f565cb2da1b80a9695a51707e8a80c9aa5c22bf02206c390cb328763ab9ab2d45f874d308af2837d6d8cfc618af76744b9eeb69c3934121022708a547a1d14ba6df79ec0f4216eeec65808cf0a32f09ad1cf730b44e8e14a6ffffffff01faa7be00000000001976a9148438266ad57aa9d9160e99a046e39027e4fb6b2a88ac00000000");
+    Tx tx1(pool.commit());
+
+    // submit to mempool
+    builder.add(Api::LiveTransactions::Transaction, tx1.data());
+    con[0].send(builder.message(Api::LiveTransactionService, Api::LiveTransactions::SendTransaction));
+
+    // search mempool on address
+    builder.add(Api::LiveTransactions::BitcoinScriptHashed,
+                uint256S("7c3cb6eb855660b775bbe66e1c245beb405000cc1c5374771a474051685b6e33"));
+    m = waitForReply(0, builder.message(Api::LiveTransactionService,
+                                        Api::LiveTransactions::GetTransaction), Api::LiveTransactions::GetTransactionReply);
+
+    Streaming::MessageParser::debugMessage(m);
+    QCOMPARE(m.serviceId(), Api::LiveTransactionService);
+    QCOMPARE(m.messageId(), Api::LiveTransactions::GetTransactionReply);
+    foundTx = false;
+    parser = Streaming::MessageParser(m.body());
+    while (parser.next() == Streaming::FoundTag) {
+        if (parser.tag() == Api::LiveTransactions::BlockHeight) {
+            QVERIFY(false); // should not be here.
+        }
+        else if (parser.tag() == Api::GenericByteData) {
+            QVERIFY(parser.isByteArray());
+            QCOMPARE(parser.dataLength(), tx1.size());
+            Tx tx2(parser.bytesDataBuffer());
+            logFatal() << tx1.createHash() << tx2.createHash();
+            QVERIFY(tx1.createHash() == tx2.createHash());
+            foundTx = true;
+        }
+    }
+    QVERIFY(foundTx);
 }
 
 Streaming::ConstBuffer TestApiLive::generate100(int nodeId)
