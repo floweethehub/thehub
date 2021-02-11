@@ -7,6 +7,8 @@ User=flowee
 Group=flowee
 ExecStart=/usr/bin/bitcore-proxy --bind=0.0.0.0:3000 --conf=/etc/flowee/bitcore-proxy.conf
 Type=simple
+Restart=always
+StartLimitBurst=5
 
 [Install]
 WantedBy=multi-user.target
