@@ -1,6 +1,6 @@
 /*
  * This file is part of the Flowee project
- * Copyright (C) 2017-2019 Tom Zander <tomz@freedommail.ch>
+ * Copyright (C) 2017-2021 Tom Zander <tom@flowee.org>
  *
  * This program is free software: you can redistribute it and/or modify
  * it under the terms of the GNU General Public License as published by
@@ -301,6 +301,7 @@ Tx::Component Tx::Iterator::tag() const
 
 Tx Tx::Iterator::prevTx() const
 {
+    assert(d->tag() == Tx::End);
     return Tx(Streaming::ConstBuffer(d->m_data.internal_buffer(), d->m_txStart, d->m_currentTokenEnd));
 }
 
