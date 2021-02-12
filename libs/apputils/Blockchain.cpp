@@ -292,7 +292,7 @@ void Blockchain::SearchEnginePrivate::findServices()
                     if (!network.connection(ep, NetworkManager::OnlyExisting).isValid())
                         q->addIndexer(ep);
                 } catch (const std::exception &e) {
-                    logCritical(Log::SearchEngine) << "Connecting to" << indexer << ep.announcePort << "failed with:" << e;
+                    logWarning(Log::SearchEngine) << "Connecting to" << indexer << ep.announcePort << "failed with:" << e;
                 }
             }
         }
@@ -306,7 +306,7 @@ void Blockchain::SearchEnginePrivate::findServices()
                     if (!network.connection(ep, NetworkManager::OnlyExisting).isValid())
                         q->addHub(ep);
                 } catch (const std::exception &e) {
-                    logCritical(Log::SearchEngine) << "Connecting to" << hub << ep.announcePort << "failed with:" << e;
+                    logWarning(Log::SearchEngine) << "Connecting to" << hub << ep.announcePort << "failed with:" << e;
                 }
             }
         }
@@ -352,7 +352,7 @@ void Blockchain::SearchEnginePrivate::hubSentMessage(const Message &message)
         while (parser.next() == Streaming::FoundTag) {
             if (parser.tag() == Api::GenericByteData) {
                 hubId = parser.stringData();
-                logCritical(Log::SearchEngine) << "  Upstream hub connected" << hubId;
+                logInfo(Log::SearchEngine) << "  Upstream hub connected" << hubId;
                 if (parser.stringData().compare("Flowee:1 (2019-9.1)") < 0) {
                     logFatal() << "  Hub is too old, not using";
                     return;
@@ -451,7 +451,7 @@ void Blockchain::SearchEnginePrivate::indexerSentMessage(const Message &message)
             Streaming::MessageParser parser(message);
             while (parser.next() == Streaming::FoundTag) {
                 if (parser.tag() == Api::GenericByteData) {
-                    logCritical(Log::SearchEngine) << "  Upstream Indexer connected"
+                    logInfo(Log::SearchEngine) << "  Upstream Indexer connected"
                                                    << parser.stringData();
                     return;
                 }
@@ -897,7 +897,7 @@ void Blockchain::SearchPolicy::processRequests(Blockchain::Search *request)
         } catch (const ServiceUnavailableException &e) {
             throw;
         } catch (std::exception &e) {
-            logCritical(Log::SearchEngine) << "Job processing failed due to" << e;
+            logWarning(Log::SearchEngine) << "Job processing failed due to" << e;
             job.started = true;
             job.finished = true;
         }
