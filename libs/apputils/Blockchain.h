@@ -166,7 +166,7 @@ public:
     /**
      * @brief finished is called when no more jobs can be started.
      * @param unfinishedJobs is the count of jobs that were defined but
-     * 			were not started due to missing information.
+     *        were not started due to missing information.
      *
      * A job is finished when we can't do anything more. In most cases that means
      * it has finished all jobs and the results are available.
