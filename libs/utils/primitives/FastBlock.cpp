@@ -1,6 +1,6 @@
 /*
  * This file is part of the Flowee project
- * Copyright (C) 2017 Tom Zander <tomz@freedommail.ch>
+ * Copyright (C) 2017-2021 Tom Zander <tom@flowee.org>
  *
  * This program is free software: you can redistribute it and/or modify
  * it under the terms of the GNU General Public License as published by
@@ -139,10 +139,12 @@ void FastBlock::findTransactions()
     if (!m_transactions.empty())
         return;
     size_t pos = 80;
-    const int transactionCount = readCompactSize(m_data, pos);
+    const uint64_t transactionCount = readCompactSize(m_data, pos);
+    if (transactionCount > 0xFFFFFF)
+        throw std::runtime_error("FastBlock::findTransactions: Tx count decoding failed");
     std::vector<Tx> txs;
     txs.reserve(transactionCount);
-    for (int i = 0; i < transactionCount; ++i) {
+    for (uint64_t i = 0; i < transactionCount; ++i) {
         int txSize = transactionSize(m_data, pos);
         if (txSize + pos > (uint64_t) m_data.size())
             throw std::runtime_error("FastBlock::findTransactions: not enough bytes");
