@@ -191,7 +191,10 @@ Tx::Component TxTokenizer::next() {
     }
     bool startInput = false, startOutput = false;
     if (m_currentTokenStart == m_txStart + 4) {
-        m_numInputsLeft = readCompactSize(&m_currentTokenEnd, m_data.end());
+        uint64_t x = readCompactSize(&m_currentTokenEnd, m_data.end());
+        if (x > 0xFFFF)
+            throw std::runtime_error("Tx invalid");
+        m_numInputsLeft = static_cast<int>(x);
         // we immediately go to the next token
         m_currentTokenStart = m_currentTokenEnd;
         startInput = true;
@@ -200,7 +203,10 @@ Tx::Component TxTokenizer::next() {
         if (--m_numInputsLeft > 0) {
             startInput = true;
         } else {
-            m_numOutputsLeft = readCompactSize(&m_currentTokenEnd, m_data.end());
+            uint64_t x = readCompactSize(&m_currentTokenEnd, m_data.end());
+            if (x > 0xFFFF)
+                throw std::runtime_error("Tx invalid");
+            m_numOutputsLeft = static_cast<int>(x);
             // we immediately go to the next token
             m_currentTokenStart = m_currentTokenEnd;
             startOutput = true;
@@ -218,9 +224,11 @@ Tx::Component TxTokenizer::next() {
     }
 
     if (m_tag == Tx::PrevTxIndex) {
-        int scriptLength = readCompactSize(&m_currentTokenEnd, m_data.end());
+        uint64_t scriptLength = readCompactSize(&m_currentTokenEnd, m_data.end());
+        if (scriptLength > 0xFFFF)
+            throw std::runtime_error("Tx invalid");
         m_currentTokenStart = m_currentTokenEnd;
-        m_currentTokenEnd += scriptLength;
+        m_currentTokenEnd += static_cast<int>(scriptLength);
         m_tag = Tx::TxInScript;
         return checkSpaceForTag();
     }
@@ -244,9 +252,11 @@ Tx::Component TxTokenizer::next() {
         return checkSpaceForTag();
     }
     if (m_tag == Tx::OutputValue) {
-        int scriptLength = readCompactSize(&m_currentTokenEnd, m_data.end());
+        uint64_t scriptLength = readCompactSize(&m_currentTokenEnd, m_data.end());
+        if (scriptLength > 0xFFFF)
+            throw std::runtime_error("Tx invalid");
         m_currentTokenStart = m_currentTokenEnd;
-        m_currentTokenEnd += scriptLength;
+        m_currentTokenEnd += static_cast<int>(scriptLength);
         m_tag = Tx::OutputScript;
         return checkSpaceForTag();
     }
