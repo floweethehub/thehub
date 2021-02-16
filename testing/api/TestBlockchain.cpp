@@ -1,6 +1,6 @@
 /*
  * This file is part of the Flowee project
- * Copyright (C) 2019 Tom Zander <tomz@freedommail.ch>
+ * Copyright (C) 2019-2021 Tom Zander <tom@flowee.org>
  *
  * This program is free software: you can redistribute it and/or modify
  * it under the terms of the GNU General Public License as published by
@@ -281,4 +281,27 @@ void TestApiBlockchain::testFilterOnScriptHash()
         QCOMPARE(p.tag(), (uint32_t) Api::BlockChain::Separator);
     }
     QCOMPARE(p.next(), Streaming::EndOfDocument);
+}
+
+void TestApiBlockchain::fetchTransaction()
+{
+    startHubs();
+    feedDefaultBlocksToHub(0);
+
+    Streaming::BufferPool pool;
+    Streaming::MessageBuilder builder(pool);
+
+    const int BlockSize = 17759;
+    for (int i = 0; i < BlockSize + 10; ++i) {
+        logFatal() << "Calling at offset" << i;
+        builder.add(Api::BlockChain::BlockHeight, 113);
+        builder.add(Api::BlockChain::Tx_OffsetInBlock, i);
+
+        auto m = waitForReply(0, builder.message(Api::BlockChainService,
+                                          Api::BlockChain::GetTransaction), Api::BlockChain::GetTransactionReply);
+
+        Streaming::MessageParser::debugMessage(m);
+        if (i > 100 && m.serviceId() == Api::APIService)
+            break;
+    }
 }
