@@ -1,6 +1,6 @@
 /*
  * This file is part of the Flowee project
- * Copyright (C) 2019-2020 Tom Zander <tomz@freedommail.ch>
+ * Copyright (C) 2019-2021 Tom Zander <tom@flowee.org>
  *
  * This program is free software: you can redistribute it and/or modify
  * it under the terms of the GNU General Public License as published by
@@ -193,10 +193,16 @@ void TestAddressMonitor::testDoubleSpendProof()
     QCOMPARE(p.dataLength(), 32);
     p.next();
     QCOMPARE(p.tag(), (uint32_t) Api::AddressMonitor::Amount);
-    QCOMPARE(p.longData(), (uint64_t) 12494842);
+
+    // the amounts order isn't known, just make sure each appears once.
+    QSet<uint64_t> amounts = {12494842l ,12484842l };
+    auto f = amounts.find(p.longData());
+    QVERIFY(f != amounts.end());
+    amounts.erase(f);
     p.next();
     QCOMPARE(p.tag(), (uint32_t) Api::AddressMonitor::Amount);
-    QCOMPARE(p.longData(), (uint64_t) 12484842);
+    f = amounts.find(p.longData());
+    QVERIFY(f != amounts.end());
     p.next();
     QCOMPARE(p.tag(), (uint32_t) Api::AddressMonitor::TxId);
     QCOMPARE(p.dataLength(), 32);
