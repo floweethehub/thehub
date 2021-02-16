@@ -710,7 +710,7 @@ public:
             } else if (parser.tag() == Api::BlockChain::Tx_OffsetInBlock) {
                 m_offsetInBlock = parser.intData();
                 if (m_offsetInBlock < 81)
-                    throw Api::ParserException("OffsetInBlock should be a positive number");
+                    throw Api::ParserException("OffsetInBlock out of range");
             } else if (parser.tag() == Api::BlockChain::FullTransactionData) {
                 fullTxData = parser.boolData();
                 if (!fullTxData)
@@ -744,11 +744,16 @@ public:
         } catch (...) {
             throw Api::ParserException("Blockdata not present on this Hub");
         }
-        if (m_offsetInBlock > block.size())
+        if (m_offsetInBlock > block.size() - 60)
             throw Api::ParserException("OffsetInBlock larger than block");
-        Tx::Iterator iter(block, m_offsetInBlock);
-        if (iter.next(Tx::End) == Tx::End)
-            m_tx = iter.prevTx();
+        try {
+            Tx::Iterator iter(block, m_offsetInBlock);
+            iter.next(Tx::End);
+            if (iter.tag() == Tx::End)
+                m_tx = iter.prevTx();
+        } catch (const std::runtime_error &e) {
+            throw Api::ParserException("Invalid offsetInBlock");
+        }
 
         int amount = m_fullTxData ? m_tx.size() + 10 : 0;
         if (m_returnTxId) amount += 40;
@@ -761,12 +766,14 @@ public:
             builder.add(Api::BlockChain::TxId, m_tx.createHash());
         if (m_returnOffsetInBlock)
             builder.add(Api::BlockChain::Tx_OffsetInBlock, m_offsetInBlock);
-        if (opt.shouldRun()) {
-            Tx::Iterator iter(m_tx);
-            opt.serialize(builder, iter);
+        if (m_tx.size() > 0) {
+            if (opt.shouldRun()) {
+                Tx::Iterator iter(m_tx);
+                opt.serialize(builder, iter);
+            }
+            if (m_fullTxData)
+                builder.add(Api::BlockChain::GenericByteData, m_tx.data());
         }
-        if (m_fullTxData)
-            builder.add(Api::BlockChain::GenericByteData, m_tx.data());
     }
 
 private:

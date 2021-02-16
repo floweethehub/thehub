@@ -1,6 +1,6 @@
 /*
  * This file is part of the Flowee project
- * Copyright (C) 2016-2020 Tom Zander <tomz@freedommail.ch>
+ * Copyright (C) 2016-2021 Tom Zander <tom@flowee.org>
  *
  * This program is free software: you can redistribute it and/or modify
  * it under the terms of the GNU General Public License as published by
@@ -368,6 +368,10 @@ void Api::Server::Connection::handleMainParser(const std::unique_ptr<Parser> &pa
         logWarning(Log::ApiServer) << "calculateMessageSize() threw:" << e;
         sendFailedMessage(message, e.what());
         return;
+    } catch (const std::exception &e) {
+        logWarning(Log::ApiServer) << "calculateMessageSize() threw:" << e;
+        sendFailedMessage(message, "unknown error");
+        return;
     }
     logInfo(Log::ApiServer) << message.serviceId() << '/' << message.messageId();
     Streaming::MessageBuilder builder(m_parent->pool(reserveSize));
@@ -381,8 +385,12 @@ void Api::Server::Connection::handleMainParser(const std::unique_ptr<Parser> &pa
         assert(reply.body().size() <= reserveSize); // fail fast.
         m_connection.send(reply);
     } catch (const ParserException &e) {
-        logWarning(Log::ApiServer) << e;
+        logWarning(Log::ApiServer) << "buildReply() threw:" << e;
         sendFailedMessage(message, e.what());
+        return;
+    } catch (const std::exception &e) {
+        logWarning(Log::ApiServer) << "buildReply() threw:" << e;
+        sendFailedMessage(message, "unknown error");
         return;
     }
 }
