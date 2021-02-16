@@ -25,6 +25,7 @@
 #include <univalue.h>
 #include <vector>
 #include <memory>
+#include <mutex>
 #include <string>
 #include <list>
 #include <boost/asio/deadline_timer.hpp>
@@ -88,7 +89,7 @@ private:
 
     NetworkManager m_networkManager;
 
-    mutable boost::mutex m_mutex; // protects the next 4 vars.
+    mutable std::mutex m_mutex; // protects the next 4 vars.
     std::list<Connection*> m_connections; // make this a list of shared_ptrs to Connection
     std::list<NewConnection> m_newConnections;
     bool m_timerRunning;

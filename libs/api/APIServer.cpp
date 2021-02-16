@@ -129,7 +129,7 @@ void Api::Server::addService(NetworkService *service)
 
 void Api::Server::newConnection(NetworkConnection &connection)
 {
-    boost::mutex::scoped_lock lock(m_mutex);
+    std::unique_lock<std::mutex> lock(m_mutex);
     logDebug() << "server newConnection";
     NewConnection con;
     connection.setOnIncomingMessage(std::bind(&Api::Server::incomingMessage, this, std::placeholders::_1));
@@ -149,7 +149,7 @@ void Api::Server::newConnection(NetworkConnection &connection)
 
 void Api::Server::connectionRemoved(const EndPoint &endPoint)
 {
-    boost::mutex::scoped_lock lock(m_mutex);
+    std::unique_lock<std::mutex> lock(m_mutex);
     auto iter = m_newConnections.begin();
     while (iter != m_newConnections.end()) {
         if (iter->connection.connectionId() == endPoint.connectionId) {
@@ -175,7 +175,7 @@ void Api::Server::incomingMessage(const Message &message)
     logDebug() << "incomingMessage";
     Connection *handler;
     {
-        boost::mutex::scoped_lock lock(m_mutex);
+        std::unique_lock<std::mutex> lock(m_mutex);
         bool found = false;
         auto iter = m_newConnections.begin();
         while (iter != m_newConnections.end()) {
@@ -203,7 +203,7 @@ void Api::Server::checkConnections(boost::system::error_code error)
 {
     if (error.value() == boost::asio::error::operation_aborted)
         return;
-    boost::mutex::scoped_lock lock(m_mutex);
+    std::unique_lock<std::mutex> lock(m_mutex);
     const auto disconnectTime = boost::posix_time::second_clock::universal_time()
             - boost::posix_time::seconds(INTRODUCTION_TIMEOUT);
     auto iter = m_newConnections.begin();
