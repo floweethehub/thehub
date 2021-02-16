@@ -292,16 +292,31 @@ void TestApiBlockchain::fetchTransaction()
     Streaming::MessageBuilder builder(pool);
 
     const int BlockSize = 17759;
-    for (int i = 0; i < BlockSize + 10; ++i) {
-        logFatal() << "Calling at offset" << i;
+    for (int i = -1; i < BlockSize + 10; ++i) {
         builder.add(Api::BlockChain::BlockHeight, 113);
         builder.add(Api::BlockChain::Tx_OffsetInBlock, i);
-
         auto m = waitForReply(0, builder.message(Api::BlockChainService,
                                           Api::BlockChain::GetTransaction), Api::BlockChain::GetTransactionReply);
-
-        Streaming::MessageParser::debugMessage(m);
         if (i > 100 && m.serviceId() == Api::APIService)
             break;
     }
+
+    // block height out of range.
+    builder.add(Api::BlockChain::BlockHeight, 200);
+    builder.add(Api::BlockChain::Tx_OffsetInBlock, 81);
+    auto m = waitForReply(0, builder.message(Api::BlockChainService,
+                                      Api::BlockChain::GetTransaction), Api::BlockChain::GetTransactionReply);
+
+    // negative block height
+    builder.add(Api::BlockChain::BlockHeight, -10);
+    builder.add(Api::BlockChain::Tx_OffsetInBlock, 81);
+    m = waitForReply(0, builder.message(Api::BlockChainService,
+                                      Api::BlockChain::GetTransaction), Api::BlockChain::GetTransactionReply);
+
+    // and finish with a known good one.
+    builder.add(Api::BlockChain::BlockHeight, 113);
+    builder.add(Api::BlockChain::Tx_OffsetInBlock, 81);
+    m = waitForReply(0, builder.message(Api::BlockChainService,
+                                      Api::BlockChain::GetTransaction), Api::BlockChain::GetTransactionReply);
+    QCOMPARE(m.messageId(), Api::BlockChain::GetTransactionReply);
 }
