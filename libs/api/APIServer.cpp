@@ -71,6 +71,7 @@ std::deque<std::string> allInterfaces() {
 
 Api::Server::Server(boost::asio::io_service &service)
     : m_networkManager(service),
+      m_netProtect(100),
       m_timerRunning(false),
       m_newConnectionTimeout(service)
 {
@@ -132,12 +133,15 @@ void Api::Server::newConnection(NetworkConnection &connection)
     std::unique_lock<std::mutex> lock(m_mutex);
     logDebug() << "server newConnection";
     NewConnection con;
+    con.initialConnectionTime = boost::posix_time::second_clock::universal_time();
+    if (!m_netProtect.shouldAccept(connection, con.initialConnectionTime)) {
+        return; // we don't accept
+    }
+
     connection.setOnIncomingMessage(std::bind(&Api::Server::incomingMessage, this, std::placeholders::_1));
     connection.setOnDisconnected(std::bind(&Api::Server::connectionRemoved, this, std::placeholders::_1));
     connection.accept();
     con.connection = std::move(connection);
-    con.initialConnectionTime = boost::posix_time::second_clock::universal_time();
-
     m_newConnections.push_back(std::move(con));
 
     if (!m_timerRunning) {

@@ -1,5 +1,5 @@
 # This file is part of the Flowee project
-# Copyright (C) 2018 Tom Zander <tomz@freedommail.ch>
+# Copyright (C) 2018-2021 Tom Zander <tom@flowee.org>
 #
 # This program is free software: you can redistribute it and/or modify
 # it under the terms of the GNU General Public License as published by
@@ -23,6 +23,7 @@ add_library(flowee_api STATIC
 
     AddressMonitorService.cpp
     BlockNotificationService.cpp
+    NetProtect.cpp
     TransactionMonitorService.cpp
 )
 

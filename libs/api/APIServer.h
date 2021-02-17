@@ -1,6 +1,6 @@
 /*
  * This file is part of the Flowee project
- * Copyright (C) 2016, 2019 Tom Zander <tomz@freedommail.ch>
+ * Copyright (C) 2016-2021 Tom Zander <tom@flowee.org>
  *
  * This program is free software: you can redistribute it and/or modify
  * it under the terms of the GNU General Public License as published by
@@ -17,6 +17,8 @@
  */
 #ifndef APISERVER_H
 #define APISERVER_H
+
+#include "NetProtect.h"
 
 #include <streaming/BufferPool.h>
 #include <networkmanager/NetworkManager.h>
@@ -88,6 +90,7 @@ private:
     };
 
     NetworkManager m_networkManager;
+    NetProtect m_netProtect;
 
     mutable std::mutex m_mutex; // protects the next 4 vars.
     std::list<Connection*> m_connections; // make this a list of shared_ptrs to Connection
