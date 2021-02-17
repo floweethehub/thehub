@@ -299,6 +299,48 @@ struct TransactionSerializationOptions
         return partialTxData;
     }
 
+    int calculateNeededSize(const Tx &tx) {
+        assert(shouldRun());
+
+        Tx::Iterator iter(tx);
+        auto type = iter.next();
+        int txOutputCount = 0, txInputSize = 0, txOutputScriptSizes = 0;
+        int matchedOutputScriptSizes = 0;
+        while (true) {
+            if (type == Tx::End)
+                break;
+
+            if (returnInputs && type == Tx::PrevTxHash) {
+                txInputSize += 42; // prevhash: 32 + 3 +  prevIndex; 6 + 1
+            }
+            else if (returnInputs && type == Tx::TxInScript) {
+                txInputSize += iter.dataLength() + 3;
+            }
+            else if (type == Tx::OutputValue) {
+                ++txOutputCount;
+            }
+            else if (type == Tx::OutputScript) {
+                txOutputScriptSizes += iter.dataLength() + 4;
+            }
+            type = iter.next();
+        }
+
+        int bytesPerOutput = 5;
+        if (returnOutputAmounts || returnOutputs) bytesPerOutput += 10;
+        if (returnOutputAddresses) bytesPerOutput += 23;
+        if (returnOutputScriptHashed) bytesPerOutput += 35;
+
+        int total = 45;
+        if (returnOutputs || returnOutputScripts)
+            total += txOutputScriptSizes;
+        if (returnInputs)
+            total += txInputSize;
+        if (returnOutputs || returnOutputAddresses || returnOutputAmounts | returnOutputScriptHashed)
+            total += txOutputCount * bytesPerOutput;
+
+        return total;
+    }
+
     void readParser(const Streaming::MessageParser &parser) {
         if (parser.tag() == Api::BlockChain::Include_Inputs) {
             returnInputs = parser.boolData();
@@ -758,7 +800,8 @@ public:
         int amount = m_fullTxData ? m_tx.size() + 10 : 0;
         if (m_returnTxId) amount += 40;
         if (m_returnOffsetInBlock) amount += 10;
-        if (opt.shouldRun()) amount += m_tx.size();
+        if (opt.shouldRun())
+            amount += opt.calculateNeededSize(m_tx);
         return amount;
     }
     void buildReply(const Message &, Streaming::MessageBuilder &builder) override {
@@ -989,8 +1032,7 @@ public:
         for (const auto &rp : m_results) {
             total += bytesPerTx;
             if (optShouldRun)
-                // instead of parsing each transaction here, add the entire size
-                total += rp.tx.size();
+                total += opt.calculateNeededSize(rp.tx);
             if (m_fullTxData)
                 total += rp.tx.size();
             if (rp.dsProof != -1)
