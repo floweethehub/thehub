@@ -131,6 +131,8 @@ void addIncludeRequests(Streaming::MessageBuilder &builder, uint32_t transaction
         builder.add(Api::BlockChain::Include_OutputScripts, true);
     if (transactionFilters & Blockchain::IncludeOutputAddresses)
         builder.add(Api::BlockChain::Include_OutputAddresses, true);
+    if (transactionFilters & Blockchain::IncludeOutputScriptHash)
+        builder.add(Api::BlockChain::Include_OutputScriptHash, true);
 }
 
 }
