@@ -22,7 +22,6 @@
 #include <mutex>
 
 #include <boost/asio/ip/address.hpp>
-#include <boost/date_time/posix_time/ptime.hpp>
 
 class NetworkConnection;
 
@@ -34,13 +33,13 @@ public:
     NetProtect(int maxHosts);
 
     bool shouldAccept(const NetworkConnection &connection,
-            boost::posix_time::ptime connectionTime);
+            uint32_t connectionTime);
 
 private:
     int m_maxHosts;
     struct Connect {
         boost::asio::ip::address ipAddress;
-        boost::posix_time::ptime connectionTime;
+        uint32_t connectionTime;
     };
     std::vector<Connect> m_log;
     mutable std::mutex m_lock;

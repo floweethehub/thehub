@@ -25,11 +25,10 @@ NetProtect::NetProtect(int maxHosts)
     m_log.reserve(m_maxHosts * 4);
 }
 
-bool NetProtect::shouldAccept(const NetworkConnection &connection, boost::posix_time::ptime connectionTime)
+bool NetProtect::shouldAccept(const NetworkConnection &connection, uint32_t connectionTime)
 {
     EndPoint ep = connection.endPoint();
     assert(!ep.ipAddress.is_unspecified()); // lets assume a cetain usage. Incoming named hosts is not supported (or likely)
-
     if (ep.ipAddress.is_loopback())
         return true;
 
@@ -38,7 +37,7 @@ bool NetProtect::shouldAccept(const NetworkConnection &connection, boost::posix_
     tier1 = tier2 = tier3 = 0;
     for (size_t i = 0; i < m_log.size(); ++i) {
         const Connect &c = m_log.at(i);
-        const int diff = (connectionTime - c.connectionTime).seconds();
+        const int diff = connectionTime - c.connectionTime;
         assert(diff >= 0);
         if (diff > 300) {
             m_log.resize(i); // chop off the rest, they are older entries
@@ -54,9 +53,12 @@ bool NetProtect::shouldAccept(const NetworkConnection &connection, boost::posix_
         }
     }
 
+    bool ok = true;
     // determine if the connects are coming in too fast, then we say "no".
-    if (tier1 >= 1) // slow down bro
-        return tier1 == 1 && tier2 <= 1 && tier3 <= 2; // remember, tier-ints are not cumulative
-    m_log.push_back({ep.ipAddress, connectionTime});
-    return true;
+    if (tier1 >= 1) {// slow down bro
+        ok = tier1 == 1 && tier2 <= 1 && tier3 <= 2; // remember, tier-ints are not cumulative
+    }
+    if (ok)
+        m_log.push_back({ep.ipAddress, connectionTime});
+    return ok;
 }

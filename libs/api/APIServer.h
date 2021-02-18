@@ -86,7 +86,7 @@ private:
 
     struct NewConnection {
         NetworkConnection connection;
-        boost::posix_time::ptime initialConnectionTime;
+        uint32_t initialConnectionTime;
     };
 
     NetworkManager m_networkManager;

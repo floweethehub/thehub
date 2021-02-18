@@ -133,7 +133,7 @@ void Api::Server::newConnection(NetworkConnection &connection)
     std::unique_lock<std::mutex> lock(m_mutex);
     logDebug() << "server newConnection";
     NewConnection con;
-    con.initialConnectionTime = boost::posix_time::second_clock::universal_time();
+    con.initialConnectionTime = time(nullptr);
     if (!m_netProtect.shouldAccept(connection, con.initialConnectionTime)) {
         return; // we don't accept
     }
@@ -208,8 +208,7 @@ void Api::Server::checkConnections(boost::system::error_code error)
     if (error.value() == boost::asio::error::operation_aborted)
         return;
     std::unique_lock<std::mutex> lock(m_mutex);
-    const auto disconnectTime = boost::posix_time::second_clock::universal_time()
-            - boost::posix_time::seconds(INTRODUCTION_TIMEOUT);
+    const auto disconnectTime = time(nullptr) + INTRODUCTION_TIMEOUT;
     auto iter = m_newConnections.begin();
     while (iter != m_newConnections.end()) {
         if (iter->initialConnectionTime <= disconnectTime) {
