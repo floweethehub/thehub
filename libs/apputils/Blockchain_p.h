@@ -58,7 +58,7 @@ public:
     void sendMessage(const Message &message, Service service);
     void searchFinished(Search *searcher);
 
-    Streaming::BufferPool *pool();
+    Streaming::BufferPool &pool(int reserve);
 
     WorkerThreads workers;
     NetworkManager network;

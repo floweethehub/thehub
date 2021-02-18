@@ -1,6 +1,6 @@
 /*
  * This file is part of the Flowee project
- * Copyright (C) 2019-2020 Tom Zander <tomz@freedommail.ch>
+ * Copyright (C) 2019-2021 Tom Zander <tom@flowee.org>
  *
  * This program is free software: you can redistribute it and/or modify
  * it under the terms of the GNU General Public License as published by
@@ -126,14 +126,13 @@ QString satoshisToBCH(quint64 sats)
     return answer.left(answer.length() - change.length()) + change;
 }
 
-Streaming::ConstBuffer hexStringToBuffer(const QString &hash, Streaming::BufferPool *pool)
+Streaming::ConstBuffer hexStringToBuffer(const QString &hash, Streaming::BufferPool &pool)
 {
-    assert(pool);
     if (hash.length() / 2 * 2 != hash.length())
         throw std::runtime_error("invalid sized hash, odd number of chars");
-    pool->reserve(hash.length() / 2);
+    pool.reserve(hash.length() / 2);
 
-    char *buf = pool->begin();
+    char *buf = pool.begin();
     for (int i = 0; i < hash.length(); ++i) {
         QChar k = hash.at(i);
         uint8_t v = static_cast<uint8_t>(HexDigit(static_cast<int8_t>(k.unicode())));
@@ -146,17 +145,16 @@ Streaming::ConstBuffer hexStringToBuffer(const QString &hash, Streaming::BufferP
             ++buf;
         }
     }
-    return pool->commit(hash.length() / 2);
+    return pool.commit(hash.length() / 2);
 }
 
 // The uint256 serialization for some reason reverses the ordering.
-Streaming::ConstBuffer uint256StringToBuffer(const QString &hash, Streaming::BufferPool *pool)
+Streaming::ConstBuffer uint256StringToBuffer(const QString &hash, Streaming::BufferPool &pool)
 {
-    assert(pool);
     if (hash.size() < 64)
         throw std::runtime_error("invalid sized hash" );
 
-    pool->reserve(32);
+    pool.reserve(32);
     int i2 = 31;
     for (int i = 0; i < 64; ++i) {
         QChar k = hash.at(i);
@@ -164,12 +162,12 @@ Streaming::ConstBuffer uint256StringToBuffer(const QString &hash, Streaming::Buf
         if (k.unicode() > 'f' || v == 0xFF)
             throw std::runtime_error("Not a hash");
         if ((i % 2) == 0) {
-            pool->begin()[i2] = static_cast<char>(v << 4);
+            pool.begin()[i2] = static_cast<char>(v << 4);
         } else {
-            pool->begin()[i2--] += v;
+            pool.begin()[i2--] += v;
         }
     }
-    return pool->commit(32);
+    return pool.commit(32);
 }
 
 Streaming::ConstBuffer addressToHashedOutputScriptBuffer(const std::string &address, std::unique_ptr<AddressListingData> &data)
@@ -442,7 +440,7 @@ void RestService::requestTransactionInfo(const RequestString &rs, RestServiceWeb
         Blockchain::Job job;
         job.type = Blockchain::FetchTx;
         try {
-            job.data = uint256StringToBuffer(rs.argument, d->pool());
+            job.data = uint256StringToBuffer(rs.argument, d->pool(32));
         } catch (const std::runtime_error &e) {
             throw UserInputException(e.what());
         }
@@ -468,7 +466,7 @@ void RestService::requestTransactionInfo(const RequestString &rs, RestServiceWeb
             Blockchain::Job job;
             job.type = Blockchain::FetchTx;
             try {
-                job.data = uint256StringToBuffer(i->toString(), d->pool());
+                job.data = uint256StringToBuffer(i->toString(), d->pool(32));
             } catch (const std::runtime_error &e) {
                 throw UserInputException(e.what());
             }
@@ -544,7 +542,7 @@ void RestService::requestRawTransaction(const RequestString &rs, RestServiceWebR
             job.type = Blockchain::FetchTx;
             job.transactionFilters = Blockchain::IncludeFullTransactionData;
             try {
-                job.data = uint256StringToBuffer(rs.argument, d->pool());
+                job.data = uint256StringToBuffer(rs.argument, d->pool(32));
             } catch (const std::runtime_error &e) {
                 throw UserInputException(e.what());
             }
@@ -571,7 +569,7 @@ void RestService::requestRawTransaction(const RequestString &rs, RestServiceWebR
         if (!rs.argument.isEmpty()) {
             Streaming::ConstBuffer tx;
             try {
-                tx = hexStringToBuffer(rs.argument, d->pool());
+                tx = hexStringToBuffer(rs.argument, d->pool(32));
             } catch (const std::runtime_error &e) {
                 throw UserInputException(e.what());
             }
@@ -580,9 +578,7 @@ void RestService::requestRawTransaction(const RequestString &rs, RestServiceWebR
             if (tx.size() > 100000)
                 throw UserInputException("Tx too large");
 
-            auto pool = d->pool();
-            pool->reserve(tx.size() + 5);
-            Streaming::MessageBuilder builder(*pool);
+            Streaming::MessageBuilder builder(d->pool(tx.size() + 5));
             builder.add(Api::GenericByteData, tx);
 
             Blockchain::Job job;
@@ -604,7 +600,7 @@ void RestService::requestRawTransaction(const RequestString &rs, RestServiceWebR
                     throw UserInputException("Input invalid");
                 Streaming::ConstBuffer tx;
                 try {
-                    tx = hexStringToBuffer(array[0].toString(), d->pool());
+                    tx = hexStringToBuffer(array[0].toString(), d->pool(32));
                 } catch (const std::runtime_error &e) {
                     throw UserInputException(e.what());
                 }
@@ -613,9 +609,7 @@ void RestService::requestRawTransaction(const RequestString &rs, RestServiceWebR
                 if (tx.size() > 100000)
                     throw UserInputException("Tx too large");
 
-                auto pool = d->pool();
-                pool->reserve(tx.size() + 5);
-                Streaming::MessageBuilder builder(*pool);
+                Streaming::MessageBuilder builder(d->pool(tx.size() + 5));
                 builder.add(Api::GenericByteData, tx);
 
                 Blockchain::Job job;

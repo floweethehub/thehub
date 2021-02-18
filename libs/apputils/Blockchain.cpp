@@ -29,7 +29,7 @@
 
 namespace {
 
-Blockchain::Transaction fillTx(Streaming::MessageParser &parser, const Blockchain::Job &job, int jobId)
+Blockchain::Transaction fillTx(Streaming::BufferPool &pool, Streaming::MessageParser &parser, const Blockchain::Job &job, int jobId)
 {
     Blockchain::Transaction tx;
     tx.jobId = jobId;
@@ -108,7 +108,7 @@ Blockchain::Transaction fillTx(Streaming::MessageParser &parser, const Blockchai
 
     if (tx.txid.isEmpty() && !tx.fullTxData.isEmpty()) {
         // then lets fill it.
-        Streaming::BufferPool pool(32);
+        pool.reserve(32);
         Tx fullTx(tx.fullTxData);
         auto hash = fullTx.createHash();
         memcpy(pool.begin(), hash.begin(), 32);
@@ -233,9 +233,9 @@ void Blockchain::SearchEngine::reparseConfig()
     parseConfig(d->configFile);
 }
 
-Streaming::BufferPool &Blockchain::SearchEngine::poolForThread()
+Streaming::BufferPool &Blockchain::SearchEngine::poolForThread(int reservation)
 {
-    return *d->pool();
+    return d->pool(reservation);
 }
 
 void Blockchain::SearchEngine::sendMessage(const Message &message, Blockchain::Service service)
@@ -484,11 +484,11 @@ void Blockchain::SearchEnginePrivate::searchFinished(Blockchain::Search *searche
         searchers.erase(iter);
 }
 
-Streaming::BufferPool *Blockchain::SearchEnginePrivate::pool()
+thread_local Streaming::BufferPool m_buffer;
+Streaming::BufferPool &Blockchain::SearchEnginePrivate::pool(int reserveSize)
 {
-    if (!pools.get())
-        pools.reset(new Streaming::BufferPool(1E6));
-    return pools.get();
+    m_buffer.reserve(reserveSize);
+    return m_buffer;
 }
 
 void Blockchain::SearchPolicy::parseMessageFromHub(Search *request, const Message &message)
@@ -510,7 +510,7 @@ void Blockchain::SearchPolicy::parseMessageFromHub(Search *request, const Messag
 
     if (message.serviceId() == Api::BlockChainService) {
         if (message.messageId() == Api::BlockChain::GetTransactionReply) {
-            request->answer.push_back(fillTx(parser, job, jobId));
+            request->answer.push_back(fillTx(m_owner->pool(0), parser, job, jobId));
             const Transaction &tx = request->answer.back();
             updateTxRefs(request, jobId);
             request->transactionAdded(tx, request->answer.size() - 1);
@@ -548,7 +548,7 @@ void Blockchain::SearchPolicy::parseMessageFromHub(Search *request, const Messag
                 parser.peekNext(&more);
                 if (!more)
                     break;
-                request->answer.push_back(fillTx(parser, job, jobId));
+                request->answer.push_back(fillTx(m_owner->pool(0), parser, job, jobId));
                 request->transactionAdded(request->answer.back(), request->answer.size() - 1);
             }
         }
@@ -608,7 +608,7 @@ void Blockchain::SearchPolicy::parseMessageFromHub(Search *request, const Messag
                 parser.peekNext(&more);
                 if (!more)
                     break;
-                request->answer.push_back(fillTx(parser, job, jobId));
+                request->answer.push_back(fillTx(m_owner->pool(0), parser, job, jobId));
                 const Transaction tx = request->answer.back();
                 updateTxRefs(request, jobId);
                 request->transactionAdded(tx, request->answer.size() - 1);
@@ -692,7 +692,6 @@ void Blockchain::SearchPolicy::processRequests(Blockchain::Search *request)
 {
     int jobsInFlight = 0;
     int jobsWaiting = 0;
-    Streaming::BufferPool *pool = m_owner->pool();
     { // jobsLock scope
     std::lock_guard<std::mutex> lock(request->jobsLock);
     for (size_t i = 0; i < request->jobs.size(); ++i) {
@@ -712,8 +711,7 @@ void Blockchain::SearchPolicy::processRequests(Blockchain::Search *request)
                 if (job.data.size() != 32 && (job.intData <= 0 || job.intData2 <= 0))
                     throw std::runtime_error("Invalid job definition");
 
-                pool->reserve(60);
-                Streaming::MessageBuilder builder(*pool, Streaming::HeaderAndBody);
+                Streaming::MessageBuilder builder(m_owner->pool(60), Streaming::HeaderAndBody);
                 builder.add(Network::ServiceId, Api::LiveTransactionService);
                 builder.add(Network::MessageId, (job.type == Blockchain::FetchUTXODetails)
                             ? Api::LiveTransactions::GetUnspentOutput : Api::LiveTransactions::IsUnspent);
@@ -737,8 +735,7 @@ void Blockchain::SearchPolicy::processRequests(Blockchain::Search *request)
                 if (job.data.size() != 32)
                     throw std::runtime_error("Invalid job definition");
                 logDebug(Log::SearchEngine) << "starting lookup (txid)" << i;
-                pool->reserve(50);
-                Streaming::MessageBuilder builder(*pool, Streaming::HeaderAndBody);
+                Streaming::MessageBuilder builder(m_owner->pool(50), Streaming::HeaderAndBody);
                 builder.add(Network::ServiceId, Api::IndexerService);
                 builder.add(Network::MessageId, Api::Indexer::FindTransaction);
                 builder.add(SearchRequestId, request->requestId);
@@ -753,8 +750,7 @@ void Blockchain::SearchPolicy::processRequests(Blockchain::Search *request)
                 if (job.data.size() != 32) // expect a sha256 hash of the outputscript here
                     throw std::runtime_error("Invalid job definition");
                 logDebug(Log::SearchEngine) << "starting lookup (address)" << i;
-                pool->reserve(40);
-                Streaming::MessageBuilder builder(*pool, Streaming::HeaderAndBody);
+                Streaming::MessageBuilder builder(m_owner->pool(40), Streaming::HeaderAndBody);
                 builder.add(Network::ServiceId, Api::IndexerService);
                 builder.add(Network::MessageId, Api::Indexer::FindAddress);
                 builder.add(SearchRequestId, request->requestId);
@@ -769,8 +765,7 @@ void Blockchain::SearchPolicy::processRequests(Blockchain::Search *request)
                 if (job.data.size() != 32 || job.intData == -1) // expect a sha256 & outIndex here
                     throw std::runtime_error("Invalid job definition");
                 logDebug(Log::SearchEngine) << "starting lookup (spentTx)" << i;
-                pool->reserve(40);
-                Streaming::MessageBuilder builder(*pool, Streaming::HeaderAndBody);
+                Streaming::MessageBuilder builder(m_owner->pool(40), Streaming::HeaderAndBody);
                 builder.add(Network::ServiceId, Api::IndexerService);
                 builder.add(Network::MessageId, Api::Indexer::FindSpentOutput);
                 builder.add(SearchRequestId, request->requestId);
@@ -787,8 +782,7 @@ void Blockchain::SearchPolicy::processRequests(Blockchain::Search *request)
                     job.started = true;
                     logDebug(Log::SearchEngine) << "starting fetch TX" << i;
                     // simple, we just send the message.
-                    pool->reserve(40);
-                    Streaming::MessageBuilder builder(*pool, Streaming::HeaderAndBody);
+                    Streaming::MessageBuilder builder(m_owner->pool(40), Streaming::HeaderAndBody);
                     builder.add(Network::ServiceId, Api::BlockChainService);
                     builder.add(Network::MessageId, Api::BlockChain::GetTransaction);
                     builder.add(SearchRequestId, request->requestId);
@@ -824,8 +818,7 @@ void Blockchain::SearchPolicy::processRequests(Blockchain::Search *request)
                 }
                 job.started = true;
                 logDebug(Log::SearchEngine) << "starting fetching of block header" << i;
-                pool->reserve(60);
-                Streaming::MessageBuilder builder(*pool, Streaming::HeaderAndBody);
+                Streaming::MessageBuilder builder(m_owner->pool(60), Streaming::HeaderAndBody);
                 builder.add(Network::ServiceId, Api::BlockChainService);
                 builder.add(Network::MessageId, Api::BlockChain::GetBlockHeader);
                 builder.add(SearchRequestId, request->requestId);
@@ -860,8 +853,7 @@ void Blockchain::SearchPolicy::processRequests(Blockchain::Search *request)
                 job.started = true;
                 logDebug(Log::SearchEngine) << "starting fetching of block" << i;
 
-                pool->reserve(60);
-                Streaming::MessageBuilder builder(*pool, Streaming::HeaderAndBody);
+                Streaming::MessageBuilder builder(m_owner->pool(60), Streaming::HeaderAndBody);
                 builder.add(Network::ServiceId, Api::BlockChainService);
                 builder.add(Network::MessageId, Api::BlockChain::GetBlock);
                 builder.add(SearchRequestId, request->requestId);
@@ -882,7 +874,7 @@ void Blockchain::SearchPolicy::processRequests(Blockchain::Search *request)
 
                 job.started = true;
                 logDebug(Log::SearchEngine) << "starting Find-Tx in mempool" << i;
-                Streaming::MessageBuilder builder(*pool, Streaming::HeaderAndBody);
+                Streaming::MessageBuilder builder(m_owner->pool(65), Streaming::HeaderAndBody);
                 builder.add(Network::ServiceId, Api::LiveTransactionService);
                 builder.add(Network::MessageId, Api::LiveTransactions::SearchMempool);
                 builder.add(SearchRequestId, request->requestId);

@@ -297,7 +297,7 @@ public:
 protected:
     void reparseConfig();
 
-    Streaming::BufferPool &poolForThread();
+    Streaming::BufferPool &poolForThread(int reservation);
     void sendMessage(const Message &message, Service service);
 
     SearchEnginePrivate *d;
