@@ -28,7 +28,7 @@
 
 class TestValidation : public ValidationInterface {
 public:
-    void DoubleSpendFound(const Tx &first_, const Tx &duplicate_) override {
+    void doubleSpendFound(const Tx &first_, const Tx &duplicate_) override {
         first = first_;
         duplicate = duplicate_;
     }

@@ -721,12 +721,12 @@ public:
 
     void MarkDirty();
     bool AddToWallet(const CWalletTx& wtxIn, bool fFromLoadWallet, CWalletDB* pwalletdb);
-    void SyncTransaction(const CTransaction& tx) override;
-    void SyncAllTransactionsInBlock(const CBlock *pblock) override;
+    void syncTransaction(const CTransaction& tx) override;
+    void syncAllTransactionsInBlock(const CBlock *pblock) override;
     bool AddToWalletIfInvolvingMe(const CTransaction& tx, const CBlock* pblock, bool fUpdate);
     void ScanForWalletTransactions(CBlockIndex* pindexStart, bool fUpdate = false);
     void ReacceptWalletTransactions();
-    void ResendWalletTransactions(int64_t nBestBlockTime) override;
+    void resendWalletTransactions(int64_t nBestBlockTime) override;
     std::vector<uint256> ResendWalletTransactionsBefore(int64_t nTime);
     int64_t GetBalance() const;
     int64_t GetUnconfirmedBalance() const;
@@ -790,7 +790,7 @@ public:
     int64_t GetDebit(const CTransaction& tx, const isminefilter& filter) const;
     int64_t GetCredit(const CTransaction& tx, const isminefilter& filter) const;
     int64_t GetChange(const CTransaction& tx) const;
-    void SetBestChain(const CBlockLocator& loc) override;
+    void setBestChain(const CBlockLocator& loc) override;
 
     DBErrors LoadWallet(bool& fFirstRunRet);
     DBErrors ZapWalletTx(std::vector<CWalletTx>& vWtx);
@@ -799,9 +799,9 @@ public:
 
     bool DelAddressBook(const CTxDestination& address);
 
-    void UpdatedTransaction(const uint256 &hashTx) override;
+    void updatedTransaction(const uint256 &hashTx) override;
 
-    void Inventory(const uint256 &hash) override
+    void inventory(const uint256 &hash) override
     {
         {
             LOCK(cs_wallet);

@@ -619,11 +619,11 @@ void ValidationEnginePrivate::processNewBlock(std::shared_ptr<BlockValidationSta
 
                 // Tell wallet about transactions that went from mempool to conflicted:
                 for (const CTransaction &tx : txConflicted) {
-                    ValidationNotifier().SyncTransaction(tx);
-                    ValidationNotifier().SyncTx(Tx::fromOldTransaction(tx, &pool));
+                    ValidationNotifier().syncTransaction(tx);
+                    ValidationNotifier().syncTx(Tx::fromOldTransaction(tx, &pool));
                 }
-                ValidationNotifier().SyncAllTransactionsInBlock(state->m_block, index); // ... and about transactions that got confirmed:
-                ValidationNotifier().SyncAllTransactionsInBlock(&block);
+                ValidationNotifier().syncAllTransactionsInBlock(state->m_block, index); // ... and about transactions that got confirmed:
+                ValidationNotifier().syncAllTransactionsInBlock(&block);
 
 #ifdef ENABLE_BENCHMARKS
                 end = GetTimeMicros();
@@ -676,7 +676,7 @@ void ValidationEnginePrivate::processNewBlock(std::shared_ptr<BlockValidationSta
     uiInterface.NotifyBlockTip(farBehind, index);
     {
         LOCK(cs_main);
-        ValidationNotifier().UpdatedTransaction(hashPrevBestCoinBase);
+        ValidationNotifier().updatedTransaction(hashPrevBestCoinBase);
     }
     hashPrevBestCoinBase = state->m_block.transactions().at(0).createHash();
 #ifdef ENABLE_BENCHMARKS
@@ -799,8 +799,8 @@ void ValidationEnginePrivate::prepareChain()
             }
             // Let wallets know transactions went from 1-confirmed to
             // 0-confirmed or conflicted:
-            ValidationNotifier().SyncTransaction(tx.createOldTransaction());
-            ValidationNotifier().SyncTx(tx);
+            ValidationNotifier().syncTransaction(tx.createOldTransaction());
+            ValidationNotifier().syncTx(tx);
         }
     }
     mempool->AddTransactionsUpdated(1);

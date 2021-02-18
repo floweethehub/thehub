@@ -37,10 +37,10 @@ public:
     ~TransactionMonitorService() override;
 
     // the hub pushed a transaction into its mempool
-    void SyncTx(const Tx &tx) override;
-    void SyncAllTransactionsInBlock(const FastBlock &block, CBlockIndex *index) override;
-    void DoubleSpendFound(const Tx &first, const Tx &duplicate) override;
-    void DoubleSpendFound(const Tx &txInMempool, const DoubleSpendProof &proof) override;
+    void syncTx(const Tx &tx) override;
+    void syncAllTransactionsInBlock(const FastBlock &block, CBlockIndex *index) override;
+    void doubleSpendFound(const Tx &first, const Tx &duplicate) override;
+    void doubleSpendFound(const Tx &txInMempool, const DoubleSpendProof &proof) override;
 
     void onIncomingMessage(Remote *con, const Message &message, const EndPoint &ep) override;
 

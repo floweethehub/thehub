@@ -1144,7 +1144,7 @@ bool AppInit2(boost::thread_group& threadGroup, CScheduler& scheduler)
                     strErrors << _("Cannot write default address") << "\n";
             }
 
-            pwalletMain->SetBestChain(chainActive.GetLocator());
+            pwalletMain->setBestChain(chainActive.GetLocator());
         }
 
         if (!strErrors.str().empty())
@@ -1171,7 +1171,7 @@ bool AppInit2(boost::thread_group& threadGroup, CScheduler& scheduler)
             nStart = GetTimeMillis();
             pwalletMain->ScanForWalletTransactions(pindexRescan, true);
             logInfo(Log::Bench).nospace() << "rescan took: " << GetTimeMillis() - nStart << "ms";
-            pwalletMain->SetBestChain(chainActive.GetLocator());
+            pwalletMain->setBestChain(chainActive.GetLocator());
             nWalletDBUpdated++;
 
             // Restore wallet transaction metadata after -zapwallettxes=1

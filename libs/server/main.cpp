@@ -992,7 +992,7 @@ bool FlushStateToDisk(CValidationState &state, FlushStateMode mode) {
     }
     if (fDoFullFlush || ((mode == FLUSH_STATE_ALWAYS || mode == FLUSH_STATE_PERIODIC) && nNow > nLastSetChain + (int64_t)DATABASE_WRITE_INTERVAL * 1000000)) {
         // Update best block in wallet (so we can detect restored wallets).
-        ValidationNotifier().SetBestChain(chainActive.GetLocator());
+        ValidationNotifier().setBestChain(chainActive.GetLocator());
         nLastSetChain = nNow;
     }
     } catch (const std::runtime_error& e) {
@@ -1332,7 +1332,7 @@ void static ProcessGetData(CNode* pfrom, const Consensus::Params& consensusParam
             }
 
             // Track requests for our stuff.
-            ValidationNotifier().Inventory(inv.hash);
+            ValidationNotifier().inventory(inv.hash);
 
             if (inv.type == MSG_BLOCK || inv.type == MSG_FILTERED_BLOCK
                     || inv.type == MSG_THINBLOCK || inv.type == MSG_XTHINBLOCK)
@@ -1685,7 +1685,7 @@ bool static ProcessMessage(CNode* pfrom, std::string strCommand, CDataStream& vR
             }
 
             // Track requests for our stuff
-            ValidationNotifier().Inventory(inv.hash);
+            ValidationNotifier().inventory(inv.hash);
 
             if (pfrom->nSendSize > (SendBufferSize() * 2)) {
                 Misbehaving(pfrom->GetId(), 50);
@@ -2395,7 +2395,7 @@ bool static ProcessMessage(CNode* pfrom, std::string strCommand, CDataStream& vR
                 const auto tx = mempool.addDoubleSpendProof(dsp);
                 if (tx.size() > 0) { // added to mempool correctly, then forward to nodes.
                     logDebug(Log::DSProof) << "  Good DSP, broadcasting an INV";
-                    ValidationNotifier().DoubleSpendFound(tx, dsp);
+                    ValidationNotifier().doubleSpendFound(tx, dsp);
 
                     CTransaction dspTx = tx.createOldTransaction();
                     LOCK(cs_vNodes);
@@ -2731,7 +2731,7 @@ bool SendMessages(CNode* pto)
         // transactions become unconfirmed and spams other nodes.
         if (!fReindex && !IsInitialBlockDownload())
         {
-            ValidationNotifier().ResendWalletTransactions(Blocks::DB::instance()->headerChain().Tip()->GetBlockTime());
+            ValidationNotifier().resendWalletTransactions(Blocks::DB::instance()->headerChain().Tip()->GetBlockTime());
         }
 
         //

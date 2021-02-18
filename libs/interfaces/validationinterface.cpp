@@ -25,54 +25,54 @@ ValidationInterfaceBroadcaster &ValidationNotifier() {
     return s_instance;
 }
 
-void ValidationInterfaceBroadcaster::SyncTransaction(const CTransaction &tx)
+void ValidationInterfaceBroadcaster::syncTransaction(const CTransaction &tx)
 {
-    for (auto i : m_listeners) i->SyncTransaction(tx);
+    for (auto i : m_listeners) i->syncTransaction(tx);
 }
 
-void ValidationInterfaceBroadcaster::SyncTx(const Tx &tx)
+void ValidationInterfaceBroadcaster::syncTx(const Tx &tx)
 {
-    for (auto i : m_listeners) i->SyncTx(tx);
+    for (auto i : m_listeners) i->syncTx(tx);
 }
 
-void ValidationInterfaceBroadcaster::SyncAllTransactionsInBlock(const CBlock *pblock)
+void ValidationInterfaceBroadcaster::syncAllTransactionsInBlock(const CBlock *pblock)
 {
-    for (auto i : m_listeners) i->SyncAllTransactionsInBlock(pblock);
+    for (auto i : m_listeners) i->syncAllTransactionsInBlock(pblock);
 }
 
-void ValidationInterfaceBroadcaster::SyncAllTransactionsInBlock(const FastBlock &block, CBlockIndex *index)
+void ValidationInterfaceBroadcaster::syncAllTransactionsInBlock(const FastBlock &block, CBlockIndex *index)
 {
-    for (auto i : m_listeners) i->SyncAllTransactionsInBlock(block, index);
+    for (auto i : m_listeners) i->syncAllTransactionsInBlock(block, index);
 }
 
-void ValidationInterfaceBroadcaster::SetBestChain(const CBlockLocator &locator)
+void ValidationInterfaceBroadcaster::setBestChain(const CBlockLocator &locator)
 {
-    for (auto i : m_listeners) i->SetBestChain(locator);
+    for (auto i : m_listeners) i->setBestChain(locator);
 }
 
-void ValidationInterfaceBroadcaster::UpdatedTransaction(const uint256 &hash)
+void ValidationInterfaceBroadcaster::updatedTransaction(const uint256 &hash)
 {
-    for (auto i : m_listeners) i->UpdatedTransaction(hash);
+    for (auto i : m_listeners) i->updatedTransaction(hash);
 }
 
-void ValidationInterfaceBroadcaster::Inventory(const uint256 &hash)
+void ValidationInterfaceBroadcaster::inventory(const uint256 &hash)
 {
-    for (auto i : m_listeners) i->Inventory(hash);
+    for (auto i : m_listeners) i->inventory(hash);
 }
 
-void ValidationInterfaceBroadcaster::ResendWalletTransactions(int64_t nBestBlockTime)
+void ValidationInterfaceBroadcaster::resendWalletTransactions(int64_t nBestBlockTime)
 {
-    for (auto i : m_listeners) i->ResendWalletTransactions(nBestBlockTime);
+    for (auto i : m_listeners) i->resendWalletTransactions(nBestBlockTime);
 }
 
-void ValidationInterfaceBroadcaster::DoubleSpendFound(const Tx &first, const Tx &duplicate)
+void ValidationInterfaceBroadcaster::doubleSpendFound(const Tx &first, const Tx &duplicate)
 {
-    for (auto i : m_listeners) i->DoubleSpendFound(first, duplicate);
+    for (auto i : m_listeners) i->doubleSpendFound(first, duplicate);
 }
 
-void ValidationInterfaceBroadcaster::DoubleSpendFound(const Tx &txInMempool, const DoubleSpendProof &proof)
+void ValidationInterfaceBroadcaster::doubleSpendFound(const Tx &txInMempool, const DoubleSpendProof &proof)
 {
-    for (auto i : m_listeners) i->DoubleSpendFound(txInMempool, proof);
+    for (auto i : m_listeners) i->doubleSpendFound(txInMempool, proof);
 }
 
 void ValidationInterfaceBroadcaster::addListener(ValidationInterface *impl)

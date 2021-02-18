@@ -310,7 +310,7 @@ bool CWallet::ChangeWalletPassphrase(const SecureString& strOldWalletPassphrase,
     return false;
 }
 
-void CWallet::SetBestChain(const CBlockLocator& loc)
+void CWallet::setBestChain(const CBlockLocator& loc)
 {
     CWalletDB walletdb(strWalletFile);
     walletdb.WriteBestBlock(loc);
@@ -919,7 +919,7 @@ void CWallet::MarkConflicted(const uint256& hashBlock, const uint256& hashTx)
     }
 }
 
-void CWallet::SyncTransaction(const CTransaction& tx)
+void CWallet::syncTransaction(const CTransaction& tx)
 {
     LOCK2(cs_main, cs_wallet);
 
@@ -936,7 +936,7 @@ void CWallet::SyncTransaction(const CTransaction& tx)
     }
 }
 
-void CWallet::SyncAllTransactionsInBlock(const CBlock *pblock)
+void CWallet::syncAllTransactionsInBlock(const CBlock *pblock)
 {
     LOCK2(cs_main, cs_wallet);
 
@@ -1771,7 +1771,7 @@ std::vector<uint256> CWallet::ResendWalletTransactionsBefore(int64_t nTime)
     return result;
 }
 
-void CWallet::ResendWalletTransactions(int64_t nBestBlockTime)
+void CWallet::resendWalletTransactions(int64_t nBestBlockTime)
 {
     // Do this infrequently and randomly to avoid giving away
     // that these are our transactions.
@@ -2969,7 +2969,7 @@ void CWallet::GetAllReserveKeys(std::set<CKeyID>& setAddress) const
     }
 }
 
-void CWallet::UpdatedTransaction(const uint256 &hashTx)
+void CWallet::updatedTransaction(const uint256 &hashTx)
 {
     {
         LOCK(cs_wallet);

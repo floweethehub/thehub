@@ -36,55 +36,55 @@ class DoubleSpendProof;
 class ValidationInterface {
 public:
     /** Notifies listeners of updated transaction data, and optionally the block it is found in. */
-    virtual void SyncTransaction(const CTransaction &tx) {}
+    virtual void syncTransaction(const CTransaction &tx) {}
 
     /** Notifies listeners of updated transaction data, and optionally the block it is found in. */
-    virtual void SyncTx(const Tx &) {}
+    virtual void syncTx(const Tx &) {}
 
     /** Notifies listeners of updated transaction data, on a new accepted block. */
-    virtual void SyncAllTransactionsInBlock(const CBlock *pblock) {}
+    virtual void syncAllTransactionsInBlock(const CBlock *pblock) {}
 
     /** Notifies listeners of updated transaction data, on a new accepted block. */
-    virtual void SyncAllTransactionsInBlock(const FastBlock &, CBlockIndex *) {}
+    virtual void syncAllTransactionsInBlock(const FastBlock &, CBlockIndex *) {}
 
     /** Notifies listeners of a new active block chain. */
-    virtual void SetBestChain(const CBlockLocator &locator) {}
+    virtual void setBestChain(const CBlockLocator &locator) {}
 
     /** Notifies listeners of an updated transaction without new data (for now: a coinbase potentially becoming visible). */
-    virtual void UpdatedTransaction(const uint256 &hash) {}
+    virtual void updatedTransaction(const uint256 &hash) {}
 
     /** Notifies listeners about an inventory item being seen on the network. */
-    virtual void Inventory(const uint256 &hash) {}
+    virtual void inventory(const uint256 &hash) {}
 
     /** Tells listeners to broadcast their data. */
-    virtual void ResendWalletTransactions(int64_t nBestBlockTime) {}
+    virtual void resendWalletTransactions(int64_t nBestBlockTime) {}
 
     /**
      * Notifies listeners that we received a double-spend.
      * First is the tx that is in our mempool, duplicate is the one we received and reject
      */
-    virtual void DoubleSpendFound(const Tx &first, const Tx &duplicate) {}
+    virtual void doubleSpendFound(const Tx &first, const Tx &duplicate) {}
 
     /**
      * Notifies listeners that we received a double-spend proof.
      * First is the tx that is in our mempool, proof is the actual proof.
      */
-    virtual void DoubleSpendFound(const Tx &txInMempool, const DoubleSpendProof &proof) {}
+    virtual void doubleSpendFound(const Tx &txInMempool, const DoubleSpendProof &proof) {}
 };
 
 class ValidationInterfaceBroadcaster : public ValidationInterface
 {
 public:
-    void SyncTransaction(const CTransaction &tx) override;
-    void SyncTx(const Tx &) override;
-    void SyncAllTransactionsInBlock(const CBlock *pblock) override;
-    void SyncAllTransactionsInBlock(const FastBlock &block, CBlockIndex *index) override;
-    void SetBestChain(const CBlockLocator &locator) override;
-    void UpdatedTransaction(const uint256 &hash) override;
-    void Inventory(const uint256 &hash) override;
-    void ResendWalletTransactions(int64_t nBestBlockTime) override;
-    void DoubleSpendFound(const Tx &first, const Tx &duplicate) override;
-    void DoubleSpendFound(const Tx &txInMempool, const DoubleSpendProof &proof) override;
+    void syncTransaction(const CTransaction &tx) override;
+    void syncTx(const Tx &) override;
+    void syncAllTransactionsInBlock(const CBlock *pblock) override;
+    void syncAllTransactionsInBlock(const FastBlock &block, CBlockIndex *index) override;
+    void setBestChain(const CBlockLocator &locator) override;
+    void updatedTransaction(const uint256 &hash) override;
+    void inventory(const uint256 &hash) override;
+    void resendWalletTransactions(int64_t nBestBlockTime) override;
+    void doubleSpendFound(const Tx &first, const Tx &duplicate) override;
+    void doubleSpendFound(const Tx &txInMempool, const DoubleSpendProof &proof) override;
 
     void addListener(ValidationInterface *impl);
     void removeListener(ValidationInterface *impl);

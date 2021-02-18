@@ -46,7 +46,7 @@ TransactionMonitorService::~TransactionMonitorService()
     ValidationNotifier().removeListener(this);
 }
 
-void TransactionMonitorService::SyncTx(const Tx &tx)
+void TransactionMonitorService::syncTx(const Tx &tx)
 {
     if (!m_findByHash)
         return;
@@ -72,7 +72,7 @@ namespace  {
     };
 }
 
-void TransactionMonitorService::SyncAllTransactionsInBlock(const FastBlock &block, CBlockIndex *index)
+void TransactionMonitorService::syncAllTransactionsInBlock(const FastBlock &block, CBlockIndex *index)
 {
     if (!m_findByHash)
         return;
@@ -122,7 +122,7 @@ void TransactionMonitorService::SyncAllTransactionsInBlock(const FastBlock &bloc
     }
 }
 
-void TransactionMonitorService::DoubleSpendFound(const Tx &first, const Tx &duplicate)
+void TransactionMonitorService::doubleSpendFound(const Tx &first, const Tx &duplicate)
 {
     if (!m_findByHash)
         return;
@@ -150,7 +150,7 @@ void TransactionMonitorService::DoubleSpendFound(const Tx &first, const Tx &dupl
     }
 }
 
-void TransactionMonitorService::DoubleSpendFound(const Tx &txInMempool, const DoubleSpendProof &proof)
+void TransactionMonitorService::doubleSpendFound(const Tx &txInMempool, const DoubleSpendProof &proof)
 {
     if (!m_findByHash)
         return;

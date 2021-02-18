@@ -38,7 +38,7 @@ BlockNotificationService::~BlockNotificationService()
     ValidationNotifier().removeListener(this);
 }
 
-void BlockNotificationService::SyncAllTransactionsInBlock(const FastBlock &, CBlockIndex *index)
+void BlockNotificationService::syncAllTransactionsInBlock(const FastBlock &, CBlockIndex *index)
 {
     const auto remotes_ = remotes();
     if (remotes_.empty())

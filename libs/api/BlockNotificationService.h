@@ -28,7 +28,7 @@ public:
     ~BlockNotificationService();
 
     // the hub pushed a transaction into its mempool
-    void SyncAllTransactionsInBlock(const FastBlock &block, CBlockIndex *index) override;
+    void syncAllTransactionsInBlock(const FastBlock &block, CBlockIndex *index) override;
     void onIncomingMessage(Remote *con, const Message &message, const EndPoint &ep) override;
 
 protected:

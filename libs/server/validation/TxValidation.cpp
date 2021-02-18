@@ -478,8 +478,8 @@ void TxValidationState::sync()
     LimitMempoolSize(*parent->mempool, GetArg("-maxmempool", Settings::DefaultMaxMempoolSize) * 1000000,
                      GetArg("-mempoolexpiry", Settings::DefaultMempoolExpiry) * 60 * 60);
 
-    ValidationNotifier().SyncTransaction(m_tx.createOldTransaction());
-    ValidationNotifier().SyncTx(m_tx);
+    ValidationNotifier().syncTransaction(m_tx.createOldTransaction());
+    ValidationNotifier().syncTx(m_tx);
 }
 
 void TxValidationState::notifyDoubleSpend()
@@ -516,5 +516,5 @@ void TxValidationState::notifyDoubleSpend()
         }
     }
 
-    ValidationNotifier().DoubleSpendFound(m_doubleSpendTx, m_tx);
+    ValidationNotifier().doubleSpendFound(m_doubleSpendTx, m_tx);
 }

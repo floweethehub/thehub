@@ -45,7 +45,7 @@ AddressMonitorService::~AddressMonitorService()
     ValidationNotifier().removeListener(this);
 }
 
-void AddressMonitorService::SyncTx(const Tx &tx)
+void AddressMonitorService::syncTx(const Tx &tx)
 {
     const auto rem = remotes();
     std::map<int, Match> matches;
@@ -99,7 +99,7 @@ bool AddressMonitorService::match(Tx::Iterator &iter, const std::deque<NetworkSe
     return true;
 }
 
-void AddressMonitorService::SyncAllTransactionsInBlock(const FastBlock &block, CBlockIndex *index)
+void AddressMonitorService::syncAllTransactionsInBlock(const FastBlock &block, CBlockIndex *index)
 {
     assert(index);
     Tx::Iterator iter(block);
@@ -125,7 +125,7 @@ void AddressMonitorService::SyncAllTransactionsInBlock(const FastBlock &block, C
     }
 }
 
-void AddressMonitorService::DoubleSpendFound(const Tx &first, const Tx &duplicate)
+void AddressMonitorService::doubleSpendFound(const Tx &first, const Tx &duplicate)
 {
     logDebug(Log::MonitorService) << "Double spend found" << first.createHash() << duplicate.createHash();
     const auto rem = remotes();
@@ -153,7 +153,7 @@ void AddressMonitorService::DoubleSpendFound(const Tx &first, const Tx &duplicat
     }
 }
 
-void AddressMonitorService::DoubleSpendFound(const Tx &txInMempool, const DoubleSpendProof &proof)
+void AddressMonitorService::doubleSpendFound(const Tx &txInMempool, const DoubleSpendProof &proof)
 {
     logDebug(Log::MonitorService) << "Double spend proof found. TxId:" << txInMempool.createHash();
     const auto rem = remotes();

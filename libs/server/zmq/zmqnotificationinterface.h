@@ -38,9 +38,9 @@ protected:
     void Shutdown();
 
     // CValidationInterface
-    void SyncTransaction(const CTransaction &tx) override;
-    void SyncAllTransactionsInBlock(const CBlock *pblock) override;
-    void SyncAllTransactionsInBlock(const FastBlock &block, CBlockIndex *index) override;
+    void syncTransaction(const CTransaction &tx) override;
+    void syncAllTransactionsInBlock(const CBlock *pblock) override;
+    void syncAllTransactionsInBlock(const FastBlock &block, CBlockIndex *index) override;
 
 private:
     CZMQNotificationInterface();
