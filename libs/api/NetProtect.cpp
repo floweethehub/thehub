@@ -35,13 +35,19 @@ bool NetProtect::shouldAccept(const NetworkConnection &connection, uint32_t conn
     std::unique_lock<std::mutex> lock(m_lock);
     int tier1, tier2, tier3, tier4;
     tier1 = tier2 = tier3 = 0;
-    for (size_t i = 0; i < m_log.size(); ++i) {
+    // iterate backwards. Newest are at the end
+    for (int i = static_cast<int>(m_log.size()) - 1; i >= 0; --i) {
         const Connect &c = m_log.at(i);
         const int diff = connectionTime - c.connectionTime;
         assert(diff >= 0);
         if (diff > 300) {
-            m_log.resize(i); // chop off the rest, they are older entries
-            break;
+            if (i > 20) {
+                // cut off, remove all old ones
+                for (int x = 0; x <= i; ++x) {
+                    m_log.erase(m_log.begin());
+                }
+            }
+            break; // stop counting
         }
         if (c.ipAddress == ep.ipAddress) {
             if (diff < 10)
