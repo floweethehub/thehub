@@ -413,6 +413,7 @@ enum MessageIds {
     Subscribe,
     Unsubscribe = 2,
     NewBlockOnChain = 4,
+    BlocksRemoved = 6
 };
 
 enum Tags {

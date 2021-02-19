@@ -2,7 +2,7 @@
  * This file is part of the Flowee project
  * Copyright (C) 2009-2010 Satoshi Nakamoto
  * Copyright (C) 2009-2014 The Bitcoin Core developers
- * Copyright (C) 2017-2019 Tom Zander <tomz@freedommail.ch>
+ * Copyright (C) 2017-2021 Tom Zander <tom@flowee.org>
  *
  * This program is free software: you can redistribute it and/or modify
  * it under the terms of the GNU General Public License as published by
@@ -73,6 +73,11 @@ void ValidationInterfaceBroadcaster::doubleSpendFound(const Tx &first, const Tx 
 void ValidationInterfaceBroadcaster::doubleSpendFound(const Tx &txInMempool, const DoubleSpendProof &proof)
 {
     for (auto i : m_listeners) i->doubleSpendFound(txInMempool, proof);
+}
+
+void ValidationInterfaceBroadcaster::chainReorged(CBlockIndex *oldTip, const std::vector<FastBlock> &revertedBlocks)
+{
+    for (auto i : m_listeners) i->chainReorged(oldTip, revertedBlocks);
 }
 
 void ValidationInterfaceBroadcaster::addListener(ValidationInterface *impl)

@@ -755,6 +755,7 @@ void ValidationEnginePrivate::prepareChain()
 
     std::vector<FastBlock> revertedBlocks;
 
+    CBlockIndex *oldTip = blockchain->Tip();
     LOCK(mempool->cs);
     while (!Blocks::DB::instance()->headerChain().Contains(blockchain->Tip())) {
         CBlockIndex *index = blockchain->Tip();
@@ -776,6 +777,8 @@ void ValidationEnginePrivate::prepareChain()
         tip.store(index->pprev);
     }
     mempool->removeForReorg(blockchain->Tip()->nHeight + 1, STANDARD_LOCKTIME_VERIFY_FLAGS);
+    if (!revertedBlocks.empty())
+        ValidationNotifier().chainReorged(oldTip, revertedBlocks);
 
     if (revertedBlocks.size() > 3)
         return;

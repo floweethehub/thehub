@@ -2,7 +2,7 @@
  * This file is part of the Flowee project
  * Copyright (C) 2009-2010 Satoshi Nakamoto
  * Copyright (C) 2009-2015 The Bitcoin Core developers
- * Copyright (C) 2017-2019 Tom Zander <tomz@freedommail.ch>
+ * Copyright (C) 2017-2021 Tom Zander <tom@flowee.org>
  *
  * This program is free software: you can redistribute it and/or modify
  * it under the terms of the GNU General Public License as published by
@@ -23,6 +23,7 @@
 
 #include <boost/shared_ptr.hpp>
 #include <list>
+#include <vector>
 
 class CBlock;
 struct CBlockLocator;
@@ -70,6 +71,8 @@ public:
      * First is the tx that is in our mempool, proof is the actual proof.
      */
     virtual void doubleSpendFound(const Tx &txInMempool, const DoubleSpendProof &proof) {}
+
+    virtual void chainReorged(CBlockIndex *oldTip,  const std::vector<FastBlock> &revertedBlocks) {}
 };
 
 class ValidationInterfaceBroadcaster : public ValidationInterface
@@ -85,6 +88,7 @@ public:
     void resendWalletTransactions(int64_t nBestBlockTime) override;
     void doubleSpendFound(const Tx &first, const Tx &duplicate) override;
     void doubleSpendFound(const Tx &txInMempool, const DoubleSpendProof &proof) override;
+    void chainReorged(CBlockIndex *oldTip,  const std::vector<FastBlock> &revertedBlocks) override;
 
     void addListener(ValidationInterface *impl);
     void removeListener(ValidationInterface *impl);

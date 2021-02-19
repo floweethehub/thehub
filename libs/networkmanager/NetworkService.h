@@ -1,6 +1,6 @@
 /*
  * This file is part of the Flowee project
- * Copyright (C) 2019 Tom Zander <tomz@freedommail.ch>
+ * Copyright (C) 2019-2021 Tom Zander <tom@flowee.org>
  *
  * This program is free software: you can redistribute it and/or modify
  * it under the terms of the GNU General Public License as published by
@@ -64,6 +64,18 @@ protected:
     virtual Remote *createRemote();
 
     std::deque<Remote*> remotes() const;
+
+    template <class T>
+    std::deque<T*> remotes(const std::function<T*(Remote*)> &filter) const {
+        std::deque<T*> answer;
+        for (const auto r : remotes()) {
+            T* r_ = filter(r);
+            if (r_)
+                answer.push_back(r_);
+        }
+        return answer;
+    }
+
 
 private:
     void addRemote(Remote *remote);
