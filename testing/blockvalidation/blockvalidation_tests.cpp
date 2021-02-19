@@ -523,4 +523,54 @@ void TestBlockValidation::manualAdjustments()
     QCOMPARE(Blocks::DB::instance()->headerChain().Tip(), tip);
 }
 
+void TestBlockValidation::testBlockIndex()
+{
+    CBlockIndex index;
+    QCOMPARE(index.nStatus, 0);
+    index.RaiseValidity(BLOCK_VALID_HEADER);
+    QCOMPARE(index.IsValid(BLOCK_VALID_HEADER), true);
+    QCOMPARE(index.IsValid(BLOCK_VALID_TREE), false);
+    QCOMPARE(index.IsValid(BLOCK_VALID_TRANSACTIONS), false);
+    QCOMPARE(index.IsValid(BLOCK_VALID_CHAIN), false);
+    QCOMPARE(index.IsValid(BLOCK_VALID_SCRIPTS), false);
+    QCOMPARE(index.nStatus, BLOCK_VALID_HEADER);
+    index.RaiseValidity(BLOCK_VALID_TREE);
+    QCOMPARE(index.IsValid(BLOCK_VALID_HEADER), true);
+    QCOMPARE(index.IsValid(BLOCK_VALID_TREE), true);
+    QCOMPARE(index.IsValid(BLOCK_VALID_TRANSACTIONS), false);
+    QCOMPARE(index.IsValid(BLOCK_VALID_CHAIN), false);
+    QCOMPARE(index.IsValid(BLOCK_VALID_SCRIPTS), false);
+    QCOMPARE(index.nStatus, BLOCK_VALID_TREE);
+    index.nStatus |= BLOCK_HAVE_DATA;
+    QCOMPARE(index.IsValid(BLOCK_VALID_HEADER), true);
+    QCOMPARE(index.IsValid(BLOCK_VALID_TREE), true);
+    QCOMPARE(index.IsValid(BLOCK_VALID_TRANSACTIONS), false);
+    QCOMPARE(index.IsValid(BLOCK_VALID_CHAIN), false);
+    QCOMPARE(index.IsValid(BLOCK_VALID_SCRIPTS), false);
+    QCOMPARE(index.nStatus, BLOCK_VALID_TREE | BLOCK_HAVE_DATA);
+    index.nStatus |= BLOCK_HAVE_UNDO;
+    QCOMPARE(index.IsValid(BLOCK_VALID_HEADER), true);
+    QCOMPARE(index.IsValid(BLOCK_VALID_TREE), true);
+    QCOMPARE(index.IsValid(BLOCK_VALID_TRANSACTIONS), false);
+    QCOMPARE(index.IsValid(BLOCK_VALID_CHAIN), false);
+    QCOMPARE(index.IsValid(BLOCK_VALID_SCRIPTS), false);
+    QCOMPARE(index.nStatus, BLOCK_VALID_TREE | BLOCK_HAVE_DATA | BLOCK_HAVE_UNDO);
+
+    index.RaiseValidity(BLOCK_VALID_CHAIN);
+    QCOMPARE(index.IsValid(BLOCK_VALID_HEADER), true);
+    QCOMPARE(index.IsValid(BLOCK_VALID_TREE), true);
+    QCOMPARE(index.IsValid(BLOCK_VALID_TRANSACTIONS), true);
+    QCOMPARE(index.IsValid(BLOCK_VALID_CHAIN), true);
+    QCOMPARE(index.IsValid(BLOCK_VALID_SCRIPTS), false);
+    QCOMPARE(index.nStatus, BLOCK_VALID_CHAIN | BLOCK_HAVE_DATA | BLOCK_HAVE_UNDO);
+
+    CBlockIndex index2;
+    index2.RaiseValidity(BLOCK_VALID_SCRIPTS);
+    QCOMPARE(index2.IsValid(BLOCK_VALID_HEADER), true);
+    QCOMPARE(index2.IsValid(BLOCK_VALID_TREE), true);
+    QCOMPARE(index2.IsValid(BLOCK_VALID_TRANSACTIONS), true);
+    QCOMPARE(index2.IsValid(BLOCK_VALID_CHAIN), true);
+    QCOMPARE(index2.IsValid(BLOCK_VALID_SCRIPTS), true);
+}
+
 QTEST_MAIN(TestBlockValidation)

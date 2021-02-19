@@ -38,6 +38,8 @@ private slots:
 
     void manualAdjustments();
 
+    void testBlockIndex();
+
 private:
     FastBlock createHeader(const FastBlock &full) const;
     // this only works if the input is a p2pkh script!
