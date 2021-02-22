@@ -78,18 +78,15 @@ public:
     void spentOutputResolved(int jobId, int blockHeight, int offsetInBlock) override;
     void addressUsedInOutput(int blockHeight, int offsetInBlock, int outIndex) override;
     void utxoLookup(int jobId, int blockHeight, int offsetInBlock, int outindex, bool unspent, int64_t amount, Streaming::ConstBuffer outputScript) override;
-    void aborted(const Blockchain::ServiceUnavailableException&) override;
+    void aborted(const Blockchain::ServiceUnavailableException &e) override;
 
     // data specific for an AnswerType
     AnswerDataBase *answerData = nullptr;
 
 private slots:
     void threadSafeFinished();
-    void threadSafeAborted();
 
 private:
-    QString m_error;
-
     QJsonObject renderTransactionToJSon(const Blockchain::Transaction &tx) const;
 };
 

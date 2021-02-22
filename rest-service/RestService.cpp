@@ -865,25 +865,23 @@ void RestServiceWebRequest::aborted(const Blockchain::ServiceUnavailableExceptio
     QString error("could not find upstream service: %1");
     switch (e.service()) {
     case Blockchain::TheHub:
-        m_error = error.arg("The Hub");
+        error = error.arg("The Hub");
         break;
     case Blockchain::IndexerTxIdDb:
-        m_error = error.arg("TxID indexer");
+        error = error.arg("TxID indexer");
         break;
     case Blockchain::IndexerAddressDb:
-        m_error = error.arg("Addresses indexer");
+        error = error.arg("Addresses indexer");
         break;
     case Blockchain::IndexerSpentDb:
-        m_error = error.arg("Spent-db indexer");
+        error = error.arg("Spent-db indexer");
         break;
     }
 
-    QTimer::singleShot(0, this, SLOT(threadSafeAborted()));
-}
-
-void RestServiceWebRequest::threadSafeAborted()
-{
-    returnTemplatePath(socket(), "setup.html", m_error);
+    const bool temp = e.temporarily();
+    QTimer::singleShot(0, this, [=]() {
+        returnTemplatePath(socket(), temp ? "error.json" : "setup.html", error);
+    });
 }
 
 void RestServiceWebRequest::threadSafeFinished()

@@ -1,6 +1,6 @@
 /*
  * This file is part of the Flowee project
- * Copyright (C) 2019 Tom Zander <tomz@freedommail.ch>
+ * Copyright (C) 2019-2021 Tom Zander <tom@flowee.org>
  *
  * This program is free software: you can redistribute it and/or modify
  * it under the terms of the GNU General Public License as published by
@@ -82,6 +82,12 @@ public:
 
     // policies
     SearchPolicy *txPolicy = nullptr;
+
+    // Once we connected once to service we store it here.
+    // Higher layers use this info to understand if the reason we can't find a
+    // service is temporarily, or a likely setup issue if we never connected
+    // said service.
+    std::set<Service> m_seenServices;
 
     // avoid unexpected usage.
     SearchEnginePrivate(const SearchEnginePrivate&) = delete;

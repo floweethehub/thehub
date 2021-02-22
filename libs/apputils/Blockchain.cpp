@@ -138,9 +138,10 @@ void addIncludeRequests(Streaming::MessageBuilder &builder, uint32_t transaction
 }
 
 
-Blockchain::ServiceUnavailableException::ServiceUnavailableException(const char *error, Blockchain::Service service)
+Blockchain::ServiceUnavailableException::ServiceUnavailableException(const char *error, Blockchain::Service service, bool temporarily)
     : std::runtime_error(error),
-      m_service(service)
+      m_service(service),
+      m_temporarily(temporarily)
 {
 }
 
@@ -379,6 +380,7 @@ void Blockchain::SearchEnginePrivate::hubSentMessage(const Message &message)
                 break;
             }
         }
+        m_seenServices.insert(TheHub);
         // then as last thing, let our subclasses know;
         q->initializeHubConnection(network.connection(network.endPoint(message.remote)), hubId);
         return;
@@ -468,6 +470,8 @@ void Blockchain::SearchEnginePrivate::indexerSentMessage(const Message &message)
                 services.insert(IndexerTxIdDb);
             if (hasSpent)
                 services.insert(IndexerSpentDb);
+            for (auto s : services)
+                m_seenServices.insert(s);
 
             q->initializeIndexerConnection(network.connection(network.endPoint(message.remote)), services);
             return;
@@ -496,7 +500,8 @@ void Blockchain::SearchEnginePrivate::sendMessage(const Message &message, Blockc
         }
         ++iter;
     }
-    throw ServiceUnavailableException("Backing service not connected", service);
+    throw ServiceUnavailableException("Backing service not connected", service,
+                                      m_seenServices.find(service) != m_seenServices.end());
 }
 
 void Blockchain::SearchEnginePrivate::searchFinished(Blockchain::Search *searcher)

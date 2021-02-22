@@ -67,13 +67,17 @@ struct Job {
 class ServiceUnavailableException : public std::runtime_error
 {
 public:
-    explicit ServiceUnavailableException(const char *error, Service service);
+    explicit ServiceUnavailableException(const char *error, Service service, bool temporarily);
 
     Service service() const {
         return m_service;
     }
+    bool temporarily() const {
+        return m_temporarily;
+    }
 
     const Service m_service;
+    const bool m_temporarily;
 };
 
 class SearchPolicy;

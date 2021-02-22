@@ -1,6 +1,6 @@
 /*
  * This file is part of the Flowee project
- * Copyright (C) 2019 Tom Zander <tomz@freedommail.ch>
+ * Copyright (C) 2019-2021 Tom Zander <tom@flowee.org>
  *
  * This program is free software: you can redistribute it and/or modify
  * it under the terms of the GNU General Public License as published by
@@ -274,7 +274,7 @@ void BitcoreProxy::onIncomingConnection(HttpEngine::WebRequest *request_)
             error = error.arg("Spent-db indexer");
             break;
         }
-        returnTemplatePath(socket, "setup.html", error);
+        returnTemplatePath(socket, e.temporarily() ? "error.json" : "setup.html", error);
     } catch (const UserInputException &e) {
         returnTemplatePath(socket, e.helpPage(), e.what());
     } catch (const std::exception &e) {
