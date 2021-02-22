@@ -1,6 +1,6 @@
 /*
  * This file is part of the Flowee project
- * Copyright (C) 2016, 2019-2020 Tom Zander <tomz@freedommail.ch>
+ * Copyright (C) 2016-2021 Tom Zander <tom@flowee.org>
  *
  * This program is free software: you can redistribute it and/or modify
  * it under the terms of the GNU General Public License as published by
@@ -27,17 +27,26 @@
 /// Describes a remote server.
 struct EndPoint
 {
+    /// Invalid endpoint
     EndPoint()
         : peerPort(0),
         announcePort(0)
     {
     }
+    /**
+     * Hostname constructor
+     * Port will be used for both peer and announce port members.
+     */
     EndPoint(const std::string &hostname, std::uint16_t port)
         : hostname(hostname),
           peerPort(port),
           announcePort(port)
     {
     }
+    /**
+     * IP address constructor.
+     * Port will be used for both peer and announce port members.
+     */
     EndPoint(const boost::asio::ip::address &ip, std::uint16_t port)
         : ipAddress(ip),
           peerPort(port),
@@ -57,6 +66,7 @@ struct EndPoint
     std::string hostname;
     std::uint16_t peerPort = 0;
     std::uint16_t announcePort = 0;
+    /// The connection id refers to the NetworkConnection id, as used by the NetworkManager
     int connectionId = -1;
 };
 

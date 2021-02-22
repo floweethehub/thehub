@@ -54,6 +54,10 @@ public:
      */
     NetworkConnection connection(const EndPoint &remote, ConnectionEnum connect = AutoCreate);
 
+    /**
+     * Return the endpoint for a known connection.
+     * If the connection is unknown, an invalid endpoint will be returned.
+     */
     EndPoint endPoint(int remoteId) const;
 
     /**
