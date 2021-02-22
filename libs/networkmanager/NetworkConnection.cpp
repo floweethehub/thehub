@@ -1,6 +1,6 @@
 /*
  * This file is part of the Flowee project
- * Copyright (C) 2016, 2019-2020 Tom Zander <tomz@freedommail.ch>
+ * Copyright (C) 2016, 2019-2021 Tom Zander <tom@flowee.org>
  *
  * This program is free software: you can redistribute it and/or modify
  * it under the terms of the GNU General Public License as published by
@@ -62,6 +62,7 @@ NetworkConnection& NetworkConnection::operator=(NetworkConnection && other)
     m_id = other.m_id;
     other.m_id = -1;
     m_callbacksId = other.m_callbacksId;
+    other.m_callbacksId = -1;
     return *this;
 }
 
