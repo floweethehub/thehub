@@ -170,7 +170,7 @@ Streaming::ConstBuffer uint256StringToBuffer(const QString &hash, Streaming::Buf
     return pool.commit(32);
 }
 
-Streaming::ConstBuffer addressToHashedOutputScriptBuffer(const std::string &address, std::unique_ptr<AddressListingData> &data)
+Streaming::ConstBuffer addressToHashedOutputScriptBuffer(const std::string &address, const std::unique_ptr<AddressListingData> &data)
 {
     CashAddress::Content c;
     CBase58Data old; // legacy address encoding
@@ -903,7 +903,7 @@ void RestServiceWebRequest::threadSafeFinished()
     }
     case TransactionDetailsList: {
         QJsonArray root;
-        for (auto tx : answer) {
+        for (const auto &tx : answer) {
             if (tx.fullTxData.size() > 0) {
                 QJsonObject o = renderTransactionToJSon(tx);
                 auto header = blockHeaders.find(tx.blockHeight);
@@ -988,7 +988,7 @@ void RestServiceWebRequest::threadSafeFinished()
             o.insert("height", utxo.blockHeight);
 
             // TODO this is quick/and/dirty, this should be done with some lookup table
-            for (auto tx : answer) {
+            for (const auto &tx : answer) {
                 if (tx.blockHeight == utxo.blockHeight && tx.offsetInBlock == utxo.offsetInBlock) {
                     o.insert("txid", uint256ToString(tx.txid));
                     break;
@@ -1047,7 +1047,7 @@ void RestServiceWebRequest::threadSafeFinished()
                 socket()->writeJson(QJsonDocument(root), s_JsonFormat);
                 break;
             }
-            for (auto tx : answer) {
+            for (const auto &tx : answer) {
                 if (tx.jobId == int(i) && tx.txid.size() == 32) {
                     socket()->write("\"", 1);
                     writeAsHexStringReversed(tx.txid, socket());
@@ -1112,7 +1112,7 @@ QJsonObject RestServiceWebRequest::renderTransactionToJSon(const Blockchain::Tra
 
                     QJsonArray legacyAddresses;
                     QJsonArray cashAddresses;
-                    auto type = parseOutScriptAddAddresses(legacyAddresses, cashAddresses, out.outScript);
+                    parseOutScriptAddAddresses(legacyAddresses, cashAddresses, out.outScript);
                     if (legacyAddresses.size() == 1) {
                         assert(cashAddresses.size() == 1);
                         input.insert("legacyAddress", legacyAddresses.takeAt(0));
