@@ -324,7 +324,17 @@ void Blockchain::SearchEnginePrivate::hubConnected(const EndPoint &ep)
 
 void Blockchain::SearchEnginePrivate::hubDisconnected(const EndPoint &ep)
 {
-    // TODO unset flag in connections
+    assert (ep.connectionId > 0);
+    // find connection in connections and unset flag
+    for (auto iter = connections.begin(); iter != connections.end(); ++iter) {
+        if (iter->con.connectionId() == ep.connectionId) {
+            auto m = iter->services.find(TheHub);
+            if (m != iter->services.end())
+                iter->services.erase(m);
+            break;
+        }
+    }
+
     logDebug(Log::SearchEngine);
     q->hubDisconnected();
 }
@@ -384,10 +394,23 @@ void Blockchain::SearchEnginePrivate::indexerConnected(const EndPoint &ep)
     con.send(Message(Api::IndexerService, Api::Indexer::Version));
 }
 
-void Blockchain::SearchEnginePrivate::indexerDisconnected(const EndPoint &)
+void Blockchain::SearchEnginePrivate::indexerDisconnected(const EndPoint &ep)
 {
-    // TODO unset flag in connections
+    assert (ep.connectionId > 0);
     logDebug(Log::SearchEngine);
+    // find connection in connections and unset flags
+    for (auto iter = connections.begin(); iter != connections.end(); ++iter) {
+        if (iter->con.connectionId() == ep.connectionId) {
+            Blockchain::Service services[3] = { IndexerAddressDb, IndexerTxIdDb, IndexerSpentDb };
+            for (size_t s = 0; s < 3; ++s) {
+                auto m = iter->services.find(services[s]);
+                if (m != iter->services.end())
+                    iter->services.erase(m);
+            }
+            break;
+        }
+    }
+
     q->indexerDisconnected();
 }
 
