@@ -1,7 +1,7 @@
 /* This file is part of Flowee
  *
  * Copyright (C) 2017 Nathan Osman
- * Copyright (C) 2019 Tom Zander <tomz@freedommail.ch>
+ * Copyright (C) 2019-2021 Tom Zander <tom@flowee.org>
  *
  * This library is free software; you can redistribute it and/or
  * modify it under the terms of the GNU Library General Public
@@ -16,14 +16,15 @@
  * For the full copy of the License see <http://www.gnu.org/licenses/>
  */
 
-#include <cstring>
+#include "parser.h"
+#include "socket_p.h"
 
+#include <QFile>
 #include <QJsonParseError>
 #include <QTcpSocket>
+#include <QThread>
 
-#include "parser.h"
-
-#include "socket_p.h"
+#include <cstring>
 
 using namespace HttpEngine;
 
@@ -391,4 +392,28 @@ qint64 Socket::writeData(const char *data, qint64 len)
     }
 
     return d->socket->write(data, len);
+}
+
+void HttpEngine::returnTemplatePath(Socket *socket, const QString &templateName, const QString &error)
+{
+    Q_ASSERT(QThread::currentThread() == socket->thread());
+    QFile helpMessage(":/" + templateName);
+    if (!helpMessage.open(QIODevice::ReadOnly)) {
+        // missing file
+        socket->close();
+        return;
+    }
+    auto data = helpMessage.readAll();
+    data.replace("%ERROR%", error.toUtf8());
+    socket->setHeader("Content-Length", QByteArray::number(data.size()));
+    if (templateName.endsWith(".html"))
+        socket->setHeader("Content-Type", "text/html");
+    else
+        socket->setHeader("Content-Type", "application/json");
+    socket->setHeader("last-modified", "Fri, 1 Jan 2021 18:33:01 GMT");
+    socket->writeHeaders();
+    if (socket->method() != HttpEngine::Socket::HEAD)
+        socket->write(data);
+    socket->close();
+
 }

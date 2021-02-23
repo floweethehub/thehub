@@ -366,6 +366,11 @@ private:
     friend class SocketPrivate;
 };
 
+
+/**
+ * Return from the QRC the template with error replacement string.
+ */
+void HTTPENGINE_EXPORT returnTemplatePath(HttpEngine::Socket *socket, const QString &templateName, const QString &error = QString());
 }
 
 #endif

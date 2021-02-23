@@ -292,29 +292,6 @@ QString parseOutScriptAddAddresses(QJsonArray &addresses, QJsonArray &cashAddres
     // TODO multisig
     return type;
 }
-
-void returnTemplatePath(HttpEngine::Socket *socket, const QString &templateName, const QString &error = QString())
-{
-    Q_ASSERT(QThread::currentThread() == socket->thread());
-    QFile helpMessage(":/" + templateName);
-    if (!helpMessage.open(QIODevice::ReadOnly)) {
-        logCritical() << "Missing template file" << templateName;
-        socket->close();
-        return;
-    }
-    auto data = helpMessage.readAll();
-    data.replace("%ERROR%", error.toUtf8());
-    socket->setHeader("Content-Length", QByteArray::number(data.size()));
-    if (templateName.endsWith(".html"))
-        socket->setHeader("Content-Type", "text/html");
-    else
-        socket->setHeader("Content-Type", "application/json");
-    socket->setHeader("last-modified", "Fri, 28 Aug 2020 18:33:01 GMT");
-    socket->writeHeaders();
-    if (socket->method() != HttpEngine::Socket::HEAD)
-        socket->write(data);
-    socket->close();
-}
 }
 
 class UserInputException : public std::runtime_error

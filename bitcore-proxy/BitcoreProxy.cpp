@@ -294,28 +294,6 @@ void BitcoreProxy::returnEnabledChains(HttpEngine::WebRequest *request) const
     request->socket()->writeJson(QJsonDocument(top), s_JsonFormat);
 }
 
-void BitcoreProxy::returnTemplatePath(HttpEngine::Socket *socket, const QString &templateName, const QString &error) const
-{
-    QFile helpMessage(":/" + templateName);
-    if (!helpMessage.open(QIODevice::ReadOnly)) {
-        logCritical() << "Missing template file" << templateName;
-        socket->close();
-        return;
-    }
-    auto data = helpMessage.readAll();
-    data.replace("%ERROR%", error.toUtf8());
-    socket->setHeader("Content-Length", QByteArray::number(data.size()));
-    if (templateName.endsWith(".html"))
-        socket->setHeader("Content-Type", "text/html");
-    else
-        socket->setHeader("Content-Type", "application/json");
-    socket->setHeader("last-modified", "Fri, 31 May 2019 18:33:01 GMT");
-    socket->writeHeaders();
-    if (socket->method() != HttpEngine::Socket::HEAD)
-        socket->write(data);
-    socket->close();
-}
-
 void BitcoreProxy::parseConfig(const std::string &confFile)
 {
     QSettings conf(QString::fromStdString(confFile), QSettings::IniFormat);
@@ -697,10 +675,28 @@ void BitcoreWebRequest::utxoLookup(int jobId, int blockHeight, int offsetInBlock
     }
 }
 
-void BitcoreWebRequest::aborted(const Blockchain::ServiceUnavailableException &)
+void BitcoreWebRequest::aborted(const Blockchain::ServiceUnavailableException &e)
 {
-    // TODO maybe print something nice to output
-    socket()->close();
+    QString error("could not find upstream service: %1");
+    switch (e.service()) {
+    case Blockchain::TheHub:
+        error = error.arg("The Hub");
+        break;
+    case Blockchain::IndexerTxIdDb:
+        error = error.arg("TxID indexer");
+        break;
+    case Blockchain::IndexerAddressDb:
+        error = error.arg("Addresses indexer");
+        break;
+    case Blockchain::IndexerSpentDb:
+        error = error.arg("Spent-db indexer");
+        break;
+    }
+
+    const bool temp = e.temporarily();
+    QTimer::singleShot(0, this, [=]() {
+        returnTemplatePath(socket(), temp ? "error.json" : "setup.html", error);
+    });
 }
 
 void BitcoreWebRequest::addDefaults(QJsonObject &node)

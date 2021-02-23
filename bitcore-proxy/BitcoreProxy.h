@@ -124,7 +124,6 @@ public slots:
 
 private:
     void returnEnabledChains(HttpEngine::WebRequest *request) const;
-    void returnTemplatePath(HttpEngine::Socket *socket, const QString &templateName, const QString &error = QString()) const;
 
     void requestTransactionInfo(const RequestString &rs, BitcoreWebRequest *request);
     void requestAddressInfo(const RequestString &rs, BitcoreWebRequest *request);
