@@ -2,16 +2,30 @@
 <html lang="en-us">
 <head>
 <meta charset="utf-8">
-<title>Raw-Tx help -- Flowee REST-service</title>
+<meta http-equiv="X-UA-Compatible" content="IE=edge,chrome=1">
+<title>RawTx help -- Flowee REST-service</title>
 <meta property="og:description" content="REST service backed by Flowee"/>
+<link href="https://flowee.org/flowee.css" rel='stylesheet' type="text/css" />
 </head>
 <body>
-
+<header><nav>
+<div class="home"><a href="/"><img src="https://flowee.org/images/logo-flowee-white.png"/></a></div>
+<div class="navigation">
+<a href="https://flowee.org" title="Flowee.org">Flowee.org</a> &nbsp;&nbsp;&nbsp;|&nbsp;&nbsp;&nbsp;
+<a href="https://flowee.org/news/" title="News">news</a>
+</div></nav></header>
+<main id="main">
+<div class="banner-area"><span class="banner-text"><p class="banner-slogan-text">Flowee REST service</p></div>
+</div>
+<div class="products-list">
+<p class="title-text">Help page for the REST service</p>
+<p class="slogan-text">Raw TX API</p>
+<span class="content-text">
 <p><pre><b>%ERROR%</b></pre></p>
 
 <p>What follows is an exhaustive description of the different types of '<b>rawtransaction</b>' requests you can pose to this server:</p>
 
-<h3>Get Raw Transactions by TXID</h3>
+<h2>Get Raw Transactions by TXID</h2>
 
 <p><code><b>GET</b> /rawtransactions/getRawTransaction/{txid}</code></br>
 Transaction data single.
@@ -22,13 +36,12 @@ Send a signed transaction to be broadcast to the network.
 <a href="/v2/rawtransactions/sendRawTransaction/01000000013ba3edfd7a7b12b27ac72c3e67768f617fc81bc3888a51323a9fb8aa4b1e5e4a000000006a4730440220540986d1c58d6e76f8f05501c520c38ce55393d0ed7ed3c3a82c69af04221232022058ea43ed6c05fec0eccce749a63332ed4525460105346f11108b9c26df93cd72012103083dfc5a0254613941ddc91af39ff90cd711cdcde03a87b144b883b524660c39ffffffff01807c814a000000001976a914d7e7c4e0b70eaa67ceff9d2823d1bbb9f6df9a5188ac00000000">Example</a></p>
 <p><code><b>POST</b> /rawtransactions/sendRawTransaction</code></br>
 Transaction broadcast bulk</p>
-<table><tr><td valign='top'>Request:</td><td><pre>
+<b>POST Request data example:</b>
+<pre>
 {
   "hexes": [
     "01000000013ba3edfd7a7b12b27ac72c3e67768f617fc81bc3888a51323a9fb8aa4b1e5e4a000000006a4730440220540986d1c58d6e76f8f05501c520c38ce55393d0ed7ed3c3a82c69af04221232022058ea43ed6c05fec0eccce749a63332ed4525460105346f11108b9c26df93cd72012103083dfc5a0254613941ddc91af39ff90cd711cdcde03a87b144b883b524660c39ffffffff01807c814a000000001976a914d7e7c4e0b70eaa67ceff9d2823d1bbb9f6df9a5188ac00000000"
   ]
 }
-</pre></td></tr></table>
-
-</body>
-</html>
+</pre>
+</span></div></div></main><footer></footer></body></html>

@@ -2,26 +2,33 @@
 <html lang="en-us">
 <head>
 <meta charset="utf-8">
+<meta http-equiv="X-UA-Compatible" content="IE=edge,chrome=1">
 <title>Flowee REST-service</title>
-<meta property="og:description" content="REST service backed by Flowee"/>
+<meta name="description" content="REST service backed by Flowee" />
+<link href="https://flowee.org/flowee.css" rel='stylesheet' type="text/css" />
 </head>
 <body>
-<p>Hello, you found the Flowee REST service which is proudly backed by
-<a href="https://flowee.org">Flowee</a> applications.</p>
-
-<h3>APIs</h3>
-
+<header><nav>
+<div class="home"><a href="/"><img src="https://flowee.org/images/logo-flowee-white.png"/></a></div>
+<div class="navigation">
+<a href="https://flowee.org" title="Flowee.org">Flowee.org</a> &nbsp;&nbsp;&nbsp;|&nbsp;&nbsp;&nbsp;
+<a href="https://flowee.org/news/" title="News">news</a>
+</div></nav></header>
+<main id="main">
+<div class="banner-area"><span class="banner-text"><p class="banner-slogan-text">Flowee REST service</p></div>
+</div>
+<div class="products-list">
+<p class="title-text">Help page for the REST service</p>
+<p class="slogan-text">APIs</p>
+<span class="content-text">
 <p>This server has a list of end-points you can call and you will get
 JSON based answers for all properly formatted requests. Only when some
 configuration or setup issues are detected will you get HTML pages.
 Like this one.</p>
-
 <p>End points are grouped based on what info you supply:
-
 <ul>
 <li><a href="/v2/help/transaction">Transactions (By txid)</a>.</li>
 <li><a href="/v2/help/address">Address</a> utxos, balances and other details.</li>
 <li><a href="/v2/help/rawtransaction">RawTransaction</a>Fetch and send transaction.</li>
-
-</body>
-</html>
+</ul>
+</span></div></div></main><footer></footer></body></html>

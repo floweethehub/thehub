@@ -2,22 +2,35 @@
 <html lang="en-us">
 <head>
 <meta charset="utf-8">
+<meta http-equiv="X-UA-Compatible" content="IE=edge,chrome=1">
 <title>Address help -- Flowee REST-service</title>
 <meta property="og:description" content="REST service backed by Flowee"/>
+<link href="https://flowee.org/flowee.css" rel='stylesheet' type="text/css" />
 </head>
 <body>
-
+<header><nav>
+<div class="home"><a href="/"><img src="https://flowee.org/images/logo-flowee-white.png"/></a></div>
+<div class="navigation">
+<a href="https://flowee.org" title="Flowee.org">Flowee.org</a> &nbsp;&nbsp;&nbsp;|&nbsp;&nbsp;&nbsp;
+<a href="https://flowee.org/news/" title="News">news</a>
+</div></nav></header>
+<main id="main">
+<div class="banner-area"><span class="banner-text"><p class="banner-slogan-text">Flowee REST service</p></div>
+</div>
+<div class="products-list">
+<p class="title-text">Help page for the REST service</p>
+<p class="slogan-text">Bitcoin-address API</p>
+<span class="content-text">
 <p><pre><b>%ERROR%</b></pre></p>
 
 <p>What follows is an exhaustive description of the different types of '<b>address</b>' requests you can pose to this server:</p>
 
-<h3>Get UTXOs</h3>
+<h2>Get UTXOs</h2>
 <p><code><b>GET</b> /address/utxo/{address}</code></br> Address utxos single.
 <a href="/v2/address/utxo/bitcoincash:qzs02v05l7qs5s24srqju498qu55dwuj0cx5ehjm2c">Example</a></p>
 
-<h3>Get Details</h3>
+<h2>Get Details</h2>
 <p><code><b>GET</b> /address/details/{address}</code></br>Returns the details of an address including balance.
 <a href="/v2/address/details/bitcoincash:qzs02v05l7qs5s24srqju498qu55dwuj0cx5ehjm2c">Example</a></p>
 
-</body>
-</html>
+</span></div></div></main><footer></footer></body></html>

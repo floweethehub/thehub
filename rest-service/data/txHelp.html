@@ -1,12 +1,25 @@
 <!DOCTYPE html>
-<html lang="en-us">
-<head>
+<html lang="en-us"><head>
 <meta charset="utf-8">
-<title>Tx help -- Flowee REST-service</title>
-<meta property="og:description" content="REST service backed by Flowee"/>
+<meta http-equiv="X-UA-Compatible" content="IE=edge,chrome=1">
+<title>Flowee REST-service</title>
+<meta name="description" content="REST service backed by Flowee" />
+<link href="https://flowee.org/flowee.css" rel='stylesheet' type="text/css" />
 </head>
 <body>
-
+<header><nav>
+<div class="home"><a href="/"><img src="https://flowee.org/images/logo-flowee-white.png"/></a></div>
+<div class="navigation">
+<a href="https://flowee.org" title="Flowee.org">Flowee.org</a> &nbsp;&nbsp;&nbsp;|&nbsp;&nbsp;&nbsp;
+<a href="https://flowee.org/news/" title="News">news</a>
+</div></nav></header>
+<main id="main">
+<div class="banner-area"><span class="banner-text"><p class="banner-slogan-text">Flowee REST service</p></div>
+</div>
+<div class="products-list">
+<p class="title-text">Help page for the REST service</p>
+<p class="slogan-text">TX API</p>
+<span class="content-text">
 <p><pre><b>%ERROR%</b></pre></p>
 
 <p>What follows is an exhaustive description of the different types of '<b>transaction</b>' requests you can pose to this server:</p>
@@ -19,14 +32,14 @@ Transaction details single.
 
 <p><code><b>POST</b> /transaction/details</code></br>
 Transaction details bulk</p>
-<table><tr><td valign='top'>Request:</td><td><pre>
+<b>POST Request data example:</b>
+<pre>
 {
   "txids": [
     "a5f972572ee1753e2fd2457dd61ce5f40fa2f8a30173d417e49feef7542c96a1",
     "5165dc531aad05d1149bb0f0d9b7bda99c73e2f05e314bcfb5b4bb9ca5e1af5e"
   ]
 }
-</pre></td></tr></table>
+</pre>
 
-</body>
-</html>
+</span></div></div></main><footer></footer></body></html>
