@@ -98,13 +98,13 @@ constexpr uint32_t DefaultMempoolExpiry = 5;
 constexpr bool DefaultPermitBareMultisig = true;
 
 /** Default for -limitancestorcount, max number of in-mempool ancestors */
-constexpr uint32_t DefaultAncestorLimit = 50;
+constexpr uint32_t DefaultAncestorLimit = 5000;
 /** Default for -limitancestorsize, maximum kilobytes of tx + all in-mempool ancestors */
-constexpr uint32_t DefaultAncestorSizeLimit = 101;
+constexpr uint32_t DefaultAncestorSizeLimit = 1000;
 /** Default for -limitdescendantcount, max number of in-mempool descendants */
-constexpr uint32_t DefaultDescendantLimit = 50;
+constexpr uint32_t DefaultDescendantLimit = 5000;
 /** Default for -limitdescendantsize, maximum kilobytes of in-mempool descendants */
-constexpr uint32_t DefaultDescendantSizeLimit = 101;
+constexpr uint32_t DefaultDescendantSizeLimit = 1000;
 
 constexpr uint32_t DefaultLimitFreeRelay = 15;
 
