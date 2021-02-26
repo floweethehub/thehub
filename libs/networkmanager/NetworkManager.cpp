@@ -96,7 +96,7 @@ NetworkConnection NetworkManager::connection(const EndPoint &remote, ConnectionE
     if (hasHostname) {
         std::lock_guard<std::recursive_mutex> lock(d->mutex);
         for (auto iter1 = d->connections.begin(); iter1 != d->connections.end(); ++iter1) {
-            EndPoint endPoint = iter1->second->endPoint();
+            const EndPoint &endPoint = iter1->second->endPoint();
             if (!remote.hostname.empty() && endPoint.hostname != remote.hostname)
                 continue;
             if (!remote.ipAddress.is_unspecified() && endPoint.ipAddress != remote.ipAddress)
@@ -126,6 +126,20 @@ NetworkConnection NetworkManager::connection(const EndPoint &remote, ConnectionE
         }
     }
     return NetworkConnection();
+}
+
+std::list<NetworkConnection> NetworkManager::connectionsFrom(boost::asio::ip::address ipAddress)
+{
+    assert(ipAddress.is_unspecified());
+    std::list<NetworkConnection> answer;
+    std::lock_guard<std::recursive_mutex> lock(d->mutex);
+    for (auto iter = d->connections.begin(); iter != d->connections.end(); ++iter) {
+        const EndPoint &endPoint = iter->second->endPoint();
+        if (endPoint.ipAddress == ipAddress) {
+            answer.push_back(std::move(NetworkConnection(this, iter->first)));
+        }
+    }
+    return answer;
 }
 
 EndPoint NetworkManager::endPoint(int remoteId) const

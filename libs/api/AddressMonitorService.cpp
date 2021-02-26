@@ -1,6 +1,6 @@
 /*
  * This file is part of the Flowee project
- * Copyright (C) 2018-2020 Tom Zander <tomz@freedommail.ch>
+ * Copyright (C) 2018-2021 Tom Zander <tom@flowee.org>
  *
  * This program is free software: you can redistribute it and/or modify
  * it under the terms of the GNU General Public License as published by
@@ -199,6 +199,11 @@ void AddressMonitorService::onIncomingMessage(Remote *remote_, const Message &me
 
                     ++done;
                     if (message.messageId() == Api::AddressMonitor::Subscribe) {
+                        if (m_maxAddressesPerConnection > 0 && static_cast<int>(remote->hashes.size()) + 1 >= m_maxAddressesPerConnection) {
+                            logInfo(Log::MonitorService) << "Remote" << ep.connectionId << "hit limit of registrations";
+                            error = "Maximum number of addresses registered for watching, ask your node operator to change limits";
+                            break;
+                        }
                         remote->hashes.insert(hash);
                         remote->connection.postOnStrand(std::bind(&AddressMonitorService::findTxInMempool,
                                                                   this, remote->connection.connectionId(), hash));
@@ -211,14 +216,15 @@ void AddressMonitorService::onIncomingMessage(Remote *remote_, const Message &me
                 }
             }
         }
-        if (!done)
+        if (error.empty() && !done)
             error = "Missing required field BitcoinScriptHashed (2)";
 
         remote->pool.reserve(10 + error.size());
         Streaming::MessageBuilder builder(remote->pool);
         builder.add(Api::AddressMonitor::Result, done);
         if (message.messageId() == Api::AddressMonitor::Subscribe)
-            logInfo(Log::MonitorService) << "Remote" << ep.connectionId << "registered" << done << "new script-hashes(es)";
+            logInfo(Log::MonitorService) << "Remote" << ep.connectionId << "made" << done << "changes. Hashes count:"
+                                         << remote->hashes.size();
         if (!error.empty())
             builder.add(Api::AddressMonitor::ErrorMessage, error);
         remote->connection.send(builder.reply(message));
@@ -280,4 +286,14 @@ void AddressMonitorService::findTxInMempool(int connectionId, const uint256 &has
             type = txIter.next();
         }
     }
+}
+
+int AddressMonitorService::maxAddressesPerConnection() const
+{
+    return m_maxAddressesPerConnection;
+}
+
+void AddressMonitorService::setMaxAddressesPerConnection(int maxAddressesPerConnection)
+{
+    m_maxAddressesPerConnection = maxAddressesPerConnection;
 }

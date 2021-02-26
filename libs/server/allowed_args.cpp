@@ -426,6 +426,9 @@ static void addApiServerOptions(AllowedArgs& allowedArgs)
     allowedArgs
         .addHeader("Api server options:")
         .addArg("api", optionalBool, _("Accept API connections (default true)"))
+        .addArg("api_connection_per_ip", requiredInt, "Maximum amount of connections from a certain IP")
+        .addArg("api_disallow_v6", optionalBool, "Do not allow incoming ipV6 connections")
+        .addArg("api_max_addresses", requiredInt, "Maximum amount of addresses a connection can listen on")
         .addArg("apilisten=<addr>", requiredStr, strprintf("Bind to given address to listen for api server connections. Use [host]:port notation for IPv6. This option can be specified multiple times (default 127.0.0.1:%s and [::1]:%s)", BaseParams(CBaseChainParams::MAIN).ApiServerPort(), BaseParams(CBaseChainParams::MAIN).ApiServerPort()));
 }
 

@@ -1,6 +1,6 @@
 /*
  * This file is part of the Flowee project
- * Copyright (C) 2018-2019 Tom Zander <tomz@freedommail.ch>
+ * Copyright (C) 2018-2021 Tom Zander <tom@flowee.org>
  *
  * This program is free software: you can redistribute it and/or modify
  * it under the terms of the GNU General Public License as published by
@@ -48,6 +48,9 @@ public:
         m_mempool = mempool;
     }
 
+    int maxAddressesPerConnection() const;
+    void setMaxAddressesPerConnection(int maxAddressesPerConnection);
+
 protected:
     class RemoteWithKeys : public Remote {
     public:
@@ -76,6 +79,8 @@ private:
 
     // true if any remote added a watch
     bool m_findByHash = false;
+
+    int m_maxAddressesPerConnection = -1;
 
     CTxMemPool *m_mempool = nullptr;
 };

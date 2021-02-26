@@ -21,6 +21,7 @@
 #include <APIProtocol.h>
 #include <univalue.h>
 #include <hash.h>
+#include <util.h>
 #include <streaming/MessageParser.h>
 #include <streaming/MessageBuilder.h>
 #include <primitives/FastBlock.h>
@@ -377,6 +378,7 @@ public:
     GetBlock() : DirectParser(Api::BlockChain::GetBlockReply) {}
 
     int calculateMessageSize(const Message &request) override {
+        const int max = GetArg("-api_max_addresses", -1);
         CBlockIndex *index = nullptr;
         Streaming::MessageParser parser(request.body());
         BlockSessionData *session = dynamic_cast<BlockSessionData*>(*data);
@@ -406,6 +408,8 @@ public:
                     throw Api::ParserException("GetBlock: filter-script-hash should be a 32-bytes bytearray");
                 if (parser.tag() == Api::BlockChain::SetFilterScriptHash)
                     session->hashes.clear();
+                if (max > 0 && static_cast<int>(session->hashes.size()) + 1 >= max)
+                    throw Api::ParserException("Max number of filterScriptHashes exceeded");
                 session->hashes.insert(parser.uint256Data());
                 filterOnScriptHashes = true;
             } else if (parser.tag() == Api::BlockChain::FullTransactionData) {

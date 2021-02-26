@@ -293,6 +293,7 @@ void BitcoinCore::initialize()
             apiServer->addService(addressMonitorService.get());
             apiServer->addService(transactionMonitorService.get());
             apiServer->addService(blockNotificationService.get());
+            addressMonitorService->setMaxAddressesPerConnection(GetArg("-api_max_addresses", -1));
         }
     } catch (const std::exception& e) {
         handleRunawayException(&e);

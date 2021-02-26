@@ -54,6 +54,8 @@ public:
      */
     NetworkConnection connection(const EndPoint &remote, ConnectionEnum connect = AutoCreate);
 
+    std::list<NetworkConnection> connectionsFrom(boost::asio::ip::address ipAddress);
+
     /**
      * Return the endpoint for a known connection.
      * If the connection is unknown, an invalid endpoint will be returned.

@@ -134,8 +134,24 @@ void Api::Server::newConnection(NetworkConnection &connection)
     logDebug() << "server newConnection";
     NewConnection con;
     con.initialConnectionTime = time(nullptr);
-    if (!m_netProtect.shouldAccept(connection, con.initialConnectionTime)) {
+
+    // If we want to rate-limit by IP, we can't allow ipv6 addresses or we need a MUCH more
+    // sophisticated limiting system. Which may be nice should ipv6 start to actually see usage.
+    if (GetBoolArg("-api_disallow_v6", false) && connection.endPoint().ipAddress.is_v6()) {
+        logInfo() << "Rejecting incoming connection because its IPv6";
+        return;
+    }
+
+    if (!m_netProtect.shouldAccept(connection, con.initialConnectionTime))
         return; // we don't accept
+
+    static const int maxIncoming = GetArg("-api_connection_per_ip", -1);
+    if (maxIncoming > 0) {
+        auto list = m_networkManager.connectionsFrom(connection.endPoint().ipAddress);
+        if (static_cast<int>(list.size()) >= maxIncoming) {
+            logInfo() << "Rejecting incoming connection from IP, we already have:" << list.size();
+            return; // we don't accept more than N open connections from a single IP
+        }
     }
 
     connection.setOnIncomingMessage(std::bind(&Api::Server::incomingMessage, this, std::placeholders::_1));
