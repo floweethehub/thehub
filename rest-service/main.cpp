@@ -93,7 +93,7 @@ int main(int argc, char **argv)
             confFile = QStandardPaths::locate(QStandardPaths::ConfigLocation, "flowee/rest-service.conf");
         if (confFile.isEmpty()) {
             logCritical() << "No config file (rest-service.conf) found, assuming defaults and no indexer";
-            for (auto dir : QStandardPaths::standardLocations(QStandardPaths::AppConfigLocation)) {
+            for (auto &dir : QStandardPaths::standardLocations(QStandardPaths::AppConfigLocation)) {
                 logInfo() << " - not found in" << dir + '/';
             }
         }
