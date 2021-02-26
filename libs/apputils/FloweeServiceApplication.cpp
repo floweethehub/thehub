@@ -281,6 +281,7 @@ int FloweeServiceApplication::bindTo(QTcpServer *server, int defaultPort)
         logCritical() << "  Failed to listen on interface";
         return 1;
     }
+    logCritical() << "Listening on" << address.toString() << "port:" << port;
     return 0;
 #else
     return 1; // it obviously failed if we didn't do anything.
