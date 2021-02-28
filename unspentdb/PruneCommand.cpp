@@ -1,6 +1,6 @@
 /*
  * This file is part of the Flowee project
- * Copyright (C) 2018-2020 Tom Zander <tomz@freedommail.ch>
+ * Copyright (C) 2018-2021 Tom Zander <tom@flowee.org>
  *
  * This program is free software: you can redistribute it and/or modify
  * it under the terms of the GNU General Public License as published by
@@ -24,10 +24,9 @@
 #include <QDir>
 #include <boost/filesystem.hpp>
 
-static void nothing(const char *){}
-
 PruneCommand::PruneCommand()
-    : m_force(QStringList() << "force", "Force pruning")
+    : m_force(QStringList() << "force", "Force pruning"),
+      m_backup(QStringList() << "keep" << "k", "Keep a backup file")
 {
 }
 
@@ -39,6 +38,7 @@ QString PruneCommand::commandDescription() const
 void PruneCommand::addArguments(QCommandLineParser &parser)
 {
     parser.addOption(m_force);
+    parser.addOption(m_backup);
 }
 
 Flowee::ReturnCodes PruneCommand::run()
@@ -74,7 +74,7 @@ Flowee::ReturnCodes PruneCommand::run()
                 index = info.index;
             }
         }
-        for (auto info : infoFile.infoFiles()) {
+        for (auto &info : infoFile.infoFiles()) {
             if (info.index() == index) {
                 infoFile = info;
                 break;
@@ -86,7 +86,7 @@ Flowee::ReturnCodes PruneCommand::run()
         err << "Failed to find an appropriate info file" << endl;
         return Flowee::InvalidOptions;
     }
-    QFileInfo dbInfo(infoFile.databaseFiles().first().filepath());
+    QFileInfo dbInfo(infoFile.databaseFiles().at(0).filepath());
     out << "Operating on " << dbInfo.fileName() << " and snapshot file " << info.fileName() << endl;
 
     try {
@@ -101,11 +101,16 @@ Flowee::ReturnCodes PruneCommand::run()
         // remove all old info files (they can no longer work) and rename the db file
         // and the info file over the original ones
         DataFileCache cache(dbInfo.dir().filePath(dbInfo.baseName()).toStdString());
-        for (int i = 0; i < 10; ++i)
+        for (int i = 0; i < 20; ++i)
             boost::filesystem::remove(cache.filenameFor(i));
 
         pruner.commit();
         fflush(nullptr);
+
+        if (!commandLineParser().isSet(m_backup)) {
+            QFile::remove(dbInfo.absoluteFilePath() + "~");
+            QFile::remove(info.absoluteFilePath() + "~");
+        }
         out << "Done" << endl;
         return Flowee::Ok;
     } catch (const std::runtime_error &ex) {

@@ -1,6 +1,6 @@
 /*
  * This file is part of the Flowee project
- * Copyright (C) 2018-2020 Tom Zander <tomz@freedommail.ch>
+ * Copyright (C) 2018-202l Tom Zander <tom@flowee.org>
  *
  * This program is free software: you can redistribute it and/or modify
  * it under the terms of the GNU General Public License as published by
@@ -51,7 +51,7 @@ Flowee::ReturnCodes AbstractCommand::start(const QStringList &args)
     const auto rc = preParseArguments(positionalArguments);
     if (rc != Flowee::Ok)
         return rc;
-    for (auto fn : positionalArguments) {
+    for (auto &fn : positionalArguments) {
         DBFileType ft = Unknown;
         if (fn.endsWith(".info"))
             ft = InfoFile;
@@ -76,7 +76,7 @@ void AbstractCommand::addArguments(QCommandLineParser &)
 {
 }
 
-QList<AbstractCommand::DatabaseFile> AbstractCommand::dbDataFiles() const
+const QList<AbstractCommand::DatabaseFile> &AbstractCommand::dbDataFiles() const
 {
     return m_dataFiles;
 }
@@ -84,11 +84,11 @@ QList<AbstractCommand::DatabaseFile> AbstractCommand::dbDataFiles() const
 QList<AbstractCommand::DatabaseFile> AbstractCommand::highestDataFiles()
 {
     QList<DatabaseFile> answer;
-    for (auto df : m_dataFiles) {
+    for (auto &df : m_dataFiles) {
         if (df.filetype() == InfoFile)
             return answer << df;
 
-        for (auto db : df.databaseFiles()) {
+        for (auto &db : df.databaseFiles()) {
             // TODO sync checkpoint-versions between datafiles
             AbstractCommand::DatabaseFile infoFile;
             int highest = 0;

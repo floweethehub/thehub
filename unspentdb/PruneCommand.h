@@ -1,6 +1,6 @@
 /*
  * This file is part of the Flowee project
- * Copyright (C) 2018 Tom Zander <tomz@freedommail.ch>
+ * Copyright (C) 2018-2021 Tom Zander <tom@flowee.org>
  *
  * This program is free software: you can redistribute it and/or modify
  * it under the terms of the GNU General Public License as published by
@@ -48,6 +48,7 @@ private:
 
     uint32_t copyBucket(const Bucket &bucket, const std::shared_ptr<char> &inputBuf, Streaming::BufferPool &outBuf, Streaming::MessageBuilder &builder);
     QCommandLineOption m_force;
+    QCommandLineOption m_backup;
 };
 
 #endif
