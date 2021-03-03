@@ -163,7 +163,7 @@ void Validation::Engine::setBlockchain(CChain *chain)
     d->blockchain = chain;
     d->tip = chain->Tip();
 
-    if (chain->Height() > 1) {
+    if (chain->Height() >= 0) {
         d->tipFlags.updateForBlock(chain->Tip());
         chain->Tip()->nStatus |= BLOCK_VALID_SCRIPTS;
     }
