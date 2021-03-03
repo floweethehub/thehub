@@ -129,33 +129,41 @@ void TxToJSON(const CTransaction& tx, const uint256 hashBlock, UniValue& entry)
 
 UniValue getrawtransaction(const UniValue& params, bool fHelp)
 {
-    if (fHelp || params.size() < 1 || params.size() > 2)
-        throw std::runtime_error(
-            "getrawtransaction \"txid\" ( verbose )\n"
-            "\nNOTE: By default this function only works sometimes. This is when the tx is in the mempool\n"
-            "or there is an unspent output in the utxo for this transaction.\n"
-            "\nReturn the raw transaction data.\n"
-            "\nIf verbose=0, returns a string that is serialized, hex-encoded data for 'txid'.\n"
-            "If verbose is non-zero, returns an Object with information about 'txid'.\n"
+    if (fHelp || params.size() < 1 || params.size() > 3)
+        throw std::runtime_error("getrawtransaction"
+            "\nNOTE: By default this function only works for mempool transactions. If the -txindex option is\n"
+            "enabled, it also works for blockchain transactions. If the block which contains the transaction\n"
+            "is known, its hash can be provided even for nodes without -txindex. Note that if a blockhash is\n"
+            "provided, only that block will be searched and if the transaction is in the mempool or other\n"
+            "blocks, or if this node does not have the given block available, the transaction will not be found.\n"
+            "DEPRECATED: for now, it also works for transactions with unspent outputs.\n"
+            "\n"
+            "Return the raw transaction data.\n"
+            "\n"
+            "If verbose is 'true', returns an Object with information about 'txid'.\n"
+            "If verbose is 'false' or omitted, returns a string that is serialized, hex-encoded data for 'txid'.\n"
 
-            "\nArguments:\n"
+            "\narguments:\n"
             "1. \"txid\"      (string, required) The transaction id\n"
             "2. verbose       (numeric, optional, default=0) If 0, return a string, other return a json object\n"
+            "3. blockhash     (string, required) The block in which to look for the transaction\n"
 
-            "\nResult (if verbose is not set or set to 0):\n"
-            "\"data\"      (string) The serialized, hex-encoded data for 'txid'\n"
+            "\nResult (if verbose is not set or set to false):\n"
+            "\"data\"      (string) The serialized, hex-encoded data for "
+            "'txid'\n"
 
-            "\nResult (if verbose > 0):\n"
+            "\nResult (if verbose is set to true):\n"
             "{\n"
             "  \"hex\" : \"data\",       (string) The serialized, hex-encoded data for 'txid'\n"
             "  \"txid\" : \"id\",        (string) The transaction id (same as provided)\n"
-            "  \"size\" : n,             (numeric) The transaction size\n"
+            "  \"hash\" : \"id\",        (string) The transaction hash\n"
+            "  \"size\" : n,             (numeric) The serialized transaction size\n"
             "  \"version\" : n,          (numeric) The version\n"
             "  \"locktime\" : ttt,       (numeric) The lock time\n"
             "  \"vin\" : [               (array of json objects)\n"
             "     {\n"
             "       \"txid\": \"id\",    (string) The transaction id\n"
-            "       \"vout\": n,         (numeric) \n"
+            "       \"vout\": n,         (numeric)\n"
             "       \"scriptSig\": {     (json object) The script\n"
             "         \"asm\": \"asm\",  (string) asm\n"
             "         \"hex\": \"hex\"   (string) hex\n"
@@ -174,7 +182,7 @@ UniValue getrawtransaction(const UniValue& params, bool fHelp)
             "         \"reqSigs\" : n,            (numeric) The required sigs\n"
             "         \"type\" : \"pubkeyhash\",  (string) The type, eg 'pubkeyhash'\n"
             "         \"addresses\" : [           (json array of string)\n"
-            "           \"bitcoinaddress\"        (string) bitcoin address\n"
+            "           \"address\"        (string) Bitcoin Cash address\n"
             "           ,...\n"
             "         ]\n"
             "       }\n"
@@ -184,17 +192,21 @@ UniValue getrawtransaction(const UniValue& params, bool fHelp)
             "  \"blockhash\" : \"hash\",   (string) the block hash\n"
             "  \"confirmations\" : n,      (numeric) The confirmations\n"
             "  \"time\" : ttt,             (numeric) The transaction time in seconds since epoch (Jan 1 1970 GMT)\n"
-            "  \"blocktime\" : ttt         (numeric) The block time in seconds since epoch (Jan 1 1970 GMT)\n"
+            "  \"blocktime\" : ttt,        (numeric) The block time in seconds since epoch (Jan 1 1970 GMT)\n"
+            "  \"in_active_chain\": b      (bool) Whether specified block is in the active chain or not (only present with explicit \"blockhash\" argument)\n"
             "}\n"
 
-            "\nExamples:\n"
-            + HelpExampleCli("getrawtransaction", "\"mytxid\"")
-            + HelpExampleCli("getrawtransaction", "\"mytxid\" 1")
-            + HelpExampleRpc("getrawtransaction", "\"mytxid\", 1")
-        );
+            "\nExamples:\n" +
+            HelpExampleCli("getrawtransaction", "\"mytxid\"") +
+            HelpExampleCli("getrawtransaction", "\"mytxid\" true") +
+            HelpExampleRpc("getrawtransaction", "\"mytxid\", true") +
+            HelpExampleCli("getrawtransaction", "\"mytxid\" false \"myblockhash\"") +
+            HelpExampleCli("getrawtransaction", "\"mytxid\" true \"myblockhash\""));
+
 
     LOCK(cs_main);
 
+    bool in_active_chain = true;
     uint256 hash = ParseHashV(params[0], "parameter 1");
 
     bool fVerbose = false;
@@ -203,35 +215,53 @@ UniValue getrawtransaction(const UniValue& params, bool fHelp)
     }
 
     CTransaction tx;
-    bool success = flApp->mempool()->lookup(hash, tx);
-    if (!success) {
-        auto block = chainActive.Tip();
-        for (int i = 0; !success && block && i < 6; ++i) {
-            FastBlock fb = Blocks::DB::instance()->loadBlock(block->GetBlockPos());
-            Tx::Iterator iter(fb);
-            bool endFound = false;
-            while (iter.next()){
-                if (iter.tag() == Tx::End) {
-                    if (endFound)
-                        break;
-                    int comp = iter.prevTx().createHash().Compare(hash);
-                    if (comp == 0) {
-                        tx = iter.prevTx().createOldTransaction();
-                        success = true;
-                        break;
-                    } else if (comp > 0) {
-                        break; // use CTOR, stop searching in sorted list
-                    }
-                    endFound = true;
-                    continue;
-                }
-                endFound = false;
-            }
-            block = block->pprev;
+    bool success = false;
+    bool fromBlock = false;
+    if (!params[2].isNull()) { // we got a block hash, look up in that block.
+        fromBlock = true;
+        uint256 blockId = ParseHashV(params[2], "parameter 2");
+        auto index = Blocks::Index::get(blockId);
+        if (!index)
+            throw JSONRPCError(RPC_INVALID_ADDRESS_OR_KEY, "Block hash not found");
+        in_active_chain = Blocks::DB::instance()->headerChain().Contains(index);
+
+        FastBlock block;
+        try {
+            block = Blocks::DB::instance()->loadBlock(index->GetBlockPos());
+        } catch (...) {
+            throw JSONRPCError(RPC_INVALID_ADDRESS_OR_KEY, "Block not available");
+        }
+        const int ctorHeight = Params().GetConsensus().hf201811Height;
+        auto ftx = block.findTransaction(hash, index->nHeight >= ctorHeight);
+        if (ftx.size() > 0) {
+            success = true;
+            tx = ftx.createOldTransaction();
+        }
+        else {
+            throw JSONRPCError(RPC_INVALID_ADDRESS_OR_KEY, "No such transaction found in the provided block");
         }
     }
-    if (!success)
-        throw JSONRPCError(RPC_INVALID_ADDRESS_OR_KEY, "No information available about transaction");
+    else {
+        // we just get it from the mempool.
+        success = flApp->mempool()->lookup(hash, tx);
+    }
+
+    if (!success) {
+        const int ctorHeight = Params().GetConsensus().hf201811Height;
+        auto index = chainActive.Tip();
+        for (int i = 0; !success && index && i < 6; ++i) {
+            FastBlock block = Blocks::DB::instance()->loadBlock(index->GetBlockPos());
+            auto ftx = block.findTransaction(hash, index->nHeight >= ctorHeight);
+            if (ftx.size() > 0) {
+                tx = ftx.createOldTransaction();
+                success = true;
+                break;
+            }
+            index = index->pprev;
+        }
+        if (!success)
+            throw JSONRPCError(RPC_INVALID_ADDRESS_OR_KEY, "No such mempool transaction.");
+    }
 
     std::string strHex = EncodeHexTx(tx);
 
@@ -242,6 +272,9 @@ UniValue getrawtransaction(const UniValue& params, bool fHelp)
     result.push_back(Pair("hex", strHex));
     uint256 hashBlock;
     TxToJSON(tx, hashBlock, result);
+    if (fromBlock) {
+        result.push_back(Pair("in_active_chain", in_active_chain));
+    }
     return result;
 }
 

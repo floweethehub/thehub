@@ -1,6 +1,6 @@
 /*
  * This file is part of the Flowee project
- * Copyright (C) 2016-2017,2019-2021 Tom Zander <tom@flowee.org>
+ * Copyright (C) 2016-2021 Tom Zander <tom@flowee.org>
  *
  * This program is free software: you can redistribute it and/or modify
  * it under the terms of the GNU General Public License as published by
@@ -306,7 +306,6 @@ struct TransactionSerializationOptions
         Tx::Iterator iter(tx);
         auto type = iter.next();
         int txOutputCount = 0, txInputSize = 0, txOutputScriptSizes = 0;
-        int matchedOutputScriptSizes = 0;
         while (true) {
             if (type == Tx::End)
                 break;
@@ -567,32 +566,19 @@ public:
     void findByTxid(const uint256 &txid) {
         bool success = flApp->mempool()->lookup(txid, m_tx);
         if (!success) {
-            auto block = chainActive.Tip();
-            for (int i = 0; !success && block && i < 6; ++i) {
-                FastBlock fb = Blocks::DB::instance()->loadBlock(block->GetBlockPos());
-                Tx::Iterator iter(fb);
-                bool endFound = false;
-                while (iter.next()){
-                    if (iter.tag() == Tx::End) {
-                        if (endFound)
-                            break;
-                        int comp = iter.prevTx().createHash().Compare(txid);
-                        if (comp == 0) {
-                            m_tx = iter.prevTx();
-                            m_blockHeight = block->nHeight;
-                            return;
-                        } else if (comp > 0) {
-                            break; // CTOR, stop searching in sorted list
-                        }
-                        endFound = true;
-                        continue;
-                    }
-                    endFound = false;
+            const int ctorHeight = Params().GetConsensus().hf201811Height;
+            auto index = chainActive.Tip();
+            for (int i = 0; !success && index && i < 6; ++i) {
+                FastBlock block = Blocks::DB::instance()->loadBlock(index->GetBlockPos());
+                m_tx = block.findTransaction(txid, index->nHeight >= ctorHeight);
+                if (m_tx.size() > 0) {
+                    m_blockHeight = index->nHeight;
+                    return;
                 }
-                block = block->pprev;
+                index = index->pprev;
             }
+            throw Api::ParserException("No information available about transaction");
         }
-        throw JSONRPCError(RPC_INVALID_ADDRESS_OR_KEY, "No information available about transaction");
     }
 
     void findByScriptHashed(const uint256 &address) {
@@ -626,10 +612,10 @@ public:
             }
         }
         if (m_tx.data().isEmpty())
-            throw std::runtime_error("Missing or invalid search argument");
+            throw Api::ParserException("Missing or invalid search argument");
         return m_tx.size() + 26;
     }
-    void buildReply(const Message &request, Streaming::MessageBuilder &builder) override
+    void buildReply(const Message&, Streaming::MessageBuilder &builder) override
     {
         if (m_blockHeight != -1)
             builder.add(Api::LiveTransactions::BlockHeight, m_blockHeight);

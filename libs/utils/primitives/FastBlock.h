@@ -1,6 +1,6 @@
 /*
  * This file is part of the Flowee project
- * Copyright (C) 2017 Tom Zander <tomz@freedommail.ch>
+ * Copyright (C) 2017-2021 Tom Zander <tom@flowee.org>
  *
  * This program is free software: you can redistribute it and/or modify
  * it under the terms of the GNU General Public License as published by
@@ -71,6 +71,15 @@ public:
     /// Populate the transactions() array, throws exception on failure.
     /// This method should only ever be called once on a FastBlock.
     void findTransactions();
+
+    /**
+     * Find, the slow way, a transaction by txid.
+     * This will walk over the entire block and hash each transaction in order
+     * to find a match with /a txid.
+     * The CTORlayout boolean tells us if this block has sorted transactionIDs
+     * because if it does we can stop looking earlier.
+     */
+    Tx findTransaction(const uint256 &txid, bool CTORlayout) const;
 
     /// Return transactions. @see findTransactions();
     inline const std::vector<Tx> &transactions() const {

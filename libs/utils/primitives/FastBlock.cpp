@@ -154,6 +154,31 @@ void FastBlock::findTransactions()
     m_transactions = std::move(txs);
 }
 
+Tx FastBlock::findTransaction(const uint256 &txid, bool CTORlayout) const
+{
+    bool first = true;
+    Tx::Iterator iter(*this);
+    bool endFound = false;
+    while (iter.next()) {
+        if (iter.tag() == Tx::End) {
+            if (endFound)
+                break;
+            Tx tx = iter.prevTx();
+            int comp = tx.createHash().Compare(txid);
+            if (comp == 0) {
+                return tx;
+            } else if (!first && CTORlayout && comp > 0) {
+                break; // CTOR, stop searching in sorted list
+            }
+            first = false; // only the first transaction does not follow the CTOR layout.
+            endFound = true;
+            continue;
+        }
+        endFound = false;
+    }
+    return Tx();
+}
+
 CBlock FastBlock::createOldBlock() const
 {
     if (!isFullBlock())
