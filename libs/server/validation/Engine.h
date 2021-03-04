@@ -47,7 +47,8 @@ enum ResultHandlingFlags {
     ForwardGoodToPeers = 2,///< A successful block will get forwarded to peers.
     PunishBadNode = 4,     ///< Ban a bad node that gave us this block.
     RateLimitFreeTx = 8,
-    RejectAbsurdFeeTx = 0x10
+    RejectAbsurdFeeTx = 0x10,
+    TxValidateOnly = 0x20
 };
 
 /// throws exception if transaction is malformed.

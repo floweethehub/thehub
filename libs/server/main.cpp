@@ -1826,7 +1826,7 @@ bool static ProcessMessage(CNode* pfrom, std::string strCommand, CDataStream& vR
             mapAlreadyAskedFor.erase(inv.hash);
         }
 
-        uint32_t opts = Validation::ForwardGoodToPeers;
+        uint32_t opts = 0;
         if (!pfrom->fWhitelisted)
             opts += Validation::PunishBadNode + Validation::RateLimitFreeTx;
         flApp->validation()->addTransaction(Tx::fromOldTransaction(tx), opts, pfrom);

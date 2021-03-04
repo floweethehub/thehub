@@ -877,7 +877,7 @@ UniValue sendrawtransaction(const UniValue& params, bool fHelp)
     bool fHaveChain = utxo.isValid() && utxo.blockHeight() < 1000000000;
     if (!fHaveMempool && !fHaveChain) {
         // push to local node and sync with wallets
-        uint32_t flags = Validation::ForwardGoodToPeers;
+        uint32_t flags = 0;
         if (!fOverrideFees)
             flags |= Validation::RejectAbsurdFeeTx;
 

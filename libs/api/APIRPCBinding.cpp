@@ -1075,6 +1075,7 @@ public:
     void run() override {
         Streaming::MessageParser parser(m_request);
         Tx tx;
+        bool validateOnly = false;
         while (parser.next() == Streaming::FoundTag) {
             if (parser.tag() == Api::LiveTransactions::Transaction
                     || parser.tag() == Api::LiveTransactions::GenericByteData) {
@@ -1082,11 +1083,15 @@ public:
                     throw Api::ParserException("Only one Tx per message allowed");
                 tx = Tx(parser.bytesDataBuffer());
             }
+            if (parser.tag() == Api::LiveTransactions::ValidateOnly)
+                validateOnly = parser.boolData();
         }
         if (tx.data().isEmpty())
             throw Api::ParserException("No transaction found in message");
 
-        std::uint32_t flags = Validation::ForwardGoodToPeers;
+        std::uint32_t flags = 0;
+        if (validateOnly)
+            flags += Validation::TxValidateOnly;
         flags += Validation::RejectAbsurdFeeTx;
         auto resultFuture = Application::instance()->validation()->addTransaction(tx, flags);
         auto result = resultFuture.get(); // <= blocking call.

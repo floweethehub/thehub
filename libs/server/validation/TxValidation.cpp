@@ -400,7 +400,7 @@ void TxValidationState::checkTransaction()
             parent->mempool->UpdateTransactionsFromBlock(me);
         }
 
-        if (m_validationFlags & Validation::ForwardGoodToPeers)
+        if ((m_validationFlags & Validation::TxValidateOnly) == 0)
             RelayTransaction(tx);
 
         auto orphans = CTxOrphanCache::instance()->fetchTransactionsByPrev(txid);
@@ -423,18 +423,19 @@ void TxValidationState::checkTransaction()
         if (ex.id != -1) // to avoid log file confusion, don't mention this for anything but the first DS
             logWarning(Log::TxValidation) << "Tx-Validation found a double spend";
 
-        m_doubleSpendTx = ex.otherTx;
-        m_doubleSpendProofId = ex.id;
+        if ((m_validationFlags & Validation::TxValidateOnly) == 0) {
+            m_doubleSpendTx = ex.otherTx;
+            m_doubleSpendProofId = ex.id;
+            parent->strand.post(std::bind(&TxValidationState::notifyDoubleSpend, shared_from_this()));
 
-        parent->strand.post(std::bind(&TxValidationState::notifyDoubleSpend, shared_from_this()));
-
-        std::lock_guard<std::mutex> rejects(parent->recentRejectsLock);
-        parent->recentTxRejects.insert(txid);
+            std::lock_guard<std::mutex> rejects(parent->recentRejectsLock);
+            parent->recentTxRejects.insert(txid);
+        }
     } catch (const Exception &ex) {
         raii.result = strprintf("%i: %s", ex.rejectCode(), ex.what());
         if (inputsMissing) {// if missing inputs, add to orphan cache
             DEBUGTX << "Tx missed inputs, can't add to mempool" << txid;
-            if ((m_validationFlags & FromMempool) == 0 && m_originatingNodeId < 0)
+            if ((m_validationFlags & Validation::TxValidateOnly) || m_originatingNodeId < 0)
                 return;
             CTxOrphanCache *cache = CTxOrphanCache::instance();
             // DoS prevention: do not allow CTxOrphanCache to grow unbounded

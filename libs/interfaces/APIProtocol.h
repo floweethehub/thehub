@@ -178,6 +178,7 @@ enum Tags {
     DSProofId,
     FirstSeenTime, // long-int with seconds since epoch (UTC)
     MatchingOutIndex, // int. Output index that matches the requested search.
+    ValidateOnly,       // bool, if true then we stop after validation finished.
 
     // for individual transaction you can select how they should be returned.
     Include_TxId = 43,      ///< bool.
