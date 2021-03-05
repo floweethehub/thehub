@@ -16,10 +16,14 @@
 
 project (test_hub)
 include (testlib)
+set(CMAKE_AUTORCC ON)
 
 add_executable(test_hub
     blocksdb_tests.cpp
+    MetaBlock_tests.cpp
     main.cpp
+
+    data.qrc
 )
 target_link_libraries(test_hub
     flowee_testlib_server

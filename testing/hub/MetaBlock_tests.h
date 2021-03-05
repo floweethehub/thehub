@@ -1,6 +1,6 @@
 /*
  * This file is part of the Flowee project
- * Copyright (C) 2018-2021 Tom Zander <tom@flowee.org>
+ * Copyright (C) 2021 Tom Zander <tom@flowee.org>
  *
  * This program is free software: you can redistribute it and/or modify
  * it under the terms of the GNU General Public License as published by
@@ -15,20 +15,19 @@
  * You should have received a copy of the GNU General Public License
  * along with this program.  If not, see <http://www.gnu.org/licenses/>.
  */
-#include "blocksdb_tests.h"
-#include "MetaBlock_tests.h"
+#ifndef TESTMETABLOCK_H
+#define TESTMETABLOCK_H
 
-int main(int, char**)
+#include <common/TestFloweeBase.h>
+
+class TestMetaBlock : public TestFloweeBase
 {
-    int rc = 0;
-    {
-        TestBlocksDB test;
-        rc = QTest::qExec(&test);
-    }
-    if (!rc) {
-        TestMetaBlock test;
-        rc = QTest::qExec(&test);
-    }
+    Q_OBJECT
+public:
+    TestMetaBlock();
 
-    return rc;
-}
+private slots:
+    void testCreation();
+};
+
+#endif
