@@ -2,6 +2,7 @@
  * This file is part of the Flowee project
  * Copyright (C) 2009-2010 Satoshi Nakamoto
  * Copyright (C) 2009-2015 The Bitcoin Core developers
+ * Copyright (C) 2021 Tom Zander <tom@flowee.org>
  *
  * This program is free software: you can redistribute it and/or modify
  * it under the terms of the GNU General Public License as published by
@@ -196,12 +197,12 @@ enum opcodetype
     OP_REVERSEBYTES = 0xbc,
 
     // template matching params
-    OP_SMALLINTEGER = 0xfa,
-    OP_PUBKEYS = 0xfb,
-    OP_PUBKEYHASH = 0xfd,
-    OP_PUBKEY = 0xfe,
+    SMALLINTEGER_PLACEHOLDER = 0xfa,         ///< Not a real OPCODE. Template matching only!
+    PUBKEYS_PLACEHOLDER = 0xfb,              ///< Not a real OPCODE. Template matching only!
+    PUBKEYHASH_PLACEHOLDER = 0xfd,           ///< Not a real OPCODE. Template matching only!
+    PUBKEY_PLACEHOLDER = 0xfe,               ///< Not a real OPCODE. Template matching only!
 
-    OP_INVALIDOPCODE = 0xff,
+    INVALIDOPCODE = 0xff,        ///< Not a real OPCODE!
 };
 
 const char* GetOpName(opcodetype opcode);
@@ -491,7 +492,7 @@ public:
     }
 
     bool GetOp2(const_iterator &pc, opcodetype &opcodeRet, std::vector<unsigned char> *pvchRet) const {
-        opcodeRet = OP_INVALIDOPCODE;
+        opcodeRet = INVALIDOPCODE;
         if (pvchRet)
             pvchRet->clear();
         if (pc >= end())

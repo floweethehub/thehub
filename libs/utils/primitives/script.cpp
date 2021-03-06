@@ -165,7 +165,7 @@ const char* GetOpName(opcodetype opcode)
     case OP_CHECKDATASIGVERIFY: return "OP_CHECKDATASIGVERIFY";
     case OP_REVERSEBYTES: return "OP_REVERSEBYTES";
 
-    case OP_INVALIDOPCODE          : return "OP_INVALIDOPCODE";
+    case INVALIDOPCODE          : return "OP_INVALIDOPCODE";
 
     // Note:
     //  The template matching params OP_SMALLINTEGER/etc are defined in opcodetype enum
@@ -371,15 +371,15 @@ struct SolverHelper {
     std::multimap<Script::TxnOutType, CScript> templates;
     SolverHelper() {
         // Standard tx, sender provides pubkey, receiver adds signature
-        templates.insert(std::make_pair(Script::TX_PUBKEY, CScript() << OP_PUBKEY << OP_CHECKSIG));
+        templates.insert(std::make_pair(Script::TX_PUBKEY, CScript() << PUBKEY_PLACEHOLDER << OP_CHECKSIG));
 
         // Bitcoin address tx, sender provides hash of pubkey, receiver provides signature and pubkey
         templates.insert(std::make_pair(Script::TX_PUBKEYHASH, CScript() << OP_DUP << OP_HASH160
-                                        << OP_PUBKEYHASH << OP_EQUALVERIFY << OP_CHECKSIG));
+                                        << PUBKEYHASH_PLACEHOLDER << OP_EQUALVERIFY << OP_CHECKSIG));
 
         // Sender provides N pubkeys, receivers provides M signatures
-        templates.insert(std::make_pair(Script::TX_MULTISIG, CScript() << OP_SMALLINTEGER << OP_PUBKEYS
-                                        << OP_SMALLINTEGER << OP_CHECKMULTISIG));
+        templates.insert(std::make_pair(Script::TX_MULTISIG, CScript() << SMALLINTEGER_PLACEHOLDER << PUBKEYS_PLACEHOLDER
+                                        << SMALLINTEGER_PLACEHOLDER << OP_CHECKMULTISIG));
     }
 };
 
@@ -441,7 +441,7 @@ bool Script::solver(const CScript &scriptPubKey, Script::TxnOutType &typeRet, st
                 break;
 
             // Template matching opcodes:
-            if (opcode2 == OP_PUBKEYS) {
+            if (opcode2 == PUBKEYS_PLACEHOLDER) {
                 while (PubKey::isValidSize(vch1)) {
                     vSolutionsRet.push_back(vch1);
                     if (!script1.GetOp(pc1, opcode1, vch1))
@@ -453,17 +453,17 @@ bool Script::solver(const CScript &scriptPubKey, Script::TxnOutType &typeRet, st
                 // to other if/else statements
             }
 
-            if (opcode2 == OP_PUBKEY) {
+            if (opcode2 == PUBKEY_PLACEHOLDER) {
                 if (!PubKey::isValidSize(vch1))
                     break;
                 vSolutionsRet.push_back(vch1);
             }
-            else if (opcode2 == OP_PUBKEYHASH) {
+            else if (opcode2 == PUBKEYHASH_PLACEHOLDER) {
                 if (vch1.size() != sizeof(uint160))
                     break;
                 vSolutionsRet.push_back(vch1);
             }
-            else if (opcode2 == OP_SMALLINTEGER) {   // Single-byte small integer pushed onto vSolutions
+            else if (opcode2 == SMALLINTEGER_PLACEHOLDER) {   // Single-byte small integer pushed onto vSolutions
                 if (opcode1 == OP_0 || (opcode1 >= OP_1 && opcode1 <= OP_16)) {
                     unsigned char n = static_cast<unsigned char>(CScript::DecodeOP_N(opcode1));
                     vSolutionsRet.push_back(std::vector<unsigned char>(1, n));

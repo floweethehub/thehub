@@ -147,7 +147,7 @@ void TestPaymentToScriptHash::norecurse()
     // Make sure only the outer pay-to-script-hash does the
     // extra-validation thing:
     CScript invalidAsScript;
-    invalidAsScript << OP_INVALIDOPCODE << OP_INVALIDOPCODE;
+    invalidAsScript << INVALIDOPCODE << INVALIDOPCODE;
 
     CScript p2sh = GetScriptForDestination(CScriptID(invalidAsScript));
 
