@@ -1634,7 +1634,7 @@ void BlockValidationState::checkSignaturesChunk()
         parent->m_validationTime.fetch_add(end - start - utxoDuration);
         parent->m_utxoTime.fetch_add(utxoDuration);
     }
-    logDebug(Log::BlockValidation) << "batch:" << chunkToStart << '/' << chunks << (end - start)/1000. << "ms" << "success so far:" << blockValid;
+    logDebug(Log::BlockValidation) << "batch:" << chunkToStart << (end - start)/1000. << "ms" << "success so far:" << blockValid;
 #endif
 
     const int chunksLeft = m_txChunkLeftToFinish.fetch_sub(1) - 1;
