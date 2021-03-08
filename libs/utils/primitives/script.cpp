@@ -165,8 +165,6 @@ const char* GetOpName(opcodetype opcode)
     case OP_CHECKDATASIGVERIFY: return "OP_CHECKDATASIGVERIFY";
     case OP_REVERSEBYTES: return "OP_REVERSEBYTES";
 
-    case INVALIDOPCODE          : return "OP_INVALIDOPCODE";
-
     // Note:
     //  The template matching params OP_SMALLINTEGER/etc are defined in opcodetype enum
     //  as kind of implementation hack, they are *NOT* real opcodes.  If found in real
