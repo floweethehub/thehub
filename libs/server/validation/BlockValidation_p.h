@@ -180,7 +180,8 @@ public:
     mutable std::atomic<std::int64_t> m_blockFees;
     mutable std::atomic<std::uint32_t> m_sigChecksCounted;
 
-    std::vector<std::deque<FastUndoBlock::Item> *> m_undoItems;
+    std::vector<std::unique_ptr<std::deque<FastUndoBlock::Item> > > m_undoItems;
+    std::vector<std::unique_ptr<std::deque<std::int32_t> > > m_perTxFees;
 
     std::weak_ptr<ValidationEnginePrivate> m_parent;
     std::weak_ptr<ValidationSettingsPrivate> m_settings;

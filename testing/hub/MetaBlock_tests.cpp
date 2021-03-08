@@ -17,11 +17,9 @@
  */
 #include "MetaBlock_tests.h"
 
-#include <streaming/BufferPool.h>
-
-#include <primitives/FastBlock.h>
-
 #include <BlockMetaData.h>
+#include <streaming/BufferPool.h>
+#include <primitives/FastBlock.h>
 
 TestMetaBlock::TestMetaBlock()
 {
@@ -38,16 +36,24 @@ void TestMetaBlock::testCreation()
     QVERIFY(block.createHash()
             == uint256S("0x00000000000000000560372e0caadc38c56cde6c4aaae03287a6898e643e5b8a"));
 
-    BlockMetaData md = BlockMetaData::parseBlock(13451, block, pool);
+
+    std::vector<std::unique_ptr<std::deque<std::int32_t> > > dummy;
+    dummy.resize(1);
+    dummy[0].reset(new std::deque<std::int32_t>());
+    dummy[0]->push_back(8475); // first one should go to the first real transaction (not coinbase);
+    BlockMetaData md = BlockMetaData::parseBlock(13451, block, dummy, pool);
     QCOMPARE(md.blockHeight(), 13451);
     QCOMPARE(md.ctorSorted(), true);
     QCOMPARE(md.txCount(), 94);
     auto coinbase = md.first();
     QCOMPARE(coinbase->offsetInBlock, 81);
     QVERIFY(uint256(coinbase->txid) == uint256S("0x39d00f962892cc5b3fc013ab3f02b7f9381d8ff1ea591bae81e8272211230fbd"));
+    QCOMPARE(coinbase->fees, 0);
     auto nextTx = coinbase->next();
     QCOMPARE(nextTx->offsetInBlock, 248);
     QVERIFY(uint256(nextTx->txid) == uint256S("0x00f3f68b87882ade82461b1185ef512434fbdadd91bf14edc1dc9528257fe0e9"));
+    QCOMPARE(nextTx->fees, 8475);
+    QCOMPARE(nextTx->next()->fees, 0);
 
     BlockMetaData md2(md.data());
     QCOMPARE(md2.blockHeight(), 13451);
@@ -56,9 +62,12 @@ void TestMetaBlock::testCreation()
     coinbase = md2.first();
     QCOMPARE(coinbase->offsetInBlock, 81);
     QVERIFY(uint256(coinbase->txid) == uint256S("0x39d00f962892cc5b3fc013ab3f02b7f9381d8ff1ea591bae81e8272211230fbd"));
+    QCOMPARE(coinbase->fees, 0);
     nextTx = coinbase->next();
     QCOMPARE(nextTx->offsetInBlock, 248);
     QVERIFY(uint256(nextTx->txid) == uint256S("0x00f3f68b87882ade82461b1185ef512434fbdadd91bf14edc1dc9528257fe0e9"));
+    QCOMPARE(nextTx->fees, 8475);
+    QCOMPARE(nextTx->next()->fees, 0);
 
     try {
         md2.tx(0);

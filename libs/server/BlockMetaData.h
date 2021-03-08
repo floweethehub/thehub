@@ -23,6 +23,9 @@
 
 #include <primitives/FastBlock.h>
 
+#include <vector>
+#include <deque>
+#include <memory>
 
 class BlockMetaData
 {
@@ -38,7 +41,9 @@ public:
 
     BlockMetaData(const Streaming::ConstBuffer &buffer);
 
-    static BlockMetaData parseBlock(int blockHeight, const FastBlock &block, Streaming::BufferPool &pool);
+    static BlockMetaData parseBlock(int blockHeight, const FastBlock &block,
+                                    const std::vector<std::unique_ptr<std::deque<std::int32_t> > > &perTxFees,
+                                    Streaming::BufferPool &pool);
 
     struct TransactionData {
         char txid[32];

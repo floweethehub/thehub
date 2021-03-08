@@ -45,16 +45,26 @@ BlockMetaData::BlockMetaData(const Streaming::ConstBuffer &buffer)
     }
 }
 
-BlockMetaData BlockMetaData::parseBlock(int blockHeight, const FastBlock &block, Streaming::BufferPool &pool)
+BlockMetaData BlockMetaData::parseBlock(int blockHeight, const FastBlock &block,
+                                        const std::vector<std::unique_ptr<std::deque<std::int32_t> > > &perTxFees,
+                                        Streaming::BufferPool &pool)
 {
     std::deque<TransactionData> txs;
     Tx::Iterator iter(block);
-    uint64_t txOutputAmounts = 0;
-    uint64_t txInputAmounts = 0;
     bool endFound = false;
     bool isCTOR = true;
+    bool coinbase = true;
     TransactionData currentTx;
-    uint256 prevTxid;
+    currentTx.scriptTags = 0;
+    uint256 txidBeforeThis; // the txid of the transaction placed before the current in the block
+    uint256 prevTxHash; // a copy from the input
+
+    size_t chunkIndex = 0;
+    size_t feeIndex = 0;
+    std::deque<std::int32_t> *chunk = nullptr;
+    if (!perTxFees.empty())
+        chunk = perTxFees.at(chunkIndex).get();
+
     while (iter.next()) {
         if (iter.tag() == Tx::End) {
             if (endFound) // done
@@ -63,31 +73,45 @@ BlockMetaData BlockMetaData::parseBlock(int blockHeight, const FastBlock &block,
             uint256 txid = tx.createHash();
             memcpy(currentTx.txid, txid.begin(), 32);
             currentTx.offsetInBlock = tx.offsetInBlock(block);
-txInputAmounts = txOutputAmounts + 4; // TODO remove
-            assert (txOutputAmounts <= txInputAmounts) ;
-            uint64_t fees = txInputAmounts - txOutputAmounts;
-            if (fees < 0xFFFFFF) // fits in our field
-                currentTx.fees = fees;
-            else
-                currentTx.fees = 0xFFFFFF; // -1, fee too heigh for our cache
-            txs.push_back(currentTx);
+            currentTx.fees = 0;
 
-            txInputAmounts = 0;
-            txOutputAmounts = 0;
+            if (!coinbase && chunk) {
+                if (chunk->size() <= feeIndex) { // next chunk
+                    feeIndex = 0;
+                    chunk = nullptr;
+                    if (perTxFees.size() > ++chunkIndex) {
+                        chunk = perTxFees.at(chunkIndex).get();
+                        assert(!chunk->empty());
+                    }
+                }
+
+                if (chunk) {
+                    int fees = chunk->at(feeIndex++);
+                    if (fees < 0xFFFFFF) // fits in our field
+                        currentTx.fees = fees;
+                    else
+                        currentTx.fees = 0xFFFFFF; // -1, fee too heigh for our cache
+                }
+            }
+            coinbase = false;
+            txs.push_back(currentTx);
             currentTx.scriptTags = 0;
 
             if (txs.size() >= 2) {
                 if (isCTOR && txs.size() > 2)
-                    isCTOR = txid.Compare(prevTxid) > 0;
+                    isCTOR = txid.Compare(txidBeforeThis) > 0;
                 if (isCTOR)
-                    prevTxid = txid;
+                    txidBeforeThis = txid;
             }
             endFound = true;
             continue;
         }
         endFound = false;
-        if (iter.tag() == Tx::OutputValue) {
-            txOutputAmounts += iter.longData();
+        if (iter.tag() == Tx::PrevTxHash) {
+            prevTxHash = iter.uint256Data();
+        }
+        else if (iter.tag() == Tx::PrevTxIndex) {
+
         }
         else if (iter.tag() == Tx::OutputScript) {
             // TODO fill the bit-field.

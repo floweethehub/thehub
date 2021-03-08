@@ -20,6 +20,7 @@
 #include <SettingsDefaults.h>
 #include "BlockValidation_p.h"
 #include "TxValidation_p.h"
+#include "BlockMetaData.h"
 #include "DoubleSpendProofStorage.h"
 #include "ValidationException.h"
 #include <consensus/consensus.h>
@@ -574,9 +575,10 @@ void ValidationEnginePrivate::processNewBlock(std::shared_ptr<BlockValidationSta
                 assert(index->nFile >= 0); // we need the block to have been saved
                 Streaming::BufferPool pool;
                 UndoBlockBuilder undoBlock(hash, &pool);
-                for (auto chunk : state->m_undoItems) {
+                for (auto &chunk : state->m_undoItems) {
                     if (chunk) undoBlock.append(*chunk);
                 }
+                auto metaData = BlockMetaData::parseBlock(index->nHeight, state->m_block, state->m_perTxFees, pool);
                 Blocks::DB::instance()->writeUndoBlock(undoBlock, index->nFile, &index->nUndoPos);
                 index->nStatus |= BLOCK_HAVE_UNDO;
                 index->RaiseValidity(BLOCK_VALID_SCRIPTS); // done
@@ -1080,11 +1082,6 @@ BlockValidationState::~BlockValidationState()
         delete m_blockIndex;
     if (m_block.size() >= 80)
         DEBUGBV << "Finished" << m_block.createHash();
-
-    for (auto undoItem : m_undoItems) {
-        delete undoItem;
-    }
-    m_undoItems.clear();
 }
 
 void BlockValidationState::load()
@@ -1424,6 +1421,7 @@ void BlockValidationState::updateUtxoAndStartValidation()
         m_txChunkLeftToFinish.store(chunks);
         m_txChunkLeftToStart.store(chunks);
         m_undoItems.resize(static_cast<size_t>(chunks));
+        m_perTxFees.resize(static_cast<size_t>(chunks));
 
         for (int i = 0; i < chunks; ++i) {
             Application::instance()->ioService().post(std::bind(&BlockValidationState::checkSignaturesChunk,
@@ -1471,7 +1469,14 @@ void BlockValidationState::checkSignaturesChunk()
     const int txMax = std::min(txIndex + itemsPerChunk, totalTxCount);
     uint32_t chunkSigChecks = 0;
     int64_t chunkFees = 0;
-    std::unique_ptr<std::deque<FastUndoBlock::Item> >undoItems(new std::deque<FastUndoBlock::Item>());
+
+    m_undoItems[static_cast<size_t>(chunkToStart)].reset(new std::deque<FastUndoBlock::Item>());
+    auto undoItems = m_undoItems[static_cast<size_t>(chunkToStart)].get();
+    std::deque<std::int32_t> *perTxFees = nullptr;
+    if (flags.enableValidation) {
+        m_perTxFees[static_cast<size_t>(chunkToStart)].reset(new std::deque<std::int32_t>());
+        perTxFees = m_perTxFees[static_cast<size_t>(chunkToStart)].get();
+    }
 
     try {
         for (;blockValid && txIndex < txMax; ++txIndex) {
@@ -1594,6 +1599,7 @@ void BlockValidationState::checkSignaturesChunk()
                 uint32_t sigChecks = 0;
                 ValidationPrivate::validateTransactionInputs(old, unspents, m_blockIndex->nHeight, flags, fees,
                                                              sigChecks, spendsCoinBase, /* requireStandard */ false);
+                perTxFees->push_back(fees);
                 chunkSigChecks += sigChecks;
                 chunkFees += fees;
             }
@@ -1626,7 +1632,6 @@ void BlockValidationState::checkSignaturesChunk()
     }
     m_blockFees.fetch_add(chunkFees);
     m_sigChecksCounted.fetch_add(chunkSigChecks );
-    m_undoItems[static_cast<size_t>(chunkToStart)] = undoItems.release();
 
 #ifdef ENABLE_BENCHMARKS
     int64_t end = GetTimeMicros();

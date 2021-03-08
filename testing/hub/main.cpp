@@ -18,8 +18,37 @@
 #include "blocksdb_tests.h"
 #include "MetaBlock_tests.h"
 
-int main(int, char**)
+int main(int x, char**y)
 {
+    /*
+    QCoreApplication app(x, y);
+    QFile block("block");
+    block.open(QIODevice::ReadOnly);
+    auto d = block.readAll();
+
+    QFile out("blockdata");
+    out.open(QIODevice::WriteOnly);
+    bool even = false;
+    uint8_t byte = 0;
+    for (uint8_t k : d) {
+        if (k <= '9')
+            k -= '0';
+        else
+            k = k + 10 - 'a';
+        if (even) {
+            byte += k;
+
+            char buf[1];
+            buf[0] = byte;
+            out.write(buf, 1);
+        } else {
+            byte = k << 4;
+        }
+        even = !even;
+    }
+return 0;
+
+*/
     int rc = 0;
     {
         TestBlocksDB test;
