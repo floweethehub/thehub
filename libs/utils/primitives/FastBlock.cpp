@@ -186,7 +186,7 @@ CBlock FastBlock::createOldBlock() const
     CBlock answer;
     CDataStream buf(m_data.begin(), m_data.end(), 0 , 0);
     answer.Unserialize(buf, 0, 0);
-    return std::move(answer);
+    return answer;
 }
 
 FastBlock FastBlock::fromOldBlock(const CBlock &block, Streaming::BufferPool *pool)
