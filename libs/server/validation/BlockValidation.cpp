@@ -1287,6 +1287,11 @@ void BlockValidationState::checks2HaveParentHeaders()
             if (block.nVersion < 4 && flags.scriptVerifyLockTimeVerify) // reject incorrect block version.
                 throw Exception("bad-version", Validation::RejectObsolete);
         }
+        else {
+            // This usecase can't happen, lets put this in code so we can avoid additional checks below.
+            // This silences static-code checkers.
+            assert(!flags.scriptVerifySequenceVerify);
+        }
 
         // Check that all transactions are finalized
         const int64_t nLockTimeCutoff = flags.scriptVerifySequenceVerify ? m_blockIndex->pprev->GetMedianTimePast() : block.GetBlockTime();
