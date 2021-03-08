@@ -2,7 +2,7 @@
  * This file is part of the Flowee project
  * Copyright (c) 2009-2010 Satoshi Nakamoto
  * Copyright (c) 2009-2015 The Bitcoin Core developers
- * Copyright (c) 2017-2018 Tom Zander <tomz@freedommail.ch>
+ * Copyright (c) 2017-2021 Tom Zander <tom@flowee.org>
  *
  * This program is free software: you can redistribute it and/or modify
  * it under the terms of the GNU General Public License as published by
@@ -37,6 +37,7 @@ class FastBlock;
 class CChain;
 class CScheduler;
 class UnspentOutputDatabase;
+class BlockMetaData;
 
 namespace Blocks {
 
@@ -99,15 +100,26 @@ public:
     FastBlock loadBlock(CDiskBlockPos pos);
     FastUndoBlock loadUndoBlock(CDiskBlockPos pos);
     Streaming::ConstBuffer loadBlockFile(int fileIndex);
+
+    /**
+     * @brief This method writes out the undo block to a specific file and belonging to a specific /a blockHash.
+     * @param blockmd The actual block metadata
+     * @return block-pos of the position this meta block ended up in.
+     */
+    CDiskBlockPos writeMetaBlock(const BlockMetaData &blockmd);
+    /**
+     * @brief This method writes out the block to a specific file
+     * @param block The actual block
+     * @param posInFile a return value of the position this block ended up in.
+     */
     FastBlock writeBlock(const FastBlock &block, CDiskBlockPos &pos);
     /**
      * @brief This method writes out the undo block to a specific file and belonging to a specific /a blockHash.
      * @param block The actual undo block
-     * @param blockHash the hash of the parent block
      * @param fileIndex the index the original block was written to, this determines which revert index this block goes to.
      * @param posInFile a return value of the position this block ended up in.
      */
-    void writeUndoBlock(const UndoBlockBuilder &undoBlock, int fileIndex, uint32_t *posInFile = 0);
+    void writeUndoBlock(const UndoBlockBuilder &undoBlock, int fileIndex, uint32_t &posInFile);
 
     /**
      * @brief make the blocks-DB aware of a new header-only tip.

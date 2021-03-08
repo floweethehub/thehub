@@ -1,7 +1,7 @@
 /*
  * This file is part of the Flowee project
  * Copyright (c) 2009-2010 Satoshi Nakamoto
- * Copyright (c) 2017-2020 Tom Zander <tomz@freedommail.ch>
+ * Copyright (c) 2017-2021 Tom Zander <tom@flowee.org>
  * Copyright (c) 2017 Calin Culianu <calin.culianu@gmail.com>
  *
  * This program is free software: you can redistribute it and/or modify
@@ -34,6 +34,7 @@
 #include "main.h"
 #include "uint256.h"
 #include "UiInterface.h"
+#include "BlockMetaData.h"
 #include <SettingsDefaults.h>
 #include <primitives/FastBlock.h>
 #include <utxo/UnspentOutputDatabase.h>
@@ -73,9 +74,11 @@ const char *findHeader(const char *hayStack, const CMessageHeader::MessageStartC
     while (hayStack != end) {
         if (static_cast<uint8_t>(hayStack[0]) == needle[0]
                 && static_cast<uint8_t>(hayStack[1]) == needle[1]
-                && static_cast<uint8_t>(hayStack[2]) == needle[2]
-                && static_cast<uint8_t>(hayStack[3]) == needle[3]) {
-            return hayStack;
+                && static_cast<uint8_t>(hayStack[2]) == needle[2]) {
+            // either block or meta-data-block
+            if (static_cast<uint8_t>(hayStack[3]) == needle[3] || static_cast<uint8_t>(hayStack[3]) == needle[3] - 1) {
+                return hayStack;
+            }
         }
         ++hayStack;
     }
@@ -274,22 +277,21 @@ bool Blocks::DB::CacheAllBlockInfos(const UnspentOutputDatabase *utxo)
                 maxFile = std::max(pindexNew->nFile, maxFile);
                 pindexNew->nDataPos       = diskindex.nDataPos;
                 pindexNew->nUndoPos       = diskindex.nUndoPos;
+                pindexNew->nMetaDataFile  = diskindex.nMetaDataFile;
+                pindexNew->nMetaDataPos   = diskindex.nMetaDataPos;
                 pindexNew->nVersion       = diskindex.nVersion;
                 pindexNew->hashMerkleRoot = diskindex.hashMerkleRoot;
                 pindexNew->nTime          = diskindex.nTime;
                 pindexNew->nBits          = diskindex.nBits;
                 pindexNew->nNonce         = diskindex.nNonce;
+                pindexNew->nStatus        = diskindex.nStatus & BLOCK_HAVE_MASK;
                 pindexNew->nTx            = diskindex.nTx;
 
-                // status is not saved, it comes from the UTXO-state
+                // some parts of status are not saved, they comes from the UTXO-state
                 if (utxo->blockIdHasFailed(pindexNew->GetBlockHash()))
-                    pindexNew->nStatus = BLOCK_FAILED_VALID;
+                    pindexNew->nStatus |= BLOCK_FAILED_VALID;
                 else if (pindexNew->nHeight > 0)
-                    pindexNew->nStatus = BLOCK_VALID_TREE; // needed to actually download blocks.
-                if (pindexNew->nDataPos)
-                    pindexNew->nStatus |= BLOCK_HAVE_DATA;
-                if (pindexNew->nUndoPos)
-                    pindexNew->nStatus |= BLOCK_HAVE_UNDO;
+                    pindexNew->nStatus |= BLOCK_VALID_TREE; // needed to actually download blocks.
                 pcursor->Next();
             } else {
                 logCritical(Log::DB) << "CacheAllBlockInfos(): failed to read row";
@@ -434,6 +436,19 @@ Streaming::ConstBuffer Blocks::DB::loadBlockFile(int fileIndex)
     return Streaming::ConstBuffer(buf, buf.get(), buf.get() + fileSize - 1);
 }
 
+CDiskBlockPos Blocks::DB::writeMetaBlock(const BlockMetaData &blockmd)
+{
+    assert(!blockmd.data().isEmpty());
+    CDiskBlockPos pos;
+    if (reindexing() == ScanningFiles) {
+        logInfo(Log::DB) << "Not writing meta data block until we finished scanning files";
+        return pos;
+    }
+    std::deque<Streaming::ConstBuffer> tmp { blockmd.data() };
+    d->writeBlock(tmp, pos, MetaDataForBlock);
+    return pos;
+}
+
 FastBlock Blocks::DB::writeBlock(const FastBlock &block, CDiskBlockPos &pos)
 {
     assert(block.isFullBlock());
@@ -441,13 +456,12 @@ FastBlock Blocks::DB::writeBlock(const FastBlock &block, CDiskBlockPos &pos)
     return FastBlock(d->writeBlock(tmp, pos, ForwardBlock));
 }
 
-void Blocks::DB::writeUndoBlock(const UndoBlockBuilder &undoBlock, int fileIndex, uint32_t *posInFile)
+void Blocks::DB::writeUndoBlock(const UndoBlockBuilder &undoBlock, int fileIndex, uint32_t &posInFile)
 {
     assert(undoBlock.finish().size() > 0);
     CDiskBlockPos pos(fileIndex, 0);
     d->writeBlock(undoBlock.finish(), pos, RevertBlock);
-    if (posInFile)
-        *posInFile = pos.nPos;
+    posInFile = pos.nPos;
 }
 
 bool Blocks::DB::appendHeader(CBlockIndex *block)
@@ -777,13 +791,13 @@ Streaming::ConstBuffer Blocks::DBPrivate::loadBlock(CDiskBlockPos pos, BlockType
 Streaming::ConstBuffer Blocks::DBPrivate::writeBlock(const std::deque<Streaming::ConstBuffer> &blocks, CDiskBlockPos &pos, BlockType type)
 {
     int blockSize = 0;
-    for (auto b : blocks) blockSize += b.size();
+    for (auto &b : blocks) blockSize += b.size();
     assert(blockSize < static_cast<int>(MAX_BLOCKFILE_SIZE - 8));
     assert(blockSize >= 0);
     LOCK(cs_LastBlockFile);
 
     bool newFile = false;
-    const bool useBlk = type == ForwardBlock;
+    const bool useBlk = type == ForwardBlock || type == MetaDataForBlock;
     assert(nLastBlockFile >= 0);
     if (static_cast<int>(vinfoBlockFile.size()) <= nLastBlockFile) { // first file.
         newFile = true;
@@ -839,12 +853,14 @@ Streaming::ConstBuffer Blocks::DBPrivate::writeBlock(const std::deque<Streaming:
     pos.nPos = *posInFile + 8;
     char *data = buf.get() + *posInFile;
     memcpy(data, Params().MessageStart(), 4);
+    if (type == MetaDataForBlock) // slightly different magic number
+        --data[3];
     data += 4;
     uint32_t networkSize = htole32(blockSize);
     memcpy(data, &networkSize, 4);
     data += 4;
     char *rawBlockData = data;
-    for (auto block : blocks) {
+    for (auto &block : blocks) {
         memcpy(data, block.begin(), static_cast<size_t>(block.size()));
         data += block.size();
     }
@@ -881,7 +897,7 @@ void Blocks::DBPrivate::foundBlockFile(int index, const CBlockFileInfo &info)
 
 std::shared_ptr<char> Blocks::DBPrivate::mapFile(int fileIndex, Blocks::BlockType type, size_t *size_out, bool *isWritable)
 {
-    const bool useBlk = type == ForwardBlock;
+    const bool useBlk = type == ForwardBlock || type == MetaDataForBlock;
     std::vector<DataFile*> &list = useBlk ? datafiles : revertDatafiles;
     const char *prefix = useBlk ? "blk" : "rev";
 

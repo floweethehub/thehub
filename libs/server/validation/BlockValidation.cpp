@@ -572,14 +572,21 @@ void ValidationEnginePrivate::processNewBlock(std::shared_ptr<BlockValidationSta
                         throw Exception("bad-cb-amount");
                 }
 
-                assert(index->nFile >= 0); // we need the block to have been saved
                 Streaming::BufferPool pool;
+                auto metaData = BlockMetaData::parseBlock(index->nHeight, state->m_block, state->m_perTxFees, pool);
+                CDiskBlockPos metaDataPos = Blocks::DB::instance()->writeMetaBlock(metaData);
+                if (!metaDataPos.IsNull()) {
+                    index->nMetaDataPos = metaDataPos.nPos;
+                    index->nMetaDataFile = metaDataPos.nFile;
+                    index->nStatus |= BLOCK_HAVE_METADATA;
+                }
+
+                assert(index->nFile >= 0); // we need the block to have been saved
                 UndoBlockBuilder undoBlock(hash, &pool);
                 for (auto &chunk : state->m_undoItems) {
                     if (chunk) undoBlock.append(*chunk);
                 }
-                auto metaData = BlockMetaData::parseBlock(index->nHeight, state->m_block, state->m_perTxFees, pool);
-                Blocks::DB::instance()->writeUndoBlock(undoBlock, index->nFile, &index->nUndoPos);
+                Blocks::DB::instance()->writeUndoBlock(undoBlock, index->nFile, index->nUndoPos);
                 index->nStatus |= BLOCK_HAVE_UNDO;
                 index->RaiseValidity(BLOCK_VALID_SCRIPTS); // done
                 MarkIndexUnsaved(index);

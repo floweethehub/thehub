@@ -2,7 +2,7 @@
  * This file is part of the Flowee project
  * Copyright (C) 2009-2010 Satoshi Nakamoto
  * Copyright (C) 2009-2015 The Bitcoin Core developers
- * Copyright (C) 2019 Tom Zander <tomz@freedommail.ch>
+ * Copyright (C) 2019-2021 Tom Zander <tom@flowee.org>
  *
  * This program is free software: you can redistribute it and/or modify
  * it under the terms of the GNU General Public License as published by
@@ -103,7 +103,8 @@ enum BlockStatus {
 
     BLOCK_HAVE_DATA          =    8, //! full block available in blk*.dat
     BLOCK_HAVE_UNDO          =   16, //! undo data available in rev*.dat
-    BLOCK_HAVE_MASK          =   BLOCK_HAVE_DATA | BLOCK_HAVE_UNDO,
+    BLOCK_HAVE_METADATA      =  128, //! metadata available in blk*.dat
+    BLOCK_HAVE_MASK          =   BLOCK_HAVE_DATA | BLOCK_HAVE_UNDO | BLOCK_HAVE_METADATA,
 
     BLOCK_FAILED_VALID       =   32, //! stage after last reached validness failed
     BLOCK_FAILED_CHILD       =   64, //! descends from failed block
@@ -139,6 +140,11 @@ public:
     //! Byte offset within rev?????.dat where this block's undo data is stored
     unsigned int nUndoPos;
 
+    unsigned int nMetaDataFile;
+
+    //! Byte offset within inf?????.dat where this block's metadata is stored
+    unsigned int nMetaDataPos;
+
     //! (memory only) Total amount of work (expected number of hashes) in the chain up to and including this block
     arith_uint256 nChainWork;
 
@@ -173,6 +179,8 @@ public:
         nFile = 0;
         nDataPos = 0;
         nUndoPos = 0;
+        nMetaDataFile = 0;
+        nMetaDataPos = 0;
         nChainWork = arith_uint256();
         nTx = 0;
         nChainTx = 0;
@@ -216,6 +224,14 @@ public:
         if (nStatus & BLOCK_HAVE_UNDO) {
             ret.nFile = nFile;
             ret.nPos  = nUndoPos;
+        }
+        return ret;
+    }
+    CDiskBlockPos GetMetaDataPos() const {
+        CDiskBlockPos ret;
+        if (nStatus & BLOCK_HAVE_METADATA) {
+            ret.nFile = nMetaDataFile;
+            ret.nPos  = nMetaDataPos;
         }
         return ret;
     }
@@ -328,6 +344,10 @@ public:
             READWRITE(VARINT(nDataPos));
         if (nStatus & BLOCK_HAVE_UNDO)
             READWRITE(VARINT(nUndoPos));
+        if (nStatus & BLOCK_HAVE_METADATA) {
+            READWRITE(VARINT(nMetaDataFile));
+            READWRITE(VARINT(nMetaDataPos));
+        }
 
         // block header
         READWRITE(this->nVersion);
