@@ -111,7 +111,7 @@ std::string AllowedArgs::helpMessage() const
     const bool showDebug = GetBoolArg("-help-debug", false);
     std::string helpMessage;
 
-    for (HelpComponent helpComponent : m_helpList)
+    for (const HelpComponent &helpComponent : m_helpList)
         if (showDebug || !helpComponent.debug)
             helpMessage += helpComponent.text;
 
