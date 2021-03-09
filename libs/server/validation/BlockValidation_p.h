@@ -285,6 +285,8 @@ public:
 
     const Validation::EngineType engineType;
 
+    bool fetchFeeForMetaBlocks = false;
+
 private:
     int lastFullBlockScheduled;
     int previousPrintedHeaderHeight = 0;

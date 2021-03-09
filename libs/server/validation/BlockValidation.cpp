@@ -866,8 +866,9 @@ void ValidationEnginePrivate::findMoreJobs()
         if (!blocksInFlight.compare_exchange_weak(currentCount, newCount, std::memory_order_relaxed, std::memory_order_relaxed))
             continue;
         // If we have 1008 validated headers on top of the block, turn off loads of validation of the actual block.
-        const bool enableValidation = index->nHeight + 1008 > Blocks::DB::instance()->headerChain().Height();
-        int onResultFlags = enableValidation ? Validation::ForwardGoodToPeers : 0;
+        const bool isRecentBlock = index->nHeight + 1008 > Blocks::DB::instance()->headerChain().Height();
+        const bool enableValidation = fetchFeeForMetaBlocks || isRecentBlock;
+        int onResultFlags = isRecentBlock ? Validation::ForwardGoodToPeers : 0;
         if ((index->nStatus & BLOCK_HAVE_UNDO) == 0)
             onResultFlags |= Validation::SaveGoodToDisk;
         std::shared_ptr<BlockValidationState> state = std::make_shared<BlockValidationState>(me, FastBlock(), onResultFlags);

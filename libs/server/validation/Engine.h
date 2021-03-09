@@ -136,6 +136,14 @@ public:
     void invalidateBlock(CBlockIndex *index);
 
     /**
+     * The BlockMetaData collects details like 'fees' per transaction and
+     * similar which speed up variouss API operations quite considerably.
+     * Turning it on does have a negative side-effect of causing much more
+     * disk-IO during validation of non-recent blocks. Mostly noticed during IBD.
+     */
+    void enableFeeResolveForMetaData(bool on);
+
+    /**
      * Undo the effects of this block (with given index) on the UTXO set represented by view.
      * @param index the blockindex representing the block that we should undo.
      * @param the UTXO view we should undo the changes on.
