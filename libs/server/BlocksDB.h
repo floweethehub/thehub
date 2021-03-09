@@ -98,6 +98,7 @@ public:
     void setReindexing(ReindexingState state);
 
     FastBlock loadBlock(CDiskBlockPos pos);
+    BlockMetaData loadBlockMetaData(CDiskBlockPos pos);
     FastUndoBlock loadUndoBlock(CDiskBlockPos pos);
     Streaming::ConstBuffer loadBlockFile(int fileIndex);
 

@@ -67,9 +67,12 @@ public:
 
     bool ctorSorted() const;
 
+    uint256 blockId() const;
+
 private:
     bool m_ctorSorted = false;
     int m_blockHeight = 0;
+    uint256 m_blockId;
     const Streaming::ConstBuffer m_data;
     Streaming::ConstBuffer m_transactions;
 };

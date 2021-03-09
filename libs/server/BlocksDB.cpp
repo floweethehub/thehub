@@ -20,6 +20,7 @@
 
 #include "BlocksDB.h"
 #include "BlocksDB_p.h"
+#include "BlockMetaData.h"
 #include "chainparams.h"
 #include "Application.h"
 #include "init.h" // for StartShutdown
@@ -100,26 +101,68 @@ bool LoadExternalBlockFile(const CDiskBlockPos &pos)
 
     auto validation = Application::instance()->validation();
     const char *buf = dataFile.begin();
+    std::list<uint32_t> metaBlocks;
     while (buf < dataFile.end() && !Application::isClosingDown()) {
         buf = findHeader(buf, Params().MessageStart(), dataFile.end());
         if (buf == nullptr) {
             // no valid block header found; don't complain
             break;
         }
+        const bool isBlock = uint8_t(buf[3]) == uint8_t(Params().MessageStart()[3]);
+        const bool isMetaBlock = !isBlock && uint8_t(buf[3]) == uint8_t(Params().MessageStart()[3] - 1);
         buf += 4;
-        uint32_t blockSize = le32toh(*(reinterpret_cast<const std::uint32_t*>(buf)));
-        if (blockSize < 80)
+        uint32_t blob = le32toh(*(reinterpret_cast<const std::uint32_t*>(buf)));
+        if (blob < 77) // min size of either a block or a metadata-block
             continue;
         buf += 4;
 
-        validation->waitForSpace();
-        validation->addBlock(CDiskBlockPos(pos.nFile, static_cast<std::uint32_t>(buf - dataFile.begin())));
-        ++info.nBlocks;
-        buf += blockSize;
+        const CDiskBlockPos dataPos(pos.nFile,  static_cast<std::uint32_t>(buf - dataFile.begin()));
+        if (isBlock) {
+            validation->waitForSpace();
+            validation->addBlock(dataPos);
+            ++info.nBlocks;
+        }
+        else if (isMetaBlock) {
+            metaBlocks.push_back(dataPos.nPos);
+        }
+        buf += blob;
         info.nSize = static_cast<std::uint32_t>(buf - dataFile.begin());
     }
-    if (info.nBlocks > 0) {
-        logCritical(Log::DB) << "Loaded" << info.nBlocks << "blocks from external file" << pos.nFile << "in" << (GetTimeMillis() - nStart) << "ms";
+
+    /*
+     * metadata blocks are the result of validation and we remember them in the index file.
+     * Doing a reindex means we re-build the index file and as such we may need to wait for
+     * the index-as-result-of-header to have generated an index before we can add stuff
+     * to it.
+     */
+    int nMetaBlocks = 0;
+    for (auto offsetInFile : metaBlocks) {
+        try {
+            bool success = false;
+            BlockMetaData md = Blocks::DB::instance()->loadBlockMetaData(CDiskBlockPos(pos.nFile, offsetInFile));
+            for (int i = 0; i < 40; ++i) {
+                auto index = Blocks::Index::get(md.blockId());
+                if (index) {
+                    index->nMetaDataFile = pos.nFile;
+                    index->nMetaDataPos = offsetInFile;
+                    MarkIndexUnsaved(index);
+                    success = true;
+                    break;
+                }
+                logFatal() << "Sleeping a bit to wait for the index";
+                MilliSleep(50);
+            }
+            if (success)
+                ++nMetaBlocks;
+            else
+                logFatal() << "Reindex could not add MetaData block due to its index not existing yet." << md.blockId();
+        } catch (const std::exception &e) {
+            logWarning(Log::DB) << "LoadExternalBlockFile: Failed to parse BlockMetaData object. blk: " << pos.nFile << "reason:" << e;
+        }
+    }
+    if (info.nBlocks > 0 || nMetaBlocks > 0) {
+        logCritical(Log::DB) << "Loaded" << info.nBlocks << "blocks +" << nMetaBlocks << "block-metadatas from external file"
+                             << pos.nFile << "in" << (GetTimeMillis() - nStart) << "ms";
         Blocks::DB::instance()->priv()->foundBlockFile(pos.nFile, info);
     }
 
@@ -421,6 +464,12 @@ FastBlock Blocks::DB::loadBlock(CDiskBlockPos pos)
 {
     return FastBlock(d->loadBlock(pos, ForwardBlock));
 }
+
+BlockMetaData Blocks::DB::loadBlockMetaData(CDiskBlockPos pos)
+{
+    return BlockMetaData(d->loadBlock(pos, MetaDataForBlock));
+}
+
 
 FastUndoBlock Blocks::DB::loadUndoBlock(CDiskBlockPos pos)
 {

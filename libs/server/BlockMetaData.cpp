@@ -24,6 +24,7 @@
 #include <streaming/MessageParser.h>
 
 enum Tags {
+    BlockID,
     BlockHeight,
     IsCTOR,
     TransactionDataBlob
@@ -34,7 +35,9 @@ BlockMetaData::BlockMetaData(const Streaming::ConstBuffer &buffer)
 {
     Streaming::MessageParser parser(buffer);
     while (parser.next() != Streaming::EndOfDocument) {
-        if (parser.tag() == BlockHeight)
+        if (parser.tag() == BlockID)
+            m_blockId = parser.uint256Data();
+        else if (parser.tag() == BlockHeight)
             m_blockHeight = parser.intData();
         else if (parser.tag() == IsCTOR)
             m_ctorSorted = parser.boolData();
@@ -126,8 +129,9 @@ BlockMetaData BlockMetaData::parseBlock(int blockHeight, const FastBlock &block,
     }
     auto txData = pool.commit(txs.size() * 40);
 
-    pool.reserve(txData.size() + 20);
+    pool.reserve(txData.size() + 55);
     Streaming::MessageBuilder builder(pool);
+    builder.add(BlockID, block.createHash());
     builder.add(BlockHeight, blockHeight);
     builder.add(IsCTOR, isCTOR);
     builder.add(TransactionDataBlob, txData);
@@ -167,4 +171,9 @@ int BlockMetaData::blockHeight() const
 bool BlockMetaData::ctorSorted() const
 {
     return m_ctorSorted;
+}
+
+uint256 BlockMetaData::blockId() const
+{
+    return m_blockId;
 }
