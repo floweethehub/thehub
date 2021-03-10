@@ -27,6 +27,7 @@
 #include "init.h"
 #include "keystore.h"
 #include "main.h"
+#include "BlockMetaData.h"
 #include "merkleblock.h"
 #include "net.h"
 #include "policy/policy.h"
@@ -225,21 +226,35 @@ UniValue getrawtransaction(const UniValue& params, bool fHelp)
             throw JSONRPCError(RPC_INVALID_ADDRESS_OR_KEY, "Block hash not found");
         in_active_chain = Blocks::DB::instance()->headerChain().Contains(index);
 
-        FastBlock block;
-        try {
-            block = Blocks::DB::instance()->loadBlock(index->GetBlockPos());
-        } catch (...) {
-            throw JSONRPCError(RPC_INVALID_ADDRESS_OR_KEY, "Block not available");
+
+        if (index->nMetaDataPos > 0) {
+            logDebug() << "Searching for txid in the blockmetadata object";
+            BlockMetaData meta = Blocks::DB::instance()->loadBlockMetaData(index->GetMetaDataPos());
+            auto mtx = meta.findTransaction(hash);
+            if (mtx) {
+                success = true;
+                FastBlock block = Blocks::DB::instance()->loadBlock(index->GetBlockPos());
+                Tx::Iterator iter(block, mtx->offsetInBlock);
+                iter.next(Tx::End);
+                tx = iter.prevTx().createOldTransaction();
+            }
         }
-        const int ctorHeight = Params().GetConsensus().hf201811Height;
-        auto ftx = block.findTransaction(hash, index->nHeight >= ctorHeight);
-        if (ftx.size() > 0) {
-            success = true;
-            tx = ftx.createOldTransaction();
+        else { // fall back to slow version.
+            FastBlock block;
+            try {
+                block = Blocks::DB::instance()->loadBlock(index->GetBlockPos());
+            } catch (...) {
+                throw JSONRPCError(RPC_INVALID_ADDRESS_OR_KEY, "Block not available");
+            }
+            const int ctorHeight = Params().GetConsensus().hf201811Height;
+            auto ftx = block.findTransaction(hash, index->nHeight >= ctorHeight);
+            if (ftx.size() > 0) {
+                success = true;
+                tx = ftx.createOldTransaction();
+            }
         }
-        else {
+        if (!success)
             throw JSONRPCError(RPC_INVALID_ADDRESS_OR_KEY, "No such transaction found in the provided block");
-        }
     }
     else {
         // we just get it from the mempool.
@@ -250,12 +265,27 @@ UniValue getrawtransaction(const UniValue& params, bool fHelp)
         const int ctorHeight = Params().GetConsensus().hf201811Height;
         auto index = chainActive.Tip();
         for (int i = 0; !success && index && i < 6; ++i) {
-            FastBlock block = Blocks::DB::instance()->loadBlock(index->GetBlockPos());
-            auto ftx = block.findTransaction(hash, index->nHeight >= ctorHeight);
-            if (ftx.size() > 0) {
-                tx = ftx.createOldTransaction();
-                success = true;
-                break;
+            if (index->nMetaDataPos > 0) {
+                logDebug() << "Searching for txid in the blockmetadata object";
+                BlockMetaData meta = Blocks::DB::instance()->loadBlockMetaData(index->GetMetaDataPos());
+                auto mtx = meta.findTransaction(hash);
+                if (mtx) {
+                    FastBlock block = Blocks::DB::instance()->loadBlock(index->GetBlockPos());
+                    Tx::Iterator iter(block, mtx->offsetInBlock);
+                    iter.next(Tx::End);
+                    tx = iter.prevTx().createOldTransaction();
+                    success = true;
+                    break;
+                }
+            }
+            else { // fall back to slow version.
+                FastBlock block = Blocks::DB::instance()->loadBlock(index->GetBlockPos());
+                auto ftx = block.findTransaction(hash, index->nHeight >= ctorHeight);
+                if (ftx.size() > 0) {
+                    tx = ftx.createOldTransaction();
+                    success = true;
+                    break;
+                }
             }
             index = index->pprev;
         }

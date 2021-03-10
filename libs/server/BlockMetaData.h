@@ -56,6 +56,13 @@ public:
         }
     };
 
+    /**
+     * Find a transaction by txid.
+     * This will walk over the list of transactions and find a match with /a txid.
+     * We return a nullptr if no match was found.
+     */
+    const TransactionData *findTransaction(const uint256 &txid) const;
+
     const TransactionData *first() const;
 
     int txCount() const;

@@ -38,6 +38,7 @@
 #include <server/main.h>
 
 #include <boost/algorithm/hex.hpp>
+#include <BlockMetaData.h>
 #include <list>
 
 namespace {
@@ -569,11 +570,22 @@ public:
             const int ctorHeight = Params().GetConsensus().hf201811Height;
             auto index = chainActive.Tip();
             for (int i = 0; !success && index && i < 6; ++i) {
-                FastBlock block = Blocks::DB::instance()->loadBlock(index->GetBlockPos());
-                m_tx = block.findTransaction(txid, index->nHeight >= ctorHeight);
-                if (m_tx.size() > 0) {
-                    m_blockHeight = index->nHeight;
-                    return;
+                if (index->nMetaDataPos > 0) {
+                    logDebug() << "Searching for txid in the blockmetadata object";
+                    BlockMetaData meta = Blocks::DB::instance()->loadBlockMetaData(index->GetMetaDataPos());
+                    auto tx = meta.findTransaction(txid);
+                    if (tx) {
+                        m_blockHeight = index->nHeight;
+                        return;
+                    }
+                }
+                else { // fall back to slow version.
+                    FastBlock block = Blocks::DB::instance()->loadBlock(index->GetBlockPos());
+                    m_tx = block.findTransaction(txid, index->nHeight >= ctorHeight);
+                    if (m_tx.size() > 0) {
+                        m_blockHeight = index->nHeight;
+                        return;
+                    }
                 }
                 index = index->pprev;
             }

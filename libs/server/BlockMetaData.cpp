@@ -23,6 +23,8 @@
 #include <streaming/MessageBuilder.h>
 #include <streaming/MessageParser.h>
 
+constexpr int TxRowWidth = 40;
+
 enum Tags {
     BlockID,
     BlockHeight,
@@ -122,12 +124,12 @@ BlockMetaData BlockMetaData::parseBlock(int blockHeight, const FastBlock &block,
         }
     }
 
-    pool.reserve(txs.size() * 40);
+    pool.reserve(txs.size() * TxRowWidth);
     for (size_t i = 0; i < txs.size(); ++i) {
-        static_assert(sizeof(TransactionData) == 40, "Jump table row size");
-        memcpy(pool.begin() + i * 40, &txs[i], 40);
+        static_assert(sizeof(TransactionData) == TxRowWidth, "Jump table row size");
+        memcpy(pool.begin() + i * TxRowWidth, &txs[i], TxRowWidth);
     }
-    auto txData = pool.commit(txs.size() * 40);
+    auto txData = pool.commit(txs.size() * TxRowWidth);
 
     pool.reserve(txData.size() + 55);
     Streaming::MessageBuilder builder(pool);
@@ -139,6 +141,25 @@ BlockMetaData BlockMetaData::parseBlock(int blockHeight, const FastBlock &block,
     return BlockMetaData(pool.commit());
 }
 
+const BlockMetaData::TransactionData *BlockMetaData::findTransaction(const uint256 &txid) const
+{
+    const char *currentTx = m_transactions.begin();
+    bool first = true;
+    while (currentTx < m_transactions.end()) {
+        const uint256 *curTxId = reinterpret_cast<const uint256*>(currentTx);
+
+        int comp = curTxId->Compare(txid);
+        if (comp == 0) {
+            return reinterpret_cast<const BlockMetaData::TransactionData*>(currentTx);
+        } else if (!first && m_ctorSorted && comp > 0) {
+            break; // CTOR, stop searching in sorted list
+        }
+        first = false; // only the first transaction does not follow the CTOR layout.
+        currentTx += TxRowWidth;
+    }
+    return nullptr;
+}
+
 const BlockMetaData::TransactionData *BlockMetaData::first() const
 {
     return reinterpret_cast<const BlockMetaData::TransactionData*>(m_transactions.begin());
@@ -146,7 +167,7 @@ const BlockMetaData::TransactionData *BlockMetaData::first() const
 
 int BlockMetaData::txCount() const
 {
-    return m_transactions.size() / 40;
+    return m_transactions.size() / TxRowWidth;
 }
 
 const BlockMetaData::TransactionData *BlockMetaData::tx(int index) const
