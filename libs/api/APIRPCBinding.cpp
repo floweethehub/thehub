@@ -503,10 +503,10 @@ public:
         if (opt.returnOutputs || opt.returnOutputAddresses || opt.returnOutputAmounts | opt.returnOutputScriptHashed)
             total += matchedOutputs * bytesPerOutput;
 
-        logDebug(Log::ApiServer) << "GetBlock calculated to need at most" << total << "bytes";
-        logDebug(Log::ApiServer) << "  tx" << bytesPerTx << "*" << m_transactions.size() << "(=num tx). Plus"
+        logDebug() << "GetBlock calculated to need at most" << total << "bytes";
+        logDebug() << "  tx" << bytesPerTx << "*" << m_transactions.size() << "(=num tx). Plus"
                                  << bytesPerOutput << "bytes per output (" << matchedOutputs << ")";
-        logDebug(Log::ApiServer) << "  matched Script Output sizes:" << matchedOutputScriptSizes;
+        logDebug() << "  matched Script Output sizes:" << matchedOutputScriptSizes;
         return total;
     }
 
@@ -1287,13 +1287,13 @@ void Api::ASyncParser::run_priv()
 
         Message reply = builder.reply(m_request, m_replyMessageId);
         if (m_messageSize < reply.body().size())
-            logDebug(Log::ApiServer) << "Generated message larger than space reserved."
+            logDebug() << "Generated message larger than space reserved."
                                      << m_request.serviceId() << m_replyMessageId
                                      << "reserved:" << m_messageSize << "built:" << reply.body().size();
         assert(reply.body().size() <= m_messageSize); // fail fast.
         m_con.send(reply);
     } catch (const ParserException &e) {
-        logWarning(Log::ApiServer) << e;
+        logWarning() << e;
         m_con.send(m_server->createFailedMessage(m_request, e.what()));
     }
 }
