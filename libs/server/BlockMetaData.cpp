@@ -98,6 +98,10 @@ BlockMetaData BlockMetaData::parseBlock(int blockHeight, const FastBlock &block,
                         currentTx.fees = 0xFFFFFF; // -1, fee too heigh for our cache
                 }
             }
+            else if (coinbase && chunk == nullptr) {
+                currentTx.fees = 0xFFFFFF; // -1, mark that we don't have fee info in this BMD
+            }
+
             coinbase = false;
             txs.push_back(currentTx);
             currentTx.scriptTags = 0;

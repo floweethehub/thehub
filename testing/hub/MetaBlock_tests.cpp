@@ -36,16 +36,21 @@ void TestMetaBlock::testCreation()
     QVERIFY(block.createHash()
             == uint256S("0x00000000000000000560372e0caadc38c56cde6c4aaae03287a6898e643e5b8a"));
 
+    std::vector<std::unique_ptr<std::deque<std::int32_t> > > feesVector;
+    BlockMetaData noFeesMD = BlockMetaData::parseBlock(13451, block, feesVector, pool);
+    auto coinbase = noFeesMD.first();
+    // no fees vector sets the coinbase to a non-zero value.
+    QCOMPARE(coinbase->fees, 0xFFFFFF);
+    QCOMPARE(coinbase->next()->fees, 0);
 
-    std::vector<std::unique_ptr<std::deque<std::int32_t> > > dummy;
-    dummy.resize(1);
-    dummy[0].reset(new std::deque<std::int32_t>());
-    dummy[0]->push_back(8475); // first one should go to the first real transaction (not coinbase);
-    BlockMetaData md = BlockMetaData::parseBlock(13451, block, dummy, pool);
+    feesVector.resize(1);
+    feesVector[0].reset(new std::deque<std::int32_t>());
+    feesVector[0]->push_back(8475); // first one should go to the first real transaction (not coinbase);
+    BlockMetaData md = BlockMetaData::parseBlock(13451, block, feesVector, pool);
     QCOMPARE(md.blockHeight(), 13451);
     QCOMPARE(md.ctorSorted(), true);
     QCOMPARE(md.txCount(), 94);
-    auto coinbase = md.first();
+    coinbase = md.first();
     QCOMPARE(coinbase->offsetInBlock, 81);
     QVERIFY(uint256(coinbase->txid) == uint256S("0x39d00f962892cc5b3fc013ab3f02b7f9381d8ff1ea591bae81e8272211230fbd"));
     QCOMPARE(coinbase->fees, 0);
