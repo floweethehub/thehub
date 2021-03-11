@@ -572,13 +572,32 @@ void ValidationEnginePrivate::processNewBlock(std::shared_ptr<BlockValidationSta
                         throw Exception("bad-cb-amount");
                 }
 
+                bool createMeta = true;
+                if (index->nStatus & BLOCK_HAVE_METADATA) {
+                    // there already is one.
+                    try {
+                        BlockMetaData meta = Blocks::DB::instance()->loadBlockMetaData(index->GetMetaDataPos());
+                        createMeta = false; // already have one that works.
+
+                        auto coinbase = meta.first();
+                        bool hadFees = false;
+                        if (coinbase && coinbase->fees == 0) {
+                            // then we have a perfectly valid and complete meta already.
+                            hadFees = true;
+                        }
+                        if (state->flags.enableValidation && !hadFees)
+                            createMeta = true; // we have fees now, replace.
+                    } catch (const std::exception &e) {} // loading may throw
+                }
                 Streaming::BufferPool pool;
-                auto metaData = BlockMetaData::parseBlock(index->nHeight, state->m_block, state->m_perTxFees, pool);
-                CDiskBlockPos metaDataPos = Blocks::DB::instance()->writeMetaBlock(metaData);
-                if (!metaDataPos.IsNull()) {
-                    index->nMetaDataPos = metaDataPos.nPos;
-                    index->nMetaDataFile = metaDataPos.nFile;
-                    index->nStatus |= BLOCK_HAVE_METADATA;
+                if (createMeta) {
+                    auto metaData = BlockMetaData::parseBlock(index->nHeight, state->m_block, state->m_perTxFees, pool);
+                    CDiskBlockPos metaDataPos = Blocks::DB::instance()->writeMetaBlock(metaData);
+                    if (!metaDataPos.IsNull()) {
+                        index->nMetaDataPos = metaDataPos.nPos;
+                        index->nMetaDataFile = metaDataPos.nFile;
+                        index->nStatus |= BLOCK_HAVE_METADATA;
+                    }
                 }
 
                 assert(index->nFile >= 0); // we need the block to have been saved

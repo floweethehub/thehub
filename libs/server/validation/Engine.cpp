@@ -216,6 +216,8 @@ void Validation::Engine::enableFeeResolveForMetaData(bool on)
     if (!d.get() || d->shuttingDown)
         return;
     d->fetchFeeForMetaBlocks = on;
+    if (on)
+        d->tipFlags.enableValidation = true;
 }
 
 void ValidationEnginePrivate::prepareChain_priv()
