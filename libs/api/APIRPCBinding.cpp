@@ -38,6 +38,7 @@
 #include <server/main.h>
 
 #include <boost/algorithm/hex.hpp>
+#include <BlockMetaData.h>
 #include <list>
 
 namespace {
@@ -569,11 +570,26 @@ public:
             const int ctorHeight = Params().GetConsensus().hf201811Height;
             auto index = chainActive.Tip();
             for (int i = 0; !success && index && i < 6; ++i) {
-                FastBlock block = Blocks::DB::instance()->loadBlock(index->GetBlockPos());
-                m_tx = block.findTransaction(txid, index->nHeight >= ctorHeight);
-                if (m_tx.size() > 0) {
-                    m_blockHeight = index->nHeight;
-                    return;
+                if (index->nStatus & BLOCK_HAVE_METADATA) {
+                    logDebug() << "Searching for txid in the blockmetadata object" << index->nHeight;
+                    BlockMetaData meta = Blocks::DB::instance()->loadBlockMetaData(index->GetMetaDataPos());
+                    auto tx = meta.findTransaction(txid);
+                    if (tx) {
+                        m_blockHeight = index->nHeight;
+                        FastBlock block = Blocks::DB::instance()->loadBlock(index->GetBlockPos());
+                        Tx::Iterator iter(block, tx->offsetInBlock);
+                        iter.next(Tx::End);
+                        m_tx = iter.prevTx();
+                        return;
+                    }
+                }
+                else { // fall back to slow version.
+                    FastBlock block = Blocks::DB::instance()->loadBlock(index->GetBlockPos());
+                    m_tx = block.findTransaction(txid, index->nHeight >= ctorHeight);
+                    if (m_tx.size() > 0) {
+                        m_blockHeight = index->nHeight;
+                        return;
+                    }
                 }
                 index = index->pprev;
             }
@@ -599,9 +615,11 @@ public:
     int calculateMessageSize(const Message &request) override
     {
         Streaming::MessageParser parser(request.body());
+        bool validQuery = false;
         while (parser.next() == Streaming::FoundTag) {
             if (parser.tag() == Api::LiveTransactions::TxId
                     || parser.tag() == Api::LiveTransactions::GenericByteData) {
+                validQuery = true;
                 findByTxid(parser.uint256Data());
                 break;
             }
@@ -611,8 +629,10 @@ public:
                 return m_tx.size() + 20;
             }
         }
-        if (m_tx.data().isEmpty())
+        if (!validQuery)
             throw Api::ParserException("Missing or invalid search argument");
+        if (m_tx.data().isEmpty())
+            throw Api::ParserException("Not found");
         return m_tx.size() + 26;
     }
     void buildReply(const Message&, Streaming::MessageBuilder &builder) override
@@ -755,6 +775,8 @@ public:
                 if (!parser.isInt() || parser.intData() < 0)
                     throw Api::ParserException("FilterOutputIndex should be a positive number");
                 opt.filterOutputs.insert(parser.intData());
+            } else if (parser.tag() == Api::BlockChain::Include_TxFee) {
+                m_returnTxFee = parser.boolData();
             } else {
                 opt.readParser(parser);
             }
@@ -786,6 +808,14 @@ public:
         } catch (const std::runtime_error &e) {
             throw Api::ParserException("Invalid offsetInBlock");
         }
+        if (m_returnTxFee && m_offsetInBlock > 90) {
+            try {
+                BlockMetaData meta = Blocks::DB::instance()->loadBlockMetaData(index->GetMetaDataPos());
+                auto tx = meta.findTransaction(m_offsetInBlock);
+                if (tx && meta.hasFeesData())
+                    m_txFee = tx->fees;
+            } catch (...) { }
+        }
 
         int amount = m_fullTxData ? m_tx.size() + 10 : 0;
         if (m_returnTxId) amount += 40;
@@ -799,6 +829,8 @@ public:
             builder.add(Api::BlockChain::TxId, m_tx.createHash());
         if (m_returnOffsetInBlock)
             builder.add(Api::BlockChain::Tx_OffsetInBlock, m_offsetInBlock);
+        if (m_txFee >= 0)
+            builder.add(Api::BlockChain::Tx_Fees, m_txFee);
         if (m_tx.size() > 0) {
             if (opt.shouldRun()) {
                 Tx::Iterator iter(m_tx);
@@ -813,7 +845,9 @@ private:
     bool m_fullTxData = true;
     bool m_returnTxId = false;
     bool m_returnOffsetInBlock = false;
+    bool m_returnTxFee = false;
     int m_offsetInBlock = 0;
+    int m_txFee = -1;
     Tx m_tx;
     TransactionSerializationOptions opt;
 };

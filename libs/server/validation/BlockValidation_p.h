@@ -157,6 +157,7 @@ public:
     FastBlock m_block;
     CDiskBlockPos m_blockPos;
     CBlockIndex *m_blockIndex;
+    uint256 blockId;
 
     const std::uint8_t m_onResultFlags;
     std::uint8_t punishment = 100;
@@ -180,7 +181,8 @@ public:
     mutable std::atomic<std::int64_t> m_blockFees;
     mutable std::atomic<std::uint32_t> m_sigChecksCounted;
 
-    std::vector<std::deque<FastUndoBlock::Item> *> m_undoItems;
+    std::vector<std::unique_ptr<std::deque<FastUndoBlock::Item> > > m_undoItems;
+    std::vector<std::unique_ptr<std::deque<std::int32_t> > > m_perTxFees;
 
     std::weak_ptr<ValidationEnginePrivate> m_parent;
     std::weak_ptr<ValidationSettingsPrivate> m_settings;
@@ -283,6 +285,8 @@ public:
     std::weak_ptr<ValidationEnginePrivate> me;
 
     const Validation::EngineType engineType;
+
+    bool fetchFeeForMetaBlocks = false;
 
 private:
     int lastFullBlockScheduled;

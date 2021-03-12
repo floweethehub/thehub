@@ -111,6 +111,7 @@ struct Transaction
     };
     int jobId = -1; // jobId that was processed to create this object
     short outIndex = -1; // if >= 0, the outputIndex returned in a search
+    int fees = -1;
 
     bool isCoinbase() const {
         return offsetInBlock > 0 && offsetInBlock < 100;
@@ -153,7 +154,8 @@ enum TransactionFilter {
     IncludeOutputAmounts = 0x20,
     IncludeOutputScripts = 0x40,
     IncludeOutputAddresses = 0x80,
-    IncludeOutputScriptHash = 0x100
+    IncludeOutputScriptHash = 0x100,
+    IncludeTxFee = 0x200
 };
 
 struct Error {

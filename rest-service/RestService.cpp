@@ -421,7 +421,7 @@ void RestService::requestTransactionInfo(const RequestString &rs, RestServiceWeb
         } catch (const std::runtime_error &e) {
             throw UserInputException(e.what());
         }
-        job.transactionFilters = Blockchain::IncludeFullTransactionData;
+        job.transactionFilters = Blockchain::IncludeFullTransactionData | Blockchain::IncludeTxFee;
         job.nextJobId = 1; // that would be the 'fetchBlockHeader'
         std::lock_guard<std::mutex> lock(request->jobsLock);
         request->jobs.push_back(job);
@@ -447,7 +447,7 @@ void RestService::requestTransactionInfo(const RequestString &rs, RestServiceWeb
             } catch (const std::runtime_error &e) {
                 throw UserInputException(e.what());
             }
-            job.transactionFilters = Blockchain::IncludeFullTransactionData;
+            job.transactionFilters = Blockchain::IncludeFullTransactionData | Blockchain::IncludeTxFee;
             job.nextJobId = request->jobs.size() + 1; // that would be the 'fetchBlockHeader'
             std::lock_guard<std::mutex> lock(request->jobsLock);
             request->jobs.push_back(job);
@@ -866,6 +866,7 @@ void RestServiceWebRequest::threadSafeFinished()
     switch (answerType) {
     case TransactionDetails: {
         if (answer.size() == 0) {
+            logDebug() << "Request for Transaction did not find any results";
             socket()->writeError(HttpEngine::Socket::BadRequest);
         } else {
             QJsonObject root = renderTransactionToJSon(answer.front());
@@ -983,6 +984,7 @@ void RestServiceWebRequest::threadSafeFinished()
     }
     case GetRawTransaction: {
         if (answer.size() == 0) {
+            logDebug() << "Request for rawTransaction did not find any results";
             socket()->writeError(HttpEngine::Socket::BadRequest);
         } else {
             writeAsHexString(answer.front().fullTxData, socket());
@@ -991,6 +993,7 @@ void RestServiceWebRequest::threadSafeFinished()
     }
     case GetRawTransactionVerbose: {
         if (answer.size() == 0) {
+            logDebug() << "Request for rawTransactionVerbose did not find any results";
             socket()->writeError(HttpEngine::Socket::BadRequest);
         } else {
             QJsonObject root = renderTransactionToJSon(answer.front());
@@ -1057,6 +1060,8 @@ QJsonObject RestServiceWebRequest::renderTransactionToJSon(const Blockchain::Tra
         answer.insert("firstSeenTime", (double) tx.firstSeenTime);
         answer.insert("time", (double) tx.firstSeenTime);
     }
+    if (tx.fees >= 0)
+        answer.insert("fees", tx.fees);
 
     Tx::Iterator iter(tx.fullTxData);
     QJsonArray inputs, outputs;

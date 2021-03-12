@@ -240,6 +240,7 @@ enum Tags {
     Tx_InputScript,
     Tx_OutputScript,
     Tx_Out_Index,
+    Tx_Fees,
 
     // GetBlock-Request-tags
     // GetBlock can filter a block to only return transactions that match a bitcoin-address filter
@@ -259,6 +260,7 @@ enum Tags {
     Include_OutputAddresses,///< bool. If the output is a p2pkh, return the hash160 of the address paid to.
     Include_OutputScriptHash,///< bool. Include Tx_Out_ScriptHash
     FilterOutputIndex,  	///< integer of output. This filters to only return data for those.
+    Include_TxFee,          ///< Include the fee paid for the transaction.
 
     Verbose = 60,   // bool
     Size,           // int

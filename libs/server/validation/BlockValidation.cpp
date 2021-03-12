@@ -20,6 +20,7 @@
 #include <SettingsDefaults.h>
 #include "BlockValidation_p.h"
 #include "TxValidation_p.h"
+#include "BlockMetaData.h"
 #include "DoubleSpendProofStorage.h"
 #include "ValidationException.h"
 #include <consensus/consensus.h>
@@ -110,7 +111,7 @@ void ValidationEnginePrivate::blockHeaderValidated(std::shared_ptr<BlockValidati
                 if (!error.empty())
                     settingsPriv->error = error;
                 if (m_state->m_ownsIndex) {
-                    settingsPriv->blockHash = m_state->m_block.createHash();
+                    settingsPriv->blockHash = m_state->blockId;
                     if (!m_state->m_blockIndex->phashBlock) {
                         // make sure a non-global index still has a working blockhash pointer
                         m_state->m_blockIndex->phashBlock = &settingsPriv->blockHash;
@@ -136,11 +137,10 @@ void ValidationEnginePrivate::blockHeaderValidated(std::shared_ptr<BlockValidati
     const bool hasFailed = state->m_validationStatus.load() & BlockValidationState::BlockInvalid;
     const FastBlock &block = state->m_block;
     assert(block.size() >= 80);
-    const uint256 hash = block.createHash();
 
-    DEBUGBV << hash << "Parent:" << state->m_block.previousBlockId() << (state->m_block.isFullBlock() ? "":"[header]");
+    DEBUGBV << state->blockId << "Parent:" << state->m_block.previousBlockId() << (state->m_block.isFullBlock() ? "":"[header]");
     if (!hasFailed) {
-        auto iter = blocksBeingValidated.find(hash);
+        auto iter = blocksBeingValidated.find(state->blockId);
         if (iter != blocksBeingValidated.end()) {
             // we are already validating the block. And since the merkle root was found OK, this means
             // that its a duplicate.
@@ -153,7 +153,7 @@ void ValidationEnginePrivate::blockHeaderValidated(std::shared_ptr<BlockValidati
     // check past work.
     CBlockIndex *index = nullptr;
     if (state->m_checkMerkleRoot) // We have no proper block-hash if we don't have a merkle-root.
-        index = Blocks::Index::get(hash);
+        index = Blocks::Index::get(state->blockId);
     if (index) { // we already parsed it...
         state->m_blockIndex = index;
         state->m_ownsIndex = false;
@@ -177,7 +177,7 @@ void ValidationEnginePrivate::blockHeaderValidated(std::shared_ptr<BlockValidati
             auto miPrev = blocksBeingValidated.find(block.previousBlockId());
             if (miPrev != blocksBeingValidated.end()) {
                 miPrev->second->m_chainChildren.push_back(state);
-                DEBUGBV << "  + adding me to parents chain-children" << miPrev->second->m_block.createHash();
+                DEBUGBV << "  + adding me to parents chain-children" << miPrev->second->blockId;
             } else if (index->pprev->IsValid(BLOCK_VALID_TRANSACTIONS)) {
                 state->m_validationStatus.fetch_or(BlockValidationState::BlockValidParent);
                 DEBUGBV << "  Setting BlockValidParent";
@@ -191,7 +191,7 @@ void ValidationEnginePrivate::blockHeaderValidated(std::shared_ptr<BlockValidati
     createBlockIndexFor(state);
     index = state->m_blockIndex;
     if (hasFailed || index->nStatus & BLOCK_FAILED_MASK) {
-        logInfo(Log::BlockValidation) << "Block" << index->nHeight << hash << "rejected with error:" << state->error;
+        logInfo(Log::BlockValidation) << "Block" << index->nHeight << state->blockId << "rejected with error:" << state->error;
         if (!state->m_checkValidityOnly && state->m_checkMerkleRoot)
             handleFailedBlock(state);
         return;
@@ -232,7 +232,7 @@ void ValidationEnginePrivate::blockHeaderValidated(std::shared_ptr<BlockValidati
         if (item->m_ownsIndex) {
             item->m_ownsIndex = false; // the CBlockIndex is now owned by the Blocks::DB
             item->m_blockIndex->RaiseValidity(BLOCK_VALID_TREE);
-            item->m_blockIndex->phashBlock = Blocks::Index::insert(item->m_block.createHash(), item->m_blockIndex);
+            item->m_blockIndex->phashBlock = Blocks::Index::insert(item->blockId, item->m_blockIndex);
             MarkIndexUnsaved(item->m_blockIndex); // Save it to the DB.
         }
         // check checkpoints. If we have the right height but not the hash, fail block
@@ -331,7 +331,7 @@ void ValidationEnginePrivate::blockHeaderValidated(std::shared_ptr<BlockValidati
             if (forward) {
                 if (!item->m_checkValidityOnly) {
                     DEBUGBV << "moving block on to checks2. Block at height:" << item->m_blockIndex->nHeight;
-                    blocksBeingValidated.insert(std::make_pair(item->m_block.createHash(), item));
+                    blocksBeingValidated.insert(std::make_pair(item->blockId, item));
                     lastFullBlockScheduled = std::max(lastFullBlockScheduled, item->m_blockIndex->nHeight);
                 }
 
@@ -345,7 +345,7 @@ void ValidationEnginePrivate::blockHeaderValidated(std::shared_ptr<BlockValidati
 
 void ValidationEnginePrivate::createBlockIndexFor(const std::shared_ptr<BlockValidationState> &state)
 {
-    DEBUGBV << state->m_block.createHash();
+    DEBUGBV << state->blockId;
     if (state->m_blockIndex)
         return;
     const FastBlock &block = state->m_block;
@@ -399,7 +399,7 @@ void ValidationEnginePrivate::createBlockIndexFor(const std::shared_ptr<BlockVal
             index->RaiseValidity(BLOCK_VALID_TREE);
         }
     }
-    else if (index->pprev == nullptr && block.createHash() == Params().GetConsensus().hashGenesisBlock) {
+    else if (index->pprev == nullptr && state->blockId == Params().GetConsensus().hashGenesisBlock) {
         index->nHeight = 0;
         state->m_validationStatus.fetch_or(BlockValidationState::BlockValidParent);
         DEBUGBV.nospace() << "   is genesis block (height=" << index->nHeight << ")";
@@ -465,7 +465,7 @@ void ValidationEnginePrivate::startOrphanWithParent(std::list<std::shared_ptr<Bl
             std::shared_ptr<BlockValidationState> orphan = *iter;
             bool match = false;
             for (const auto &parent : parents) {
-                if (parent->m_block.createHash() == orphan->m_block.previousBlockId()) {
+                if (parent->blockId == orphan->m_block.previousBlockId()) {
                     // we found a new child of one of the recently found parents.
                     match = true;
 
@@ -516,7 +516,7 @@ void ValidationEnginePrivate::processNewBlock(std::shared_ptr<BlockValidationSta
         std::shared_ptr<ValidationSettingsPrivate> m_priv;
 
         RAII(ValidationEnginePrivate *parent, const std::shared_ptr<BlockValidationState> &state)
-            : m_hash(state->m_block.createHash()), m_parent(parent), m_priv(state->m_settings.lock()) { }
+            : m_hash(state->blockId), m_parent(parent), m_priv(state->m_settings.lock()) { }
         ~RAII() {
             m_parent->blocksBeingValidated.erase(m_hash);
             if (m_priv)
@@ -529,8 +529,7 @@ void ValidationEnginePrivate::processNewBlock(std::shared_ptr<BlockValidationSta
         return;
 
     CBlockIndex *index = state->m_blockIndex;
-    const uint256 hash = state->m_block.createHash();
-    DEBUGBV << hash.ToString() << state->m_blockIndex->nHeight;
+    DEBUGBV << state->blockId << state->m_blockIndex->nHeight;
     DEBUGBV << "   chain:" << blockchain->Height();
 
     assert(blockchain->Height() == -1 || index->nChainWork >= blockchain->Tip()->nChainWork); // the new block has more POW.
@@ -538,7 +537,7 @@ void ValidationEnginePrivate::processNewBlock(std::shared_ptr<BlockValidationSta
     const bool blockValid = (state->m_validationStatus.load() & BlockValidationState::BlockInvalid) == 0;
     if (!blockValid) {
         mempool->utxo()->rollback();
-        logInfo(Log::BlockValidation) << " block not valid" << index->nHeight << state->m_block.createHash() << "chain-height:" << blockchain->Height();
+        logInfo(Log::BlockValidation) << " block not valid" << index->nHeight << state->blockId << "chain-height:" << blockchain->Height();
     }
     const bool farBehind = Blocks::DB::instance()->headerChain().Height() - blockchain->Height() > 144; // catching up
 
@@ -555,7 +554,7 @@ void ValidationEnginePrivate::processNewBlock(std::shared_ptr<BlockValidationSta
             index->nChainTx = index->nTx + (index->pprev ? index->pprev->nChainTx : 0); // pprev is only null if this is the genesisblock.
             index->RaiseValidity(BLOCK_VALID_CHAIN);
             if (index->nHeight == 0) { // is genesis block
-                mempool->utxo()->blockFinished(index->nHeight, hash);
+                mempool->utxo()->blockFinished(index->nHeight, state->blockId);
                 blockchain->SetTip(index);
                 index->RaiseValidity(BLOCK_VALID_SCRIPTS); // done
                 state->signalChildren();
@@ -571,13 +570,35 @@ void ValidationEnginePrivate::processNewBlock(std::shared_ptr<BlockValidationSta
                         throw Exception("bad-cb-amount");
                 }
 
-                assert(index->nFile >= 0); // we need the block to have been saved
+                bool createMeta = Blocks::DB::instance()->reindexing() != Blocks::ScanningFiles;
+                if (createMeta && index->nStatus & BLOCK_HAVE_METADATA) {
+                    // there already is one.
+                    try {
+                        BlockMetaData meta = Blocks::DB::instance()->loadBlockMetaData(index->GetMetaDataPos());
+                        createMeta = state->flags.enableValidation && !meta.hasFeesData(); // we have fees now, replace.
+                    } catch (const std::exception &e) {} // loading may throw
+                }
                 Streaming::BufferPool pool;
-                UndoBlockBuilder undoBlock(hash, &pool);
-                for (auto chunk : state->m_undoItems) {
+                if (createMeta) {
+                    auto metaData = BlockMetaData::parseBlock(index->nHeight, state->m_block, state->m_perTxFees, pool);
+                    try {
+                        CDiskBlockPos metaDataPos = Blocks::DB::instance()->writeMetaBlock(metaData);
+                        if (!metaDataPos.IsNull()) {
+                            index->nMetaDataPos = metaDataPos.nPos;
+                            index->nMetaDataFile = metaDataPos.nFile;
+                            index->nStatus |= BLOCK_HAVE_METADATA;
+                        }
+                    } catch (const std::exception &e) {
+                        logWarning(Log::BlockValidation) << "Failed to write meta block due to:" << e;
+                    }
+                }
+
+                assert(index->nFile >= 0); // we need the block to have been saved
+                UndoBlockBuilder undoBlock(state->blockId, &pool);
+                for (auto &chunk : state->m_undoItems) {
                     if (chunk) undoBlock.append(*chunk);
                 }
-                Blocks::DB::instance()->writeUndoBlock(undoBlock, index->nFile, &index->nUndoPos);
+                Blocks::DB::instance()->writeUndoBlock(undoBlock, index->nFile, index->nUndoPos);
                 index->nStatus |= BLOCK_HAVE_UNDO;
                 index->RaiseValidity(BLOCK_VALID_SCRIPTS); // done
                 MarkIndexUnsaved(index);
@@ -585,7 +606,7 @@ void ValidationEnginePrivate::processNewBlock(std::shared_ptr<BlockValidationSta
 #ifdef ENABLE_BENCHMARKS
                 int64_t end, start = GetTimeMicros();
 #endif
-                bool savedState = mempool->utxo()->blockFinished(index->nHeight, hash);
+                bool savedState = mempool->utxo()->blockFinished(index->nHeight, state->blockId);
 #ifdef ENABLE_BENCHMARKS
                 end = GetTimeMicros();
                 m_utxoTime.fetch_add(end - start);
@@ -639,7 +660,7 @@ void ValidationEnginePrivate::processNewBlock(std::shared_ptr<BlockValidationSta
     }
 
     if (!blockValid) {
-        logCritical(Log::BlockValidation) << "block failed validation" << state->error << index->nHeight << hash;
+        logCritical(Log::BlockValidation) << "block failed validation" << state->error << index->nHeight << state->blockId;
         if (index->pprev == nullptr) // genesis block, all bets are off after this
             return;
         handleFailedBlock(state);
@@ -654,9 +675,9 @@ void ValidationEnginePrivate::processNewBlock(std::shared_ptr<BlockValidationSta
 
     tipFlags = state->flags;
 
-
-    if (state->flags.enableValidation || index->nHeight % 500 == 0)
-        logCritical(Log::BlockValidation).nospace() << "new best=" << hash << " height=" << index->nHeight
+    const bool isRecentBlock = index->nHeight + 1008 > Blocks::DB::instance()->headerChain().Height();
+    if (isRecentBlock || index->nHeight % 500 == 0)
+        logCritical(Log::BlockValidation).nospace() << "new best=" << state->blockId << " height=" << index->nHeight
             << " tx=" << blockchain->Tip()->nChainTx
             << " date=" << DateTimeStrFormat("%Y-%m-%d %H:%M:%S", index->GetBlockTime()).c_str()
             << Log::Fixed << Log::precision(1);
@@ -687,7 +708,7 @@ void ValidationEnginePrivate::processNewBlock(std::shared_ptr<BlockValidationSta
         LOCK(cs_vNodes);
         for (CNode* pnode : vNodes) {
             if (blockchain->Height() > totalBlocks - 10)
-                pnode->PushBlockHash(hash);
+                pnode->PushBlockHash(state->blockId);
         }
     }
 }
@@ -711,7 +732,7 @@ void ValidationEnginePrivate::handleFailedBlock(const std::shared_ptr<BlockValid
             }
         }
         // remember this failed block-id
-        mempool->utxo()->setFailedBlockId(state->m_block.createHash());
+        mempool->utxo()->setFailedBlockId(state->blockId);
 
         // no need to update the header chain if the index is never moved to be owned by the Blocks::DB
         if (!state->m_ownsIndex) {
@@ -731,7 +752,7 @@ void ValidationEnginePrivate::handleFailedBlock(const std::shared_ptr<BlockValid
     if (state->m_originatingNodeId >= 0) {
         LOCK(cs_main);
         if (state->errorCode < 0xFF)
-            queueRejectMessage(state->m_originatingNodeId, state->m_block.createHash(),
+            queueRejectMessage(state->m_originatingNodeId, state->blockId,
                     static_cast<std::uint8_t>(state->errorCode), state->error);
         if (state->m_onResultFlags & Validation::PunishBadNode)
             Misbehaving(state->m_originatingNodeId, state->punishment);
@@ -840,6 +861,8 @@ void ValidationEnginePrivate::findMoreJobs()
     DEBUGBV << "last scheduled:" << lastFullBlockScheduled;
     if (shuttingDown || engineType == Validation::SkipAutoBlockProcessing)
         return;
+    if (Blocks::DB::instance()->reindexing() == Blocks::ScanningFiles)
+        return;
     if (lastFullBlockScheduled == -1)
         lastFullBlockScheduled = std::max(0, blockchain->Height());
     while (true) {
@@ -857,8 +880,9 @@ void ValidationEnginePrivate::findMoreJobs()
         if (!blocksInFlight.compare_exchange_weak(currentCount, newCount, std::memory_order_relaxed, std::memory_order_relaxed))
             continue;
         // If we have 1008 validated headers on top of the block, turn off loads of validation of the actual block.
-        const bool enableValidation = index->nHeight + 1008 > Blocks::DB::instance()->headerChain().Height();
-        int onResultFlags = enableValidation ? Validation::ForwardGoodToPeers : 0;
+        const bool isRecentBlock = index->nHeight + 1008 > Blocks::DB::instance()->headerChain().Height();
+        const bool enableValidation = fetchFeeForMetaBlocks || isRecentBlock;
+        int onResultFlags = isRecentBlock ? Validation::ForwardGoodToPeers : 0;
         if ((index->nStatus & BLOCK_HAVE_UNDO) == 0)
             onResultFlags |= Validation::SaveGoodToDisk;
         std::shared_ptr<BlockValidationState> state = std::make_shared<BlockValidationState>(me, FastBlock(), onResultFlags);
@@ -877,7 +901,7 @@ void ValidationEnginePrivate::findMoreJobs()
         state->flags.enableValidation = enableValidation;
         state->m_validationStatus = BlockValidationState::BlockValidHeader | BlockValidationState::BlockValidTree;
         state->m_checkingHeader = false;
-        blocksBeingValidated.insert(std::make_pair(state->m_block.createHash(), state));
+        blocksBeingValidated.insert(std::make_pair(state->blockId, state));
 
         auto iter = blocksBeingValidated.find(state->m_block.previousBlockId());
         if (iter != blocksBeingValidated.end()) {
@@ -1064,6 +1088,8 @@ BlockValidationState::BlockValidationState(const std::weak_ptr<ValidationEngineP
       m_sigChecksCounted(0),
       m_parent(parent)
 {
+    if (block.hasHeader())
+        blockId = block.createHash();
     assert(onResultFlags < 0x100);
 }
 
@@ -1079,12 +1105,7 @@ BlockValidationState::~BlockValidationState()
     if (m_ownsIndex)
         delete m_blockIndex;
     if (m_block.size() >= 80)
-        DEBUGBV << "Finished" << m_block.createHash();
-
-    for (auto undoItem : m_undoItems) {
-        delete undoItem;
-    }
-    m_undoItems.clear();
+        DEBUGBV << "Finished" << blockId;
 }
 
 void BlockValidationState::load()
@@ -1099,7 +1120,9 @@ void BlockValidationState::load()
     if (parent)
         parent->m_loadingTime.fetch_add(end - start);
 #endif
-    DEBUGBV << "succeeded;" << m_block.createHash() << '/' << m_block.size();
+    if (m_block.hasHeader())
+        blockId = m_block.createHash();
+    DEBUGBV << "succeeded;" << blockId << '/' << m_block.size();
 }
 
 void BlockValidationState::blockFailed(int punishment, const std::string &error, Validation::RejectCodes code, bool corruptionPossible)
@@ -1175,11 +1198,11 @@ void BlockValidationState::checks1NoContext()
     int64_t start2, end2, end, start; start2 = end2 = start = end = GetTimeMicros();
 #endif
 
-    DEBUGBV << "Starting" << m_block.createHash() << "CheckPOW:" << m_checkPow << "CheckMerkleRoot:" << m_checkMerkleRoot << "ValidityOnly:" << m_checkValidityOnly;
+    DEBUGBV << "Starting" << blockId << "CheckPOW:" << m_checkPow << "CheckMerkleRoot:" << m_checkMerkleRoot << "ValidityOnly:" << m_checkValidityOnly;
 
     try { // These are checks that are independent of context.
         // Check proof of work matches claimed amount
-        if (m_checkPow && !CheckProofOfWork(m_block.createHash(), m_block.bits(), Params().GetConsensus()))
+        if (m_checkPow && !CheckProofOfWork(blockId, m_block.bits(), Params().GetConsensus()))
             throw Exception("high-hash", 50);
 
         // Check timestamp
@@ -1267,7 +1290,7 @@ void BlockValidationState::checks2HaveParentHeaders()
     assert(m_blockIndex);
     assert(m_blockIndex->nHeight >= 0);
     assert(m_block.isFullBlock());
-    DEBUGBV << m_blockIndex->nHeight << m_block.createHash();
+    DEBUGBV << m_blockIndex->nHeight << blockId;
 
 #ifdef ENABLE_BENCHMARKS
     int64_t start = GetTimeMicros();
@@ -1344,7 +1367,7 @@ void BlockValidationState::checks2HaveParentHeaders()
                 Application::instance()->ioService().post(std::bind(&BlockValidationState::updateUtxoAndStartValidation, shared_from_this()));
             } else {
                 assert(!m_checkValidityOnly); // why did we get here if there is no known parent...
-                DEBUGBV << "  saving block for later, no parent yet" << m_block.createHash()
+                DEBUGBV << "  saving block for later, no parent yet" << blockId
                         << '@' << m_blockIndex->nHeight << "parent:" << m_blockIndex->pprev->GetBlockHash();
             }
             return;
@@ -1354,7 +1377,7 @@ void BlockValidationState::checks2HaveParentHeaders()
 
 void BlockValidationState::updateUtxoAndStartValidation()
 {
-    DEBUGBV << m_block.createHash();
+    DEBUGBV << blockId;
     assert(m_txChunkLeftToStart.load() < 0); // this method should get called only once
     auto parent = m_parent.lock();
     if (!parent)
@@ -1429,6 +1452,7 @@ void BlockValidationState::updateUtxoAndStartValidation()
         m_txChunkLeftToFinish.store(chunks);
         m_txChunkLeftToStart.store(chunks);
         m_undoItems.resize(static_cast<size_t>(chunks));
+        m_perTxFees.resize(static_cast<size_t>(chunks));
 
         for (int i = 0; i < chunks; ++i) {
             Application::instance()->ioService().post(std::bind(&BlockValidationState::checkSignaturesChunk,
@@ -1462,7 +1486,7 @@ void BlockValidationState::checkSignaturesChunk()
 
     int chunkToStart = m_txChunkLeftToStart.fetch_sub(1) - 1;
     assert(chunkToStart >= 0);
-    DEBUGBV << chunkToStart << m_block.createHash();
+    DEBUGBV << chunkToStart << blockId;
 
     int itemsPerChunk;
     if (m_checkValidityOnly) {
@@ -1476,7 +1500,14 @@ void BlockValidationState::checkSignaturesChunk()
     const int txMax = std::min(txIndex + itemsPerChunk, totalTxCount);
     uint32_t chunkSigChecks = 0;
     int64_t chunkFees = 0;
-    std::unique_ptr<std::deque<FastUndoBlock::Item> >undoItems(new std::deque<FastUndoBlock::Item>());
+
+    m_undoItems[static_cast<size_t>(chunkToStart)].reset(new std::deque<FastUndoBlock::Item>());
+    auto undoItems = m_undoItems[static_cast<size_t>(chunkToStart)].get();
+    std::deque<std::int32_t> *perTxFees = nullptr;
+    if (flags.enableValidation) {
+        m_perTxFees[static_cast<size_t>(chunkToStart)].reset(new std::deque<std::int32_t>());
+        perTxFees = m_perTxFees[static_cast<size_t>(chunkToStart)].get();
+    }
 
     try {
         for (;blockValid && txIndex < txMax; ++txIndex) {
@@ -1534,7 +1565,7 @@ void BlockValidationState::checkSignaturesChunk()
                     }
                 }
                 if (!validUtxo && !validInterBlockSpent) {
-                    logCritical(Log::BlockValidation) << "Rejecting block" << m_block.createHash() << "due to missing inputs";
+                    logCritical(Log::BlockValidation) << "Rejecting block" << blockId << "due to missing inputs";
                     logInfo(Log::BlockValidation) << " + txid:" << tx.createHash() << "needs input:" << input.txid << input.index;
                     throw Exception("missing-inputs", 0);
                 }
@@ -1574,7 +1605,7 @@ void BlockValidationState::checkSignaturesChunk()
                     utxoDuration += GetTimeMicros() - utxoStart;
 #endif
                     if (!removed.isValid()) {
-                        logCritical(Log::BlockValidation) << "Rejecting block" << m_block.createHash() << "due to deleted input";
+                        logCritical(Log::BlockValidation) << "Rejecting block" << blockId << "due to deleted input";
                         logInfo(Log::BlockValidation) << " + txid:" << tx.createHash() << "needs input:" << input.txid << input.index;
                         throw Exception("missing-inputs", 0);
                     }
@@ -1599,6 +1630,7 @@ void BlockValidationState::checkSignaturesChunk()
                 uint32_t sigChecks = 0;
                 ValidationPrivate::validateTransactionInputs(old, unspents, m_blockIndex->nHeight, flags, fees,
                                                              sigChecks, spendsCoinBase, /* requireStandard */ false);
+                perTxFees->push_back(fees);
                 chunkSigChecks += sigChecks;
                 chunkFees += fees;
             }
@@ -1631,7 +1663,6 @@ void BlockValidationState::checkSignaturesChunk()
     }
     m_blockFees.fetch_add(chunkFees);
     m_sigChecksCounted.fetch_add(chunkSigChecks );
-    m_undoItems[static_cast<size_t>(chunkToStart)] = undoItems.release();
 
 #ifdef ENABLE_BENCHMARKS
     int64_t end = GetTimeMicros();

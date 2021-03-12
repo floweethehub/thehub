@@ -352,11 +352,8 @@ static bool CheckSignatureEncoding(const std::vector<unsigned char> &vchSig, Scr
         }
     }
     if (type & CheckSigHash) {
-        const bool usesForkId = GetHashType(vchSig) & SIGHASH_FORKID;
-        const bool forkIdEnabled = state.flags & SCRIPT_ENABLE_SIGHASH_FORKID;
-        if (!forkIdEnabled && usesForkId)
-            return set_error(state.error, SCRIPT_ERR_ILLEGAL_FORKID);
-        if (forkIdEnabled && !usesForkId)
+        if (state.flags & SCRIPT_ENABLE_SIGHASH_FORKID // forkid required
+                && !(GetHashType(vchSig) & SIGHASH_FORKID)) // not present
             return set_error(state.error, SCRIPT_ERR_MUST_USE_FORKID);
     }
 

@@ -55,7 +55,8 @@ struct DataFile {
 
 enum BlockType {
     ForwardBlock,
-    RevertBlock
+    RevertBlock,
+    MetaDataForBlock
 };
 
 struct FileHistoryEntry {

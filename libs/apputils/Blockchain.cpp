@@ -66,6 +66,9 @@ Blockchain::Transaction fillTx(Streaming::BufferPool &pool, Streaming::MessagePa
             assert (tx.inputs.size() != 0);
             tx.inputs.back().outIndex = parser.intData();
         }
+        else if (parser.tag() == Api::BlockChain::Tx_Fees) {
+            tx.fees = parser.intData();
+        }
         else if (parser.tag() == Api::BlockChain::Tx_Out_Index) {
             tx.outputs.resize(tx.outputs.size() + 1);
             assert(parser.intData() < 0xFFFF);
@@ -133,6 +136,8 @@ void addIncludeRequests(Streaming::MessageBuilder &builder, uint32_t transaction
         builder.add(Api::BlockChain::Include_OutputAddresses, true);
     if (transactionFilters & Blockchain::IncludeOutputScriptHash)
         builder.add(Api::BlockChain::Include_OutputScriptHash, true);
+    if (transactionFilters & Blockchain::IncludeTxFee)
+        builder.add(Api::BlockChain::Include_TxFee, true);
 }
 
 }
