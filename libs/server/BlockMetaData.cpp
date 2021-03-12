@@ -23,6 +23,8 @@
 #include <streaming/MessageBuilder.h>
 #include <streaming/MessageParser.h>
 
+#include <primitives/script.h>
+
 constexpr int TxRowWidth = 40;
 constexpr int32_t FEE_INVALID = 0xFFFFFF;
 
@@ -130,8 +132,38 @@ BlockMetaData BlockMetaData::parseBlock(int blockHeight, const FastBlock &block,
 
         }
         else if (iter.tag() == Tx::OutputScript) {
-            // TODO fill the bit-field.
-            currentTx.scriptTags = 0;
+            const CScript script(iter.byteData());
+            if (script.IsPayToScriptHash()) {
+                currentTx.scriptTags |= P2SH;
+                continue;
+            }
+            auto iter = script.begin();
+            opcodetype type;
+            while (script.GetOp(iter, type)) {
+                switch (type) {
+                case OP_RETURN:
+                    currentTx.scriptTags |= OpReturn;
+                    break;
+                case OP_CHECKDATASIG:
+                case OP_CHECKDATASIGVERIFY:
+                    currentTx.scriptTags |= OpCheckDataSig;
+                    break;
+                case OP_CHECKSIG:
+                case OP_CHECKSIGVERIFY:
+                    currentTx.scriptTags |= OpChecksig;
+                    break;
+                case OP_CHECKMULTISIG:
+                case OP_CHECKMULTISIGVERIFY:
+                    currentTx.scriptTags |= OpCheckmultisig;
+                    break;
+                case OP_CHECKLOCKTIMEVERIFY:
+                    currentTx.scriptTags |= OpCheckLockTimeverify;
+                    break;
+                default:
+                    break;
+                };
+            }
+
         }
     }
 
