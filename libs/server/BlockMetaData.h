@@ -62,6 +62,12 @@ public:
      * We return a nullptr if no match was found.
      */
     const TransactionData *findTransaction(const uint256 &txid) const;
+    /**
+     * Find a transaction by offset in block.
+     * This will walk over the list of transactions and find a match with /a offsetInBlock.
+     * We return a nullptr if no match was found.
+     */
+    const TransactionData *findTransaction(int offsetInBlock) const;
 
     const TransactionData *first() const;
 

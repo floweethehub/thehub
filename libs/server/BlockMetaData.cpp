@@ -164,6 +164,23 @@ const BlockMetaData::TransactionData *BlockMetaData::findTransaction(const uint2
     return nullptr;
 }
 
+const BlockMetaData::TransactionData *BlockMetaData::findTransaction(int offsetInBlock) const
+{
+    assert(offsetInBlock > 0);
+    uint32_t oib = static_cast<uint32_t>(offsetInBlock);
+    const char *currentTx = m_transactions.begin();
+    while (currentTx < m_transactions.end()) {
+        auto tx = reinterpret_cast<const BlockMetaData::TransactionData*>(currentTx);
+        if (tx->offsetInBlock == oib)
+            return tx;
+        if (tx->offsetInBlock > oib)
+            break;
+        currentTx += TxRowWidth;
+    }
+    return nullptr;
+}
+
+
 const BlockMetaData::TransactionData *BlockMetaData::first() const
 {
     return reinterpret_cast<const BlockMetaData::TransactionData*>(m_transactions.begin());

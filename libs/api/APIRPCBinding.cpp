@@ -767,6 +767,8 @@ public:
                 if (!parser.isInt() || parser.intData() < 0)
                     throw Api::ParserException("FilterOutputIndex should be a positive number");
                 opt.filterOutputs.insert(parser.intData());
+            } else if (parser.tag() == Api::BlockChain::Include_TxFee) {
+                m_returnTxFee = parser.boolData();
             } else {
                 opt.readParser(parser);
             }
@@ -798,6 +800,14 @@ public:
         } catch (const std::runtime_error &e) {
             throw Api::ParserException("Invalid offsetInBlock");
         }
+        if (m_returnTxFee && m_offsetInBlock > 90) {
+            try {
+                BlockMetaData meta = Blocks::DB::instance()->loadBlockMetaData(index->GetMetaDataPos());
+                auto tx = meta.findTransaction(m_offsetInBlock);
+                if (tx)
+                    m_txFee = tx->fees;
+            } catch (...) { }
+        }
 
         int amount = m_fullTxData ? m_tx.size() + 10 : 0;
         if (m_returnTxId) amount += 40;
@@ -811,6 +821,8 @@ public:
             builder.add(Api::BlockChain::TxId, m_tx.createHash());
         if (m_returnOffsetInBlock)
             builder.add(Api::BlockChain::Tx_OffsetInBlock, m_offsetInBlock);
+        if (m_txFee >= 0)
+            builder.add(Api::BlockChain::Tx_Fees, m_txFee);
         if (m_tx.size() > 0) {
             if (opt.shouldRun()) {
                 Tx::Iterator iter(m_tx);
@@ -825,7 +837,9 @@ private:
     bool m_fullTxData = true;
     bool m_returnTxId = false;
     bool m_returnOffsetInBlock = false;
+    bool m_returnTxFee = false;
     int m_offsetInBlock = 0;
+    int m_txFee = -1;
     Tx m_tx;
     TransactionSerializationOptions opt;
 };
