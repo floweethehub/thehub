@@ -581,11 +581,15 @@ void ValidationEnginePrivate::processNewBlock(std::shared_ptr<BlockValidationSta
                 Streaming::BufferPool pool;
                 if (createMeta) {
                     auto metaData = BlockMetaData::parseBlock(index->nHeight, state->m_block, state->m_perTxFees, pool);
-                    CDiskBlockPos metaDataPos = Blocks::DB::instance()->writeMetaBlock(metaData);
-                    if (!metaDataPos.IsNull()) {
-                        index->nMetaDataPos = metaDataPos.nPos;
-                        index->nMetaDataFile = metaDataPos.nFile;
-                        index->nStatus |= BLOCK_HAVE_METADATA;
+                    try {
+                        CDiskBlockPos metaDataPos = Blocks::DB::instance()->writeMetaBlock(metaData);
+                        if (!metaDataPos.IsNull()) {
+                            index->nMetaDataPos = metaDataPos.nPos;
+                            index->nMetaDataFile = metaDataPos.nFile;
+                            index->nStatus |= BLOCK_HAVE_METADATA;
+                        }
+                    } catch (const std::exception &e) {
+                        logWarning(Log::BlockValidation) << "Failed to write meta block due to:" << e;
                     }
                 }
 
