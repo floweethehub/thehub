@@ -577,16 +577,7 @@ void ValidationEnginePrivate::processNewBlock(std::shared_ptr<BlockValidationSta
                     // there already is one.
                     try {
                         BlockMetaData meta = Blocks::DB::instance()->loadBlockMetaData(index->GetMetaDataPos());
-                        createMeta = false; // already have one that works.
-
-                        auto coinbase = meta.first();
-                        bool hadFees = false;
-                        if (coinbase && coinbase->fees == 0) {
-                            // then we have a perfectly valid and complete meta already.
-                            hadFees = true;
-                        }
-                        if (state->flags.enableValidation && !hadFees)
-                            createMeta = true; // we have fees now, replace.
+                        createMeta = state->flags.enableValidation && !meta.hasFeesData(); // we have fees now, replace.
                     } catch (const std::exception &e) {} // loading may throw
                 }
                 Streaming::BufferPool pool;

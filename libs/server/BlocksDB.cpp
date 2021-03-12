@@ -143,19 +143,28 @@ bool LoadExternalBlockFile(const CDiskBlockPos &pos)
             for (int i = 0; i < 40; ++i) {
                 auto index = Blocks::Index::get(md.blockId());
                 if (index) {
-                    index->nMetaDataFile = pos.nFile;
-                    index->nMetaDataPos = offsetInFile;
-                    MarkIndexUnsaved(index);
+                    bool save = true;
+                    if (index->nStatus & BLOCK_HAVE_METADATA && !md.hasFeesData()) { // there already is one (race condition, block validation created one just now).
+                        try {
+                            BlockMetaData newMeta = Blocks::DB::instance()->loadBlockMetaData(index->GetMetaDataPos());
+                            save = newMeta.hasFeesData(); // only go back when that one had fees and now we don't
+                        } catch (const std::exception &e) {} // loading may throw
+                    }
+                    if (save) {
+                        index->nMetaDataFile = pos.nFile;
+                        index->nMetaDataPos = offsetInFile;
+                        MarkIndexUnsaved(index);
+                    }
                     success = true;
                     break;
                 }
-                logFatal() << "Sleeping a bit to wait for the index";
+                logWarning(Log::DB) << "Sleeping a bit to wait for the index";
                 MilliSleep(50);
             }
             if (success)
                 ++nMetaBlocks;
             else
-                logFatal() << "Reindex could not add MetaData block due to its index not existing yet." << md.blockId();
+                logWarning(Log::DB) << "Reindex could not add MetaData block due to its index not existing yet." << md.blockId();
         } catch (const std::exception &e) {
             logWarning(Log::DB) << "LoadExternalBlockFile: Failed to parse BlockMetaData object. blk: " << pos.nFile << "reason:" << e;
         }
