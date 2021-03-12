@@ -570,12 +570,16 @@ public:
             const int ctorHeight = Params().GetConsensus().hf201811Height;
             auto index = chainActive.Tip();
             for (int i = 0; !success && index && i < 6; ++i) {
-                if (index->nMetaDataPos > 0) {
-                    logDebug() << "Searching for txid in the blockmetadata object";
+                if (index->nStatus & BLOCK_HAVE_METADATA) {
+                    logDebug() << "Searching for txid in the blockmetadata object" << index->nHeight;
                     BlockMetaData meta = Blocks::DB::instance()->loadBlockMetaData(index->GetMetaDataPos());
                     auto tx = meta.findTransaction(txid);
                     if (tx) {
                         m_blockHeight = index->nHeight;
+                        FastBlock block = Blocks::DB::instance()->loadBlock(index->GetBlockPos());
+                        Tx::Iterator iter(block, tx->offsetInBlock);
+                        iter.next(Tx::End);
+                        m_tx = iter.prevTx();
                         return;
                     }
                 }
@@ -611,9 +615,11 @@ public:
     int calculateMessageSize(const Message &request) override
     {
         Streaming::MessageParser parser(request.body());
+        bool validQuery = false;
         while (parser.next() == Streaming::FoundTag) {
             if (parser.tag() == Api::LiveTransactions::TxId
                     || parser.tag() == Api::LiveTransactions::GenericByteData) {
+                validQuery = true;
                 findByTxid(parser.uint256Data());
                 break;
             }
@@ -623,8 +629,10 @@ public:
                 return m_tx.size() + 20;
             }
         }
-        if (m_tx.data().isEmpty())
+        if (!validQuery)
             throw Api::ParserException("Missing or invalid search argument");
+        if (m_tx.data().isEmpty())
+            throw Api::ParserException("Not found");
         return m_tx.size() + 26;
     }
     void buildReply(const Message&, Streaming::MessageBuilder &builder) override
