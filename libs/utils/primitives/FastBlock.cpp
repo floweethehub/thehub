@@ -129,11 +129,6 @@ uint256 FastBlock::createHash() const
     return result;
 }
 
-bool FastBlock::isFullBlock() const
-{
-    return m_data.size() > 80;
-}
-
 void FastBlock::findTransactions()
 {
     if (!m_transactions.empty())

@@ -66,7 +66,15 @@ public:
     /// calculates and returns hash.
     uint256 createHash() const;
 
-    bool isFullBlock() const;
+    /// Returns if this block has a header and a list of transactions.
+    inline bool isFullBlock() const {
+        return m_data.size() > 80;
+    }
+
+    /// Returns if this block has at least enough data for a header.
+    inline bool hasHeader() const {
+        return m_data.size() >= 80;
+    }
 
     /// Populate the transactions() array, throws exception on failure.
     /// This method should only ever be called once on a FastBlock.

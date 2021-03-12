@@ -199,6 +199,7 @@ void reimportBlockFiles()
         }
         Blocks::DB::instance()->setReindexing(Blocks::ParsingBlocks);
     }
+    Application::instance()->validation()->start();
     Application::instance()->validation()->waitValidationFinished();
     if (!Application::isClosingDown()) // waitValidationFinished may not have finished then
         Blocks::DB::instance()->setReindexing(Blocks::NoReindex);

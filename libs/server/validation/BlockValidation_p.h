@@ -157,6 +157,7 @@ public:
     FastBlock m_block;
     CDiskBlockPos m_blockPos;
     CBlockIndex *m_blockIndex;
+    uint256 blockId;
 
     const std::uint8_t m_onResultFlags;
     std::uint8_t punishment = 100;
