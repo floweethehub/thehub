@@ -24,13 +24,20 @@
 #include <streaming/MessageParser.h>
 
 constexpr int TxRowWidth = 40;
+constexpr int32_t FEE_INVALID = 0xFFFFFF;
 
+// tags used to save our data file with.
 enum Tags {
-    BlockID,
+    BlockID = 0,
     BlockHeight,
     IsCTOR,
     TransactionDataBlob
 };
+
+bool BlockMetaData::hasFeesData() const
+{
+    return first()->fees != FEE_INVALID;
+}
 
 BlockMetaData::BlockMetaData(const Streaming::ConstBuffer &buffer)
     : m_data(buffer)
@@ -92,14 +99,14 @@ BlockMetaData BlockMetaData::parseBlock(int blockHeight, const FastBlock &block,
 
                 if (chunk) {
                     int fees = chunk->at(feeIndex++);
-                    if (fees < 0xFFFFFF) // fits in our field
+                    if (fees < FEE_INVALID) // fits in our field
                         currentTx.fees = fees;
                     else
-                        currentTx.fees = 0xFFFFFF; // -1, fee too heigh for our cache
+                        currentTx.fees = FEE_INVALID; // -1, fee too heigh for our cache
                 }
             }
             else if (coinbase && chunk == nullptr) {
-                currentTx.fees = 0xFFFFFF; // -1, mark that we don't have fee info in this BMD
+                currentTx.fees = FEE_INVALID; // -1, mark that we don't have fee info in this BMD
             }
 
             coinbase = false;

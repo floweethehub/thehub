@@ -804,7 +804,7 @@ public:
             try {
                 BlockMetaData meta = Blocks::DB::instance()->loadBlockMetaData(index->GetMetaDataPos());
                 auto tx = meta.findTransaction(m_offsetInBlock);
-                if (tx)
+                if (tx && meta.hasFeesData())
                     m_txFee = tx->fees;
             } catch (...) { }
         }
