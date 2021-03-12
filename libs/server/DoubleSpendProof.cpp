@@ -65,7 +65,7 @@ namespace {
                 ss << tx.vout[n];
             }
             spender.hashOutputs = ss.finalizeHash();
-        } else if ((hashType & 0x1f) == SIGHASH_SINGLE && inputIndex < tx.vout.size()) {
+        } else if ((hashType & 0x1f) == SIGHASH_SINGLE && inputIndex < int(tx.vout.size())) {
             CHashWriter ss(SER_GETHASH, 0);
             ss << tx.vout[inputIndex];
             spender.hashOutputs = ss.finalizeHash();
