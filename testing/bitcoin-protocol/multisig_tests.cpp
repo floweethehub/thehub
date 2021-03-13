@@ -156,19 +156,20 @@ void MultiSigTests::multisig_IsStandard()
 
     CScript a_and_b;
     a_and_b << OP_2 << ToByteVector(key[0].GetPubKey()) << ToByteVector(key[1].GetPubKey()) << OP_2 << OP_CHECKMULTISIG;
-    QVERIFY(::IsStandard(a_and_b, whichType));
+    int dataSize = 0;
+    QVERIFY(::IsStandard(a_and_b, whichType, dataSize));
 
     CScript a_or_b;
     a_or_b  << OP_1 << ToByteVector(key[0].GetPubKey()) << ToByteVector(key[1].GetPubKey()) << OP_2 << OP_CHECKMULTISIG;
-    QVERIFY(::IsStandard(a_or_b, whichType));
+    QVERIFY(::IsStandard(a_or_b, whichType, dataSize));
 
     CScript escrow;
     escrow << OP_2 << ToByteVector(key[0].GetPubKey()) << ToByteVector(key[1].GetPubKey()) << ToByteVector(key[2].GetPubKey()) << OP_3 << OP_CHECKMULTISIG;
-    QVERIFY(::IsStandard(escrow, whichType));
+    QVERIFY(::IsStandard(escrow, whichType, dataSize));
 
     CScript one_of_four;
     one_of_four << OP_1 << ToByteVector(key[0].GetPubKey()) << ToByteVector(key[1].GetPubKey()) << ToByteVector(key[2].GetPubKey()) << ToByteVector(key[3].GetPubKey()) << OP_4 << OP_CHECKMULTISIG;
-    QVERIFY(!::IsStandard(one_of_four, whichType));
+    QVERIFY(!::IsStandard(one_of_four, whichType, dataSize));
 
     CScript malformed[6];
     malformed[0] << OP_3 << ToByteVector(key[0].GetPubKey()) << ToByteVector(key[1].GetPubKey()) << OP_2 << OP_CHECKMULTISIG;
@@ -179,7 +180,7 @@ void MultiSigTests::multisig_IsStandard()
     malformed[5] << OP_1 << ToByteVector(key[0].GetPubKey()) << ToByteVector(key[1].GetPubKey());
 
     for (int i = 0; i < 6; i++)
-        QVERIFY(!::IsStandard(malformed[i], whichType));
+        QVERIFY(!::IsStandard(malformed[i], whichType, dataSize));
 }
 
 void MultiSigTests::multisig_Solver1()

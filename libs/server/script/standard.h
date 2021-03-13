@@ -38,7 +38,7 @@ public:
 };
 
 extern bool fAcceptDatacarrier;
-extern unsigned nMaxDatacarrierBytes;
+extern int nMaxDatacarrierBytes;
 
 /**
  * Mandatory script verification flags that all new blocks must comply with for

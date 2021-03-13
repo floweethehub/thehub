@@ -697,7 +697,7 @@ bool AppInit2(boost::thread_group& threadGroup, CScheduler& scheduler)
 
     fIsBareMultisigStd = GetBoolArg("-permitbaremultisig", Settings::DefaultPermitBareMultisig);
     fAcceptDatacarrier = GetBoolArg("-datacarrier", Settings::DefaultAcceptDataCarrier);
-    nMaxDatacarrierBytes = GetArg("-datacarriersize", nMaxDatacarrierBytes);
+    nMaxDatacarrierBytes = GetArg("-datacarriersize", Settings::MaxOpReturnRelay);
 
     // Option to startup with mocktime set (used for regression testing):
     SetMockTime(GetArg("-mocktime", 0)); // SetMockTime(0) is a no-op

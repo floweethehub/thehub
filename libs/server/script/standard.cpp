@@ -31,7 +31,7 @@
 typedef std::vector<unsigned char> valtype;
 
 bool fAcceptDatacarrier = Settings::DefaultAcceptDataCarrier;
-unsigned nMaxDatacarrierBytes = Settings::MaxOpReturnRelay;
+int nMaxDatacarrierBytes = Settings::MaxOpReturnRelay;
 
 CScriptID::CScriptID(const CScript& in) : uint160(Hash160(in.begin(), in.end())) {}
 

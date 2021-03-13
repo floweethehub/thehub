@@ -2,7 +2,7 @@
  * This file is part of the Flowee project
  * Copyright (C) 2009-2010 Satoshi Nakamoto
  * Copyright (C) 2009-2015 The Bitcoin developers
- * Copyright (C) 2019-2020 Tom Zander <tomz@freedommail.ch>
+ * Copyright (C) 2019-2021 Tom Zander <tom@flowee.org>
  *
  * This program is free software: you can redistribute it and/or modify
  * it under the terms of the GNU General Public License as published by
@@ -53,7 +53,7 @@
      *   DUP CHECKSIG DROP ... repeated 100 times... OP_1
      */
 
-bool IsStandard(const CScript& scriptPubKey, Script::TxnOutType& whichType)
+bool IsStandard(const CScript &scriptPubKey, Script::TxnOutType &whichType, int &dataUsed)
 {
     std::vector<std::vector<unsigned char> > vSolutions;
     if (!Script::solver(scriptPubKey, whichType, vSolutions))
@@ -67,9 +67,11 @@ bool IsStandard(const CScript& scriptPubKey, Script::TxnOutType& whichType)
             return false;
         if (m < 1 || m > n)
             return false;
-    } else if (whichType == Script::TX_NULL_DATA &&
-               (!fAcceptDatacarrier || scriptPubKey.size() > nMaxDatacarrierBytes))
-          return false;
+    } else if (whichType == Script::TX_NULL_DATA) {
+        if (!fAcceptDatacarrier)
+            return false;
+        dataUsed += scriptPubKey.size() - 3; // (-1 for OP_RETURN, -2 for the pushdata opcodes)
+    }
 
     return whichType != Script::TX_NONSTANDARD;
 }
@@ -109,16 +111,15 @@ bool IsStandardTx(const CTransaction& tx, std::string& reason)
         }
     }
 
-    unsigned int nDataOut = 0;
     Script::TxnOutType whichType;
+    int dataUsed = 0; // TX_NULL_DATA type number of bytes used
     for (const CTxOut& txout : tx.vout) {
-        if (!::IsStandard(txout.scriptPubKey, whichType)) {
+        if (!::IsStandard(txout.scriptPubKey, whichType, dataUsed)) {
             reason = "scriptpubkey";
             return false;
-        }
-
-        if (whichType == Script::TX_NULL_DATA) {
-            nDataOut++;
+        } else if (whichType == Script::TX_NULL_DATA && dataUsed > nMaxDatacarrierBytes) {
+            reason = "oversize-op-return";
+            return false;
         } else if ((whichType == Script::TX_MULTISIG) && (!fIsBareMultisigStd)) {
             reason = "bare-multisig";
             return false;
@@ -126,12 +127,6 @@ bool IsStandardTx(const CTransaction& tx, std::string& reason)
             reason = "dust";
             return false;
         }
-    }
-
-    // only one OP_RETURN txout is permitted
-    if (nDataOut > 1) {
-        reason = "multi-op-return";
-        return false;
     }
 
     return true;
