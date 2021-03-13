@@ -34,7 +34,7 @@ constexpr uint32_t DefaultCheckLevel = 3;
 constexpr int32_t DefaultBlockAcceptSize = 128000000;
 
 constexpr bool DefaultAcceptDataCarrier = true;
-constexpr int MaxOpReturnRelay = 220; //! bytes
+constexpr int MaxOpReturnRelay = 223;
 constexpr bool DefaultRelayPriority = true;
 
 /** Default for setting that we download and accept blocks only (no transactions, no mempool) */

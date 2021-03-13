@@ -334,14 +334,34 @@ void TransactionTests::test_IsStandard()
     t.vout[0].scriptPubKey = CScript() << OP_RETURN
         << ParseHex("04678afdb0fe5548271967f1a67130b7105cd6a828e03909a67962e0ea1f61deb649f6bc3f4cef3804678afdb0fe5548271967f1a67130b7105cd6a828e03909a67962e0ea1f61deb649f6bc3f4cef38"
                     "0000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000");
-    QCOMPARE(Settings::MaxOpReturnRelay + 3, t.vout[0].scriptPubKey.size());
+    QCOMPARE(Settings::MaxOpReturnRelay, t.vout[0].scriptPubKey.size());
     QVERIFY(IsStandardTx(t, reason));
 
+    // Multiple op-returns.
+    t.vout.push_back(t.vout.at(0));
+    t.vout[0].scriptPubKey = CScript() << OP_RETURN // 58 + 2 bytes
+        << ParseHex("04678afdb0fe55482719bc3f4cef3804678afdb0fe5548271967f1a67130b7105cd6a828e03909a67962e0ea1f61deb649f6bc3f4cef38123456");
+    t.vout[1].scriptPubKey = CScript() << OP_RETURN // 103 + 3 bytes
+        << ParseHex("04678afdb0fe55482719bc3f4cef3804678afdb0fe5548271967f1a67130b7105cd6a828e03909a67962e0ea1f61deb649f6bc3f4cef38"
+                    "000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000");
+    QVERIFY(IsStandardTx(t, reason));
+
+    // limit is currently 223
+    t.vout.push_back(t.vout.at(0));
+    t.vout[2].scriptPubKey = CScript() << OP_RETURN // 57 + 2
+        << ParseHex("04678afdb0fe55482719bc3f4cef3804678afdb0fe5548271967f1a67130b7105cd6a828e03909a67962e0ea1f61deb649f6bc3f4cef38");
+    QVERIFY(IsStandardTx(t, reason)); // exactly within limit.
+    // one byte over limit.
+    t.vout[2].scriptPubKey = t.vout[1].scriptPubKey;
+    QCOMPARE(IsStandardTx(t, reason), false);
+    QCOMPARE(reason, "oversize-op-return");
+
+    t.vout.resize(1);
     // MAX_OP_RETURN_RELAY+1-byte TX_NULL_DATA (non-standard)
     t.vout[0].scriptPubKey = CScript() << OP_RETURN
         << ParseHex("04678afdb0fe5548271967f1a67130b7105cd6a828e03909a67962e0ea1f61deb649f6bc3f4cef3804678afdb0fe5548271967f1a67130b7105cd6a828e03909a67962e0ea1f61deb649f6bc3f4cef3800"
                     "0000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000");
-    QCOMPARE(Settings::MaxOpReturnRelay + 4, t.vout[0].scriptPubKey.size());
+    QCOMPARE(Settings::MaxOpReturnRelay + 1, t.vout[0].scriptPubKey.size());
     QVERIFY(!IsStandardTx(t, reason));
 
     // Data payload can be encoded in any way...
