@@ -167,6 +167,7 @@ public:
     bool m_checkMerkleRoot = true;
     bool m_checkValidityOnly = false;
     bool m_checkTransactionValidity = true;
+    bool m_fetchFees = false;
     ValidationFlags flags;
 
     const std::int32_t m_originatingNodeId;

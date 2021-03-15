@@ -198,6 +198,7 @@ void ValidationEnginePrivate::blockHeaderValidated(std::shared_ptr<BlockValidati
     }
 
     state->flags = tipFlags;
+    state->m_fetchFees = state->flags.enableValidation || fetchFeeForMetaBlocks;
     if (index->nHeight == -1) { // is an orphan for now.
         if (state->m_checkValidityOnly) {
             state->blockFailed(100, "Block is an orphan, can't check", Validation::RejectInternal);
@@ -218,7 +219,7 @@ void ValidationEnginePrivate::blockHeaderValidated(std::shared_ptr<BlockValidati
     if (adoptees.size())
         headersInFlight.fetch_add(static_cast<int>(adoptees.size()));
 #ifdef DEBUG_BLOCK_VALIDATION
-    for (auto state : adoptees) {
+    for (auto &state : adoptees) {
         assert(state->m_checkingHeader);
     }
 #endif
@@ -564,7 +565,7 @@ void ValidationEnginePrivate::processNewBlock(std::shared_ptr<BlockValidationSta
                     throw Exception("bad-blk-sigcheck");
 
                 CBlock block = state->m_block.createOldBlock();
-                if (state->flags.enableValidation) {
+                if (state->m_fetchFees) {
                     int64_t blockReward = state->m_blockFees.load() + GetBlockSubsidy(index->nHeight, Params().GetConsensus());
                     if (block.vtx[0].GetValueOut() > blockReward)
                         throw Exception("bad-cb-amount");
@@ -575,7 +576,7 @@ void ValidationEnginePrivate::processNewBlock(std::shared_ptr<BlockValidationSta
                     // there already is one.
                     try {
                         BlockMetaData meta = Blocks::DB::instance()->loadBlockMetaData(index->GetMetaDataPos());
-                        createMeta = state->flags.enableValidation && !meta.hasFeesData(); // we have fees now, replace.
+                        createMeta = state->m_fetchFees && !meta.hasFeesData(); // we have fees now, replace.
                     } catch (const std::exception &e) {} // loading may throw
                 }
                 Streaming::BufferPool pool;
@@ -655,6 +656,7 @@ void ValidationEnginePrivate::processNewBlock(std::shared_ptr<BlockValidationSta
             logDebug(Log::BlockValidation) << "Not appending: isNextChainTip" << isNextChainTip << "blockValid:" << blockValid << "addToChain" << addToChain;
         }
     } catch (const Exception &e) {
+        logWarning() << "Block failed validation with" << e;
         state->blockFailed(100, e.what(), e.rejectCode(), e.corruptionPossible());
         addToChain = false;
     }
@@ -675,8 +677,10 @@ void ValidationEnginePrivate::processNewBlock(std::shared_ptr<BlockValidationSta
 
     tipFlags = state->flags;
 
+#ifndef DEBUG_BLOCK_VALIDATION
     const bool isRecentBlock = index->nHeight + 1008 > Blocks::DB::instance()->headerChain().Height();
     if (isRecentBlock || index->nHeight % 500 == 0)
+#endif
         logCritical(Log::BlockValidation).nospace() << "new best=" << state->blockId << " height=" << index->nHeight
             << " tx=" << blockchain->Tip()->nChainTx
             << " date=" << DateTimeStrFormat("%Y-%m-%d %H:%M:%S", index->GetBlockTime()).c_str()
@@ -881,7 +885,6 @@ void ValidationEnginePrivate::findMoreJobs()
             continue;
         // If we have 1008 validated headers on top of the block, turn off loads of validation of the actual block.
         const bool isRecentBlock = index->nHeight + 1008 > Blocks::DB::instance()->headerChain().Height();
-        const bool enableValidation = fetchFeeForMetaBlocks || isRecentBlock;
         int onResultFlags = isRecentBlock ? Validation::ForwardGoodToPeers : 0;
         if ((index->nStatus & BLOCK_HAVE_UNDO) == 0)
             onResultFlags |= Validation::SaveGoodToDisk;
@@ -898,7 +901,8 @@ void ValidationEnginePrivate::findMoreJobs()
             index->nStatus ^= BLOCK_HAVE_DATA; // obviously not...
             return;
         }
-        state->flags.enableValidation = enableValidation;
+        state->m_fetchFees = isRecentBlock || fetchFeeForMetaBlocks;
+        state->flags.enableValidation = isRecentBlock;
         state->m_validationStatus = BlockValidationState::BlockValidHeader | BlockValidationState::BlockValidTree;
         state->m_checkingHeader = false;
         blocksBeingValidated.insert(std::make_pair(state->blockId, state));
@@ -1504,7 +1508,7 @@ void BlockValidationState::checkSignaturesChunk()
     m_undoItems[static_cast<size_t>(chunkToStart)].reset(new std::deque<FastUndoBlock::Item>());
     auto undoItems = m_undoItems[static_cast<size_t>(chunkToStart)].get();
     std::deque<std::int32_t> *perTxFees = nullptr;
-    if (flags.enableValidation) {
+    if (m_fetchFees) {
         m_perTxFees[static_cast<size_t>(chunkToStart)].reset(new std::deque<std::int32_t>());
         perTxFees = m_perTxFees[static_cast<size_t>(chunkToStart)].get();
     }
@@ -1541,7 +1545,7 @@ void BlockValidationState::checkSignaturesChunk()
                             if (iter->first == input.index) {
                                 // found index.
                                 prevheights.push_back(m_blockIndex->nHeight);
-                                if (flags.enableValidation) {
+                                if (m_fetchFees) { // prepare the unspents
                                     int output = input.index;
                                     assert(output >= 0);
                                     Tx::Iterator prevTxIter(m_block, iter->second);
@@ -1587,7 +1591,7 @@ void BlockValidationState::checkSignaturesChunk()
                 }
                 if (validUtxo) { // fill prevHeight and unspents from the UTXO
                     prevheights.push_back(unspentOutput.blockHeight());
-                    if (flags.enableValidation) {
+                    if (flags.enableValidation || m_fetchFees) {
                         UnspentOutputData data(unspentOutput);
                         prevOut.amount = data.outputValue();
                         prevOut.outputScript = data.outputScript();
@@ -1618,6 +1622,8 @@ void BlockValidationState::checkSignaturesChunk()
             }
 
             if (flags.enableValidation && txIndex > 0) {
+                assert(m_fetchFees);
+                assert(perTxFees);
                 CTransaction old = tx.createOldTransaction();
                 // Check that transaction is BIP68 final
                 int nLockTimeFlags = 0;
@@ -1633,6 +1639,23 @@ void BlockValidationState::checkSignaturesChunk()
                 perTxFees->push_back(fees);
                 chunkSigChecks += sigChecks;
                 chunkFees += fees;
+            }
+            else if (m_fetchFees && txIndex > 0) {
+                // calculate fees faster if we don't need to validate the script.
+                int64_t valueIn = 0;
+                for (const auto &unspent : unspents) {
+                    assert(unspent.amount >= 0);
+                    valueIn += unspent.amount;
+                }
+                int64_t valueOut = 0;
+                Tx::Iterator iter(tx);
+                while (iter.next(Tx::OutputValue) != Tx::End) {
+                    assert(iter.longData() >= 0);
+                    valueOut += iter.longData();
+                }
+                int64_t fee = valueIn - valueOut;
+                perTxFees->push_back(static_cast<int32_t>(fee));
+                chunkFees += fee;
             }
 
             if (!m_checkValidityOnly) {
