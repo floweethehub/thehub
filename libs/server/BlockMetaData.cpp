@@ -101,7 +101,7 @@ BlockMetaData BlockMetaData::parseBlock(int blockHeight, const FastBlock &block,
 
                 if (chunk) {
                     int fees = chunk->at(feeIndex++);
-                    if (fees < FEE_INVALID) // fits in our field
+                    if (fees >= 0 && fees < FEE_INVALID) // fits in our field
                         currentTx.fees = fees;
                     else
                         currentTx.fees = FEE_INVALID; // -1, fee too heigh for our cache
