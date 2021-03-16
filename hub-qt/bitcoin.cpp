@@ -67,11 +67,8 @@
 #include <QTimer>
 #include <QTranslator>
 #include <QSslConfiguration>
-#include <APIServer.h>
 #include <Application.h>
-#include <AddressMonitorService.h>
-#include <TransactionMonitorService.h>
-#include <BlockNotificationService.h>
+#include <HubApiServices.h>
 
 #if defined(QT_STATICPLUGIN)
 #include <QtPlugin>
@@ -191,10 +188,7 @@ Q_SIGNALS:
 private:
     boost::thread_group threadGroup;
     CScheduler scheduler;
-    std::unique_ptr<Api::Server> apiServer;
-    std::unique_ptr<AddressMonitorService> addressMonitorService;
-    std::unique_ptr<TransactionMonitorService> transactionMonitorService;
-    std::unique_ptr<BlockNotificationService> blockNotificationService;
+    std::unique_ptr<HubApiServices> hubApiServices;
 
     /// Pass fatal exception message to UI thread
     void handleRunawayException(const std::exception *e);
@@ -282,19 +276,8 @@ void BitcoinCore::initialize()
         int rv = AppInit2(threadGroup, scheduler);
         Q_EMIT initializeResult(rv);
 
-        if (GetBoolArg("-api", true)) {
-            apiServer.reset(new Api::Server(Application::instance()->ioService()));
-            addressMonitorService.reset(new AddressMonitorService());
-            transactionMonitorService.reset(new TransactionMonitorService());
-            blockNotificationService.reset(new BlockNotificationService());
-            extern CTxMemPool mempool;
-            addressMonitorService->setMempool(&mempool);
-            transactionMonitorService->setMempool(&mempool);
-            apiServer->addService(addressMonitorService.get());
-            apiServer->addService(transactionMonitorService.get());
-            apiServer->addService(blockNotificationService.get());
-            addressMonitorService->setMaxAddressesPerConnection(GetArg("-api_max_addresses", -1));
-        }
+        if (GetBoolArg("-api", true))
+            hubApiServices.reset(new HubApiServices(Application::instance()->ioService()));
     } catch (const std::exception& e) {
         handleRunawayException(&e);
     } catch (...) {
@@ -307,10 +290,7 @@ void BitcoinCore::shutdown()
     try
     {
         qDebug() << __func__ << ": Running Shutdown in thread";
-        blockNotificationService.reset();
-        transactionMonitorService.reset();
-        addressMonitorService.reset();
-        apiServer.reset();
+        hubApiServices.reset();
         Interrupt(threadGroup);
         threadGroup.join_all();
         Shutdown();

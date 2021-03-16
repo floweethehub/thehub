@@ -20,6 +20,7 @@ add_definitions(-DLOG_DEFAULT_SECTION=2500)
 add_library(flowee_api STATIC
     APIRPCBinding.cpp
     APIServer.cpp
+    HubApiServices.cpp
 
     AddressMonitorService.cpp
     BlockNotificationService.cpp

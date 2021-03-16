@@ -30,15 +30,12 @@
 #include "httprpc.h"
 #include "rpcserver.h"
 #include "Application.h"
-#include "APIServer.h"
+#include <HubApiServices.h>
 
 #include <boost/algorithm/string/predicate.hpp>
 #include <boost/filesystem.hpp>
 #include <boost/thread.hpp>
 
-#include <AddressMonitorService.h>
-#include <TransactionMonitorService.h>
-#include <BlockNotificationService.h>
 #include <cstdio>
 
 static bool fDaemon;
@@ -110,10 +107,7 @@ bool AppInit(int argc, char* argv[])
         return false;
     }
 
-    std::unique_ptr<Api::Server> apiServer;
-    std::unique_ptr<TransactionMonitorService> transactionMonitorService;
-    std::unique_ptr<AddressMonitorService> addressMonitorService;
-    std::unique_ptr<BlockNotificationService> blockNotificationService;
+    std::unique_ptr<HubApiServices> hubApiServices;
     try
     {
         for (int i = 1; i < argc; i++) {
@@ -177,21 +171,8 @@ bool AppInit(int argc, char* argv[])
         InitParameterInteraction();
         fRet = AppInit2(threadGroup, scheduler);
 
-        if (fRet) {
-            if (GetBoolArg("-api", true)) {
-                apiServer.reset(new Api::Server(Application::instance()->ioService()));
-                addressMonitorService.reset(new AddressMonitorService());
-                transactionMonitorService.reset(new TransactionMonitorService());
-                blockNotificationService.reset(new BlockNotificationService());
-                extern CTxMemPool mempool;
-                addressMonitorService->setMempool(&mempool);
-                transactionMonitorService->setMempool(&mempool);
-                apiServer->addService(addressMonitorService.get());
-                apiServer->addService(transactionMonitorService.get());
-                apiServer->addService(blockNotificationService.get());
-                addressMonitorService->setMaxAddressesPerConnection(GetArg("-api_max_addresses", -1));
-            }
-        }
+        if (fRet && GetBoolArg("-api", true))
+            hubApiServices.reset(new HubApiServices(Application::instance()->ioService()));
     }
     catch (const std::exception& e) {
         PrintExceptionContinue(&e, "AppInit()");
@@ -208,9 +189,7 @@ bool AppInit(int argc, char* argv[])
     } else {
         WaitForShutdown(&threadGroup);
     }
-    addressMonitorService.reset();
-    transactionMonitorService.reset();
-    apiServer.reset();
+    hubApiServices.reset();
     Shutdown();
 
     return fRet;
