@@ -26,54 +26,6 @@
 
 using namespace boost::assign; // bring 'operator+=()' into scope
 
-void TestStreams::streams_serializedata_xor()
-{
-    std::vector<char> in;
-    std::vector<char> expected_xor;
-    std::vector<unsigned char> key;
-    CDataStream ds(in, 0, 0);
-
-    // Degenerate case
-    key += '\x00','\x00';
-    ds.Xor(key);
-    QCOMPARE(
-            std::string(expected_xor.begin(), expected_xor.end()),
-            std::string(ds.begin(), ds.end()));
-
-    in += '\x0f','\xf0';
-    expected_xor += '\xf0','\x0f';
-
-    // Single character key
-
-    ds.clear();
-    ds.insert(ds.begin(), in.begin(), in.end());
-    key.clear();
-
-    key += '\xff';
-    ds.Xor(key);
-    QCOMPARE(
-            std::string(expected_xor.begin(), expected_xor.end()),
-            std::string(ds.begin(), ds.end()));
-
-    // Multi character key
-
-    in.clear();
-    expected_xor.clear();
-    in += '\xf0','\x0f';
-    expected_xor += '\x0f','\x00';
-
-    ds.clear();
-    ds.insert(ds.begin(), in.begin(), in.end());
-
-    key.clear();
-    key += '\xff','\x0f';
-
-    ds.Xor(key);
-    QCOMPARE(
-            std::string(expected_xor.begin(), expected_xor.end()),
-            std::string(ds.begin(), ds.end()));
-}
-
 #define B "check_prefix"
 #define E "check_postfix"
 /* Test strprintf formatting directives.

@@ -25,7 +25,6 @@ class TestStreams : public TestFloweeBase
 {
     Q_OBJECT
 private slots:
-    void streams_serializedata_xor();
     void testStrPrintf();
     void testParseInt32();
     void testParseInt64();
