@@ -36,16 +36,10 @@ BlockNotificationService::~BlockNotificationService()
     ValidationNotifier().removeListener(this);
 }
 
-BlockNotificationService::RemoteSubscriptionInfo *BlockNotificationService::filterActive(NetworkService::Remote *r)
-{
-    RemoteSubscriptionInfo *r_ = static_cast<RemoteSubscriptionInfo*>(r);
-    return r_->m_wantsUpdates ? r_ : nullptr;
-}
-
 void BlockNotificationService::syncAllTransactionsInBlock(const FastBlock &, CBlockIndex *index)
 {
-    const auto remotes_ = remotes<RemoteSubscriptionInfo>(&BlockNotificationService::filterActive);
-    if (remotes_.empty())
+    const auto list = remotes<RemoteWithBool>(&NetworkService::filterRemoteWithBool);
+    if (list.empty())
         return;
     m_pool.reserve(45);
     Streaming::MessageBuilder builder(m_pool);
@@ -53,17 +47,15 @@ void BlockNotificationService::syncAllTransactionsInBlock(const FastBlock &, CBl
     builder.add(Api::BlockNotification::BlockHeight, index->nHeight);
     Message message(builder.message(Api::BlockNotificationService, Api::BlockNotification::NewBlockOnChain));
 
-    for (auto &remote : remotes_) {
-        RemoteSubscriptionInfo *subinfo = static_cast<RemoteSubscriptionInfo*>(remote);
-        if (subinfo->m_wantsUpdates)
-            subinfo->connection.send(message);
+    for (auto &subinfo : list) {
+        subinfo->connection.send(message);
     }
 }
 
 void BlockNotificationService::chainReorged(CBlockIndex *oldTip, const std::vector<FastBlock> &revertedBlocks)
 {
-    const auto remotes_ = remotes<RemoteSubscriptionInfo>(&BlockNotificationService::filterActive);
-    if (remotes_.empty())
+    const auto list = remotes<RemoteWithBool>(&NetworkService::filterRemoteWithBool);
+    if (list.empty())
         return;
 
     /*
@@ -73,7 +65,7 @@ void BlockNotificationService::chainReorged(CBlockIndex *oldTip, const std::vect
     m_pool.reserve(revertedBlocks.size() * 42);
     CBlockIndex *index = oldTip;
     Streaming::MessageBuilder builder(m_pool);
-    for (const auto &fb : revertedBlocks) {
+    for (size_t i = 0; i < revertedBlocks.size(); ++i) {
         assert(index);
         builder.add(Api::BlockNotification::BlockHash, index->GetBlockHash());
         builder.add(Api::BlockNotification::BlockHeight, index->nHeight);
@@ -81,21 +73,19 @@ void BlockNotificationService::chainReorged(CBlockIndex *oldTip, const std::vect
     }
     Message message(builder.message(Api::BlockNotificationService, Api::BlockNotification::BlocksRemoved));
 
-    for (auto &remote : remotes_) {
-        RemoteSubscriptionInfo *subinfo = static_cast<RemoteSubscriptionInfo*>(remote);
-        if (subinfo->m_wantsUpdates)
-            subinfo->connection.send(message);
+    for (auto &subinfo : list) {
+        subinfo->connection.send(message);
     }
 }
 
 void BlockNotificationService::onIncomingMessage(Remote *remote_, const Message &message, const EndPoint &ep)
 {
-    assert(dynamic_cast<RemoteSubscriptionInfo*>(remote_));
-    RemoteSubscriptionInfo *remote = static_cast<RemoteSubscriptionInfo*>(remote_);
+    assert(dynamic_cast<RemoteWithBool*>(remote_));
+    RemoteWithBool *remote = static_cast<RemoteWithBool*>(remote_);
     if (message.messageId() == Api::BlockNotification::Subscribe) {
         logInfo(Log::BlockNotifactionService) << "Remote" << ep.connectionId << "Wants to hear about blocks";
-        remote->m_wantsUpdates = true;
+        remote->enabled = true;
     }
     else if (message.messageId() == Api::BlockNotification::Unsubscribe)
-        remote->m_wantsUpdates = false;
+        remote->enabled = false;
 }

@@ -80,6 +80,12 @@ void NetworkService::onIncomingMessage(const Message &message, const EndPoint &e
     onIncomingMessage(r, message, ep);
 }
 
+NetworkService::RemoteWithBool *NetworkService::filterRemoteWithBool(NetworkService::Remote *r_)
+{
+    RemoteWithBool *r = dynamic_cast<RemoteWithBool*>(r_);
+    return r && r->enabled ? r : nullptr;
+}
+
 void NetworkService::onDisconnected(const EndPoint &endPoint)
 {
     for (auto remote : remotes()) {

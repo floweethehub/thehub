@@ -53,6 +53,34 @@ public:
         NetworkConnection connection;
         Streaming::BufferPool pool;
     };
+
+    /**
+     * To implement a common subscription method where the only
+     * thing a remote tells us if they are enabled or disabled, we provide this
+     * standard pattern of finding remotes.
+     *
+     * To use this in a subclass you provide as your createRemote() method code like this:
+     * @code
+        Remote *createRemote() override {
+            return new RemoteSubscriptionInfo();
+        }
+     * @endcode
+     * In any method that is interested the remotes in order to send messages to, you can simply
+     * write:
+     * @code
+        const auto list = remotes<RemoteWithBool>(&NetworkService::filterRemoteWithBool);
+        if (list.empty())
+            return;
+     * @endcode
+     */
+    class RemoteWithBool : public Remote {
+    public:
+        bool enabled = false;
+    };
+    /// Helper method to pass in to remotes<RemoteWithBool*>()
+    /// This method only returns items in the list that are the right type and have the 'enabled' bool set to true
+    static RemoteWithBool* filterRemoteWithBool(Remote *r);
+
     /// pure virtual handler method that attaches a remote
     virtual void onIncomingMessage(Remote *con, const Message &message, const EndPoint &ep) = 0;
 

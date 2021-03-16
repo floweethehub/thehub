@@ -15,22 +15,22 @@
  * You should have received a copy of the GNU General Public License
  * along with this program.  If not, see <http://www.gnu.org/licenses/>.
  */
-#ifndef BLOCKNOTIFICATIONSERVICE_H
-#define BLOCKNOTIFICATIONSERVICE_H
+#ifndef DOUBLESPENDSERVICE_H
+#define DOUBLESPENDSERVICE_H
 
 #include <validationinterface.h>
 #include <NetworkService.h>
 
-class BlockNotificationService : public ValidationInterface, public NetworkService
+class DoubleSpendService : public ValidationInterface, public NetworkService
 {
 public:
-    BlockNotificationService();
-    ~BlockNotificationService();
+    DoubleSpendService();
+    ~DoubleSpendService();
 
-    // the hub pushed a transaction into its mempool
-    void syncAllTransactionsInBlock(const FastBlock &block, CBlockIndex *index) override;
     void onIncomingMessage(Remote *con, const Message &message, const EndPoint &ep) override;
-    void chainReorged(CBlockIndex *oldTip, const std::vector<FastBlock> &revertedBlocks) override;
+    // ValidationInterface interface
+    void doubleSpendFound(const Tx &first, const Tx &duplicate) override;
+    void doubleSpendFound(const Tx &txInMempool, const DoubleSpendProof &proof) override;
 
 protected:
     Remote *createRemote() override {
@@ -39,6 +39,7 @@ protected:
 
 private:
     Streaming::BufferPool m_pool;
+
 };
 
 #endif

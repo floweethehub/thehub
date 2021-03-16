@@ -24,6 +24,7 @@ add_library(flowee_api STATIC
 
     AddressMonitorService.cpp
     BlockNotificationService.cpp
+    DoubleSpendService.cpp
     NetProtect.cpp
     TransactionMonitorService.cpp
 )

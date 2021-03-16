@@ -26,8 +26,6 @@ enum ServiceIds {
     UtilService,
     RegTestService,
 
-    // MiningService,
-
     /* service IDs under 16 are reserved to be handled by the APIServer
        it will generate errors for any in this region it doesn't understand.
     */
@@ -40,10 +38,11 @@ enum ServiceIds {
     AddressMonitorService = 17,
     BlockNotificationService,
 
-    /// The service ID reserved for the Flowee Indexer. Runs as a stand-alone cloud-server.
+    /// The service ID for the Flowee Indexer. Runs as a stand-alone cloud-server.
     IndexerService,
-    // waits for specific TxIds
+    // waits for specific TxIds (part of the Hub again)
     TransactionMonitorService,
+    DoubleSpendNotificationService,
 
     // <--  new services go here -->
 
@@ -493,6 +492,23 @@ enum MessageIds {
     FilterLoad,
     FilterAdd,
     FilterClear
+};
+}
+
+namespace DSP {
+enum MessageIds {
+    Subscribe,
+    Unsubscribe = 2,
+    NewDoubleSpend = 4
+};
+
+enum Tags {
+    // GenericByteData = Api::GenericByteData,
+    TxId = Api::TxId,   // bytearray
+    /// A bytearray with a double-spend-proof object
+    DoubleSpendProofData = 22,
+    /// A bytearray with the double spending transaction
+    Transaction = 25
 };
 }
 }
