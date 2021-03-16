@@ -24,7 +24,12 @@
 #include "TransactionMonitorService.h"
 
 
-
+/**
+ * A class encapsulating the API services for the Hub.
+ * This class helps with maintainance load where we now have one place to create and delete
+ * the services, which is automatically done in the right order.
+ * Adding a new service will now be a limited change withing the API library.
+ */
 class HubApiServices
 {
 public:
