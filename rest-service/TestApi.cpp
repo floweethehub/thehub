@@ -1,6 +1,6 @@
 /*
  * This file is part of the Flowee project
- * Copyright (C) 2019-2020 Tom Zander <tomz@freedommail.ch>
+ * Copyright (C) 2019-2021 Tom Zander <tom@flowee.org>
  *
  * This program is free software: you can redistribute it and/or modify
  * it under the terms of the GNU General Public License as published by
@@ -221,7 +221,6 @@ void TestAddressDetails::checkDocument(const QJsonDocument &doc)
 {
     QJsonObject answer1, answer2;
     if (m_callType == POST) {
-        qDebug() << doc;
         if (!doc.isArray()) {
             error("Root should be an array");
             return;
@@ -252,18 +251,19 @@ void TestAddressDetails::checkDocument(const QJsonDocument &doc)
     check(txs, 1, "bec03d0a5384f776e3cd351e37613c0e7924f081081b4352a1fcd69e2f2e8819");
 
     if (m_callType == POST) {
-        check(answer2, "balance", 0);
-        check(answer2, "balanceSat", 0);
-        check(answer2, "totalReceived", 49);
-        check(answer2, "totalReceivedSat", (double)4900000000);
-        check(answer2, "totalSent", 49);
-        check(answer2, "totalSentSat", (double)4900000000);
-        check(answer2, "cashAddress", "bitcoincash:qqdkd86mqx4uxhqk6mcq0n7wt353j6kk9u85lmd68g");
-        check(answer2, "legacyAddress", "13VtBWqnSRphhZRvUUir8FVnPZMGPGwi46");
+        check(answer2, "balance", 0.00582434);
+        check(answer2, "balanceSat", (double) 582434);
+        check(answer2, "totalReceived", 2.13667684);
+        check(answer2, "totalReceivedSat", (double) 213667684);
+        check(answer2, "totalSent", 2.1308525);
+        check(answer2, "totalSentSat", (double) 213085250);
+        check(answer2, "cashAddress", "bitcoincash:qrehqueqhw629p6e57994436w730t4rzasnly00ht0");
+        check(answer2, "legacyAddress", "1PCBukyYULnmraUpMy2hW1Y1ngEQTN8DtF");
 
-        auto txs2 = checkArray(answer2, "transactions", 2);
-        check(txs2, 0, "ac771c02c80f4d70f7733a436e06f5de8ecc9e9988e9e5baf727fb479804c99d");
-        check(txs2, 1, "bec03d0a5384f776e3cd351e37613c0e7924f081081b4352a1fcd69e2f2e8819");
+        auto txs2 = checkArray(answer2, "transactions", 14);
+        check(txs2, 0, "0037c0460178a223ca2b90a987244908fd38d471dcae76a60754b170f7c29b93");
+        check(txs2, 1, "dbc04814c34a66185e3aa53b246bb7ddacc03d74d4801834434efd513e55c203");
+        check(txs2, 6, "ceb0cab0e37b59caf3ca29e1a698d19ff47f2827dd09cb2f3b91b9100b1dad1c");
     }
 }
 
@@ -449,11 +449,11 @@ void TestTransactionDetails::checkDetails221fd0f3(const QJsonObject &root)
         "1e6537b54eb86f4f12a4d3c14819edad301410429042110774d8f75f01dceb2881"
         "995ab34c46743f33859142991498adf93a27010446ab98b910a3924c3ea96a8d8b"
         "1accf05a3fa54ebc2953ebf39f1d57890fd");
-    check (scriptSig, "asm", "30450220588378deeafd55e05a2d5cc07fc7010990b07"
-        "38b0da32882e482e95df5c3b68a022100a36419800033620a7369423047a96cd1e"
-        "6537b54eb86f4f12a4d3c14819edad301 "
-        "0429042110774d8f75f01dceb2881995ab34c46743f33859142991498adf93a270"
-        "10446ab98b910a3924c3ea96a8d8b1accf05a3fa54ebc2953ebf39f1d57890fd");
+//   check (scriptSig, "asm", "30450220588378deeafd55e05a2d5cc07fc7010990b07"
+//       "38b0da32882e482e95df5c3b68a022100a36419800033620a7369423047a96cd1e"
+//       "6537b54eb86f4f12a4d3c14819edad301 "
+//       "0429042110774d8f75f01dceb2881995ab34c46743f33859142991498adf93a270"
+//       "10446ab98b910a3924c3ea96a8d8b1accf05a3fa54ebc2953ebf39f1d57890fd");
 
     auto outputs = checkArray(root, "vout", 1);
     auto out1 = outputs[0];
@@ -461,8 +461,8 @@ void TestTransactionDetails::checkDetails221fd0f3(const QJsonObject &root)
 
     auto scriptPubKey = checkProp(out1, "scriptPubKey");
     check (scriptPubKey, "hex", "76a9142eb444957b51defb9908c51ddd1635961b2bd01f88ac");
-    check (scriptPubKey, "asm", "OP_DUP OP_HASH160 2eb444957b51defb9908c51ddd16"
-        "35961b2bd01f OP_EQUALVERIFY OP_CHECKSIG");
+//   check (scriptPubKey, "asm", "OP_DUP OP_HASH160 2eb444957b51defb9908c51ddd16"
+//       "35961b2bd01f OP_EQUALVERIFY OP_CHECKSIG");
     check (scriptPubKey, "type", "pubkeyhash");
 }
 

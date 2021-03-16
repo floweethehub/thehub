@@ -41,6 +41,12 @@ enum Base58Type {
 static QJsonDocument::JsonFormat s_JsonFormat = QJsonDocument::Compact;
 static QString s_servicePrefixPath = QString("/v2/");
 
+class UserInputException : public std::runtime_error
+{
+public:
+    explicit UserInputException(const char *error) : std::runtime_error(error) { }
+};
+
 
 namespace {
 
@@ -82,12 +88,67 @@ quint64 qHash(const TransactionId &utxo) {
     answer += utxo.offsetInBlock;
     return answer;
 }
+struct AnswerListingDataSingle {
+    AnswerListingDataSingle(const CashAddress::Content &a)
+        : address(a)
+    {
+    }
+
+    CashAddress::Content address;
+    std::vector<UTXOEntry> utxos;
+    QSet<TransactionId> fetchedTransactions;
+    std::list<int> transactions; // transactions belonging to this answer, index in 'answer'
+
+};
 
 struct AddressListingData : public AnswerDataBase {
-    CashAddress::Content address;
+    QList<AnswerListingDataSingle> items;
+    int m_cur = 0;
 
-    std::vector<UTXOEntry> m_utxos;
-    QSet<TransactionId> m_fetchedTransactions;
+    AnswerListingDataSingle *cur() {
+        assert(m_cur <= items.size());
+        return &items[m_cur];
+    }
+
+    // extract a list of addresses from the json
+    void fromJson(const QJsonDocument &doc) {
+        auto in = doc.object()["addresses"];
+        if (!in.isArray())
+            throw UserInputException("Input invalid");
+        auto array = in.toArray();
+        for (auto i = array.begin(); i != array.end(); ++i) {
+            if (!i->isString())
+                throw UserInputException("Input invalid");
+            addAddress(i->toString().toStdString());
+        }
+    }
+
+    void fromSingleAddress(const QString &address) {
+        addAddress(address.toStdString());
+    }
+
+private:
+    void addAddress(const std::string &address) {
+        CashAddress::Content c;
+        CBase58Data old; // legacy address encoding
+        if (old.SetString(address)) {
+            c.hash = old.data();
+            if (old.isMainnetPkh()) {
+                c.type = CashAddress::PUBKEY_TYPE;
+            } else if (old.isMainnetSh()) {
+                c.type = CashAddress::SCRIPT_TYPE;
+            } else {
+                throw UserInputException("Invalid (legacy) address type");
+            }
+        }
+        else {
+            // TODO make configurable to show testnet addresses for testnet servers
+            c = CashAddress::decodeCashAddrContent(address, "bitcoincash");
+        }
+        if (c.hash.size() != 20)
+            throw UserInputException("Invalid address");
+        items.append(AnswerListingDataSingle(c));
+    }
 };
 
 // TODO make configurable to show different data for testnet.
@@ -168,31 +229,6 @@ Streaming::ConstBuffer uint256StringToBuffer(const QString &hash, Streaming::Buf
         }
     }
     return pool.commit(32);
-}
-
-Streaming::ConstBuffer addressToHashedOutputScriptBuffer(const std::string &address, const std::unique_ptr<AddressListingData> &data)
-{
-    CashAddress::Content c;
-    CBase58Data old; // legacy address encoding
-    if (old.SetString(address)) {
-        c.hash = old.data();
-        if (old.isMainnetPkh()) {
-            c.type = CashAddress::PUBKEY_TYPE;
-        } else if (old.isMainnetSh()) {
-            c.type = CashAddress::SCRIPT_TYPE;
-        } else {
-            throw std::runtime_error("Invalid (legacy) address type");
-        }
-    }
-    else {
-        c = CashAddress::decodeCashAddrContent(address, "bitcoincash");
-    }
-
-    if (c.hash.size() == 20) {
-        data->address = c;
-        return CashAddress::createHashedOutputScript(c);
-    }
-    throw std::runtime_error("Invalid address");
 }
 
 QChar hexChar(uint8_t k) {
@@ -293,12 +329,6 @@ QString parseOutScriptAddAddresses(QJsonArray &addresses, QJsonArray &cashAddres
     return type;
 }
 }
-
-class UserInputException : public std::runtime_error
-{
-public:
-    explicit UserInputException(const char *error) : std::runtime_error(error) { }
-};
 
 RestService::RestService()
 {
@@ -465,47 +495,49 @@ void RestService::requestAddressInfo(const RequestString &rs, RestServiceWebRequ
 {
     if (rs.request == "address/details") {
         std::unique_ptr<AddressListingData>address(new AddressListingData());
-        if (!rs.argument.isEmpty()) {
-            Blockchain::Job job;
-            job.type = Blockchain::LookupByAddress;
-            try {
-                job.data = addressToHashedOutputScriptBuffer(rs.argument.toStdString(), address);
-            } catch (const std::runtime_error &e) {
-                throw UserInputException(e.what());
-            }
-            std::lock_guard<std::mutex> lock(request->jobsLock);
-            request->answerType = RestServiceWebRequest::AddressDetails;
-            request->answerData = address.release();
-            request->jobs.push_back(job);
 
-            job.type = Blockchain::FindAddressInMempool;
-            job.transactionFilters = Blockchain::IncludeOutputAmounts | Blockchain::IncludeTxId;
-            request->jobs.push_back(job);
+        if (!rs.argument.isEmpty()) {
+            address->fromSingleAddress(rs.argument);
+            request->answerType = RestServiceWebRequest::AddressDetails;
         }
         else if (rs.post.isObject()) {
-            // POST not yet done
-            throw UserInputException("POST not supported yet");
+            address->fromJson(rs.post);
+            request->answerType = RestServiceWebRequest::AddressDetailsList;
         }
+        if (address->items.isEmpty())
+            throw UserInputException("No input");
+
+        std::lock_guard<std::mutex> lock(request->jobsLock);
+        Blockchain::Job job;
+        job.type = Blockchain::LookupByAddress;
+        job.data = CashAddress::createHashedOutputScript(address->items.at(0).address);
+        request->jobs.push_back(job);
+
+        job.type = Blockchain::FindAddressInMempool;
+        job.transactionFilters = Blockchain::IncludeOutputAmounts | Blockchain::IncludeTxId;
+        request->jobs.push_back(job);
+        request->answerData = address.release();
     }
     else if (rs.request == "address/utxo") {
         std::unique_ptr<AddressListingData>address(new AddressListingData());
         if (!rs.argument.isEmpty()) {
-            Blockchain::Job job;
-            job.type = Blockchain::LookupByAddress;
-            try {
-                job.data = addressToHashedOutputScriptBuffer(rs.argument.toStdString(), address);
-            } catch (const std::runtime_error &e) {
-                throw UserInputException(e.what());
-            }
-            std::lock_guard<std::mutex> lock(request->jobsLock);
+            address->fromSingleAddress(rs.argument);
             request->answerType = RestServiceWebRequest::AddressUTXO;
-            request->answerData = address.release();
-            request->jobs.push_back(job);
         }
         else if (rs.post.isObject()) {
-            // POST not yet done
-            throw UserInputException("POST not supported yet");
+            address->fromJson(rs.post);
+            request->answerType = RestServiceWebRequest::AddressUTXOList;
         }
+        if (address->items.isEmpty())
+            throw UserInputException("No input");
+
+        Blockchain::Job job;
+        job.type = Blockchain::LookupByAddress;
+        job.data = CashAddress::createHashedOutputScript(address->items.at(0).address);
+        std::lock_guard<std::mutex> lock(request->jobsLock);
+        request->answerType = RestServiceWebRequest::AddressUTXO;
+        request->answerData = address.release();
+        request->jobs.push_back(job);
     }
     else
         throw UserInputException("Endpoint not recognized, check for typos!");
@@ -577,7 +609,7 @@ void RestService::requestRawTransaction(const RequestString &rs, RestServiceWebR
                     throw UserInputException("Input invalid");
                 Streaming::ConstBuffer tx;
                 try {
-                    tx = hexStringToBuffer(array[0].toString(), d->pool(32));
+                    tx = hexStringToBuffer(i->toString(), d->pool(32));
                 } catch (const std::runtime_error &e) {
                     throw UserInputException(e.what());
                 }
@@ -659,6 +691,24 @@ void RestServiceWebRequest::finished(int unfinishedJobs)
         policy->processRequests(this);
         return;
     }
+    auto *ald = dynamic_cast<AddressListingData*>(answerData);
+    if (ald) {
+        if (ald->items.size() -1 > ald->m_cur) { // not finished yet!
+            Blockchain::Job job;
+            // we go and run the next one in the list.
+            ald->m_cur++;
+            job.type = Blockchain::LookupByAddress;
+            job.data = CashAddress::createHashedOutputScript(ald->cur()->address);
+            jobs.push_back(job);
+            if (answerType == AddressDetailsList) {
+                job.type = Blockchain::FindAddressInMempool;
+                job.transactionFilters = Blockchain::IncludeOutputAmounts | Blockchain::IncludeTxId;
+                jobs.push_back(job);
+            }
+            policy->processRequests(this);
+            return;
+        }
+    }
 
     QTimer::singleShot(0, this, SLOT(threadSafeFinished()));
 }
@@ -734,11 +784,13 @@ void RestServiceWebRequest::transactionAdded(const Blockchain::Transaction &tran
     }
     auto *ald = dynamic_cast<AddressListingData*>(answerData);
     if (ald && (answerType == AddressDetails || answerType == AddressDetailsList)) {
+        auto cur = ald->cur();
+        cur->transactions.push_back(answerIndex);
         if (transaction.blockHeight == -1) { // from mempool
             assert(transaction.outIndex != -1);
             assert(transaction.outputs.size() <= 0x7fff); // since we cast to short next
             assert(short(transaction.outputs.size()) > transaction.outIndex);
-            ald->m_utxos.push_back(UTXOEntry(-1, -1, transaction.outIndex,
+            ald->cur()->utxos.push_back(UTXOEntry(-1, -1, transaction.outIndex,
                            transaction.outputs[transaction.outIndex].amount));
             return;
         }
@@ -750,8 +802,8 @@ void RestServiceWebRequest::transactionAdded(const Blockchain::Transaction &tran
         // TODO replace with binary search (it uses blockheight highest to lowest)
         auto job = Blockchain::Job();
         size_t i = 0;
-        for (;i < ald->m_utxos.size(); ++i) {
-            auto &utxo = ald->m_utxos[i];
+        for (;i < cur->utxos.size(); ++i) {
+            auto &utxo = cur->utxos[i];
             if (utxo.blockHeight == transaction.blockHeight
                     && utxo.offsetInBlock == transaction.offsetInBlock) {
 
@@ -779,9 +831,10 @@ void RestServiceWebRequest::spentOutputResolved(int jobId, int blockHeight, int 
             const auto &origJob = jobs[jobId];
             auto utxoIndex = origJob.intData3;
             // TODO check bounds
-            ald->m_utxos[utxoIndex].unspent = false;
-            if (!ald->m_fetchedTransactions.contains({blockHeight, offsetInBlock})) {
-                ald->m_fetchedTransactions.insert({blockHeight, offsetInBlock});
+            auto cur = ald->cur();
+            cur->utxos[utxoIndex].unspent = false;
+            if (!cur->fetchedTransactions.contains({blockHeight, offsetInBlock})) {
+                cur->fetchedTransactions.insert({blockHeight, offsetInBlock});
                 auto job = Blockchain::Job();
                 job.intData = blockHeight;
                 job.intData2 = offsetInBlock;
@@ -798,9 +851,10 @@ void RestServiceWebRequest::addressUsedInOutput(int blockHeight, int offsetInBlo
     auto *ald = dynamic_cast<AddressListingData*>(answerData);
     if (ald) {
         if (answerType == AddressDetails || answerType == AddressDetailsList) {
-            ald->m_utxos.push_back({blockHeight, offsetInBlock, outIndex});
-            if (!ald->m_fetchedTransactions.contains({blockHeight, offsetInBlock})) {
-                ald->m_fetchedTransactions.insert({blockHeight, offsetInBlock});
+            auto cur = ald->cur();
+            cur->utxos.push_back({blockHeight, offsetInBlock, outIndex});
+            if (!cur->fetchedTransactions.contains({blockHeight, offsetInBlock})) {
+                cur->fetchedTransactions.insert({blockHeight, offsetInBlock});
                 auto job = Blockchain::Job();
                 job.intData = blockHeight;
                 job.intData2 = offsetInBlock;
@@ -825,7 +879,7 @@ void RestServiceWebRequest::utxoLookup(int jobId, int blockHeight, int offsetInB
     auto *ald = dynamic_cast<AddressListingData*>(answerData);
     if (ald && answerType == AddressUTXO) {
         if (unspent) { // we only care about unspent here.
-            ald->m_utxos.push_back({blockHeight, offsetInBlock, outIndex, amount});
+            ald->cur()->utxos.push_back({blockHeight, offsetInBlock, outIndex, amount});
 
             auto job = Blockchain::Job();
             job.intData = blockHeight;
@@ -891,58 +945,68 @@ void RestServiceWebRequest::threadSafeFinished()
         socket()->writeJson(QJsonDocument(root), s_JsonFormat);
         break;
     }
-    case AddressDetails: {
-        QJsonObject root;
-        QJsonArray transactionHashes;
-        qint64 balance = 0;
-        qint64 received = 0;
-        qint64 sent = 0;
-        qint64 balanceUnconfirmed = 0;
+    case AddressDetails:
+    case AddressDetailsList: {
         auto *ald = dynamic_cast<AddressListingData*>(answerData);
         assert(ald);
-        for (const auto &utxo : ald->m_utxos) {
-            if (utxo.blockHeight == -1) {
-                assert(utxo.unspent);
-                balanceUnconfirmed += utxo.amount;
-                continue;
+        QJsonArray root; // should we want a list
+        for (auto &item : ald->items) {
+            QJsonObject oneAddress;
+            QJsonArray transactionHashes;
+            qint64 balance = 0;
+            qint64 received = 0;
+            qint64 sent = 0;
+            qint64 balanceUnconfirmed = 0;
+            for (const auto &utxo : item.utxos) {
+                if (utxo.blockHeight == -1) {
+                    assert(utxo.unspent);
+                    balanceUnconfirmed += utxo.amount;
+                    continue;
+                }
+                if (utxo.unspent)
+                    balance += utxo.amount;
+                else
+                    sent += utxo.amount;
+                received += utxo.amount;
             }
-            if (utxo.unspent)
-                balance += utxo.amount;
-            else
-                sent += utxo.amount;
-            received += utxo.amount;
+            // a map sorts by key. Key uses blockheight
+            QMap<TransactionId, Blockchain::Transaction*> sortedTx;
+            for (auto i : item.transactions) {
+                Blockchain::Transaction *tx = &answer[i];
+                sortedTx.insert({tx->blockHeight, int(tx->offsetInBlock)}, tx);
+            }
+
+            // we want to list the most recent hits first, which are the highest blockchain ones.
+            if (!sortedTx.empty()) {
+                auto iter = sortedTx.end();
+                do {
+                    Blockchain::Transaction *tx = *(--iter);
+                    transactionHashes.append(uint256ToString(tx->txid));
+                } while (sortedTx.begin() != iter);
+            }
+
+            oneAddress.insert("balance", balance / 1E8);
+            oneAddress.insert("balanceSat", balance);
+            oneAddress.insert("totalReceived", received / 1E8);
+            oneAddress.insert("totalReceivedSat", received);
+            oneAddress.insert("totalSent", sent / 1E8);
+            oneAddress.insert("totalSentSat", sent);
+            // root.insert("txAppearances", appearences); // no clue what this means
+            oneAddress.insert("transactions", transactionHashes);
+            oneAddress.insert("legacyAddress", ripeToLegacyAddress(item.address.hash, item.address.type));
+            oneAddress.insert("cashAddress", ripeToCashAddress(item.address.hash, item.address.type));
+
+            oneAddress.insert("unconfirmedBalance", balanceUnconfirmed / 1E8);
+            oneAddress.insert("unconfirmedBalanceSat", (double) balanceUnconfirmed);
+            // "unconfirmedTxApperances":0,
+
+            if (answerType == AddressDetails) { // just the one
+                socket()->writeJson(QJsonDocument(oneAddress), s_JsonFormat);
+                socket()->close();
+                return;
+            }
+            root.append(oneAddress);
         }
-        // a map sorts by key. Key uses blockheight
-        QMap<TransactionId, Blockchain::Transaction*> sortedTx;
-        for (size_t i = 0; i < answer.size(); ++i) {
-            Blockchain::Transaction *tx = &answer[i];
-            sortedTx.insert({tx->blockHeight, int(tx->offsetInBlock)}, tx);
-        }
-
-        // we want to list the most recent hits first, which are the highest blockchain ones.
-        if (!sortedTx.empty()) {
-            auto iter = sortedTx.end();
-            do {
-                Blockchain::Transaction *tx = *(--iter);
-                transactionHashes.append(uint256ToString(tx->txid));
-            } while (sortedTx.begin() != iter);
-        }
-
-        root.insert("balance", balance / 1E8);
-        root.insert("balanceSat", balance);
-        root.insert("totalReceived", received / 1E8);
-        root.insert("totalReceivedSat", received);
-        root.insert("totalSent", sent / 1E8);
-        root.insert("totalSentSat", sent);
-        // root.insert("txAppearances", appearences); // no clue what this means
-        root.insert("transactions", transactionHashes);
-        root.insert("legacyAddress", ripeToLegacyAddress(ald->address.hash, ald->address.type));
-        root.insert("cashAddress", ripeToCashAddress(ald->address.hash, ald->address.type));
-
-        root.insert("unconfirmedBalance", balanceUnconfirmed / 1E8);
-        root.insert("unconfirmedBalanceSat", (double) balanceUnconfirmed);
-        // "unconfirmedTxApperances":0,
-
         socket()->writeJson(QJsonDocument(root), s_JsonFormat);
         break;
     }
@@ -952,11 +1016,12 @@ void RestServiceWebRequest::threadSafeFinished()
         QJsonArray utxos;
         auto *ald = dynamic_cast<AddressListingData*>(answerData);
         assert(ald);
+        auto firstAddress = ald->cur();
         // sort from latest to oldest utxo entry
-        std::sort(ald->m_utxos.begin(), ald->m_utxos.end(), [](const UTXOEntry& a, const UTXOEntry& b) {
+        std::sort(firstAddress->utxos.begin(), firstAddress->utxos.end(), [](const UTXOEntry& a, const UTXOEntry& b) {
             return a.blockHeight < b.blockHeight;
         });
-        for (const auto &utxo : ald->m_utxos) {
+        for (const auto &utxo : firstAddress->utxos) {
             QJsonObject o;
             o.insert("vout", utxo.outIndex);
             o.insert("satoshis", utxo.amount);
@@ -974,8 +1039,8 @@ void RestServiceWebRequest::threadSafeFinished()
         }
 
         root.insert("utxos", utxos);
-        root.insert("legacyAddress", ripeToLegacyAddress(ald->address.hash, ald->address.type));
-        root.insert("cashAddress", ripeToCashAddress(ald->address.hash, ald->address.type));
+        root.insert("legacyAddress", ripeToLegacyAddress(firstAddress->address.hash, firstAddress->address.type));
+        root.insert("cashAddress", ripeToCashAddress(firstAddress->address.hash, firstAddress->address.type));
         // TODO
         //   1. make 1 tx fetch the output-scripts
         //       extract the scriptPubKey and asm from it.

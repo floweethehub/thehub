@@ -67,6 +67,7 @@ public:
         AddressDetails,
         AddressDetailsList,
         AddressUTXO,
+        AddressUTXOList,
         GetRawTransaction,
         GetRawTransactionVerbose,
         SendRawTransaction,
