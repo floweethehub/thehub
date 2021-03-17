@@ -16,6 +16,7 @@
  * along with this program.  If not, see <http://www.gnu.org/licenses/>.
  */
 #include "TestTxIdMonitor.h"
+#include "TestData.h"
 
 #include <uint256.h>
 #include <streaming/BufferPool.h>
@@ -90,10 +91,8 @@ void TestTxIdMonitor::testMempool()
     QVERIFY(waitForHeight(115)); // make sure all nodes are at the same tip.
 
     Streaming::BufferPool pool;
-    // two transactions that both spend the first output of the first (non-coinbase) tx on block 115
-    // The spend TO the above addresses.
-    pool.writeHex("0x01000000010b9d14b709aa59bd594edca17db2951c6660ebc8daa31ceae233a5550314f158000000006b483045022100b34a120e69bc933ae16c10db0f565cb2da1b80a9695a51707e8a80c9aa5c22bf02206c390cb328763ab9ab2d45f874d308af2837d6d8cfc618af76744b9eeb69c3934121022708a547a1d14ba6df79ec0f4216eeec65808cf0a32f09ad1cf730b44e8e14a6ffffffff01faa7be00000000001976a9148438266ad57aa9d9160e99a046e39027e4fb6b2a88ac00000000");
-    Tx tx1(pool.commit());
+    auto txs = TestData::createDoubleSpend(&pool);
+    Tx tx1 = txs.first;
     pool.reserve(50);
     Streaming::MessageBuilder builder(pool);
     builder.add(Api::TransactionMonitor::TxId, tx1.createHash());
@@ -160,13 +159,9 @@ void TestTxIdMonitor::testDoubleSpend()
     QVERIFY(waitForHeight(115)); // make sure all nodes are at the same tip.
 
     Streaming::BufferPool pool;
-    // two transactions that both spend the first output of the first (non-coinbase) tx on block 115
-    // The spend TO the above addresses.
-    pool.writeHex("0x01000000010b9d14b709aa59bd594edca17db2951c6660ebc8daa31ceae233a5550314f158000000006b483045022100b34a120e69bc933ae16c10db0f565cb2da1b80a9695a51707e8a80c9aa5c22bf02206c390cb328763ab9ab2d45f874d308af2837d6d8cfc618af76744b9eeb69c3934121022708a547a1d14ba6df79ec0f4216eeec65808cf0a32f09ad1cf730b44e8e14a6ffffffff01faa7be00000000001976a9148438266ad57aa9d9160e99a046e39027e4fb6b2a88ac00000000");
-    Tx tx1(pool.commit());
-    pool.writeHex("0x01000000010b9d14b709aa59bd594edca17db2951c6660ebc8daa31ceae233a5550314f158000000006b483045022100d9d22406611228d64e6b674de8b16e802f8f789f8338130506c7741cdae9116602202dc63a4f5f9e750eec9dfc1557469bda43d3491b358484e5c25992a381048a494121022708a547a1d14ba6df79ec0f4216eeec65808cf0a32f09ad1cf730b44e8e14a6ffffffff01ea80be00000000001976a914a449b2bf8b8092a810ee3b4ba102037bf4b96d2288ac00000000");
-    Tx tx2(pool.commit());
-
+    auto txs = TestData::createDoubleSpend(&pool);
+    Tx tx1 = txs.first;
+    Tx tx2 = txs.second;
 
     // subscribing
     Streaming::MessageBuilder builder(pool);
