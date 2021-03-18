@@ -22,6 +22,7 @@
 #include "AddressMonitorService.h"
 #include "BlockNotificationService.h"
 #include "TransactionMonitorService.h"
+#include "DoubleSpendService.h"
 
 
 /**
@@ -40,6 +41,7 @@ private:
     TransactionMonitorService m_transactionMonitorService;
     AddressMonitorService m_addressMonitorService;
     BlockNotificationService m_blockNotificationService;
+    DoubleSpendService m_dsp;
 };
 
 #endif

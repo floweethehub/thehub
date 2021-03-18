@@ -25,6 +25,7 @@ add_executable(test_api
     TestBlockchain.cpp
     TestAddressMonitor.cpp
     TestData.cpp
+    TestDoubleSpendProofMonitor.cpp
     TestTxIdMonitor.cpp
     main.cpp
     data.qrc

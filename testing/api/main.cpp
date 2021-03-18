@@ -19,6 +19,7 @@
 #include "TestBlockchain.h"
 #include "TestAddressMonitor.h"
 #include "TestTxIdMonitor.h"
+#include "TestDoubleSpendProofMonitor.h"
 
 #include <QTest>
 
@@ -29,22 +30,27 @@ int main(int x, char **y)
         if (file.exists())
             BlackBoxTest::setHubExecutable(file.absoluteFilePath());
     }
-    int rc = 0;
+   int rc = 0;
+   if (!rc) {
+       TestApiBlockchain test;
+       rc = QTest::qExec(&test);
+   }
+   if (!rc) {
+       TestApiLive test;
+       rc = QTest::qExec(&test);
+   }
+   if (!rc) {
+       TestAddressMonitor test;
+       rc = QTest::qExec(&test);
+   }
+   if (!rc) {
+       TestTxIdMonitor test;
+       rc = QTest::qExec(&test);
+   }
     if (!rc) {
-        TestApiBlockchain test;
+        TestDoubleSpendMonitor test;
         rc = QTest::qExec(&test);
     }
-    if (!rc) {
-        TestApiLive test;
-        rc = QTest::qExec(&test);
-    }
-    if (!rc) {
-        TestAddressMonitor test;
-        rc = QTest::qExec(&test);
-    }
-    if (!rc) {
-        TestTxIdMonitor test;
-        rc = QTest::qExec(&test);
-    }
+
     return rc;
 }

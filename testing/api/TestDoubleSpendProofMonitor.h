@@ -1,6 +1,6 @@
 /*
  * This file is part of the Flowee project
- * Copyright (C) 2021 Tom Zander <tom@flowee.org>
+ * Copyright (C) 2019 Tom Zander <tomz@freedommail.ch>
  *
  * This program is free software: you can redistribute it and/or modify
  * it under the terms of the GNU General Public License as published by
@@ -15,19 +15,16 @@
  * You should have received a copy of the GNU General Public License
  * along with this program.  If not, see <http://www.gnu.org/licenses/>.
  */
-#include "HubApiServices.h"
+#ifndef TESTDOUBLESPENDMONITOR_H
+#define TESTDOUBLESPENDMONITOR_H
 
-#include <util.h> // from libs/server
+#include "BlackBoxTest.h"
 
-HubApiServices::HubApiServices(boost::asio::io_service &service)
-    : m_apiServer(service)
+class TestDoubleSpendMonitor : public BlackBoxTest
 {
-    extern CTxMemPool mempool;
-    m_addressMonitorService.setMempool(&mempool);
-    m_transactionMonitorService.setMempool(&mempool);
-    m_apiServer.addService(&m_addressMonitorService);
-    m_apiServer.addService(&m_transactionMonitorService);
-    m_apiServer.addService(&m_blockNotificationService);
-    m_apiServer.addService(&m_dsp);
-    m_addressMonitorService.setMaxAddressesPerConnection(GetArg("-api_max_addresses", -1));
-}
+    Q_OBJECT
+private slots:
+    void testBasic();
+};
+
+#endif
