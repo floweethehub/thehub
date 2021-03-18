@@ -451,7 +451,7 @@ void RestService::requestTransactionInfo(const RequestString &rs, RestServiceWeb
         } catch (const std::runtime_error &e) {
             throw UserInputException(e.what());
         }
-        job.transactionFilters = Blockchain::IncludeFullTransactionData | Blockchain::IncludeTxFee;
+        job.transactionFilters = Blockchain::IncludeFullTransactionData | Blockchain::IncludeTxFees;
         job.nextJobId = 1; // that would be the 'fetchBlockHeader'
         std::lock_guard<std::mutex> lock(request->jobsLock);
         request->jobs.push_back(job);
@@ -477,7 +477,7 @@ void RestService::requestTransactionInfo(const RequestString &rs, RestServiceWeb
             } catch (const std::runtime_error &e) {
                 throw UserInputException(e.what());
             }
-            job.transactionFilters = Blockchain::IncludeFullTransactionData | Blockchain::IncludeTxFee;
+            job.transactionFilters = Blockchain::IncludeFullTransactionData | Blockchain::IncludeTxFees;
             job.nextJobId = request->jobs.size() + 1; // that would be the 'fetchBlockHeader'
             std::lock_guard<std::mutex> lock(request->jobsLock);
             request->jobs.push_back(job);

@@ -155,7 +155,7 @@ enum TransactionFilter {
     IncludeOutputScripts = 0x40,
     IncludeOutputAddresses = 0x80,
     IncludeOutputScriptHash = 0x100,
-    IncludeTxFee = 0x200
+    IncludeTxFees = 0x200
 };
 
 struct Error {
