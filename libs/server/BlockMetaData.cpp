@@ -59,6 +59,10 @@ BlockMetaData::BlockMetaData(const Streaming::ConstBuffer &buffer)
     }
 }
 
+BlockMetaData::BlockMetaData()
+{
+}
+
 BlockMetaData BlockMetaData::parseBlock(int blockHeight, const FastBlock &block,
                                         const std::vector<std::unique_ptr<std::deque<std::int32_t> > > &perTxFees,
                                         Streaming::BufferPool &pool)
@@ -134,7 +138,7 @@ BlockMetaData BlockMetaData::parseBlock(int blockHeight, const FastBlock &block,
         else if (iter.tag() == Tx::OutputScript) {
             const CScript script(iter.byteData());
             if (script.IsPayToScriptHash()) {
-                currentTx.scriptTags |= P2SH;
+                currentTx.scriptTags |= Api::ScriptTag::P2SH;
                 continue;
             }
             auto iter = script.begin();
@@ -142,22 +146,22 @@ BlockMetaData BlockMetaData::parseBlock(int blockHeight, const FastBlock &block,
             while (script.GetOp(iter, type)) {
                 switch (type) {
                 case OP_RETURN:
-                    currentTx.scriptTags |= OpReturn;
+                    currentTx.scriptTags |= Api::ScriptTag::OpReturn;
                     break;
                 case OP_CHECKDATASIG:
                 case OP_CHECKDATASIGVERIFY:
-                    currentTx.scriptTags |= OpCheckDataSig;
+                    currentTx.scriptTags |= Api::ScriptTag::OpCheckDataSig;
                     break;
                 case OP_CHECKSIG:
                 case OP_CHECKSIGVERIFY:
-                    currentTx.scriptTags |= OpChecksig;
+                    currentTx.scriptTags |= Api::ScriptTag::OpChecksig;
                     break;
                 case OP_CHECKMULTISIG:
                 case OP_CHECKMULTISIGVERIFY:
-                    currentTx.scriptTags |= OpCheckmultisig;
+                    currentTx.scriptTags |= Api::ScriptTag::OpCheckmultisig;
                     break;
                 case OP_CHECKLOCKTIMEVERIFY:
-                    currentTx.scriptTags |= OpCheckLockTimeverify;
+                    currentTx.scriptTags |= Api::ScriptTag::OpCheckLockTimeverify;
                     break;
                 default:
                     break;

@@ -420,6 +420,10 @@ public:
                 m_returnTxId = parser.boolData();
             } else if (parser.tag() == Api::BlockChain::Include_OffsetInBlock) {
                 m_returnOffsetInBlock = parser.boolData();
+            } else if (parser.tag() == Api::BlockChain::FilterOnScriptType) {
+                m_scriptFilter = parser.intData();
+                if (m_scriptFilter < 0)
+                    m_scriptFilter = 0;
             } else {
                 opt.readParser(parser);
             }
@@ -438,6 +442,16 @@ public:
             assert(m_block.isFullBlock());
         } catch (...) {
             throw Api::ParserException("Blockdata not present on this Hub");
+        }
+
+        // use faster matching using the metadata.
+        const BlockMetaData::TransactionData *txData = nullptr;
+        BlockMetaData metaData;
+        if (m_scriptFilter > 0) {
+            try {
+                metaData = Blocks::DB::instance()->loadBlockMetaData(index->GetMetaDataPos());
+                txData = metaData.first();
+            } catch (...) {}
         }
 
         Tx::Iterator iter(m_block);
@@ -464,6 +478,8 @@ public:
                 txInputSize = 0;
                 txOutputCount = 0;
                 txOutputScriptSizes = 0;
+                if (txData)
+                    txData = txData->next();
             } else {
                 oneEnd = false;
             }
@@ -479,7 +495,12 @@ public:
             }
             else if (type == Tx::OutputScript) {
                 txOutputScriptSizes += iter.dataLength() + 4;
-                if (!txMatched && session->hashes.find(iter.hashedByteData()) != session->hashes.end())
+                if (!txMatched && m_scriptFilter > 0 && txData) {
+                    // txData->scriptTags is a flags of all things this transaction has.
+                    // m_scriptFilter is a flags where ANY bit should match.
+                    txMatched = (m_scriptFilter & txData->scriptTags) != 0;
+                }
+                if (session->hashes.find(iter.hashedByteData()) != session->hashes.end())
                     txMatched = true;
             }
             type = iter.next();
@@ -545,6 +566,7 @@ public:
     bool m_returnTxId = false;
     bool m_returnOffsetInBlock = true;
     int m_height = -1;
+    int  m_scriptFilter = -1;
     TransactionSerializationOptions opt;
 };
 class GetBlockCount : public Api::DirectParser

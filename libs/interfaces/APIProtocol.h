@@ -242,6 +242,7 @@ enum Tags {
     Tx_Fees,
 
     // GetBlock-Request-tags
+    FilterOnScriptType = 39, ///< Filter on script-type. Takes an int (OR-ed enum values of Api::ScriptTag)
     // GetBlock can filter a block to only return transactions that match a bitcoin-address filter
     // (list of addresses).
     ReuseAddressFilter = 40, ///< A getBlock call resuses a previously created address filter. bool
@@ -509,6 +510,18 @@ enum Tags {
     DoubleSpendProofData = 22,
     /// A bytearray with the double spending transaction
     Transaction = 25
+};
+}
+
+/// Script opcodes tags, as flags.
+namespace ScriptTag {
+enum ScriptTag {
+    OpReturn = 1,
+    OpChecksig = 2, // including the verify version
+    OpCheckmultisig = 4, // including the verify version
+    OpCheckLockTimeverify = 8,
+    OpCheckDataSig = 0x10, // including the verify version
+    P2SH = 0x20
 };
 }
 }

@@ -36,6 +36,12 @@ public:
      */
     BlockMetaData(const Streaming::ConstBuffer &buffer);
 
+    /// invalid block
+    BlockMetaData();
+
+    /// copy constructor
+    BlockMetaData(const BlockMetaData &other) = default;
+
 
     /**
      * Return true if this metadata object has proper fee data.
@@ -121,21 +127,13 @@ public:
      */
     uint256 blockId() const;
 
-    /// the scripting tags present in a transaction (any output).
-    enum ScriptTags {
-        OpReturn = 1,
-        OpChecksig = 2, // including the verify version
-        OpCheckmultisig = 4, // including the verify version
-        OpCheckLockTimeverify = 8,
-        OpCheckDataSig = 0x10, // including the verify version
-        P2SH = 0x20
-    };
+    BlockMetaData &operator=(const BlockMetaData &other) = default;
 
 private:
     bool m_ctorSorted = false;
     int m_blockHeight = 0;
     uint256 m_blockId;
-    const Streaming::ConstBuffer m_data;
+    Streaming::ConstBuffer m_data;
     Streaming::ConstBuffer m_transactions;
 };
 
