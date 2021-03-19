@@ -231,3 +231,5 @@ void TestAddressMonitor::testDoubleSpendProof()
     auto data = p.bytesDataBuffer();
     dsp.write(data.begin(), data.size());
 }
+
+QTEST_MAIN(TestAddressMonitor)

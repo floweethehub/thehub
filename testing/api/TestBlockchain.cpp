@@ -320,3 +320,5 @@ void TestApiBlockchain::fetchTransaction()
                                       Api::BlockChain::GetTransaction), Api::BlockChain::GetTransactionReply);
     QCOMPARE(m.messageId(), Api::BlockChain::GetTransactionReply);
 }
+
+QTEST_MAIN(TestApiBlockchain)

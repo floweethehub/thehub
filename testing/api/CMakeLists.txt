@@ -1,5 +1,5 @@
 # This file is part of the Flowee project
-# Copyright (C) 2019 Tom Zander <tomz@freedommail.ch>
+# Copyright (C) 2019-2021 Tom Zander <tom@flowee.org>
 #
 # This program is free software: you can redistribute it and/or modify
 # it under the terms of the GNU General Public License as published by
@@ -19,26 +19,58 @@ include (testlib)
 
 set(CMAKE_AUTORCC ON)
 
-add_executable(test_api
-    BlackBoxTest.cpp
-    TestLive.cpp
-    TestBlockchain.cpp
-    TestAddressMonitor.cpp
-    TestData.cpp
-    TestDoubleSpendProofMonitor.cpp
-    TestTxIdMonitor.cpp
-    main.cpp
-    data.qrc
-)
-target_link_libraries(test_api
-    flowee_testlib
-    flowee_networkmanager
-    flowee_utils
-    ${TEST_LIBS} ${OPENSSL_LIBRARIES})
-
 configure_file(
     blk00000.dat
     ${CMAKE_CURRENT_BINARY_DIR}/blk00000.dat
     COPYONLY)
 
-add_test(NAME HUB_test_api COMMAND test_api)
+set (LIBS flowee_testlib flowee_networkmanager flowee_utils ${TEST_LIBS} ${OPENSSL_LIBRARIES})
+set (COMMONSRC BlackBoxTest.cpp data.qrc)
+
+##### LIVE
+
+add_executable(test_api_live
+    ${COMMONSRC}
+    TestLive.cpp
+)
+target_link_libraries(test_api_live ${LIBS})
+add_test(NAME HUB_test_api_live COMMAND test_api_live)
+
+##### Blockchain
+
+add_executable(test_api_blockchain
+    ${COMMONSRC}
+    TestBlockchain.cpp
+)
+target_link_libraries(test_api_blockchain ${LIBS})
+add_test(NAME HUB_test_api_blockchain COMMAND test_api_blockchain)
+
+##### Address Monitor
+
+add_executable(test_api_address_monitor
+    ${COMMONSRC}
+    TestAddressMonitor.cpp
+    TestData.cpp
+)
+target_link_libraries(test_api_address_monitor ${LIBS})
+add_test(NAME HUB_test_api_address_monitor COMMAND test_api_address_monitor)
+
+##### Double Spend Proof Monitor
+
+add_executable(test_api_double_spend_monitor
+    ${COMMONSRC}
+    TestData.cpp
+    TestDoubleSpendProofMonitor.cpp
+)
+target_link_libraries(test_api_double_spend_monitor ${LIBS})
+add_test(NAME HUB_test_api_double_spend_monitor COMMAND test_api_double_spend_monitor)
+
+##### TXID Monitor
+
+add_executable(test_api_txid_monitor
+    ${COMMONSRC}
+    TestData.cpp
+    TestTxIdMonitor.cpp
+)
+target_link_libraries(test_api_txid_monitor ${LIBS})
+add_test(NAME HUB_test_api_txid_monitor COMMAND test_api_txid_monitor)

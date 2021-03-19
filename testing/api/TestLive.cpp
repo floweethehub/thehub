@@ -425,3 +425,5 @@ Streaming::ConstBuffer TestApiLive::generate100(int nodeId)
     Q_ASSERT(m.serviceId() == Api::RegTestService);
     return address;
 }
+
+QTEST_MAIN(TestApiLive)

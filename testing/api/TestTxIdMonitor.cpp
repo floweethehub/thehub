@@ -216,3 +216,5 @@ void TestTxIdMonitor::testDoubleSpend()
     QVERIFY(p.tag() == Api::TransactionMonitor::DoubleSpendProofData
             || p.tag() == Api::TransactionMonitor::TransactionData);
 }
+
+QTEST_MAIN(TestTxIdMonitor)

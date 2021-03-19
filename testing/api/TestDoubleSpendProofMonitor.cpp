@@ -116,3 +116,5 @@ void TestDoubleSpendMonitor::testBasic()
     QVERIFY(seenTxId);
     QVERIFY(seenDSP || seenTx);
 }
+
+QTEST_MAIN(TestDoubleSpendMonitor)

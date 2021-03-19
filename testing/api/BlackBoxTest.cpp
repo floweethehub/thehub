@@ -1,6 +1,6 @@
 /*
  * This file is part of the Flowee project
- * Copyright (C) 2019-2020 Tom Zander <tomz@freedommail.ch>
+ * Copyright (C) 2019-2021 Tom Zander <tom@flowee.org>
  *
  * This program is free software: you can redistribute it and/or modify
  * it under the terms of the GNU General Public License as published by
@@ -253,9 +253,9 @@ void BlackBoxTest::cleanup()
         return;
     // shut down hubs
     bool allOk = !QTest::currentTestFailed();
-    for (auto hub : m_hubs) {
+    for (auto &hub : m_hubs) {
         auto pid = hub.proc->processId();
-        Q_ASSERT(pid > 0);
+        Q_ASSERT(pid >= 0);
         if (pid > 0)
             kill(pid, SIGTERM); // politely tell the process to terminate
         else

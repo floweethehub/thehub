@@ -49,8 +49,12 @@ if (${Qt5Core_FOUND})
             test_networkmanager
             test_hashstorage
             test_blockvalidation
-            test_api
             test_hub
+            test_api_live
+            test_api_blockchain
+            test_api_address_monitor
+            test_api_double_spend_monitor
+            test_api_txid_monitor
             ${testHttp}
         )
     else ()
