@@ -1,6 +1,6 @@
 /*
  * This file is part of the Flowee project
- * Copyright (C) 2019-2020 Tom Zander <tomz@freedommail.ch>
+ * Copyright (C) 2019-2021 Tom Zander <tom@flowee.org>
  *
  * This program is free software: you can redistribute it and/or modify
  * it under the terms of the GNU General Public License as published by
@@ -203,6 +203,12 @@ public:
     // void pushOutputPay2Address(const std::string &address);
 
     void pushOutputScript(const CScript &script);
+
+    /**
+     * For the selected output a standard output script will be generated
+     * that becomes a prunable (provable unspendable) output based on the OP_RETURN opcode.
+     */
+    void pushOutputNullData(const std::vector<uint8_t> &data);
 
     /// delete an output based on index. Updates current output index.
     void deleteOutput(int index);

@@ -1,6 +1,6 @@
 /*
  * This file is part of the Flowee project
- * Copyright (C) 2019-2020 Tom Zander <tomz@freedommail.ch>
+ * Copyright (C) 2019-2021 Tom Zander <tom@flowee.org>
  *
  * This program is free software: you can redistribute it and/or modify
  * it under the terms of the GNU General Public License as published by
@@ -183,6 +183,15 @@ void TransactionBuilder::pushOutputScript(const CScript &script)
 {
     assert(d->curOutput >= 0);
     assert(static_cast<size_t>(d->curOutput) < d->transaction.vout.size());
+    d->transaction.vout[static_cast<size_t>(d->curOutput)].scriptPubKey = script;
+}
+
+void TransactionBuilder::pushOutputNullData(const std::vector<uint8_t> &data)
+{
+    assert(d->curOutput >= 0);
+    assert(static_cast<size_t>(d->curOutput) < d->transaction.vout.size());
+    CScript script;
+    script << OP_RETURN << data;
     d->transaction.vout[static_cast<size_t>(d->curOutput)].scriptPubKey = script;
 }
 
