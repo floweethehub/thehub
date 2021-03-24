@@ -2,6 +2,7 @@ Flowee the Hub repository
 =========================
 
 [![pipeline status](https://gitlab.com/FloweeTheHub/thehub/badges/master/pipeline.svg)](https://gitlab.com/FloweeTheHub/thehub/commits/master)
+[![CII Best Practices](https://bestpractices.coreinfrastructure.org/projects/4759/badge)](https://bestpractices.coreinfrastructure.org/projects/4759)
 
 
 # Flowee is a series of applications to get the most out of Bitcoin Cash (BCH)
