@@ -1,6 +1,6 @@
 /*
  * This file is part of the Flowee project
- * Copyright (C) 2016,2018-2020 Tom Zander <tomz@freedommail.ch>
+ * Copyright (C) 2016-2021 Tom Zander <tom@flowee.org>
  *
  * This program is free software: you can redistribute it and/or modify
  * it under the terms of the GNU General Public License as published by
@@ -60,6 +60,12 @@ public:
     template<unsigned int BITS>
     void add(uint32_t tag, const base_blob<BITS> &value) {
         addByteArray(tag, static_cast<const void*>(value.begin()), static_cast<int>(value.size()));
+    }
+    void add(uint32_t tag, const std::vector<uint8_t> &data) {
+        addByteArray(tag, static_cast<const void*>(data.data()), static_cast<int>(data.size()));
+    }
+    void add(uint32_t tag, const std::vector<int8_t> &data) {
+        addByteArray(tag, static_cast<const void*>(data.data()), static_cast<int>(data.size()));
     }
     inline void add(uint32_t tag, float value) {
         add(tag, (double) value);

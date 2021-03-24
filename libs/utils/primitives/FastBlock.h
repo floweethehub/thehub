@@ -71,6 +71,11 @@ public:
         return m_data.size() > 80;
     }
 
+    /// Returns if this block has any data at all.
+    inline bool isEmpty() const {
+        return m_data.isEmpty();
+    }
+
     /// Returns if this block has at least enough data for a header.
     inline bool hasHeader() const {
         return m_data.size() >= 80;
