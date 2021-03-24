@@ -25,6 +25,7 @@ enum ServiceIds {
     LiveTransactionService,
     UtilService,
     RegTestService,
+    MiningService,
 
     /* service IDs under 16 are reserved to be handled by the APIServer
        it will generate errors for any in this region it doesn't understand.
@@ -118,23 +119,15 @@ enum Tags {
 }
 
 namespace Mining { // Mining Service
-
 enum MessageIds {
-    // CreateNewBlock,
-    // CreateNewBlockReply
-
-//   getblocktemplate ( "jsonrequestobject" )
-//   getmininginfo
-//   getnetworkhashps ( blocks height )
-//   prioritisetransaction <txid> <priority delta> <fee delta>
-//   setcoinbase pubkey
-//   submitblock "hexdata" ( "jsonparametersobject" )
-//
+    SubmitBlock,
+    SubmitBlockReply
 };
 
 enum Tags {
     Separator = 0,
-    GenericByteData,
+    GenericByteData = Api::GenericByteData,
+    BlockHash = Api::BlockHash
 };
 }
 

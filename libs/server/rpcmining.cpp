@@ -624,7 +624,7 @@ UniValue submitblock(const UniValue& params, bool fHelp)
     {
         CBlockIndex *pindex = Blocks::Index::get(hash);
         if (pindex) {
-            if (pindex->IsValid(BLOCK_VALID_SCRIPTS))
+            if (Blocks::DB::instance()->headerChain().Contains(pindex))
                 return "duplicate";
             if (pindex->nStatus & BLOCK_FAILED_MASK)
                 return "duplicate-invalid";
@@ -633,12 +633,13 @@ UniValue submitblock(const UniValue& params, bool fHelp)
     }
 
     auto future = Application::instance()->validation()->addBlock(FastBlock::fromOldBlock(block), Validation::SaveGoodToDisk | Validation::ForwardGoodToPeers);
+    future.start();
     future.waitUntilFinished();
     auto index = future.blockIndex();
     if (index && future.error().empty() && index->IsValid()) // all Ok
         return NullUniValue;
 
-    if (future.error().empty())
+    if (!future.error().empty())
         throw JSONRPCError(RPC_VERIFY_ERROR, future.error());
 
     if (index)

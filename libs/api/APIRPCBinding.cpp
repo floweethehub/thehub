@@ -456,7 +456,8 @@ public:
 
         Tx::Iterator iter(m_block);
         auto type = iter.next();
-        bool oneEnd = false, txMatched = !filterOnScriptHashes;
+        bool oneEnd = false, txMatched = !filterOnScriptHashes && txData == nullptr;
+        bool coinbase = true;
         int size = 0, matchedOutputs = 0, matchedInputsSize = 0;
         int txOutputCount = 0, txInputSize = 0, txOutputScriptSizes = 0;
         int matchedOutputScriptSizes = 0;
@@ -471,9 +472,10 @@ public:
                     matchedOutputs += txOutputCount;
                     matchedOutputScriptSizes += txOutputScriptSizes;
                     m_transactions.push_back(std::make_pair(prevTx.offsetInBlock(m_block), prevTx.size()));
-                    txMatched = !filterOnScriptHashes;
+                    txMatched = !filterOnScriptHashes && txData == nullptr;
                 }
                 oneEnd = true;
+                coinbase = false;
 
                 txInputSize = 0;
                 txOutputCount = 0;
@@ -495,7 +497,7 @@ public:
             }
             else if (type == Tx::OutputScript) {
                 txOutputScriptSizes += iter.dataLength() + 4;
-                if (!txMatched && m_scriptFilter > 0 && txData) {
+                if (!txMatched && !coinbase && m_scriptFilter > 0 && txData) {
                     // txData->scriptTags is a flags of all things this transaction has.
                     // m_scriptFilter is a flags where ANY bit should match.
                     txMatched = (m_scriptFilter & txData->scriptTags) != 0;
@@ -1184,6 +1186,48 @@ public:
         builder.add(Api::LiveTransactions::MempoolMinFee, mempoolminfee.get_real());
     }
 };
+
+class SubmitBlock : public Api::DirectParser
+{
+public:
+    SubmitBlock()
+        : Api::DirectParser(Api::Mining::SubmitBlockReply, 40) {}
+
+    void buildReply(const Message &incoming, Streaming::MessageBuilder &builder) override {
+        FastBlock block;
+        Streaming::MessageParser parser(incoming.body());
+        while (parser.next() != Streaming::EndOfDocument) {
+            if (parser.tag() == Api::Mining::GenericByteData) {
+                block = FastBlock(parser.bytesDataBuffer());
+            }
+        }
+        if (block.isEmpty())
+            throw Api::ParserException("Missing block data");
+        if (!block.isFullBlock())
+            throw Api::ParserException("Not enough block data");
+
+
+        uint256 hash = block.createHash();
+        CBlockIndex *pindex = Blocks::Index::get(hash);
+        if (pindex) {
+            if (pindex->nStatus & BLOCK_FAILED_MASK)
+                throw Api::ParserException("duplicate-invalid");
+            if (Blocks::DB::instance()->headerChain().Contains(pindex))
+                throw Api::ParserException("duplicate");
+        }
+
+        auto future = Application::instance()->validation()->addBlock(block, Validation::SaveGoodToDisk | Validation::ForwardGoodToPeers);
+        future.start();
+        future.waitUntilFinished();
+        if (!future.error().empty())
+            throw Api::ParserException(future.error().c_str());
+        auto index = future.blockIndex();
+        if (index && future.error().empty() && index->IsValid()) {// all Ok
+            builder.add(Api::Mining::BlockHash, hash);
+            return;
+        }
+    }
+};
 }
 
 
@@ -1238,6 +1282,12 @@ Api::Parser *Api::createParser(const Message &message)
         switch (message.messageId()) {
         case Api::RegTest::GenerateBlock:
             return new RegTestGenerateBlock();
+        }
+        break;
+    case Api::MiningService:
+        switch (message.messageId()) {
+        case Api::Mining::SubmitBlock:
+            return new SubmitBlock();
         }
         break;
     }
