@@ -28,8 +28,8 @@ private slots:
     void testGetTransaction();
     void testGetScript();
     void testFilterOnScriptHash(); // for address filtering
-
     void fetchTransaction();
+    void filterBlock();
 };
 
 #endif

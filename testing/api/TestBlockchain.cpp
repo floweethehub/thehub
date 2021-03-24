@@ -19,12 +19,16 @@
 #include "TestBlockchain.h"
 
 #include <Message.h>
+#include <TransactionBuilder.h>
 #include <sha256.h>
 #include <utilstrencodings.h>
 
 #include <streaming/BufferPool.h>
 #include <streaming/MessageBuilder.h>
 #include <streaming/MessageParser.h>
+
+#include <primitives/FastTransaction.h>
+#include <primitives/transaction.h>
 
 void TestApiBlockchain::testChainInfo()
 {
@@ -35,7 +39,7 @@ void TestApiBlockchain::testChainInfo()
     QCOMPARE(m.messageId(), (int) Api::BlockChain::GetBlockChainInfoReply);
     Streaming::MessageParser parser(m.body());
     bool seenTitle = false;
-    while(parser.next() == Streaming::FoundTag) {
+    while (parser.next() == Streaming::FoundTag) {
         if (parser.tag() == 67) {
             seenTitle = true;
             QVERIFY(parser.isString());
@@ -72,6 +76,7 @@ void TestApiBlockchain::testChainInfo()
             QVERIFY(parser.uint256Data() == uint256S("0000000000000000000000000000000000000000000000000000000000000000"));
         }
     }
+    QVERIFY(seenTitle);
 }
 
 void TestApiBlockchain::testGetTransaction()
@@ -162,7 +167,7 @@ void TestApiBlockchain::testGetScript()
     auto m = waitForReply(0, builder.message(Api::BlockChainService, Api::BlockChain::GetTransaction), Api::BlockChain::GetTransactionReply);
     QCOMPARE(m.serviceId(), (int) Api::BlockChainService);
     Streaming::MessageParser p(m.body());
-    QList<Streaming::ConstBuffer> scripts;
+    QVector<Streaming::ConstBuffer> scripts;
     while (p.next() == Streaming::FoundTag) {
         const auto tag = p.tag();
         QVERIFY(tag == Api::BlockChain::Tx_OutputScript
@@ -319,6 +324,70 @@ void TestApiBlockchain::fetchTransaction()
     m = waitForReply(0, builder.message(Api::BlockChainService,
                                       Api::BlockChain::GetTransaction), Api::BlockChain::GetTransactionReply);
     QCOMPARE(m.messageId(), Api::BlockChain::GetTransactionReply);
+}
+
+void TestApiBlockchain::filterBlock()
+{
+    startHubs();
+    feedDefaultBlocksToHub(0);
+
+    Streaming::BufferPool pool;
+    Streaming::MessageBuilder builder(pool);
+    // pretty block with a nice op_return and a 3->1 checksig tx.
+    const auto blockData = ParseHex("00000020b435cf812ef738b33c7869a56d2e2565d367ae706c46756db1661390393c714fbfaff736e0b5059c54cf4871cae0c57b2e9961f8246e4389217f9c2f6a843fc147505b60ffff7f20000000000302000000010000000000000000000000000000000000000000000000000000000000000000ffffffff0f017401010545423132380400000000ffffffff014cf5052a010000001976a914ec9cc6eb660a07f74e3c785d622e9ca2d951044688ac00000000020000000383f8ea2fa00e72dac2772be53a9648a8ae2deefb276ec0382cb3b99fa7bc1f98020000006a473044022052e514bacbbace82678727ab7127f11e3a4fe890e7a12a7017191231436eabd702207082915ce32db61d199c4e902d5cf32ae9a538dac76799a4e8695576669ea6c5412103a5f3ef29279b67d5369383516e5010a468c685021eb48b0576bd3366fed91ce3ffffffff9290d0b912464a953fbba24315030a2672f99092d5ce9d8bca18ebc7585220d6020000006a47304402202e9c31adf0bf2610193749bead883aca74915eb132fdb5281136f746b71fc9a502202cd746aef5f6b832633406f0747b949832df8e4b9f96ce36d9210e9f28e0bd46412103a5f3ef29279b67d5369383516e5010a468c685021eb48b0576bd3366fed91ce3ffffffff447a52b78d89beb3f7fc0a6417a2b6030259cb180c12fe15a0116db72cfc55e4020000006b483045022100b4307f90a08eea0512405c15dd8fa0519604e6039d66527d8fb4b115072bdf38022077ad2af5d03af82e04b19fd321c0fa88a44307026db05a38b149c094cfa72f33412103a5f3ef29279b67d5369383516e5010a468c685021eb48b0576bd3366fed91ce3ffffffff01d813b42c000000001976a9147d7ea8e0ae26260d310d8f485a80ba37c128d21c88ac000000000200000002407e8798680f76b0b38597f08ab9520d6f4e4c520f73fc1a470eae469e2654c9070000006b483045022100faeb903384c7144c4354cd405d6443e3cbd589eb9eac19223e80c2ae10b5060e022012cedbd780b0d74cffdc74beecac12b5c89a8eb093542d3a865e24a29b4098e64121034abe888b6be024a55356215502a094d4f040bd5f216cc7c4ea6f924cdc0456cfffffffff4570a84bbf31e7e5fd2154a2c330938fc67605434760061371bae29a35b0950d100000006a4730440220331958a8abd7799274eed69a7b5136e61a2b3d0f212627b9b9b1ee06ca1cb4df022037bf04155dab616db91ea5441adf3ce762a9a9ebef85eaf38f20c89352ccb9e0412103dea00a05e04ee8637756a284b1d38c075bda7f722d496a187501f72c21595692ffffffff0200000000000000000a6a08198278900982309a9e757d01000000001976a9140d77abf49d3a286154d15e31b1a7bd9898c3566988ac00000000");
+    QCOMPARE(Api::Mining::GenericByteData, 1);
+    QCOMPARE(Api::Mining::SubmitBlock, 0);
+    QCOMPARE(Api::Mining::SubmitBlockReply, 1);
+    QCOMPARE(Api::Mining::BlockHash, 5);
+    builder.add(Api::Mining::GenericByteData, blockData);
+    auto m = waitForReply(0, builder.message(Api::MiningService, Api::Mining::SubmitBlock), Api::Mining::SubmitBlockReply);
+    QCOMPARE(m.messageId(), Api::Mining::SubmitBlockReply);
+    {
+        Streaming::MessageParser  parser(m);
+        bool checkedHash = false;
+        while (parser.next() == Streaming::FoundTag) {
+            if (parser.tag() == Api::Mining::BlockHash) {
+                QVERIFY(parser.isByteArray());
+                QCOMPARE(parser.dataLength(), 32);
+                QVERIFY(parser.uint256Data() == uint256S("0f820cace2f02b8cc475bb46e03172cf4eb09874ad2ef1ef1e8c91ca62bdceef"));
+                checkedHash = true;
+            }
+        }
+        QVERIFY(checkedHash);
+    }
+
+    // filter on a script-type that does not exist in any of our transactions.
+    QCOMPARE(Api::BlockChain::BlockHeight, 7);
+    QCOMPARE(Api::BlockChain::FilterOnScriptType, 39);
+    builder.add(Api::BlockChain::BlockHeight, 116);
+    builder.add(Api::BlockChain::FilterOnScriptType, Api::ScriptTag::OpCheckmultisig);
+    m = waitForReply(0, builder.message(Api::BlockChainService, Api::BlockChain::GetBlock), Api::BlockChain::GetBlockReply);
+    {
+        Streaming::MessageParser  parser(m);
+        while (parser.next() == Streaming::FoundTag) {
+            QVERIFY(parser.tag() != Api::Separator); // the above request should give us no results.
+        }
+    }
+
+    // filter on op_return which should give us 2 transactions.
+    QCOMPARE(Api::BlockChain::FilterOnScriptType, 39);
+    QCOMPARE(Api::BlockChain::Tx_OffsetInBlock, 8);
+    QCOMPARE(Api::BlockChain::FullTransactionData, 45);
+    builder.add(Api::BlockChain::BlockHeight, 116);
+    builder.add(Api::BlockChain::FilterOnScriptType, Api::ScriptTag::OpReturn);
+    builder.add(Api::BlockChain::FullTransactionData, false);
+    m = waitForReply(0, builder.message(Api::BlockChainService, Api::BlockChain::GetBlock), Api::BlockChain::GetBlockReply);
+    {
+        Streaming::MessageParser  parser(m);
+        bool checkedTx = false;
+        while (parser.next() == Streaming::FoundTag) {
+            if (parser.tag() == Api::BlockChain::Tx_OffsetInBlock) {
+                QCOMPARE(parser.intData(), 667);
+                checkedTx = true;
+            }
+        }
+        QVERIFY(checkedTx);
+    }
 }
 
 QTEST_MAIN(TestApiBlockchain)
