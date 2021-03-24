@@ -239,7 +239,7 @@ enum Tags {
     Tx_InputScript,
     Tx_OutputScript,
     Tx_Out_Index,
-    Tx_Fees,
+    Tx_Fees,                    ///< The fees (in satoshis) that the transaction paid.
 
     // GetBlock-Request-tags
     FilterOnScriptType = 39, ///< Filter on script-type. Takes an int (OR-ed enum values of Api::ScriptTag)
