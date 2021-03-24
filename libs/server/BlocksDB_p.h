@@ -94,6 +94,7 @@ public:
     std::vector<std::string> blocksDataDirs;
 
     std::recursive_mutex lock;
+    bool nextWriteToNewFile = false; // we detected a writing issue with the last file, go to a new data file.
     std::vector<DataFile*> datafiles;
     std::vector<DataFile*> revertDatafiles;
     std::list<FileHistoryEntry> fileHistory; // keep the last opened ones to avoid opening and closing files all the time.

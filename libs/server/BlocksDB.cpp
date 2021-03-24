@@ -855,14 +855,16 @@ Streaming::ConstBuffer Blocks::DBPrivate::writeBlock(const std::deque<Streaming:
     assert(blockSize >= 0);
     LOCK(cs_LastBlockFile);
 
-    bool newFile = false;
     const bool useBlk = type == ForwardBlock || type == MetaDataForBlock;
+    bool newFile = false;
     assert(nLastBlockFile >= 0);
     if (static_cast<int>(vinfoBlockFile.size()) <= nLastBlockFile) { // first file.
         newFile = true;
         vinfoBlockFile.resize(static_cast<size_t>(nLastBlockFile) + 1);
-    } else if (useBlk && vinfoBlockFile[static_cast<size_t>(nLastBlockFile)].nSize
-               + static_cast<std::uint32_t>(blockSize) + 8 > MAX_BLOCKFILE_SIZE) {
+    } else if (useBlk
+               && (vinfoBlockFile[static_cast<size_t>(nLastBlockFile)].nSize
+                     + static_cast<std::uint32_t>(blockSize) + 8 > MAX_BLOCKFILE_SIZE
+                   || nextWriteToNewFile)) {
         // previous file full.
         newFile = true;
         vinfoBlockFile.resize(static_cast<size_t>(++nLastBlockFile) + 1);
@@ -896,6 +898,8 @@ Streaming::ConstBuffer Blocks::DBPrivate::writeBlock(const std::deque<Streaming:
         boost::filesystem::ofstream file(path);
         file.close();
         boost::filesystem::resize_file(path, static_cast<size_t>(MAX_BLOCKFILE_SIZE));
+        if (newFile && nextWriteToNewFile)
+            nextWriteToNewFile = false;
     }
     size_t fileSize;
     bool writable;
@@ -908,6 +912,32 @@ Streaming::ConstBuffer Blocks::DBPrivate::writeBlock(const std::deque<Streaming:
         logFatal(Log::DB).nospace() << "Wanting to write to DB file blk0..." << pos.nFile << ".dat failed, file read-only";
         throw std::runtime_error("File is not writable");
     }
+    {
+        std::lock_guard<std::recursive_mutex> lock_(lock); // mutex for datafiles / revertDatafiles members
+        size_t currentFileSize = 0;
+        size_t writePos = 0;
+        if (useBlk) {
+            assert (int(datafiles.size()) > pos.nFile); // we have a shared-buf of this, so it should exist
+            assert (datafiles.at(pos.nFile));
+            currentFileSize = datafiles.at(pos.nFile)->filesize;
+            writePos = vinfoBlockFile[pos.nFile].nSize;
+        }
+        else {
+            assert (int(revertDatafiles.size()) > pos.nFile); // we have a shared-buf of this, so it should exist
+            assert (revertDatafiles.at(pos.nFile));
+            currentFileSize = revertDatafiles.at(pos.nFile)->filesize;
+            writePos = vinfoBlockFile[pos.nFile].nUndoSize;
+        }
+        // now check if our block would fit in the actual file-size.
+        if (writePos + blockSize + 8 > currentFileSize) {
+            logFatal(Log::DB) << "currentFileSize" << currentFileSize << "offset:" << writePos  << "to write:" << blockSize + 8;
+            logFatal(Log::DB).nospace() << "Wanting to write to DB file "
+                                        << (useBlk ? "blk" : "rev") << "0..."
+                                        << pos.nFile << ".dat failed, file smaller than expected";
+            nextWriteToNewFile = useBlk;
+            throw std::runtime_error("File has been truncated, we almost wrote outside the lines!");
+        }
+    } // end lock-scope
     uint32_t *posInFile = useBlk ? &info.nSize : &info.nUndoSize;
     pos.nPos = *posInFile + 8;
     char *data = buf.get() + *posInFile;
