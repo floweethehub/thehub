@@ -502,7 +502,7 @@ enum Tags {
     /// A bytearray with a double-spend-proof object
     DoubleSpendProofData = 22,
     /// A bytearray with the double spending transaction
-    Transaction = 25
+    Transaction = 23
 };
 }
 
