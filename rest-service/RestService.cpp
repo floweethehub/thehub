@@ -112,7 +112,8 @@ struct AddressListingData : public AnswerDataBase {
 
     // extract a list of addresses from the json
     void fromJson(const QJsonDocument &doc) {
-        auto in = doc.object()["addresses"];
+        auto root = doc.object();
+        auto in = root["addresses"];
         if (!in.isArray())
             throw UserInputException("Input invalid");
         auto array = in.toArray();
