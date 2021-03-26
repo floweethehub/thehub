@@ -1,5 +1,5 @@
 FROM debian:stable
-LABEL maintainer="Tom Zander <tomz@freedommail.ch>"
+LABEL maintainer="Tom Zander <tom@flowee.org>"
 RUN apt-get -y update && apt-get install -y --no-install-recommends \
     libboost-chrono1.67.0 \
     libboost-iostreams1.67.0 \
