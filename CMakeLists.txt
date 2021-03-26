@@ -19,8 +19,8 @@ project (Flowee)
 
 set(COPYRIGHT_YEAR 2021)
 set(CLIENT_VERSION_MAJOR ${COPYRIGHT_YEAR})
-set(CLIENT_VERSION_MINOR 2)
-set(CLIENT_VERSION_REVISION 3)
+set(CLIENT_VERSION_MINOR 3)
+set(CLIENT_VERSION_REVISION 0)
 set(HUB_SERIES 1)
 
 # ------------------------------------------------------------------------------------
