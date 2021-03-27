@@ -502,7 +502,8 @@ public:
                     // m_scriptFilter is a flags where ANY bit should match.
                     txMatched = (m_scriptFilter & txData->scriptTags) != 0;
                 }
-                if (session->hashes.find(iter.hashedByteData()) != session->hashes.end())
+                if (!txMatched
+                        && session->hashes.find(iter.hashedByteData()) != session->hashes.end())
                     txMatched = true;
             }
             type = iter.next();
