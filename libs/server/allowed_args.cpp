@@ -240,7 +240,7 @@ static void addGeneralOptions(AllowedArgs& allowedArgs, HelpMessageMode mode)
 #endif
         .addArg("reindex", optionalBool, _("Rebuild block chain index from current blk000??.dat files on startup"))
         .addArg("blockdatadir=<dir>", requiredStr, "List a fallback directory to find blocks/blk* files")
-        .addArg("enableblockindex", optionalBool, "Enable block meta-data index to be created during validation")
+        .addArg("feesmetadata", optionalBool, "Enable fees to be collected for block meta-data during validation")
         ;
 }
 

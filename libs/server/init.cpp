@@ -782,7 +782,7 @@ bool AppInit2(boost::thread_group& threadGroup, CScheduler& scheduler)
             return InitError(_("Unable to start HTTP server. See hub log for details."));
     }
 
-    Application::instance()->validation()->enableFeeResolveForMetaData(GetBoolArg("-enableblockindex", false));
+    Application::instance()->validation()->enableFeeResolveForMetaData(GetBoolArg("-feesmetadata", false));
     Application::instance()->validation()->setMempool(&mempool);
     scheduler.scheduleEvery(std::bind(&DoubleSpendProofStorage::periodicCleanup,  mempool.doubleSpendProofStorage()), 60);
 
