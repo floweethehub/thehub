@@ -755,6 +755,13 @@ bool AppInit2(boost::thread_group& threadGroup, CScheduler& scheduler)
     if (GetBoolArg("-shrinkdebugfile", true))
         ShrinkDebugFile();
 
+    if (Params().NetworkIDString() != CBaseChainParams::REGTEST) { // For non-testing setups, keep tracks of disk-space free stats.
+        auto &dsc = Application::instance()->diskSpaceChecker();
+        if (!dsc.enoughSpaceAvailable())
+            return InitError("Not enough disk space available to safely start");
+        dsc.start(); // keep checking
+    }
+
 #ifdef ENABLE_WALLET
     logCritical(Log::Wallet) << "Using BerkeleyDB version" << DbEnv::version(0, 0, 0);
 #endif

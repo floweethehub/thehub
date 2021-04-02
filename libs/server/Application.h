@@ -1,6 +1,6 @@
 /*
  * This file is part of the Flowee project
- * Copyright (C) 2016 Tom Zander <tomz@freedommail.ch>
+ * Copyright (C) 2016-2021 Tom Zander <tom@flowee.org>
  *
  * This program is free software: you can redistribute it and/or modify
  * it under the terms of the GNU General Public License as published by
@@ -18,6 +18,8 @@
 #ifndef APPLICATION_H
 #define APPLICATION_H
 
+
+#include "DiskSpaceChecker.h"
 
 #include <WorkerThreads.h>
 #include <boost/asio/io_service.hpp>
@@ -78,6 +80,8 @@ public:
 
     static bool isClosingDown();
 
+    DiskSpaceChecker& diskSpaceChecker();
+
 protected:
     void init();
     std::unique_ptr<Validation::Engine> m_validationEngine;
@@ -85,6 +89,7 @@ protected:
 private:
     int m_returnCode;
     std::atomic_bool m_closingDown;
+    DiskSpaceChecker m_diskSpaceChecker;
 };
 
 #endif

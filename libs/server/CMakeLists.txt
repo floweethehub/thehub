@@ -30,6 +30,7 @@ set (FLOWEE_SERVER_FILES
     core_write.cpp
     CrashCatcher.cpp
     dbwrapper.cpp
+    DiskSpaceChecker.cpp
     DoubleSpendProof.cpp
     DoubleSpendProofStorage.cpp
     encodings_legacy.cpp
