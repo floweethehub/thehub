@@ -520,6 +520,7 @@ void Blockchain::SearchEnginePrivate::searchFinished(Blockchain::Search *searche
 thread_local Streaming::BufferPool m_buffer;
 Streaming::BufferPool &Blockchain::SearchEnginePrivate::pool(int reserveSize)
 {
+    assert(m_buffer.begin() == m_buffer.end());
     m_buffer.reserve(reserveSize);
     return m_buffer;
 }
