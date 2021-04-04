@@ -113,6 +113,7 @@ Api::Server::Server(boost::asio::io_service &service)
         try {
             m_networkManager.bind(endpoint, std::bind(&Api::Server::newConnection, this, std::placeholders::_1));
             logCritical(Log::ApiServer) << "Api Server listening on" << endpoint;
+            m_netProtect.addWhitelistedAddress(endpoint.address());
         } catch (const std::exception &e) {
             logCritical(Log::ApiServer) << "Api Server failed to listen on" << endpoint << "due to:" << e;
         }

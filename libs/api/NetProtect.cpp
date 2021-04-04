@@ -31,6 +31,10 @@ bool NetProtect::shouldAccept(const NetworkConnection &connection, uint32_t conn
     assert(!ep.ipAddress.is_unspecified()); // lets assume a cetain usage. Incoming named hosts is not supported (or likely)
     if (ep.ipAddress.is_loopback())
         return true;
+    for (const auto &ip : m_whitelist) {
+        if (ip == ep.ipAddress)
+            return true;
+    }
 
     std::unique_lock<std::mutex> lock(m_lock);
     int tier1, tier2, tier3, tier4;
@@ -67,4 +71,9 @@ bool NetProtect::shouldAccept(const NetworkConnection &connection, uint32_t conn
     if (ok)
         m_log.push_back({ep.ipAddress, connectionTime});
     return ok;
+}
+
+void NetProtect::addWhitelistedAddress(boost::asio::ip::address ipAddress)
+{
+    m_whitelist.push_back(ipAddress);
 }

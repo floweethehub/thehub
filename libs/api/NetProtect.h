@@ -35,6 +35,8 @@ public:
     bool shouldAccept(const NetworkConnection &connection,
             uint32_t connectionTime);
 
+    void addWhitelistedAddress(boost::asio::ip::address ipAddress);
+
 private:
     int m_maxHosts;
     struct Connect {
@@ -42,6 +44,7 @@ private:
         uint32_t connectionTime;
     };
     std::vector<Connect> m_log;
+    std::vector<boost::asio::ip::address> m_whitelist;
     mutable std::mutex m_lock;
 };
 
