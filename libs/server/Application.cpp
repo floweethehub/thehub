@@ -47,13 +47,14 @@ void Application::quit(int rc)
     app->m_returnCode = rc;
     app->m_closingDown = true;
     app->m_validationEngine.reset();
+    app->m_diskSpaceChecker.reset();
     app->stopThreads();
 }
 
 Application::Application()
     : m_returnCode(0),
     m_closingDown(false),
-    m_diskSpaceChecker(ioService())
+    m_diskSpaceChecker(new DiskSpaceChecker(ioService()))
 {
     init();
 }
@@ -76,7 +77,8 @@ Validation::Engine *Application::validation()
 
 DiskSpaceChecker &Application::diskSpaceChecker()
 {
-    return m_diskSpaceChecker;
+    assert(m_diskSpaceChecker.get());
+    return *m_diskSpaceChecker.get();
 }
 
 CTxMemPool *Application::mempool()

@@ -89,7 +89,7 @@ protected:
 private:
     int m_returnCode;
     std::atomic_bool m_closingDown;
-    DiskSpaceChecker m_diskSpaceChecker;
+    std::unique_ptr<DiskSpaceChecker> m_diskSpaceChecker;
 };
 
 #endif
