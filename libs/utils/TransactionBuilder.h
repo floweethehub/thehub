@@ -43,9 +43,14 @@ class TransactionBuilderPrivate;
 class TransactionBuilder
 {
 public:
-    TransactionBuilder();
-    TransactionBuilder(const Tx &existingTx);
-    TransactionBuilder(const CTransaction &existingTx);
+    enum SignatureType {
+        ECDSA,
+        Schnorr
+    };
+
+    TransactionBuilder(SignatureType sigType = Schnorr);
+    TransactionBuilder(const Tx &existingTx, SignatureType sigType = Schnorr);
+    TransactionBuilder(const CTransaction &existingTx, SignatureType sigType = Schnorr);
     ~TransactionBuilder();
 
     /**

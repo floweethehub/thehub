@@ -40,26 +40,30 @@ public:
         CScript prevOutScript;
     };
     std::vector<SignInfo> signInfo;
+    TransactionBuilder::SignatureType sigType = TransactionBuilder::Schnorr;
 };
 
 
-TransactionBuilder::TransactionBuilder()
+TransactionBuilder::TransactionBuilder(SignatureType sigType)
     : d(new TransactionBuilderPrivate())
 {
+    d->sigType = sigType;
 }
 
-TransactionBuilder::TransactionBuilder(const Tx &existingTx)
+TransactionBuilder::TransactionBuilder(const Tx &existingTx, SignatureType sigType)
     : d(new TransactionBuilderPrivate())
 {
     d->transaction = CTransaction(existingTx.createOldTransaction());
     d->signInfo.resize(d->transaction.vin.size());
+    d->sigType = sigType;
 }
 
-TransactionBuilder::TransactionBuilder(const CTransaction &existingTx)
+TransactionBuilder::TransactionBuilder(const CTransaction &existingTx, SignatureType sigType)
     : d(new TransactionBuilderPrivate())
 {
     d->transaction = CTransaction(existingTx);
     d->signInfo.resize(d->transaction.vin.size());
+    d->sigType = sigType;
 }
 
 TransactionBuilder::~TransactionBuilder()
@@ -255,7 +259,10 @@ Tx TransactionBuilder::createTransaction(Streaming::BufferPool *pool)
 
         // the rest assumes P2PKH for now.
         std::vector<unsigned char> vchSig;
-        si.privKey.signECDSA(hash, vchSig);
+        if (d->sigType == ECDSA)
+            si.privKey.signECDSA(hash, vchSig);
+        else
+            si.privKey.signSchnorr(hash, vchSig);
         vchSig.push_back((uint8_t) si.hashType);
 
         d->transaction.vin[i].scriptSig = CScript();
