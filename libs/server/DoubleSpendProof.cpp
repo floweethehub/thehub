@@ -83,7 +83,7 @@ namespace {
 
         bool CheckSig(const std::vector<uint8_t> &vchSigIn, const std::vector<uint8_t> &vchPubKey, const CScript &scriptCode, uint32_t /*flags*/) const override {
             CPubKey pubkey(vchPubKey);
-            if (!pubkey.IsValid())
+            if (!pubkey.isValid())
                 return false;
 
             std::vector<uint8_t> vchSig(vchSigIn);

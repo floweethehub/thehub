@@ -34,7 +34,7 @@ unsigned int HaveKeys(const std::vector<valtype>& pubkeys, const CKeyStore& keys
     unsigned int nResult = 0;
     BOOST_FOREACH(const valtype& pubkey, pubkeys)
     {
-        CKeyID keyID = CPubKey(pubkey).GetID();
+        CKeyID keyID = CPubKey(pubkey).getKeyId();
         if (keystore.HaveKey(keyID))
             ++nResult;
     }
@@ -64,7 +64,7 @@ isminetype IsMine(const CKeyStore &keystore, const CScript& scriptPubKey)
     case Script::TX_NULL_DATA:
         break;
     case Script::TX_PUBKEY:
-        keyID = CPubKey(vSolutions[0]).GetID();
+        keyID = CPubKey(vSolutions[0]).getKeyId();
         if (keystore.HaveKey(keyID))
             return ISMINE_SPENDABLE;
         break;

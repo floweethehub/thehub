@@ -40,7 +40,7 @@ namespace {
             builder.appendOutput(50 * COIN);
             CKey k;
             k.MakeNewKey();
-            builder.pushOutputPay2Address(k.GetPubKey().GetID());
+            builder.pushOutputPay2Address(k.GetPubKey().getKeyId());
             out1 = builder.createTransaction();
         }
         {
@@ -50,7 +50,7 @@ namespace {
             builder.appendOutput(50 * COIN);
             CKey k;
             k.MakeNewKey();
-            builder.pushOutputPay2Address(k.GetPubKey().GetID());
+            builder.pushOutputPay2Address(k.GetPubKey().getKeyId());
             out2 = builder.createTransaction();
         }
     }
@@ -229,7 +229,7 @@ void DoubleSpendProofTest::bigTx()
         builder.pushInputSignature(key, out.outputScript, out.outputValue);
         builder.appendOutput(50 * COIN);
     }
-    builder.pushOutputPay2Address(key.GetPubKey().GetID());
+    builder.pushOutputPay2Address(key.GetPubKey().getKeyId());
     auto first = builder.createTransaction();
 
     TransactionBuilder builder2;
@@ -244,7 +244,7 @@ void DoubleSpendProofTest::bigTx()
         builder2.appendOutput(50 * COIN);
     }
 
-    builder2.pushOutputPay2Address(key.GetPubKey().GetID());
+    builder2.pushOutputPay2Address(key.GetPubKey().getKeyId());
     auto second = builder2.createTransaction();
 
 

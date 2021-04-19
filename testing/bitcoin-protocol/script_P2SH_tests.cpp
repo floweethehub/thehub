@@ -83,9 +83,9 @@ void TestPaymentToScriptHash::sign()
     // different keys, straight/P2SH, pubkey/pubkeyhash
     CScript standardScripts[4];
     standardScripts[0] << ToByteVector(key[0].GetPubKey()) << OP_CHECKSIG;
-    standardScripts[1] = GetScriptForDestination(key[1].GetPubKey().GetID());
+    standardScripts[1] = GetScriptForDestination(key[1].GetPubKey().getKeyId());
     standardScripts[2] << ToByteVector(key[1].GetPubKey()) << OP_CHECKSIG;
-    standardScripts[3] = GetScriptForDestination(key[2].GetPubKey().GetID());
+    standardScripts[3] = GetScriptForDestination(key[2].GetPubKey().getKeyId());
     CScript evalScripts[4];
     for (int i = 0; i < 4; i++)
     {
@@ -183,7 +183,7 @@ void TestPaymentToScriptHash::set()
     }
 
     CScript inner[4];
-    inner[0] = GetScriptForDestination(key[0].GetPubKey().GetID());
+    inner[0] = GetScriptForDestination(key[0].GetPubKey().getKeyId());
     inner[1] = GetScriptForMultisig(2, std::vector<CPubKey>(keys.begin(), keys.begin()+2));
     inner[2] = GetScriptForMultisig(1, std::vector<CPubKey>(keys.begin(), keys.begin()+2));
     inner[3] = GetScriptForMultisig(2, std::vector<CPubKey>(keys.begin(), keys.begin()+3));
@@ -294,7 +294,7 @@ void TestPaymentToScriptHash::AreInputsStandard()
     txFrom.vout.resize(7);
 
     // First three are standard:
-    CScript pay1 = GetScriptForDestination(key[0].GetPubKey().GetID());
+    CScript pay1 = GetScriptForDestination(key[0].GetPubKey().getKeyId());
     keystore.AddCScript(pay1);
     CScript pay1of3 = GetScriptForMultisig(1, keys);
 
@@ -337,7 +337,7 @@ void TestPaymentToScriptHash::AreInputsStandard()
 
     CMutableTransaction txTo;
     txTo.vout.resize(1);
-    txTo.vout[0].scriptPubKey = GetScriptForDestination(key[1].GetPubKey().GetID());
+    txTo.vout[0].scriptPubKey = GetScriptForDestination(key[1].GetPubKey().getKeyId());
 
     txTo.vin.resize(5);
     for (int i = 0; i < 5; i++)

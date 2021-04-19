@@ -68,31 +68,31 @@ public:
 
     //! Construct an invalid public key.
     CPubKey() {
-        Invalidate();
+        invalidate();
     }
 
     //! Initialize a public key using begin/end iterators to byte data.
     template <typename T>
-    void Set(const T pbegin, const T pend)
+    void setData(const T pbegin, const T pend)
     {
         int len = pend == pbegin ? 0 : PubKey::keyLength(pbegin[0]);
         if (len && len == (pend - pbegin))
             memcpy(vch, (unsigned char*)&pbegin[0], len);
         else
-            Invalidate();
+            invalidate();
     }
 
     //! Construct a public key using begin/end iterators to byte data.
     template <typename T>
     CPubKey(const T pbegin, const T pend)
     {
-        Set(pbegin, pend);
+        setData(pbegin, pend);
     }
 
     //! Construct a public key from a byte vector.
     CPubKey(const std::vector<unsigned char>& vch)
     {
-        Set(vch.begin(), vch.end());
+        setData(vch.begin(), vch.end());
     }
 
     //! Simple read-only vector-like interface to the pubkey data.
@@ -116,7 +116,7 @@ public:
     }
 
     //! Implement serialization, as if this was a byte vector.
-    unsigned int GetSerializeSize(int nType, int nVersion) const {
+    unsigned int serializedSize(int nType, int nVersion) const {
         return size() + 1;
     }
     template <typename Stream>
@@ -136,28 +136,28 @@ public:
             char dummy;
             while (len--)
                 s.read(&dummy, 1);
-            Invalidate();
+            invalidate();
         }
     }
 
     //! Get the KeyID of this public key (hash of its serialization)
-    CKeyID GetID() const;
+    CKeyID getKeyId() const;
 
     //! Get the 256-bit hash of this public key.
-    uint256 GetHash() const;
+    uint256 createHash() const;
 
     /*
      * Check syntactic correctness.
      * 
      * Note that this is consensus critical as CheckSig() calls it!
      */
-    bool IsValid() const;
+    bool isValid() const;
 
     //! fully validate whether this is a valid public key (more expensive than IsValid())
-    bool IsFullyValid() const;
+    bool isFullyValid() const;
 
     //! Check whether this is a compressed public key.
-    bool IsCompressed() const;
+    bool isCompressed() const;
 
     /**
      * Verify a DER signature (~72 bytes).
@@ -174,16 +174,16 @@ public:
     /**
      * Check whether a signature is normalized (lower-S).
      */
-    static bool CheckLowS(const std::vector<unsigned char>& vchSig);
+    static bool checkLowS(const std::vector<unsigned char>& vchSig);
 
     //! Recover a public key from a compact signature.
-    bool RecoverCompact(const uint256& hash, const std::vector<unsigned char>& vchSig);
+    bool recoverCompact(const uint256& hash, const std::vector<unsigned char>& vchSig);
 
     //! Turn this public key into an uncompressed public key.
-    bool Decompress();
+    bool decompress();
 
     //! Derive BIP32 child pubkey.
-    bool Derive(CPubKey& pubkeyChild, ChainCode &ccChild, unsigned int nChild, const ChainCode& cc) const;
+    bool derive(CPubKey& pubkeyChild, ChainCode &ccChild, unsigned int nChild, const ChainCode& cc) const;
 
 private:
     /**
@@ -193,7 +193,7 @@ private:
     unsigned char vch[65];
 
     //! Set this key data to be invalid
-    inline void Invalidate() {
+    inline void invalidate() {
         vch[0] = 0xFF;
     }
 };

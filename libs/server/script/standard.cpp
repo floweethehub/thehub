@@ -44,10 +44,10 @@ bool ExtractDestination(const CScript& scriptPubKey, CTxDestination& addressRet)
 
     if (whichType == Script::TX_PUBKEY) {
         CPubKey pubKey(vSolutions[0]);
-        if (!pubKey.IsValid())
+        if (!pubKey.isValid())
             return false;
 
-        addressRet = pubKey.GetID();
+        addressRet = pubKey.getKeyId();
         return true;
     }
     else if (whichType == Script::TX_PUBKEYHASH) {
@@ -80,10 +80,10 @@ bool ExtractDestinations(const CScript& scriptPubKey, Script::TxnOutType& typeRe
         for (unsigned int i = 1; i < vSolutions.size()-1; i++)
         {
             CPubKey pubKey(vSolutions[i]);
-            if (!pubKey.IsValid())
+            if (!pubKey.isValid())
                 continue;
 
-            CTxDestination address = pubKey.GetID();
+            CTxDestination address = pubKey.getKeyId();
             addressRet.push_back(address);
         }
 

@@ -317,8 +317,8 @@ QString parseOutScriptAddAddresses(QJsonArray &addresses, QJsonArray &cashAddres
             type = "pubkeyhash";
         } else if (whichType == Script::TX_PUBKEY) {
             CPubKey pubKey(vSolutions[0]);
-            Q_ASSERT (pubKey.IsValid());
-            CKeyID address = pubKey.GetID();
+            Q_ASSERT (pubKey.isValid());
+            CKeyID address = pubKey.getKeyId();
             std::vector<quint8> id(address.begin(), address.end());
             addresses.append(ripeToLegacyAddress(id, CashAddress::PUBKEY_TYPE));
             cashAddresses.append(ripeToCashAddress(id, CashAddress::PUBKEY_TYPE));

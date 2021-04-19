@@ -176,7 +176,7 @@ CPubKey CKey::GetPubKey() const {
     assert(ret);
     secp256k1_ec_pubkey_serialize(secp256k1_context_sign, (unsigned char*)result.begin(), &clen, &pubkey, fCompressed ? SECP256K1_EC_COMPRESSED : SECP256K1_EC_UNCOMPRESSED);
     assert(result.size() == clen);
-    assert(result.IsValid());
+    assert(result.isValid());
     return result;
 }
 
@@ -196,7 +196,7 @@ bool CKey::Sign(const uint256 &hash, std::vector<unsigned char>& vchSig, uint32_
 }
 
 bool CKey::VerifyPubKey(const CPubKey& pubkey) const {
-    if (pubkey.IsCompressed() != fCompressed) {
+    if (pubkey.isCompressed() != fCompressed) {
         return false;
     }
     unsigned char rnd[8];
@@ -227,7 +227,7 @@ bool CKey::SignCompact(const uint256 &hash, std::vector<unsigned char>& vchSig) 
 bool CKey::Load(CPrivKey &privkey, CPubKey &vchPubKey, bool fSkipCheck=false) {
     if (!ec_privkey_import_der(secp256k1_context_sign, (unsigned char*)begin(), &privkey[0], privkey.size()))
         return false;
-    fCompressed = vchPubKey.IsCompressed();
+    fCompressed = vchPubKey.isCompressed();
     fValid = true;
 
     if (fSkipCheck)
@@ -260,7 +260,7 @@ bool CKey::Derive(CKey& keyChild, ChainCode &ccChild, unsigned int nChild, const
 
 bool CExtKey::Derive(CExtKey &out, unsigned int nChild) const {
     out.nDepth = nDepth + 1;
-    CKeyID id = key.GetPubKey().GetID();
+    CKeyID id = key.GetPubKey().getKeyId();
     memcpy(&out.vchFingerprint[0], &id, 4);
     out.nChild = nChild;
     return key.Derive(out.key, out.chaincode, nChild, chaincode);

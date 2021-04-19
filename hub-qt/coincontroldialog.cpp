@@ -535,8 +535,8 @@ void CoinControlDialog::updateLabels(WalletModel *model, QDialog* dialog)
             CKeyID *keyid = boost::get<CKeyID>(&address);
             if (keyid && model->getPubKey(*keyid, pubkey))
             {
-                nBytesInputs += (pubkey.IsCompressed() ? 148 : 180);
-                if (!pubkey.IsCompressed())
+                nBytesInputs += (pubkey.isCompressed() ? 148 : 180);
+                if (!pubkey.isCompressed())
                     nQuantityUncompressed++;
             }
             else
@@ -736,7 +736,7 @@ void CoinControlDialog::updateView()
 
                 CPubKey pubkey;
                 CKeyID *keyid = boost::get<CKeyID>(&outputAddress);
-                if (keyid && model->getPubKey(*keyid, pubkey) && !pubkey.IsCompressed())
+                if (keyid && model->getPubKey(*keyid, pubkey) && !pubkey.isCompressed())
                     nInputSize = 29; // 29 = 180 - 151 (public key is 180 bytes, priority free area is 151 bytes)
             }
 

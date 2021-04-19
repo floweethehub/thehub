@@ -131,7 +131,7 @@ UniValue importprivkey(const UniValue& params, bool fHelp)
 
     CPubKey pubkey = key.GetPubKey();
     assert(key.VerifyPubKey(pubkey));
-    CKeyID vchAddress = pubkey.GetID();
+    CKeyID vchAddress = pubkey.getKeyId();
     pwalletMain->MarkDirty();
     pwalletMain->SetAddressBook(vchAddress, strLabel, "receive");
 
@@ -280,10 +280,10 @@ UniValue importpubkey(const UniValue& params, bool fHelp)
         throw JSONRPCError(RPC_INVALID_ADDRESS_OR_KEY, "Pubkey must be a hex string");
     std::vector<unsigned char> data(ParseHex(params[0].get_str()));
     CPubKey pubKey(data.begin(), data.end());
-    if (!pubKey.IsFullyValid())
+    if (!pubKey.isFullyValid())
         throw JSONRPCError(RPC_INVALID_ADDRESS_OR_KEY, "Pubkey is not a valid public key");
 
-    ImportAddress(CBitcoinAddress(pubKey.GetID()), strLabel);
+    ImportAddress(CBitcoinAddress(pubKey.getKeyId()), strLabel);
     ImportScript(GetScriptForRawPubKey(pubKey), strLabel, false);
 
     if (fRescan)
@@ -351,7 +351,7 @@ UniValue importwallet(const UniValue& params, bool fHelp)
         CKey key = vchSecret.GetKey();
         CPubKey pubkey = key.GetPubKey();
         assert(key.VerifyPubKey(pubkey));
-        CKeyID keyid = pubkey.GetID();
+        CKeyID keyid = pubkey.getKeyId();
         if (pwalletMain->HaveKey(keyid)) {
             LogPrintf("Skipping import of %s (key already present)\n", CBitcoinAddress(keyid).ToString());
             continue;

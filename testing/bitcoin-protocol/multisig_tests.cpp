@@ -201,7 +201,7 @@ void MultiSigTests::multisig_Solver1()
     for (int i = 0; i < 3; i++) {
         key[i].MakeNewKey(true);
         keystore.AddKey(key[i]);
-        keyaddr[i] = key[i].GetPubKey().GetID();
+        keyaddr[i] = key[i].GetPubKey().getKeyId();
     }
     partialkeystore.AddKey(key[0]);
 
@@ -224,7 +224,7 @@ void MultiSigTests::multisig_Solver1()
         std::vector<valtype> solutions;
         Script::TxnOutType whichType;
         CScript s;
-        s << OP_DUP << OP_HASH160 << ToByteVector(key[0].GetPubKey().GetID()) << OP_EQUALVERIFY << OP_CHECKSIG;
+        s << OP_DUP << OP_HASH160 << ToByteVector(key[0].GetPubKey().getKeyId()) << OP_EQUALVERIFY << OP_CHECKSIG;
         QVERIFY(Script::solver(s, whichType, solutions));
         QVERIFY(solutions.size() == 1);
         CTxDestination addr;

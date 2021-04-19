@@ -99,7 +99,7 @@ void TestBloom::bloom_create_insert_key()
 
     CBloomFilter filter(2, 0.001, 0, BLOOM_UPDATE_ALL);
     filter.insert(vchPubKey);
-    uint160 hash = pubkey.GetID();
+    uint160 hash = pubkey.getKeyId();
     filter.insert(std::vector<unsigned char>(hash.begin(), hash.end()));
 
     CDataStream stream(SER_NETWORK, PROTOCOL_VERSION);

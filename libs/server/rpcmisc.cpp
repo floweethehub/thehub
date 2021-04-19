@@ -132,7 +132,7 @@ public:
         obj.push_back(Pair("isscript", false));
         if (pwalletMain && pwalletMain->GetPubKey(keyID, vchPubKey)) {
             obj.push_back(Pair("pubkey", HexStr(vchPubKey)));
-            obj.push_back(Pair("iscompressed", vchPubKey.IsCompressed()));
+            obj.push_back(Pair("iscompressed", vchPubKey.isCompressed()));
         }
         return obj;
     }
@@ -253,7 +253,7 @@ CScript _createmultisig_redeemScript(const UniValue& params)
             if (!pwalletMain->GetPubKey(keyID, vchPubKey))
                 throw std::runtime_error(
                     strprintf("no full public key for address %s",ks));
-            if (!vchPubKey.IsFullyValid())
+            if (!vchPubKey.isFullyValid())
                 throw std::runtime_error(" Invalid public key: "+ks);
             pubkeys[i] = vchPubKey;
         }
@@ -264,7 +264,7 @@ CScript _createmultisig_redeemScript(const UniValue& params)
         if (IsHex(ks))
         {
             CPubKey vchPubKey(ParseHex(ks));
-            if (!vchPubKey.IsFullyValid())
+            if (!vchPubKey.isFullyValid())
                 throw std::runtime_error(" Invalid public key: "+ks);
             pubkeys[i] = vchPubKey;
         }
@@ -373,10 +373,10 @@ UniValue verifymessage(const UniValue& params, bool fHelp)
     ss << strMessage;
 
     CPubKey pubkey;
-    if (!pubkey.RecoverCompact(ss.finalizeHash(), vchSig))
+    if (!pubkey.recoverCompact(ss.finalizeHash(), vchSig))
         return false;
 
-    return (pubkey.GetID() == keyID);
+    return (pubkey.getKeyId() == keyID);
 }
 
 UniValue setmocktime(const UniValue& params, bool fHelp)
@@ -431,7 +431,7 @@ UniValue createaddress(const UniValue& params, bool fHelp)
     // return all useful descriptions of key
     UniValue ret(UniValue::VOBJ);
     const CPubKey pubkey = key.GetPubKey();
-    const CKeyID pubKeyId = pubkey.GetID();
+    const CKeyID pubKeyId = pubkey.getKeyId();
     ret.push_back(Pair("address", CBitcoinAddress(pubKeyId).ToString()));
     const CScript scriptPubKey = GetScriptForDestination(pubKeyId);
     ret.push_back(Pair("scriptPubKey", HexStr(scriptPubKey)));

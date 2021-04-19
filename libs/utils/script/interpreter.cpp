@@ -322,7 +322,7 @@ bool static IsLowDERSignature(const valtype &vchSig, ScriptError &serror, const 
         return set_error(serror, SCRIPT_ERR_SIG_DER);
     }
     std::vector<unsigned char> vchSigCopy(vchSig.begin(), vchSig.begin() + vchSig.size() - ((type  & CheckSigHash) ? 1 : 0));
-    if (!CPubKey::CheckLowS(vchSigCopy))
+    if (!CPubKey::checkLowS(vchSigCopy))
         return set_error(serror, SCRIPT_ERR_SIG_HIGH_S);
     return true;
 }
@@ -1725,7 +1725,7 @@ bool TransactionSignatureChecker::VerifySignature(const std::vector<unsigned cha
 bool TransactionSignatureChecker::CheckSig(const std::vector<unsigned char>& vchSigIn, const std::vector<unsigned char>& vchPubKey, const CScript& scriptCode, uint32_t flags) const
 {
     CPubKey pubkey(vchPubKey);
-    if (!pubkey.IsValid())
+    if (!pubkey.isValid())
         return false;
 
     // Hash type is one byte tacked on to the end of the signature

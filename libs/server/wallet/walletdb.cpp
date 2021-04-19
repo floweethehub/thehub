@@ -433,7 +433,7 @@ ReadKeyValue(CWallet* pwallet, CDataStream& ssKey, CDataStream& ssValue,
         {
             CPubKey vchPubKey;
             ssKey >> vchPubKey;
-            if (!vchPubKey.IsValid())
+            if (!vchPubKey.isValid())
             {
                 strErr = "Error reading wallet database: CPubKey corrupt";
                 return false;
@@ -512,7 +512,7 @@ ReadKeyValue(CWallet* pwallet, CDataStream& ssKey, CDataStream& ssValue,
         {
             CPubKey vchPubKey;
             ssKey >> vchPubKey;
-            if (!vchPubKey.IsValid())
+            if (!vchPubKey.isValid())
             {
                 strErr = "Error reading wallet database: CPubKey corrupt";
                 return false;
@@ -558,7 +558,7 @@ ReadKeyValue(CWallet* pwallet, CDataStream& ssKey, CDataStream& ssValue,
             // If no metadata exists yet, create a default with the pool key's
             // creation time. Note that this may be overwritten by actually
             // stored metadata for that key later, which is fine.
-            CKeyID keyid = keypool.vchPubKey.GetID();
+            CKeyID keyid = keypool.vchPubKey.getKeyId();
             if (pwallet->mapKeyMetadata.count(keyid) == 0)
                 pwallet->mapKeyMetadata[keyid] = CKeyMetadata(keypool.nTime);
         }

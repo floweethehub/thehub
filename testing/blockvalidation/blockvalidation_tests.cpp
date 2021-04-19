@@ -264,7 +264,7 @@ CTransaction TestBlockValidation::splitCoins(const Tx &inTx, int inIndex, const 
     input.prevout.hash = inTx.createHash();
     newTx.vin.push_back(input);
 
-    const CScript scriptPubKey = CScript() << OP_DUP << OP_HASH160 << ToByteVector(to.GetPubKey().GetID())
+    const CScript scriptPubKey = CScript() << OP_DUP << OP_HASH160 << ToByteVector(to.GetPubKey().getKeyId())
                                      << OP_EQUALVERIFY << OP_CHECKSIG;
     newTx.vout.resize(outputCount);
     for (int i = 0; i < outputCount; ++i) {
@@ -360,7 +360,7 @@ void TestBlockValidation::rollback()
     // now, make a block that spends those 3 outputs just created but also spends various
     // outputs created in the same block.
     txs.clear();
-    const CKeyID bitcoinAddress = myKey.GetPubKey().GetID();
+    const CKeyID bitcoinAddress = myKey.GetPubKey().getKeyId();
     for (size_t i = 0; i < root.vout.size(); ++i) {
         {
             TransactionBuilder builder;

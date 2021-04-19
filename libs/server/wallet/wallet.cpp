@@ -120,7 +120,7 @@ CPubKey CWallet::GenerateNewKey()
 
     // Create new metadata
     int64_t nCreationTime = GetTime();
-    mapKeyMetadata[pubkey.GetID()] = CKeyMetadata(nCreationTime);
+    mapKeyMetadata[pubkey.getKeyId()] = CKeyMetadata(nCreationTime);
     if (!nTimeFirstKey || nCreationTime < nTimeFirstKey)
         nTimeFirstKey = nCreationTime;
 
@@ -137,7 +137,7 @@ bool CWallet::AddKeyPubKey(const CKey& secret, const CPubKey &pubkey)
 
     // check if we need to remove from watch-only
     CScript script;
-    script = GetScriptForDestination(pubkey.GetID());
+    script = GetScriptForDestination(pubkey.getKeyId());
     if (HaveWatchOnly(script))
         RemoveWatchOnly(script);
     script = GetScriptForRawPubKey(pubkey);
@@ -149,7 +149,7 @@ bool CWallet::AddKeyPubKey(const CKey& secret, const CPubKey &pubkey)
     if (!IsCrypted()) {
         return CWalletDB(strWalletFile).WriteKey(pubkey,
                                                  secret.GetPrivKey(),
-                                                 mapKeyMetadata[pubkey.GetID()]);
+                                                 mapKeyMetadata[pubkey.getKeyId()]);
     }
     return true;
 }
@@ -166,11 +166,11 @@ bool CWallet::AddCryptedKey(const CPubKey &vchPubKey,
         if (pwalletdbEncryption)
             return pwalletdbEncryption->WriteCryptedKey(vchPubKey,
                                                         vchCryptedSecret,
-                                                        mapKeyMetadata[vchPubKey.GetID()]);
+                                                        mapKeyMetadata[vchPubKey.getKeyId()]);
         else
             return CWalletDB(strWalletFile).WriteCryptedKey(vchPubKey,
                                                             vchCryptedSecret,
-                                                            mapKeyMetadata[vchPubKey.GetID()]);
+                                                            mapKeyMetadata[vchPubKey.getKeyId()]);
     }
     return false;
 }
@@ -181,7 +181,7 @@ void CWallet::LoadKeyMetadata(const CPubKey &pubkey, const CKeyMetadata &meta)
     if (meta.nCreateTime && (!nTimeFirstKey || meta.nCreateTime < nTimeFirstKey))
         nTimeFirstKey = meta.nCreateTime;
 
-    mapKeyMetadata[pubkey.GetID()] = meta;
+    mapKeyMetadata[pubkey.getKeyId()] = meta;
 }
 
 bool CWallet::LoadCryptedKey(const CPubKey &vchPubKey, const std::vector<unsigned char> &vchCryptedSecret)
@@ -2327,7 +2327,7 @@ bool CWallet::CreateTransaction(const std::vector<CRecipient>& vecSend, CWalletT
                         ret = reservekey.GetReservedKey(vchPubKey);
                         assert(ret); // should never fail, as we just unlocked
 
-                        scriptChange = GetScriptForDestination(vchPubKey.GetID());
+                        scriptChange = GetScriptForDestination(vchPubKey.getKeyId());
                     }
 
                     CTxOut newTxOut(nChange, scriptChange);
@@ -2542,7 +2542,7 @@ DBErrors CWallet::LoadWallet(bool& fFirstRunRet)
 
     if (nLoadWalletRet != DB_LOAD_OK)
         return nLoadWalletRet;
-    fFirstRunRet = !vchDefaultKey.IsValid();
+    fFirstRunRet = !vchDefaultKey.isValid();
 
     uiInterface.LoadWallet(this);
 
@@ -2709,9 +2709,9 @@ void CWallet::ReserveKeyFromKeyPool(int64_t& nIndex, CKeyPool& keypool)
         setKeyPool.erase(setKeyPool.begin());
         if (!walletdb.ReadPool(nIndex, keypool))
             throw std::runtime_error("ReserveKeyFromKeyPool(): read failed");
-        if (!HaveKey(keypool.vchPubKey.GetID()))
+        if (!HaveKey(keypool.vchPubKey.getKeyId()))
             throw std::runtime_error("ReserveKeyFromKeyPool(): unknown key in key pool");
-        assert(keypool.vchPubKey.IsValid());
+        assert(keypool.vchPubKey.isValid());
         LogPrintf("keypool reserve %d\n", nIndex);
     }
 }
@@ -2926,7 +2926,7 @@ bool CReserveKey::GetReservedKey(CPubKey& pubkey)
             return false;
         }
     }
-    assert(vchPubKey.IsValid());
+    assert(vchPubKey.isValid());
     pubkey = vchPubKey;
     return true;
 }
@@ -2959,8 +2959,8 @@ void CWallet::GetAllReserveKeys(std::set<CKeyID>& setAddress) const
         CKeyPool keypool;
         if (!walletdb.ReadPool(id, keypool))
             throw std::runtime_error("GetAllReserveKeyHashes(): read failed");
-        assert(keypool.vchPubKey.IsValid());
-        CKeyID keyID = keypool.vchPubKey.GetID();
+        assert(keypool.vchPubKey.isValid());
+        CKeyID keyID = keypool.vchPubKey.getKeyId();
         if (!HaveKey(keyID))
             throw std::runtime_error("GetAllReserveKeyHashes(): unknown key in key pool");
         setAddress.insert(keyID);

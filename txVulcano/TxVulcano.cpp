@@ -470,7 +470,7 @@ void TxVulcano::createTransactions_priv()
         if (count++ == OutputCount)
             break;
         builder.appendOutput(outAmount);
-        builder.pushOutputPay2Address(m_wallet.publicKey(out).GetID());
+        builder.pushOutputPay2Address(m_wallet.publicKey(out).getKeyId());
         unvalidatedTransaction.pubKeys.push_back(out);
     }
     assert(count > 0);
@@ -522,7 +522,7 @@ void TxVulcano::buildGetBlockRequest(Streaming::MessageBuilder &builder, bool &f
 {
     if (first) {
         for (auto i : m_wallet.publicKeys()) {
-            const CKeyID id = m_wallet.publicKey(i).GetID();
+            const CKeyID id = m_wallet.publicKey(i).getKeyId();
             CashAddress::Content c { CashAddress::PUBKEY_TYPE, std::vector<uint8_t>(id.begin(), id.end()) };
             builder.add(first ? Api::BlockChain::SetFilterScriptHash : Api::BlockChain::AddFilterScriptHash,
                         CashAddress::createHashedOutputScript(c));
@@ -556,7 +556,7 @@ void TxVulcano::generate(int blockCount)
     QMutexLocker lock(&m_walletMutex);
     int pkId = m_wallet.firstEmptyPubKey();
     assert(pkId >= 0);
-    const CKeyID id = m_wallet.publicKey(pkId).GetID();
+    const CKeyID id = m_wallet.publicKey(pkId).getKeyId();
     builder.addByteArray(Api::RegTest::BitcoinP2PKHAddress, id.begin(), id.size());
     builder.add(Api::RegTest::Amount, blockCount);
     auto log = logCritical() << "  Sending generate";

@@ -153,7 +153,7 @@ BOOST_AUTO_TEST_CASE(DoS_mapOrphans)
         tx.vin[0].scriptSig << OP_1;
         tx.vout.resize(1);
         tx.vout[0].nValue = 1*CENT;
-        tx.vout[0].scriptPubKey = GetScriptForDestination(key.GetPubKey().GetID());
+        tx.vout[0].scriptPubKey = GetScriptForDestination(key.GetPubKey().getKeyId());
         cache.addOrphanTx(tx, i);
     }
 
@@ -168,7 +168,7 @@ BOOST_AUTO_TEST_CASE(DoS_mapOrphans)
         tx.vin[0].prevout.hash = txPrev.GetHash();
         tx.vout.resize(1);
         tx.vout[0].nValue = 1*CENT;
-        tx.vout[0].scriptPubKey = GetScriptForDestination(key.GetPubKey().GetID());
+        tx.vout[0].scriptPubKey = GetScriptForDestination(key.GetPubKey().getKeyId());
         SignSignature(keystore, txPrev, tx, 0);
 
         cache.addOrphanTx(tx, i);
@@ -182,7 +182,7 @@ BOOST_AUTO_TEST_CASE(DoS_mapOrphans)
         CMutableTransaction tx;
         tx.vout.resize(1);
         tx.vout[0].nValue = 1*CENT;
-        tx.vout[0].scriptPubKey = GetScriptForDestination(key.GetPubKey().GetID());
+        tx.vout[0].scriptPubKey = GetScriptForDestination(key.GetPubKey().getKeyId());
         tx.vin.resize(500);
         for (unsigned int j = 0; j < tx.vin.size(); j++)
         {
@@ -224,7 +224,7 @@ BOOST_AUTO_TEST_CASE(DoS_mapOrphans)
             tx.vin[0].scriptSig << OP_1;
             tx.vout.resize(1);
             tx.vout[0].nValue = 1*CENT;
-            tx.vout[0].scriptPubKey = GetScriptForDestination(key.GetPubKey().GetID());
+            tx.vout[0].scriptPubKey = GetScriptForDestination(key.GetPubKey().getKeyId());
 
             cache.addOrphanTx(tx, i);
         }

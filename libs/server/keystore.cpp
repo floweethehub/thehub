@@ -47,7 +47,7 @@ bool CBasicKeyStore::GetPubKey(const CKeyID &address, CPubKey &vchPubKeyOut) con
 bool CBasicKeyStore::AddKeyPubKey(const CKey& key, const CPubKey &pubkey)
 {
     LOCK(cs_KeyStore);
-    mapKeys[pubkey.GetID()] = key;
+    mapKeys[pubkey.getKeyId()] = key;
     return true;
 }
 
@@ -90,7 +90,7 @@ static bool ExtractPubKey(const CScript &dest, CPubKey& pubKeyOut)
     if (!dest.GetOp(pc, opcode, vch) ||!PubKey::isValidSize(vch))
         return false;
     pubKeyOut = CPubKey(vch);
-    if (!pubKeyOut.IsFullyValid())
+    if (!pubKeyOut.isFullyValid())
         return false;
     if (!dest.GetOp(pc, opcode, vch) || opcode != OP_CHECKSIG || dest.GetOp(pc, opcode, vch))
         return false;
@@ -103,7 +103,7 @@ bool CBasicKeyStore::AddWatchOnly(const CScript &dest)
     setWatchOnly.insert(dest);
     CPubKey pubKey;
     if (ExtractPubKey(dest, pubKey))
-        mapWatchKeys[pubKey.GetID()] = pubKey;
+        mapWatchKeys[pubKey.getKeyId()] = pubKey;
     return true;
 }
 
@@ -113,7 +113,7 @@ bool CBasicKeyStore::RemoveWatchOnly(const CScript &dest)
     setWatchOnly.erase(dest);
     CPubKey pubKey;
     if (ExtractPubKey(dest, pubKey))
-        mapWatchKeys.erase(pubKey.GetID());
+        mapWatchKeys.erase(pubKey.getKeyId());
     return true;
 }
 

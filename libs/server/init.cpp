@@ -1147,7 +1147,7 @@ bool AppInit2(boost::thread_group& threadGroup, CScheduler& scheduler)
             CPubKey newDefaultKey;
             if (pwalletMain->GetKeyFromPool(newDefaultKey)) {
                 pwalletMain->SetDefaultKey(newDefaultKey);
-                if (!pwalletMain->SetAddressBook(pwalletMain->vchDefaultKey.GetID(), "", "receive"))
+                if (!pwalletMain->SetAddressBook(pwalletMain->vchDefaultKey.getKeyId(), "", "receive"))
                     strErrors << _("Cannot write default address") << "\n";
             }
 

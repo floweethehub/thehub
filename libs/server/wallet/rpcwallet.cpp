@@ -135,7 +135,7 @@ UniValue getnewaddress(const UniValue& params, bool fHelp)
     CPubKey newKey;
     if (!pwalletMain->GetKeyFromPool(newKey))
         throw JSONRPCError(RPC_WALLET_KEYPOOL_RAN_OUT, "Error: Keypool ran out, please call keypoolrefill first");
-    CKeyID keyID = newKey.GetID();
+    CKeyID keyID = newKey.getKeyId();
 
     pwalletMain->SetAddressBook(keyID, strAccount, "receive");
 
@@ -153,11 +153,11 @@ CBitcoinAddress GetAccountAddress(std::string strAccount, bool bForceNew=false)
     bool bKeyUsed = false;
 
     // Check if the current key has been used
-    if (account.vchPubKey.IsValid())
+    if (account.vchPubKey.isValid())
     {
-        CScript scriptPubKey = GetScriptForDestination(account.vchPubKey.GetID());
+        CScript scriptPubKey = GetScriptForDestination(account.vchPubKey.getKeyId());
         for (auto it = pwalletMain->mapWallet.begin();
-             it != pwalletMain->mapWallet.end() && account.vchPubKey.IsValid();
+             it != pwalletMain->mapWallet.end() && account.vchPubKey.isValid();
              ++it)
         {
             const CWalletTx& wtx = (*it).second;
@@ -168,16 +168,16 @@ CBitcoinAddress GetAccountAddress(std::string strAccount, bool bForceNew=false)
     }
 
     // Generate a new key
-    if (!account.vchPubKey.IsValid() || bForceNew || bKeyUsed)
+    if (!account.vchPubKey.isValid() || bForceNew || bKeyUsed)
     {
         if (!pwalletMain->GetKeyFromPool(account.vchPubKey))
             throw JSONRPCError(RPC_WALLET_KEYPOOL_RAN_OUT, "Error: Keypool ran out, please call keypoolrefill first");
 
-        pwalletMain->SetAddressBook(account.vchPubKey.GetID(), strAccount, "receive");
+        pwalletMain->SetAddressBook(account.vchPubKey.getKeyId(), strAccount, "receive");
         walletdb.WriteAccount(strAccount, account);
     }
 
-    return CBitcoinAddress(account.vchPubKey.GetID());
+    return CBitcoinAddress(account.vchPubKey.getKeyId());
 }
 
 UniValue getaccountaddress(const UniValue& params, bool fHelp)
@@ -241,7 +241,7 @@ UniValue getrawchangeaddress(const UniValue& params, bool fHelp)
 
     reservekey.KeepKey();
 
-    CKeyID keyID = vchPubKey.GetID();
+    CKeyID keyID = vchPubKey.getKeyId();
 
     return CBitcoinAddress(keyID).ToString();
 }

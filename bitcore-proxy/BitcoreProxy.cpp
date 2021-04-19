@@ -166,8 +166,8 @@ void parseScriptAndAddress(QJsonObject &object, const Streaming::ConstBuffer &sc
             object.insert("address", ripeToAddress(vSolutions[0], CashAddress::PUBKEY_TYPE));
         } else if (whichType == Script::TX_PUBKEY) {
             CPubKey pubKey(vSolutions[0]);
-            Q_ASSERT (pubKey.IsValid());
-            CKeyID address = pubKey.GetID();
+            Q_ASSERT (pubKey.isValid());
+            CKeyID address = pubKey.getKeyId();
             std::vector<quint8> id(address.begin(), address.end());
             object.insert("address", ripeToAddress(id, CashAddress::PUBKEY_TYPE));
         }

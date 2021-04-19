@@ -273,8 +273,8 @@ struct TransactionSerializationOptions
                                 builder.addByteArray(Api::BlockChain::Tx_Out_Address, vSolutions[0].data(), 20);
                             } else if (whichType == Script::TX_PUBKEY) {
                                 CPubKey pubKey(vSolutions[0]);
-                                assert (pubKey.IsValid());
-                                CKeyID address = pubKey.GetID();
+                                assert (pubKey.isValid());
+                                CKeyID address = pubKey.getKeyId();
                                 builder.addByteArray(Api::BlockChain::Tx_Out_Address, address.begin(), 20);
                             }
                         }
@@ -700,7 +700,7 @@ public:
         CKey key;
         key.MakeNewKey();
         assert(key.IsCompressed());
-        const CKeyID pkh = key.GetPubKey().GetID();
+        const CKeyID pkh = key.GetPubKey().getKeyId();
         builder.addByteArray(Api::Util::BitcoinP2PKHAddress, pkh.begin(), pkh.size());
         builder.addByteArray(Api::Util::PrivateKey, key.begin(), key.size());
     }

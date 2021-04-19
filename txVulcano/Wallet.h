@@ -91,7 +91,7 @@ private:
     std::list<std::pair<int, CKey> > m_keys; // private keys.
 
     struct WalletPubKey {
-        WalletPubKey(const CPubKey &pk) : pubKey(pk), bitcoinAddress(pk.GetID()) {}
+        WalletPubKey(const CPubKey &pk) : pubKey(pk), bitcoinAddress(pk.getKeyId()) {}
         CPubKey pubKey;
         CKeyID bitcoinAddress;
 
