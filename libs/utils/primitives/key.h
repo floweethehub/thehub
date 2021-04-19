@@ -169,6 +169,8 @@ public:
 
     //! Check whether an element of a signature (r or s) is valid.
     static bool CheckSignatureElement(const unsigned char* vch, int len, bool half);
+
+    CKey &operator=(const CKey &other) = default;
 };
 
 struct CExtKey {
