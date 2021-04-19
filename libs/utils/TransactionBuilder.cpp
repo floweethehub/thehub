@@ -255,7 +255,7 @@ Tx TransactionBuilder::createTransaction(Streaming::BufferPool *pool)
 
         // the rest assumes P2PKH for now.
         std::vector<unsigned char> vchSig;
-        si.privKey.Sign(hash, vchSig);
+        si.privKey.signECDSA(hash, vchSig);
         vchSig.push_back((uint8_t) si.hashType);
 
         d->transaction.vin[i].scriptSig = CScript();

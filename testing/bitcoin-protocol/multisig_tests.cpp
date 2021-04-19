@@ -42,7 +42,7 @@ CScript sign_multisig(CScript scriptPubKey, std::vector<CKey> keys, const CTrans
     result << OP_0; // CHECKMULTISIG bug workaround
     for (const CKey &key : keys) {
         std::vector<unsigned char> vchSig;
-        const bool rc = key.Sign(hash, vchSig);
+        const bool rc = key.signECDSA(hash, vchSig);
         assert(rc);
         vchSig.push_back((unsigned char)SIGHASH_ALL);
         result << vchSig;

@@ -113,7 +113,7 @@ BOOST_FIXTURE_TEST_CASE(tx_mempool_block_doublespend, TestChain100Setup)
         // Sign:
         std::vector<unsigned char> vchSig;
         uint256 hash = SignatureHash(scriptPubKey, spends[i], 0, 50 * COIN, SIGHASH_ALL | SIGHASH_FORKID, SCRIPT_ENABLE_SIGHASH_FORKID);
-        BOOST_CHECK(coinbaseKey.Sign(hash, vchSig));
+        BOOST_CHECK(coinbaseKey.signECDSA(hash, vchSig));
         vchSig.push_back((unsigned char)SIGHASH_ALL + SIGHASH_FORKID);
         spends[i].vin[0].scriptSig << vchSig;
     }

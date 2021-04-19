@@ -226,7 +226,7 @@ void TestBlockValidation::duplicateInput()
     // Sign
     std::vector<unsigned char> vchSig;
     uint256 hash = SignatureHash(scriptPubKey, newTx, 0, 50 * COIN, SIGHASH_ALL | SIGHASH_FORKID, SCRIPT_ENABLE_SIGHASH_FORKID);
-    QVERIFY(coinbaseKey.Sign(hash, vchSig));
+    QVERIFY(coinbaseKey.signECDSA(hash, vchSig));
     vchSig.push_back((unsigned char)SIGHASH_ALL + SIGHASH_FORKID);
     newTx.vin[0].scriptSig << vchSig;
     newTx.vin[1].scriptSig << vchSig;
@@ -276,7 +276,7 @@ CTransaction TestBlockValidation::splitCoins(const Tx &inTx, int inIndex, const 
     const int nHashType = SIGHASH_ALL | SIGHASH_FORKID;
     const uint256 sigHash = SignatureHash(prevOut.outputScript, newTx, inIndex, prevOut.outputValue, nHashType,  SCRIPT_ENABLE_SIGHASH_FORKID);
     std::vector<unsigned char> vchSig;
-    bool ok = from.Sign(sigHash, vchSig);
+    bool ok = from.signECDSA(sigHash, vchSig);
     assert(ok);
     vchSig.push_back((unsigned char)nHashType);
     newTx.vin[0].scriptSig << vchSig;

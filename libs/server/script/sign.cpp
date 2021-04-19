@@ -39,7 +39,7 @@ bool TransactionSignatureCreator::CreateSig(std::vector<unsigned char>& vchSig, 
         return false;
 
     uint256 hash = SignatureHash(scriptCode, *txTo, nIn, amount, nHashType);
-    if (!key.Sign(hash, vchSig))
+    if (!key.signECDSA(hash, vchSig))
         return false;
     vchSig.push_back((unsigned char)nHashType);
     return true;

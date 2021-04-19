@@ -227,7 +227,7 @@ TestBuilder& TestBuilder::PushSig(const CKey& key, int nHashType, unsigned int l
     std::vector<unsigned char> vchSig, r, s;
     uint32_t iter = 0;
     do {
-        key.Sign(hash, vchSig, iter++);
+        key.signECDSA(hash, vchSig, iter++);
         if ((lenS == 33) != (vchSig[5 + vchSig[3]] == 33)) {
             NegateSignatureS(vchSig);
         }
@@ -748,7 +748,7 @@ CScript TestScript::sign_multisig(CScript scriptPubKey, std::vector<CKey> keys, 
     for (const CKey &key : keys)
     {
         std::vector<unsigned char> vchSig;
-        bool ok = key.Sign(hash, vchSig);
+        bool ok = key.signECDSA(hash, vchSig);
         Q_ASSERT(ok);
         vchSig.push_back((unsigned char)SIGHASH_ALL);
         result << vchSig;
@@ -942,15 +942,15 @@ void TestScript::script_combineSigs()
     // A couple of partially-signed versions:
     std::vector<unsigned char> sig1;
     uint256 hash1 = SignatureHash(scriptPubKey, txTo, 0, amount, SIGHASH_ALL);
-    QVERIFY(keys[0].Sign(hash1, sig1));
+    QVERIFY(keys[0].signECDSA(hash1, sig1));
     sig1.push_back(SIGHASH_ALL);
     std::vector<unsigned char> sig2;
     uint256 hash2 = SignatureHash(scriptPubKey, txTo, 0, amount, SIGHASH_NONE);
-    QVERIFY(keys[1].Sign(hash2, sig2));
+    QVERIFY(keys[1].signECDSA(hash2, sig2));
     sig2.push_back(SIGHASH_NONE);
     std::vector<unsigned char> sig3;
     uint256 hash3 = SignatureHash(scriptPubKey, txTo, 0, amount, SIGHASH_SINGLE);
-    QVERIFY(keys[2].Sign(hash3, sig3));
+    QVERIFY(keys[2].signECDSA(hash3, sig3));
     sig3.push_back(SIGHASH_SINGLE);
 
     // Not fussy about order (or even existence) of placeholders or signatures:

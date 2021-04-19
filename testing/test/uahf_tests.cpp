@@ -54,7 +54,7 @@ BOOST_AUTO_TEST_CASE(Test_transactionAcceptance)
     uint256 newHash = SignatureHash(scriptPubKey, tx, 0, 50 * COIN,
             SIGHASH_ALL | SIGHASH_FORKID, SCRIPT_ENABLE_SIGHASH_FORKID);
     std::vector<unsigned char> vchSig;
-    bool ok = coinbaseKey.Sign(newHash, vchSig);
+    bool ok = coinbaseKey.signECDSA(newHash, vchSig);
     BOOST_CHECK(ok);
     vchSig.push_back((unsigned char)SIGHASH_ALL | SIGHASH_FORKID);
     tx.vin[0].scriptSig << vchSig;
@@ -71,7 +71,7 @@ BOOST_AUTO_TEST_CASE(Test_transactionAcceptance)
     tx.vin[0].prevout.hash = hash0;
     newHash = SignatureHash(scriptPubKey, tx, 0, 50 * COIN, SIGHASH_ALL);
     vchSig.clear();
-    ok = coinbaseKey.Sign(newHash, vchSig);
+    ok = coinbaseKey.signECDSA(newHash, vchSig);
     BOOST_CHECK(ok);
     vchSig.push_back((unsigned char)SIGHASH_ALL);
     tx.vin[0].scriptSig << vchSig;
