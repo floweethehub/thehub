@@ -940,20 +940,32 @@ QString formatServicesStr(quint64 mask)
             case NODE_NETWORK:
                 strList.append("NETWORK");
                 break;
-            case NODE_GETUTXO:
-                strList.append("GETUTXO");
-                break;
             case NODE_BLOOM:
                 strList.append("BLOOM");
-                break;
-            case 8:
-                strList.append("SegWit");
                 break;
             case NODE_XTHIN:
                 strList.append("XTHIN");
                 break;
             case NODE_BITCOIN_CASH:
                 strList.append("CASH");
+                break;
+            case 8:
+                strList.append("WITNESS");
+                break;
+            case NODE_GRAPHENE:
+                strList.append("GRAPH");
+                break;
+            case NODE_WEAKBLOCKS:
+                strList.append("WB");
+                break;
+            case NODE_CF:
+                strList.append("CF");
+                break;
+            case NODE_NETWORK_LIMITED:
+                strList.append("LIMITED");
+                break;
+            case NODE_EXTVERSION:
+                strList.append("EXTVERSION");
                 break;
             default:
                 strList.append(QString("%1[%2]").arg("UNKNOWN").arg(check));

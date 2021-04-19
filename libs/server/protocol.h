@@ -287,10 +287,6 @@ enum {
     // set by all Flowee nodes, and is unset by SPV clients or other peers that just want
     // network services but don't provide them.
     NODE_NETWORK = (1 << 0),
-    // NODE_GETUTXO means the node is capable of responding to the getutxo protocol request.
-    // Flowee does not support this but a patch set called Bitcoin XT does.
-    // See BIP 64 for details on how this is implemented.
-    NODE_GETUTXO = (1 << 1),
     // NODE_BLOOM means the node is capable and willing to handle bloom-filtered connections.
     // Bitcoin Core nodes used to support this by default, without advertising this bit,
     // but no longer do as of protocol version 70011 (= NO_BLOOM_VERSION)
@@ -303,6 +299,23 @@ enum {
 
     // NODE_CASH means the node supports and follows the 'UAHF' chain.
     NODE_BITCOIN_CASH = (1 << 5),
+
+    // obsolete
+    NODE_WEAKBLOCKS = (1 << 7),
+
+    // NODE_GRAPHENE means the node supports Graphene blocks
+    // If this is turned off then the node will not service graphene requests nor
+    // make graphene requests
+    NODE_GRAPHENE = (1 << 6),
+    // NODE_CF means that the node supports BIP 157/158 style
+    // compact filters on block data
+    NODE_CF = (1 << 8),
+    // NODE_NETWORK_LIMITED means the same as NODE_NETWORK with the limitation
+    // of only serving the last 288 (2 day) blocks
+    // See BIP159 for details on how this is implemented.
+    NODE_NETWORK_LIMITED = (1 << 10),
+    // indicates if node is using extversion
+    NODE_EXTVERSION = (1 << 11),
 
     // Bits 24-31 are reserved for temporary experiments. Just pick a bit that
     // isn't getting used, or one not being used much, and notify the
