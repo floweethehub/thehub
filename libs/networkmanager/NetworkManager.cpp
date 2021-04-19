@@ -1139,14 +1139,10 @@ void NetworkManagerConnection::sendPing(const boost::system::error_code &error)
     if (!m_socket.is_open())
         return;
     int time = 90;
-    if (m_messageQueue->isFull()) {
-        if (m_priorityMessageQueue->isFull())
-            time = 2; // delay sending ping
-        else
-            queueMessage(m_pingMessage, NetworkConnection::HighPriority);
-    } else {
-        queueMessage(m_pingMessage, NetworkConnection::NormalPriority);
-    }
+    if (m_priorityMessageQueue->isFull())
+        time = 2; // delay sending ping
+    else
+        queueMessage(m_pingMessage, NetworkConnection::HighPriority);
     m_pingTimer.expires_from_now(boost::posix_time::seconds(time));
     m_pingTimer.async_wait(m_strand.wrap(std::bind(&NetworkManagerConnection::sendPing, this, std::placeholders::_1)));
 }
@@ -1224,7 +1220,7 @@ void NetworkManagerConnection::accept()
                                 std::placeholders::_1, std::placeholders::_2)));
 
     // for incoming connections, take action when no ping comes in.
-    m_pingTimer.expires_from_now(boost::posix_time::seconds(120));
+    m_pingTimer.expires_from_now(boost::posix_time::seconds(150));
     m_pingTimer.async_wait(m_strand.wrap(std::bind(&NetworkManagerConnection::pingTimeout, this, std::placeholders::_1)));
 }
 
