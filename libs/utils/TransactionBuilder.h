@@ -24,6 +24,7 @@
 #include "uint256.h"
 
 class CPubKey;
+class CScriptID;
 class CTransaction;
 class TransactionBuilderPrivate;
 
@@ -208,6 +209,8 @@ public:
     // void pushOutputPay2Address(const std::string &address);
 
     void pushOutputScript(const CScript &script);
+
+    void pushOutputPay2Script(const CScriptID &script);
 
     /**
      * For the selected output a standard output script will be generated

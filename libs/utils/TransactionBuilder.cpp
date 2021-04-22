@@ -190,6 +190,17 @@ void TransactionBuilder::pushOutputScript(const CScript &script)
     d->transaction.vout[static_cast<size_t>(d->curOutput)].scriptPubKey = script;
 }
 
+void TransactionBuilder::pushOutputPay2Script(const CScriptID &script)
+{
+    d->checkCurOutput();
+    CScript outScript;
+    outScript << OP_HASH160;
+    std::vector<unsigned char> data(script.begin(), script.end());
+    outScript << data;
+    outScript << OP_EQUAL;
+    d->transaction.vout[d->curOutput].scriptPubKey = outScript;
+}
+
 void TransactionBuilder::pushOutputNullData(const std::vector<uint8_t> &data)
 {
     assert(d->curOutput >= 0);

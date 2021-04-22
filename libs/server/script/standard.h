@@ -20,22 +20,13 @@
 #ifndef FLOWEE_SCRIPT_STANDARD_H
 #define FLOWEE_SCRIPT_STANDARD_H
 
-#include <uint256.h>
 #include <primitives/script.h>
 #include <script/interpreter.h>
 #include <boost/variant.hpp>
 
 class CKeyID;
 class CScript;
-
-/** A reference to a CScript: the Hash160 of its serialization (see script.h) */
-class CScriptID : public uint160
-{
-public:
-    CScriptID() : uint160() {}
-    CScriptID(const CScript& in);
-    CScriptID(const uint160& in) : uint160(in) {}
-};
+class CScriptID;
 
 extern bool fAcceptDatacarrier;
 extern int nMaxDatacarrierBytes;

@@ -33,8 +33,6 @@ typedef std::vector<unsigned char> valtype;
 bool fAcceptDatacarrier = Settings::DefaultAcceptDataCarrier;
 int nMaxDatacarrierBytes = Settings::MaxOpReturnRelay;
 
-CScriptID::CScriptID(const CScript& in) : uint160(Hash160(in.begin(), in.end())) {}
-
 bool ExtractDestination(const CScript& scriptPubKey, CTxDestination& addressRet)
 {
     std::vector<valtype> vSolutions;

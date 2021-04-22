@@ -23,10 +23,9 @@
 
 #include "crypto/common.h"
 #include "prevector.h"
+#include <uint256.h>
 
 #include <cassert>
-#include <climits>
-#include <limits>
 #include <stdexcept>
 #include <string>
 #include <vector>
@@ -591,6 +590,15 @@ public:
         // The default std::vector::clear() does not release memory.
         CScriptBase().swap(*this);
     }
+};
+
+/** A reference to a CScript: the Hash160 of its serialization (see script.h) */
+class CScriptID : public uint160
+{
+public:
+    CScriptID() : uint160() {}
+    CScriptID(const CScript& in);
+    CScriptID(const uint160& in) : uint160(in) {}
 };
 
 std::vector<uint8_t> MinimalizeBigEndianArray(const std::vector<uint8_t> &data);
