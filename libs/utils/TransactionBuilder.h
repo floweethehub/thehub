@@ -49,9 +49,9 @@ public:
         Schnorr
     };
 
-    TransactionBuilder(SignatureType sigType = Schnorr);
-    TransactionBuilder(const Tx &existingTx, SignatureType sigType = Schnorr);
-    TransactionBuilder(const CTransaction &existingTx, SignatureType sigType = Schnorr);
+    TransactionBuilder();
+    TransactionBuilder(const Tx &existingTx);
+    TransactionBuilder(const CTransaction &existingTx);
     ~TransactionBuilder();
 
     /**
@@ -142,7 +142,7 @@ public:
      *
      * Notice that actual signing only happens when calling createTransaction()
      */
-    void pushInputSignature(const CKey &privKey, const CScript &prevOutScript, int64_t amount, SignInputs inputs = SignAllInputs, SignOutputs outputs = SignAllOuputs);
+    void pushInputSignature(const CKey &privKey, const CScript &prevOutScript, int64_t amount, SignatureType type, SignInputs inputs = SignAllInputs, SignOutputs outputs = SignAllOuputs);
 
     /// locking options.
     enum LockingOptions {

@@ -365,7 +365,7 @@ void TestBlockValidation::rollback()
         {
             TransactionBuilder builder;
             builder.appendInput(root.GetHash(), i);
-            builder.pushInputSignature(myKey, root.vout[i].scriptPubKey, root.vout[i].nValue);
+            builder.pushInputSignature(myKey, root.vout[i].scriptPubKey, root.vout[i].nValue, TransactionBuilder::ECDSA);
             builder.appendOutput(root.vout[i].nValue - 1000);
             builder.pushOutputPay2Address(bitcoinAddress);
             txs.push_back(builder.createTransaction().createOldTransaction());
@@ -374,7 +374,7 @@ void TestBlockValidation::rollback()
             TransactionBuilder builder;
             auto lastTx = txs.back();
             builder.appendInput(lastTx.GetHash(), 0);
-            builder.pushInputSignature(myKey, lastTx.vout[0].scriptPubKey, lastTx.vout[0].nValue);
+            builder.pushInputSignature(myKey, lastTx.vout[0].scriptPubKey, lastTx.vout[0].nValue, TransactionBuilder::ECDSA);
             builder.appendOutput(lastTx.vout[0].nValue - 1000);
             builder.pushOutputPay2Address(bitcoinAddress);
             txs.push_back(builder.createTransaction().createOldTransaction());
@@ -440,7 +440,7 @@ void TestBlockValidation::minimalPush()
     CScript scriptPubKey = CScript() << OP_1;
     TransactionBuilder builder;
     builder.appendInput(root.GetHash(), 0);
-    builder.pushInputSignature(myKey, root.vout[0].scriptPubKey, root.vout[0].nValue);
+    builder.pushInputSignature(myKey, root.vout[0].scriptPubKey, root.vout[0].nValue, TransactionBuilder::ECDSA);
     builder.appendOutput(20 * COIN);
     builder.pushOutputScript(scriptPubKey);
     CMutableTransaction tx = builder.createTransaction().createOldTransaction();
