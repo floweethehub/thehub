@@ -22,10 +22,10 @@
 #include "script.h"
 #include "pubkey_utils.h"
 
-#include "tinyformat.h"
-#include "utilstrencodings.h"
-
+#include <hash.h>
+#include <tinyformat.h>
 #include <uint256.h>
+#include <utilstrencodings.h>
 
 #include <map>
 
@@ -364,6 +364,10 @@ const char* Script::getTxnOutputType(Script::TxnOutType t)
     }
     return nullptr;
 }
+
+
+CScriptID::CScriptID(const CScript& in) : uint160(Hash160(in.begin(), in.end())) {}
+
 
 struct SolverHelper {
     std::multimap<Script::TxnOutType, CScript> templates;

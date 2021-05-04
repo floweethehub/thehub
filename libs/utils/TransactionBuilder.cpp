@@ -38,32 +38,29 @@ public:
         int64_t amount = 0;
         CKey privKey;
         CScript prevOutScript;
+        TransactionBuilder::SignatureType signatureType = TransactionBuilder::Schnorr;
     };
     std::vector<SignInfo> signInfo;
-    TransactionBuilder::SignatureType sigType = TransactionBuilder::Schnorr;
 };
 
 
-TransactionBuilder::TransactionBuilder(SignatureType sigType)
+TransactionBuilder::TransactionBuilder()
     : d(new TransactionBuilderPrivate())
 {
-    d->sigType = sigType;
 }
 
-TransactionBuilder::TransactionBuilder(const Tx &existingTx, SignatureType sigType)
+TransactionBuilder::TransactionBuilder(const Tx &existingTx)
     : d(new TransactionBuilderPrivate())
 {
     d->transaction = CTransaction(existingTx.createOldTransaction());
     d->signInfo.resize(d->transaction.vin.size());
-    d->sigType = sigType;
 }
 
-TransactionBuilder::TransactionBuilder(const CTransaction &existingTx, SignatureType sigType)
+TransactionBuilder::TransactionBuilder(const CTransaction &existingTx)
     : d(new TransactionBuilderPrivate())
 {
     d->transaction = CTransaction(existingTx);
     d->signInfo.resize(d->transaction.vin.size());
-    d->sigType = sigType;
 }
 
 TransactionBuilder::~TransactionBuilder()
@@ -111,7 +108,7 @@ int TransactionBuilder::inputCount() const
     return static_cast<int>(d->transaction.vin.size());
 }
 
-void TransactionBuilder::pushInputSignature(const CKey &privKey, const CScript &prevOutScript, int64_t amount, SignInputs inputs, SignOutputs outputs)
+void TransactionBuilder::pushInputSignature(const CKey &privKey, const CScript &prevOutScript, int64_t amount, SignatureType type, SignInputs inputs, SignOutputs outputs)
 {
     d->checkCurInput();
     TransactionBuilderPrivate::SignInfo &si = d->signInfo[d->curInput];
@@ -125,6 +122,7 @@ void TransactionBuilder::pushInputSignature(const CKey &privKey, const CScript &
     si.privKey = privKey;
     si.prevOutScript = prevOutScript;
     si.amount = amount;
+    si.signatureType = type;
 }
 
 void TransactionBuilder::deleteInput(int index)
@@ -188,6 +186,17 @@ void TransactionBuilder::pushOutputScript(const CScript &script)
     assert(d->curOutput >= 0);
     assert(static_cast<size_t>(d->curOutput) < d->transaction.vout.size());
     d->transaction.vout[static_cast<size_t>(d->curOutput)].scriptPubKey = script;
+}
+
+void TransactionBuilder::pushOutputPay2Script(const CScriptID &script)
+{
+    d->checkCurOutput();
+    CScript outScript;
+    outScript << OP_HASH160;
+    std::vector<unsigned char> data(script.begin(), script.end());
+    outScript << data;
+    outScript << OP_EQUAL;
+    d->transaction.vout[d->curOutput].scriptPubKey = outScript;
 }
 
 void TransactionBuilder::pushOutputNullData(const std::vector<uint8_t> &data)
@@ -259,7 +268,7 @@ Tx TransactionBuilder::createTransaction(Streaming::BufferPool *pool)
 
         // the rest assumes P2PKH for now.
         std::vector<unsigned char> vchSig;
-        if (d->sigType == ECDSA)
+        if (si.signatureType == ECDSA)
             si.privKey.signECDSA(hash, vchSig);
         else
             si.privKey.signSchnorr(hash, vchSig);

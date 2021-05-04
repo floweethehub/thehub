@@ -34,9 +34,9 @@ namespace {
         auto out = in.output(outIndex);
         assert(out.outputValue >= 0);
         {
-            TransactionBuilder builder(TransactionBuilder::ECDSA);
+            TransactionBuilder builder;
             builder.appendInput(in.createHash(), 0);
-            builder.pushInputSignature(key, out.outputScript, out.outputValue);
+            builder.pushInputSignature(key, out.outputScript, out.outputValue, TransactionBuilder::ECDSA);
             builder.appendOutput(50 * COIN);
             CKey k;
             k.MakeNewKey();
@@ -44,9 +44,9 @@ namespace {
             out1 = builder.createTransaction();
         }
         {
-            TransactionBuilder builder(TransactionBuilder::ECDSA);
+            TransactionBuilder builder;
             builder.appendInput(in.createHash(), 0);
-            builder.pushInputSignature(key, out.outputScript, out.outputValue);
+            builder.pushInputSignature(key, out.outputScript, out.outputValue, TransactionBuilder::ECDSA);
             builder.appendOutput(50 * COIN);
             CKey k;
             k.MakeNewKey();
@@ -199,10 +199,10 @@ void DoubleSpendProofTest::testStupidUsage()
     } catch (const std::runtime_error &e) { /* ok */ }
 
     // new Tx that spends a coinbase.
-    TransactionBuilder builder(TransactionBuilder::ECDSA);
+    TransactionBuilder builder;
     builder.appendInput(tx.createHash(), 0);
     auto out = tx.output(0);
-    builder.pushInputSignature(key, out.outputScript, out.outputValue);
+    builder.pushInputSignature(key, out.outputScript, out.outputValue, TransactionBuilder::ECDSA);
     builder.appendOutput(50 * COIN);
     tx = builder.createTransaction();
 
@@ -218,7 +218,7 @@ void DoubleSpendProofTest::bigTx()
     key.MakeNewKey();
     std::vector<FastBlock> blocks = bv->appendChain(702, key, MockBlockValidation::FullOutScript);
 
-    TransactionBuilder builder(TransactionBuilder::ECDSA);
+    TransactionBuilder builder;
     for (size_t i = 0; i < 300; ++i) {
         auto block = blocks.at(i);
         block.findTransactions();
@@ -226,13 +226,13 @@ void DoubleSpendProofTest::bigTx()
         auto tx = block.transactions().at(0);
         builder.appendInput(tx.createHash(), 0);
         auto out = tx.output(0);
-        builder.pushInputSignature(key, out.outputScript, out.outputValue);
+        builder.pushInputSignature(key, out.outputScript, out.outputValue, TransactionBuilder::ECDSA);
         builder.appendOutput(12 * COIN);
     }
     builder.pushOutputPay2Address(key.GetPubKey().getKeyId());
     auto first = builder.createTransaction();
 
-    TransactionBuilder builder2(TransactionBuilder::ECDSA);
+    TransactionBuilder builder2;
     for (size_t i = 599; i >= 300; --i) {
         auto block = blocks.at(i);
         block.findTransactions();
@@ -240,7 +240,7 @@ void DoubleSpendProofTest::bigTx()
         auto tx = block.transactions().at(0);
         builder2.appendInput(tx.createHash(), 0);
         auto out = tx.output(0);
-        builder2.pushInputSignature(key, out.outputScript, out.outputValue);
+        builder2.pushInputSignature(key, out.outputScript, out.outputValue, TransactionBuilder::ECDSA);
         builder2.appendOutput(3 * COIN);
     }
 

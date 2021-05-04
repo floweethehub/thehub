@@ -426,7 +426,7 @@ void TxVulcano::createTransactions_priv()
         builder.appendInput(utxo->prevTxId, utxo->index);
         const CKey *key = m_wallet.privateKey(utxo->keyId);
         assert(key);
-        builder.pushInputSignature(*key, utxo->prevOutScript, utxo->amount);
+        builder.pushInputSignature(*key, utxo->prevOutScript, utxo->amount, TransactionBuilder::Schnorr);
         utxo = m_wallet.spendOutput(utxo);
         unconfirmedDepth = std::max(unconfirmedDepth, utxo->unconfirmedDepth);
         if (amount > 12500)
