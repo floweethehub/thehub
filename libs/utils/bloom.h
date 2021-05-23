@@ -63,17 +63,17 @@ enum BloomFlags
 class CBloomFilter
 {
 private:
-    std::vector<unsigned char> vData;
-    bool isFull;
-    bool isEmpty;
-    unsigned int nHashFuncs;
-    unsigned int nTweak;
-    unsigned char nFlags;
+    std::vector<unsigned char> m_data;
+    bool m_isFull;
+    bool m_isEmpty;
+    uint32_t m_numHashFuncs;
+    uint32_t m_tweak;
+    uint8_t m_flags;
 
-    unsigned int hash(unsigned int nHashNum, const std::vector<unsigned char>& vDataToHash) const;
+    uint32_t hash(uint32_t nHashNum, const std::vector<uint8_t> &vDataToHash) const;
 
     // Private constructor for CRollingBloomFilter, no restrictions on size
-    CBloomFilter(unsigned int nElements, double nFPRate, unsigned int nTweak);
+    CBloomFilter(unsigned int nElements, double nFPRate, unsigned int tweak);
     friend class CRollingBloomFilter;
 
 public:
@@ -86,20 +86,20 @@ public:
      * It should generally always be a random value (and is largely only exposed for unit testing)
      * nFlags should be one of the BLOOM_UPDATE_* enums (not _MASK)
      */
-    CBloomFilter(unsigned int nElements, double nFPRate, unsigned int nTweak, unsigned char nFlagsIn);
-    CBloomFilter() : isFull(true), isEmpty(false), nHashFuncs(0), nTweak(0), nFlags(0) {}
+    CBloomFilter(unsigned int nElements, double nFPRate, unsigned int tweak, unsigned char flags);
+    CBloomFilter() : m_isFull(true), m_isEmpty(false), m_numHashFuncs(0), m_tweak(0), m_flags(0) {}
 
     ADD_SERIALIZE_METHODS
 
     template <typename Stream, typename Operation>
     inline void SerializationOp(Stream& s, Operation ser_action, int nType, int nVersion) {
-        READWRITE(vData);
-        READWRITE(nHashFuncs);
-        READWRITE(nTweak);
-        READWRITE(nFlags);
+        READWRITE(m_data);
+        READWRITE(m_numHashFuncs);
+        READWRITE(m_tweak);
+        READWRITE(m_flags);
     }
 
-    uint8_t flags() const { return nFlags; }
+    uint8_t flags() const { return m_flags; }
 
     void store(Streaming::P2PBuilder &builder) const;
 
@@ -117,7 +117,7 @@ public:
 
     //! True if the size is <= MAX_BLOOM_FILTER_SIZE and the number of hash functions is <= MAX_HASH_FUNCS
     //! (catch a filter which was just deserialized which was too big)
-    bool IsWithinSizeConstraints() const;
+    bool isWithinSizeConstraints() const;
 
     //! Scans output scripts for matches and adds those outpoints to the filter
     //! for spend detection. Returns true if any output matched, or the txid
@@ -134,6 +134,8 @@ public:
 
     //! Checks for empty and full filters to avoid wasting cpu
     void updateEmptyFull();
+    /// returns true if this is a valid but empty filter
+    bool isEmpty() const;
 };
 
 /**

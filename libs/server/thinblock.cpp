@@ -284,7 +284,7 @@ CBloomFilter createSeededBloomFilter(const std::vector<uint256>& vOrphanHashes)
 
 void LoadFilter(CNode *pfrom, CBloomFilter *filter)
 {
-    if (!filter->IsWithinSizeConstraints()) {
+    if (!filter->isWithinSizeConstraints()) {
         // There is no excuse for sending a too-large filter
         LOCK(cs_main);
         Misbehaving(pfrom->GetId(), 100);
