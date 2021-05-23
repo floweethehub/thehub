@@ -122,7 +122,7 @@ public:
 
     int filterChangedHeight() const;
 
-    CBloomFilter bloomFilter() const;
+    const CBloomFilter &bloomFilter() const;
 
     void addListener(PrivacySegmentListener *listener);
     void removeListener(PrivacySegmentListener *listener);

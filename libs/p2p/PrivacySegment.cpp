@@ -162,7 +162,7 @@ int PrivacySegment::filterChangedHeight() const
     return m_filterChangedHeight;
 }
 
-CBloomFilter PrivacySegment::bloomFilter() const
+const CBloomFilter &PrivacySegment::bloomFilter() const
 {
     std::unique_lock<std::recursive_mutex> lock(m_lock);
     return m_bloom;
