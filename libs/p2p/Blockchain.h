@@ -94,6 +94,7 @@ private:
     BlockHeightMap m_blockHeight;
 
     DownloadManager *m_dlmanager;
+    bool m_needsSaving = false;
 
     // consensus
     const uint256 powLimit = uint256S("00000000ffffffffffffffffffffffffffffffffffffffffffffffffffffffff");

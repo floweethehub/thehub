@@ -204,6 +204,7 @@ void Blockchain::processBlockHeaders(Message message, int peerId)
         m_tip.tip = prevHash;
         m_tip.chainWork= chainWork;
         newTip = m_tip.height;
+        m_needsSaving = true;
         logCritical() << "Headers now at" << newTip << m_tip.tip <<
                      DateTimeStrFormat("%Y-%m-%d %H:%M:%S", m_longestChain.back().nTime).c_str();
     } catch (const std::runtime_error &err) {
@@ -279,6 +280,8 @@ BlockHeader Blockchain::block(int height) const
 
 void Blockchain::save()
 {
+    if (!m_needsSaving)
+        return;
     boost::system::error_code error;
     boost::filesystem::create_directories(m_basedir, error);
     if (error && !boost::filesystem::exists(m_basedir) && !boost::filesystem::is_directory(m_basedir)) {
@@ -289,11 +292,13 @@ void Blockchain::save()
 
     std::ofstream out((m_basedir / "blockchain").string());
     Streaming::BufferPool pool;
-    for (const auto &header : m_longestChain) {
+    for (size_t i = m_numStaticHeaders; i < m_longestChain.size(); ++i) {
+        const auto &header = m_longestChain.at(i);
         auto cd = header.write(pool);
         assert(cd.size() == 80);
         out.write(cd.begin(), cd.size());
     }
+    m_needsSaving = false;
 }
 
 void Blockchain::createMainchainGenesis()
@@ -446,4 +451,5 @@ void Blockchain::load()
         m_tip.height = m_longestChain.size() - 1;
     }
     logCritical() << "Blockchain loading completed. Tip:" << m_tip.height << m_tip.tip;
+    m_needsSaving = false;
 }
