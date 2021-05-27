@@ -26,28 +26,36 @@
 
 #include <stdexcept>
 
+struct StaticChain {
+    StaticChain() : data(nullptr), size(0) {}
+    const unsigned char *data;
+    int64_t size;
+};
+static StaticChain s_staticChain = StaticChain();
+
 Blockchain::Blockchain(DownloadManager *downloadManager, const boost::filesystem::path &basedir, P2PNet::Chain chain)
     : m_basedir(basedir),
       m_blockHeight(chain == P2PNet::MainChain ? 60001 : 1001),
       m_dlmanager(downloadManager)
 {
     assert(m_dlmanager);
+
     switch (chain) {
     case P2PNet::MainChain:
         m_longestChain.reserve(700000); // pre-allocate
-        load();
         createMainchainGenesis();
         loadMainchainCheckpoints();
         break;
     case P2PNet::Testnet4Chain:
         m_longestChain.reserve(100000);
-        load();
         createTestnet4Genesis();
         loadTestnet4Checkpoints();
         break;
     default:
         assert(false);
     }
+    loadStaticChain(s_staticChain.data, s_staticChain.size);
+    load();
 }
 
 Message Blockchain::createGetHeadersRequest(Streaming::P2PBuilder &builder)
@@ -72,8 +80,15 @@ Message Blockchain::createGetHeadersRequest(Streaming::P2PBuilder &builder)
             m_tip.height - 1000
         };
         for (auto i : offsets) {
-            uint256 hash = m_longestChain.at(i - 1).createHash();
-            builder.writeByteArray(hash.begin(), 32, Streaming::RawBytes);
+            if (i < m_numStaticHeaders) {
+                auto bh = reinterpret_cast<const BlockHeader*>(m_staticChain + 80 * i);
+                uint256 hash = bh->createHash();
+                builder.writeByteArray(hash.begin(), 32, Streaming::RawBytes);
+            }
+            else {
+                uint256 hash = m_longestChain.at(i).createHash();
+                builder.writeByteArray(hash.begin(), 32, Streaming::RawBytes);
+            }
         }
     }
     builder.writeByteArray(tip.begin(), 32, Streaming::RawBytes);
@@ -200,6 +215,13 @@ void Blockchain::processBlockHeaders(Message message, int peerId)
     m_dlmanager->headersDownloadFinished(newTip, peerId);
 }
 
+// static
+void Blockchain::setStaticChain(const unsigned char *data, int64_t size)
+{
+    s_staticChain.data = data;
+    s_staticChain.size = size;
+}
+
 int Blockchain::height() const
 {
     return m_tip.height;
@@ -208,8 +230,15 @@ int Blockchain::height() const
 int Blockchain::expectedBlockHeight() const
 {
     std::unique_lock<std::mutex> lock(m_lock);
-    const BlockHeader &tip = m_longestChain.back();
-    int secsSinceLastBlock = time(nullptr) - tip.nTime;
+    const int ourHeight = static_cast<int>(m_longestChain.size()) - 1;
+    int secsSinceLastBlock = 0;
+    if (m_numStaticHeaders > ourHeight) {
+        const BlockHeader *bh = reinterpret_cast<const BlockHeader*>(m_staticChain + 80 * ourHeight);
+        secsSinceLastBlock = GetTime() - bh->nTime;
+    }
+    else {
+        secsSinceLastBlock = GetTime() - m_longestChain.back().nTime;
+    }
     return m_tip.height + (secsSinceLastBlock + 300) / 600; // add how many 10 minutes chunks fit in the time-span.
 }
 
@@ -227,6 +256,9 @@ int Blockchain::blockHeightFor(const uint256 &blockId) const
         return -1;
     if (int(m_longestChain.size()) <= iter->second)
         return -1;
+    if (m_numStaticHeaders >= iter->second) {
+
+    }
     if (m_longestChain.at(iter->second).createHash() != blockId)
         return -1;
     return iter->second;
@@ -234,10 +266,14 @@ int Blockchain::blockHeightFor(const uint256 &blockId) const
 
 BlockHeader Blockchain::block(int height) const
 {
-    assert(height > 0);
+    assert(height >= 0);
     std::unique_lock<std::mutex> lock(m_lock);
     if (int(m_longestChain.size()) <= height)
         return BlockHeader();
+    if (m_numStaticHeaders > height) {
+        const BlockHeader *bh = reinterpret_cast<const BlockHeader*>(m_staticChain + 80 * height);
+        return *bh;
+    }
     return m_longestChain.at(height);
 }
 
@@ -313,6 +349,34 @@ void Blockchain::loadTestnet4Checkpoints()
     checkpoints.insert(std::make_pair(9999, uint256S("0x00000000016522b7506939b23734bca7681c42a53997f2943ab4c8013936b419")));
 }
 
+void Blockchain::loadStaticChain(const unsigned char *data, int64_t dataSize)
+{
+    if (dataSize > 80 ) {
+        // check if genesis is the same
+        assert(m_longestChain.size() >= 1); // has a genesis
+        const BlockHeader *genesis = reinterpret_cast<const BlockHeader*>(data);
+        if (genesis->createHash() != m_longestChain.front().createHash()) {
+            logWarning() << "Ignoring static blockchain, not for this network (genesis does not match)";
+            return;
+        }
+    }
+
+    int numHeadersFound = 0;
+    for (int64_t pos = 0; pos + 80 <= dataSize; pos += 80) {
+        const BlockHeader *bh = reinterpret_cast<const BlockHeader*>(data + pos);
+        m_blockHeight.insert(std::make_pair(bh->createHash(), ++numHeadersFound));
+        m_tip.chainWork += bh->blockProof();
+    }
+    if (numHeadersFound) {
+        m_staticChain = data;
+        m_numStaticHeaders = numHeadersFound;
+        m_longestChain.resize(numHeadersFound);
+
+        m_tip.tip = block(m_numStaticHeaders - 1).createHash();
+        m_tip.height = m_longestChain.size() - 1;
+    }
+}
+
 void Blockchain::createGenericGenesis(BlockHeader genesis)
 {
     genesis.hashMerkleRoot = uint256S("4a5e1e4baab89f3a32518a88c31bc87f618f76673e2cc77ab2127b7afdeda33b");
@@ -335,6 +399,7 @@ void Blockchain::load()
 
     logInfo() << "Starting to load the blockchain";
     Streaming::BufferPool pool;
+    int skipNumber = -1;
     while (true) {
         pool.reserve(80);
         size_t need = 80;
@@ -347,13 +412,38 @@ void Blockchain::load()
         if (need != 0)
             break;
 
-        BlockHeader header = BlockHeader::fromMessage(pool.commit(80));
-        m_blockHeight.insert(std::make_pair(header.createHash(), m_longestChain.size()));
-        m_tip.chainWork += header.blockProof();
-        m_longestChain.push_back(header);
+        auto headerData = pool.commit(80);
+        const BlockHeader *hd = reinterpret_cast<const BlockHeader*>(headerData.begin());
+        if (skipNumber == -1) {
+            const uint256 blockHash = hd->createHash();
+            // On finding the first block in the file, check how it relates to the existing blockheaders already
+            // known. Most importantly from the static data.
+            if (blockHash == m_longestChain.at(0).createHash()) {
+                // external file starts at genesis.
+                skipNumber = m_longestChain.size();
+            }
+            else {
+                auto former = m_blockHeight.find(hd->hashPrevBlock);
+                if (former == m_blockHeight.end()) {
+                    logFatal() << "Blockchain ERROR: Loaded blocksdata do not match our chain" << blockHash;
+                    abort();
+                }
+                skipNumber = m_longestChain.size() - former->second;
+            }
+        }
+        if (skipNumber > 0) {
+            --skipNumber;
+            continue;
+        }
+
+        m_blockHeight.insert(std::make_pair(hd->createHash(), m_longestChain.size()));
+        m_tip.chainWork += hd->blockProof();
+        m_longestChain.push_back(*hd);
     }
 
-    m_tip.tip = m_longestChain.back().createHash();
-    m_tip.height = m_longestChain.size() - 1;
+    if (m_tip.height < int(m_longestChain.size()) - 1) {
+        m_tip.tip = m_longestChain.back().createHash();
+        m_tip.height = m_longestChain.size() - 1;
+    }
     logCritical() << "Blockchain loading completed. Tip:" << m_tip.height << m_tip.tip;
 }

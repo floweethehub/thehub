@@ -31,6 +31,7 @@ if (${Qt5Core_FOUND})
         add_subdirectory(blockvalidation)
         add_subdirectory(hub)
         add_subdirectory(api)
+        add_subdirectory(p2pnet)
 
         find_package(Qt5Network)
         if (${Qt5Network_FOUND})
@@ -49,7 +50,7 @@ if (${Qt5Core_FOUND})
             test_networkmanager
             test_hashstorage
             test_blockvalidation
-            test_hub
+            test_p2pnet
             test_api_live
             test_api_blockchain
             test_api_address_monitor

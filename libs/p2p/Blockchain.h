@@ -44,6 +44,11 @@ public:
     void processBlockHeaders(Message message, int peerId);
 
     /**
+     *
+     */
+    static void setStaticChain(const unsigned char *data, int64_t size);
+
+    /**
      * Return the chain-height that we actually are at, based on validated headers.
      */
     int height() const;
@@ -55,6 +60,10 @@ public:
     bool isKnown(const uint256 &blockId) const;
     int blockHeightFor(const uint256 &blockId) const;
 
+    /**
+     * Return the block header for a block at a certain height.
+     * Height 0 is the genesis block.
+     */
     BlockHeader block(int height) const;
 
     /// re-load the chain. Also called from the constructor.
@@ -67,6 +76,7 @@ private:
     void loadMainchainCheckpoints();
     void createTestnet4Genesis();
     void loadTestnet4Checkpoints();
+    void loadStaticChain(const unsigned char *data, int64_t dataSize);
 
     void createGenericGenesis(BlockHeader genesis);
 
@@ -88,6 +98,9 @@ private:
     // consensus
     const uint256 powLimit = uint256S("00000000ffffffffffffffffffffffffffffffffffffffffffffffffffffffff");
     std::map<int, uint256> checkpoints;
+
+    const unsigned char *m_staticChain = nullptr;
+    int m_numStaticHeaders = 0; // including genesis, so this is height + 1
 };
 
 #endif
