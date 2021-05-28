@@ -44,7 +44,17 @@ public:
     void processBlockHeaders(Message message, int peerId);
 
     /**
+     * Set a raw mapped blockchain data, a simple list of headers.
+     * Block headers, as they are stored in the blockchain, at 80 bytes each can be provided
+     * here as a lost in order to avoid downloading them from peers.
+     * We require that the blocks are in-order (will not be checked), starting with the
+     * geneesis block (which is checked).
      *
+     * This setter should be used BEFORE the creation of the Blockchain instance, which means
+     * before the creation of the DownloadManager instance.
+     *
+     * Notice that after setting this, the save() will skip saving any heders provided by
+     * the static data.
      */
     static void setStaticChain(const unsigned char *data, int64_t size);
 
