@@ -198,6 +198,7 @@ private:
     DownloadTargetIds m_downloadTargetIds; // uint256 -> downloadQueue-Id
     uint32_t m_nextDownloadTarget = 1;
     std::array<ActiveDownload, 10> m_downloads;
+    bool m_isBehind; // we expect new headers
 };
 
 #endif

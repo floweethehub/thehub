@@ -36,6 +36,7 @@ DownloadManager::DownloadManager(boost::asio::io_service &service, const boost::
       m_shuttingDown(false)
 {
     m_connectionManager.setBlockHeight(m_blockchain.height());
+    m_isBehind = !isChainUpToDate();
 
     // create basedir, and fail-fast if we don't have writing rights to do that.
     try {
@@ -80,6 +81,12 @@ void DownloadManager::headersDownloadFinished(int newBlockHeight, int peerId)
         iface->blockchainHeightChanged(newBlockHeight);
     }
     m_notifications.notifyNewBlock(newBlockHeight);
+    if (m_isBehind && isChainUpToDate()) {
+        m_isBehind = false;
+        for (auto iface : m_dataListeners)  {
+            iface->headerSyncComplete();
+        }
+    }
 
     addAction<SyncSPVAction>();
 }

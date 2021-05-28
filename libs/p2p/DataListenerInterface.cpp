@@ -28,3 +28,7 @@ DataListenerInterface::~DataListenerInterface()
 void DataListenerInterface::setLastSynchedBlockHeight(int)
 {
 }
+
+void DataListenerInterface::headerSyncComplete()
+{
+}

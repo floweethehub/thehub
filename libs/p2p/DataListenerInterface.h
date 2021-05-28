@@ -40,6 +40,9 @@ public:
     virtual void newTransaction(const Tx &tx) = 0;
     /// notify when we get a newer (higher) blockheight
     virtual void setLastSynchedBlockHeight(int height);
+    /// Callback when we move from a not yet synched client to one that now has headers till 'now'.
+    // called at most once per application-run
+    virtual void headerSyncComplete();
 };
 
 #endif
