@@ -257,12 +257,32 @@ int Blockchain::blockHeightFor(const uint256 &blockId) const
         return -1;
     if (int(m_longestChain.size()) <= iter->second)
         return -1;
-    if (m_numStaticHeaders >= iter->second) {
-
-    }
-    if (m_longestChain.at(iter->second).createHash() != blockId)
-        return -1;
     return iter->second;
+}
+
+int Blockchain::blockHeightAtTime(uint32_t timestamp) const
+{
+    std::unique_lock<std::mutex> lock(m_lock);
+    int l = 1;
+    int r = m_longestChain.size() - 1;
+    while (l <= r) {
+        int m = (l + r) / 2;
+        uint32_t val;
+        if (m_numStaticHeaders > m) {
+            const BlockHeader *bh = reinterpret_cast<const BlockHeader*>(m_staticChain + 80 * m);
+            val = bh->nTime;
+        } else {
+            val = m_longestChain.at(m).nTime;
+        }
+        if (val < timestamp)
+            l = m + 1;
+        else if (val == timestamp)
+            return m;
+        else
+            r = m - 1;
+    }
+
+    return l;
 }
 
 BlockHeader Blockchain::block(int height) const
@@ -369,8 +389,11 @@ void Blockchain::loadStaticChain(const unsigned char *data, int64_t dataSize)
     int numHeadersFound = 0;
     for (int64_t pos = 0; pos + 80 <= dataSize; pos += 80) {
         const BlockHeader *bh = reinterpret_cast<const BlockHeader*>(data + pos);
-        m_blockHeight.insert(std::make_pair(bh->createHash(), ++numHeadersFound));
-        m_tip.chainWork += bh->blockProof();
+        if (pos) {
+            m_blockHeight.insert(std::make_pair(bh->createHash(), numHeadersFound));
+            m_tip.chainWork += bh->blockProof();
+        }
+        ++numHeadersFound;
     }
     if (numHeadersFound) {
         m_staticChain = data;
@@ -433,7 +456,7 @@ void Blockchain::load()
                     logFatal() << "Blockchain ERROR: Loaded blocksdata do not match our chain" << blockHash;
                     abort();
                 }
-                skipNumber = m_longestChain.size() - former->second;
+                skipNumber = m_longestChain.size() - former->second - 1;
             }
         }
         if (skipNumber > 0) {

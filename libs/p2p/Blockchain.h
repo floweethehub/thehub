@@ -67,8 +67,22 @@ public:
      */
     int expectedBlockHeight() const;
 
+    /**
+     * Returns true if the block-id is part of the main chain (so far).
+     */
     bool isKnown(const uint256 &blockId) const;
+    /**
+     * Returns the block height for a certain block.
+     * Please notice the isKnown which is a cheaper version if all you need is a yes/no.
+     */
     int blockHeightFor(const uint256 &blockId) const;
+
+    /**
+     * This returns the block that was created just after the requested timestamp.
+     *
+     * If the timestamp is further in the future than 'Tip' then tip's height + 1 is given.
+     */
+    int blockHeightAtTime(uint32_t timestamp) const;
 
     /**
      * Return the block header for a block at a certain height.

@@ -30,7 +30,11 @@ private slots:
     void basics();
     void staticChain();
 
+    void blockHeightAtTime();
+
 private:
+    QByteArray prepareStaticFile();
+
     QString m_tmpPath;
 };
 

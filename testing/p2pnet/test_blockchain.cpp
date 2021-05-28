@@ -58,13 +58,7 @@ void TestP2PBlockchain::basics()
 
 void TestP2PBlockchain::staticChain()
 {
-    // we copy our static data from a file, more flexible.
-    // Suggestion for real apps is to use something like QResource.
-    QFile staticHeaders(QString("%1/headers0-99").arg(SRCDIR));
-    QVERIFY(staticHeaders.open(QIODevice::ReadOnly));
-    QByteArray data = staticHeaders.readAll();
-    Blockchain::setStaticChain(reinterpret_cast<const uint8_t*>(data.constData()), data.size());
-
+    auto bytes = prepareStaticFile();
     // support
     SetMockTime(1232000000);
     boost::asio::io_service ioService;
@@ -76,6 +70,7 @@ void TestP2PBlockchain::staticChain()
         Blockchain blockchain(&dlm, basedir, P2PNet::MainChain);
         QCOMPARE(blockchain.height(), 99);
         QCOMPARE(blockchain.block(99).createHash(), uint256S("00000000cd9b12643e6854cb25939b39cd7a1ad0af31a9bd8b2efe67854b1995")); // block at height 99 on mainchain
+        QCOMPARE(blockchain.blockHeightFor(uint256S("00000000cd9b12643e6854cb25939b39cd7a1ad0af31a9bd8b2efe67854b1995")), 99);
         QCOMPARE(blockchain.expectedBlockHeight(), 665);
     }
 
@@ -87,6 +82,7 @@ void TestP2PBlockchain::staticChain()
         Blockchain blockchain(&dlm, basedir, P2PNet::MainChain);
         QCOMPARE(blockchain.height(), 99);
         QCOMPARE(blockchain.block(99).createHash(), uint256S("00000000cd9b12643e6854cb25939b39cd7a1ad0af31a9bd8b2efe67854b1995")); // block at height 99 on mainchain
+        QCOMPARE(blockchain.blockHeightFor(uint256S("00000000cd9b12643e6854cb25939b39cd7a1ad0af31a9bd8b2efe67854b1995")), 99);
         QCOMPARE(blockchain.expectedBlockHeight(), 665);
     }
 
@@ -97,7 +93,9 @@ void TestP2PBlockchain::staticChain()
         Blockchain blockchain(&dlm, basedir, P2PNet::MainChain);
         QCOMPARE(blockchain.height(), 111);
         QCOMPARE(blockchain.block(99).createHash(), uint256S("00000000cd9b12643e6854cb25939b39cd7a1ad0af31a9bd8b2efe67854b1995"));
+        QCOMPARE(blockchain.blockHeightFor(uint256S("00000000cd9b12643e6854cb25939b39cd7a1ad0af31a9bd8b2efe67854b1995")), 99);
         QCOMPARE(blockchain.block(111).createHash(), uint256S("000000004d6a6dd8b882deec7b54421949dddd2c166bd51ee7f62a52091a6c35"));
+        QCOMPARE(blockchain.blockHeightFor(uint256S("000000004d6a6dd8b882deec7b54421949dddd2c166bd51ee7f62a52091a6c35")), 111);
         QCOMPARE(blockchain.expectedBlockHeight(), 662);
     }
 
@@ -108,7 +106,9 @@ void TestP2PBlockchain::staticChain()
         Blockchain blockchain(&dlm, basedir, P2PNet::MainChain);
         QCOMPARE(blockchain.height(), 104);
         QCOMPARE(blockchain.block(99).createHash(), uint256S("00000000cd9b12643e6854cb25939b39cd7a1ad0af31a9bd8b2efe67854b1995"));
+        QCOMPARE(blockchain.blockHeightFor(uint256S("00000000cd9b12643e6854cb25939b39cd7a1ad0af31a9bd8b2efe67854b1995")), 99);
         QCOMPARE(blockchain.block(104).createHash(), uint256S("00000000fb11ef25014e02b315285a22f80c8f97689d7e36d723317defaabe5b"));
+        QCOMPARE(blockchain.blockHeightFor(uint256S("00000000fb11ef25014e02b315285a22f80c8f97689d7e36d723317defaabe5b")), 104);
         QCOMPARE(blockchain.expectedBlockHeight(), 664);
     }
 
@@ -123,6 +123,43 @@ void TestP2PBlockchain::staticChain()
         }
     }
 #endif
+}
+
+void TestP2PBlockchain::blockHeightAtTime()
+{
+    boost::asio::io_service ioService;
+    boost::filesystem::path basedir(m_tmpPath.toStdString());
+    DownloadManager dlm(ioService, basedir, P2PNet::MainChain);
+    auto bytes = prepareStaticFile();
+
+    // block 80 is mined at: 1231646077
+    // asking for time + 3 sec should give us the block after (81).
+    {
+        Blockchain blockchain(&dlm, basedir, P2PNet::MainChain);
+        QCOMPARE(blockchain.blockHeightAtTime(1231646080), 81);
+    }
+
+    // block 101 is mined at 1231661741
+    // block 102 is mined at 1231662670
+    QVERIFY(QFile::copy(QString("%1/headers100-111").arg(SRCDIR), m_tmpPath + "/blockchain"));
+    {
+        Blockchain blockchain(&dlm, basedir, P2PNet::MainChain);
+        QCOMPARE(blockchain.height(), 111);
+        QCOMPARE(blockchain.blockHeightAtTime(1231646080), 81);
+        QCOMPARE(blockchain.blockHeightAtTime(1231662000), 102);
+        QCOMPARE(blockchain.blockHeightAtTime(1800000000), 112);
+    }
+}
+
+QByteArray TestP2PBlockchain::prepareStaticFile()
+{
+    // we copy our static data from a file, more flexible.
+    // Suggestion for real apps is to use something like QResource.
+    QFile staticHeaders(QString("%1/headers0-99").arg(SRCDIR));
+    assert(staticHeaders.open(QIODevice::ReadOnly));
+    QByteArray data = staticHeaders.readAll();
+    Blockchain::setStaticChain(reinterpret_cast<const uint8_t*>(data.constData()), data.size());
+    return data;
 }
 
 QTEST_MAIN(TestP2PBlockchain)
