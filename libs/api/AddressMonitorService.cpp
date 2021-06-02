@@ -117,7 +117,9 @@ void AddressMonitorService::syncAllTransactionsInBlock(const FastBlock &block, C
                 builder.add(Api::AddressMonitor::BitcoinScriptHashed, hash);
             for (auto amount : match.amounts)
                 builder.add(Api::AddressMonitor::Amount, amount);
-            builder.add(Api::AddressMonitor::OffsetInBlock, static_cast<uint64_t>(iter.prevTx().offsetInBlock(block)));
+            auto tx = iter.prevTx();
+            builder.add(Api::AddressMonitor::TxId, tx.createHash());
+            builder.add(Api::AddressMonitor::OffsetInBlock, static_cast<uint64_t>(tx.offsetInBlock(block)));
             builder.add(Api::AddressMonitor::BlockHeight, index->nHeight);
             logDebug(Log::MonitorService) << "Remote" << i->first << "gets" << match.hashes.size() << "tx notification(s) from block";
             rem[i->first]->connection.send(builder.message(Api::AddressMonitorService, Api::AddressMonitor::TransactionFound));
