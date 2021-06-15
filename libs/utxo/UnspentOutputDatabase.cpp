@@ -1,6 +1,6 @@
 /*
  * This file is part of the Flowee project
- * Copyright (C) 2018-2020 Tom Zander <tomz@freedommail.ch>
+ * Copyright (C) 2019-2021 Tom Zander <tom@flowee.org>
  *
  * This program is free software: you can redistribute it and/or modify
  * it under the terms of the GNU General Public License as published by
@@ -751,6 +751,9 @@ UnspentOutput DataFile::find(const uint256 &txid, int index) const
     uint32_t bucketId;
     DEBUGUTXO << txid << index << Log::Hex << shortHash;
     BucketHolder bucketHolder;
+    /* first get the a bucket from the jumptables if its there and try to lock
+     * the bucket in a lock-free manner, looping to try again if it fails to lock.
+     */
     do {
         bucketHolder.unlock();
         {
@@ -761,15 +764,19 @@ UnspentOutput DataFile::find(const uint256 &txid, int index) const
         }
         if (bucketId < MEMBIT) // not in memory
             break;
+        // a successfully locked bucket gives us a BucketHolder, which will ensure we lock again when leaving scope
         bucketHolder = m_buckets.lock(static_cast<int>(bucketId & MEMMASK));
     } while (*bucketHolder == nullptr);
 
     Bucket bucket;
-    if (*bucketHolder) {
+    if (*bucketHolder) { // Bucket found in memory. It is exclusively ours until BucketHolder releases it.
         const Bucket *bucketRef = *bucketHolder;
         for (const OutputRef &ref : bucketRef->unspentOutputs) {
+            // the cheapref is 64 bits, making it even more certain we have the right one before needing another disk-io.
             if ((ref.leafPos & MEMBIT) && ref.cheapHash == cheapHash) {
+                // oh, its in memory already, lets check if the txid AND the index fully match.
                 assert(ref.unspentOutput);
+                // the 'matchesOutput' parses the output while its still encoded.
                 if (matchesOutput(ref.unspentOutput->data(), txid, index)) {// found it!
                     UnspentOutput answer = *ref.unspentOutput;
                     answer.setRmHint(ref.leafPos);
@@ -777,17 +784,17 @@ UnspentOutput DataFile::find(const uint256 &txid, int index) const
                 }
             }
         }
-        bucket.operator=(*bucketRef);
+        bucket.operator=(*bucketRef); // deep copy
     }
     else if (bucketId >= m_file.size()) // disk based bucket, data corruption
         throw UTXOInternalError("Bucket points past end of file.");
-    bucketHolder.unlock();
+    bucketHolder.unlock(); // If it was locked, we now have a deep copy of the bucket
 
     if ((bucketId & MEMBIT) == 0) { // copy from disk
         // disk is immutable, so this is safe outside of the mutex.
         bucket.fillFromDisk(Streaming::ConstBuffer(m_buffer, m_buffer.get() + bucketId, m_buffer.get() + m_file.size()),
                                static_cast<std::int32_t>(bucketId));
-        // FYI: a bucket coming from disk implies all leafs are also on disk.
+        // FYI: a bucket coming from disk implies all leafs are not in memory.
     }
 
     // Only on-disk leafs to check, to do this fast we sort by position on disk for mem-locality.

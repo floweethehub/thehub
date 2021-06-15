@@ -1,6 +1,6 @@
 /*
  * This file is part of the Flowee project
- * Copyright (C) 2019 Tom Zander <tomz@freedommail.ch>
+ * Copyright (C) 2019-2021 Tom Zander <tom@flowee.org>
  *
  * This program is free software: you can redistribute it and/or modify
  * it under the terms of the GNU General Public License as published by
@@ -298,7 +298,7 @@ BucketMap::Iterator &BucketMap::Iterator::operator++()
 {
     while (true) {
         if (d) {
-            if (++i >= d->keys.size()) {
+            if (++i >= d->keys.size()) { // inside one entry we reached the end of the Buckets.
                 p->m[b].store(d, std::memory_order_release);
                 d = nullptr;
                 i = -1;
