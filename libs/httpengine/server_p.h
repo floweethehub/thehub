@@ -1,7 +1,7 @@
 /* This file is part of Flowee
  *
  * Copyright (C) 2017 Nathan Osman
- * Copyright (C) 2019 Tom Zander <tomz@freedommail.ch>
+ * Copyright (C) 2019 Tom Zander <tom@flowee.org>
  *
  * This library is free software; you can redistribute it and/or
  * modify it under the terms of the GNU Library General Public

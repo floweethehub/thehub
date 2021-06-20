@@ -1,6 +1,6 @@
 /*
  * This file is part of the Flowee project
- * Copyright (C) 2018 Tom Zander <tomz@freedommail.ch>
+ * Copyright (C) 2018 Tom Zander <tom@flowee.org>
  * Copyright (C) 2018 Amaury Séchet <deadalnix@gmail.com>
  *
  * This program is free software: you can redistribute it and/or modify

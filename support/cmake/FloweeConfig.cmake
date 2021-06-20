@@ -14,7 +14,7 @@
 #  flowee_p2p
 #  flowee_httpengine
 
-# Copyright (c) 2019-2020 Tom Zander <tomz@freedommail.ch>
+# Copyright (c) 2019-2020 Tom Zander <tom@flowee.org>
 
 
 find_path(FLOWEE_INCLUDE_DIR flowee/utils/WorkerThreads.h

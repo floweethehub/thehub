@@ -2,7 +2,7 @@
  * This file is part of the Flowee project
  * Copyright (C) 2015 G. Andrew Stone
  * Copyright (C) 2016 The Bitcoin Unlimited developers
- * Copyright (C) 2016 Tom Zander <tomz@freedommail.ch>
+ * Copyright (C) 2016 Tom Zander <tom@flowee.org>
  *
  * This program is free software: you can redistribute it and/or modify
  * it under the terms of the GNU General Public License as published by
