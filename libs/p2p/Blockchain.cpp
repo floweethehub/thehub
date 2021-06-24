@@ -27,9 +27,8 @@
 #include <stdexcept>
 
 struct StaticChain {
-    StaticChain() : data(nullptr), size(0) {}
-    const unsigned char *data;
-    int64_t size;
+    const unsigned char *data = nullptr;
+    int64_t size = 0;
 };
 static StaticChain s_staticChain = StaticChain();
 
@@ -454,6 +453,9 @@ void Blockchain::load()
                 auto former = m_blockHeight.find(hd->hashPrevBlock);
                 if (former == m_blockHeight.end()) {
                     logFatal() << "Blockchain ERROR: Loaded blocksdata do not match our chain" << blockHash;
+                    // if you get here, one of the reasons might be that you used to, but no longer have, a static
+                    // headers file.
+                    // Either point to the same (or longer) headers file, or delete the blockheaders to re-download them.
                     abort();
                 }
                 skipNumber = m_longestChain.size() - former->second - 1;
