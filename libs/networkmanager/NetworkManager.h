@@ -1,6 +1,6 @@
 /*
  * This file is part of the Flowee project
- * Copyright (C) 2016, 2019-2020 Tom Zander <tom@flowee.org>
+ * Copyright (C) 2016, 2019-2021 Tom Zander <tom@flowee.org>
  *
  * This program is free software: you can redistribute it and/or modify
  * it under the terms of the GNU General Public License as published by
@@ -82,10 +82,8 @@ public:
 
     /**
      * Listen for incoming connections.
-     * Adds a callback that will be called when a new connection comes in.
      *
-     * New connections are always accepted.
-     * the new connection in your callback handler method.
+     * This is an overload without the callback, new connections are always accepted.
      */
     void bind(const boost::asio::ip::tcp::endpoint &endpoint);
 
