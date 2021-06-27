@@ -287,8 +287,7 @@ private:
     std::unique_ptr<RingBuffer<Message> > m_messageQueue;
     std::unique_ptr<RingBuffer<Message> > m_priorityMessageQueue;
     std::unique_ptr<RingBuffer<Streaming::ConstBuffer> > m_sendQHeaders;
-    int m_messageBytesSend = 0; // future tense
-    int m_messageBytesSent = 0; // past tense
+    int m_messageBytesSend = 0;
 
     Streaming::BufferPool m_receiveStream;
     mutable std::atomic<int> m_lastCallbackId;

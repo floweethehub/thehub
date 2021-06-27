@@ -626,7 +626,6 @@ void NetworkManagerConnection::sentSomeBytes(const boost::system::error_code& er
     if (error) {
         logWarning(Log::NWM) << "send received error" << error.message();
         m_messageBytesSend = 0;
-        m_messageBytesSent = 0;
         m_sendQHeaders->clear();
         m_messageQueue->markAllUnread();
         m_priorityMessageQueue->markAllUnread();
