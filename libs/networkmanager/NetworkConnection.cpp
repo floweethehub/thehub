@@ -114,11 +114,11 @@ EndPoint NetworkConnection::endPoint() const
     return EndPoint();
 }
 
-void NetworkConnection::accept()
+void NetworkConnection::accept(AcceptLimit cl)
 {
     auto d = m_parent.lock();
     if (d && d->isConnected())
-        d->accept();
+        d->accept(cl);
 }
 
 void NetworkConnection::connect()

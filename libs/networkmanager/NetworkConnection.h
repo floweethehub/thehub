@@ -98,9 +98,13 @@ public:
         return m_id;
     }
 
-    /// accepts an incoming connection
-    void accept();
+    enum AcceptLimit {
+        AcceptConnection,
+        AcceptForLogin
+    };
 
+    /// accepts an incoming connection
+    void accept(AcceptLimit cl = AcceptConnection);
 
     enum MessagePriority {
         NormalPriority,

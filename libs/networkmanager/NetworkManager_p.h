@@ -213,7 +213,7 @@ public:
     void shutdown();
 
     /// only incoming connections need accepting.
-    void accept();
+    void accept(NetworkConnection::AcceptLimit limit);
 
     inline void disconnect() {
         close(false);
@@ -293,6 +293,9 @@ private:
     mutable std::atomic<int> m_lastCallbackId;
     std::atomic<bool> m_isClosingDown;
     bool m_firstPacket = true;
+    /// The connection that we used to notify of a new incoming connection is the only
+    /// one that will get the first message, likely for some authentication feature.
+    bool m_firstPackageIsForAcceptConnection = false;
     bool m_isConnecting = false;
     bool m_isConnected;
     bool m_sendingInProgress = false;

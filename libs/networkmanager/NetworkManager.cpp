@@ -946,7 +946,8 @@ bool NetworkManagerConnection::processPacket(const std::shared_ptr<char> &buffer
     std::vector<std::function<void(const Message&)> > callbacks;
     callbacks.reserve(m_onIncomingMessageCallbacks.size());
     for (auto it = m_onIncomingMessageCallbacks.begin(); it != m_onIncomingMessageCallbacks.end(); ++it) {
-        callbacks.push_back(it->second);
+        if (!m_firstPackageIsForAcceptConnection || 1 == it->first) // the first NetworkConnection always has callback id 1
+            callbacks.push_back(it->second);
     }
 
     for (auto &callback : callbacks) {
@@ -961,7 +962,12 @@ bool NetworkManagerConnection::processPacket(const std::shared_ptr<char> &buffer
             break;
     }
     std::list<NetworkServiceBase*> servicesCopy;
-    {
+    if (m_firstPackageIsForAcceptConnection)  {
+        // first package is done
+        m_firstPackageIsForAcceptConnection = false;
+    }
+    else {
+        // Services don't work on connection, so they do not messages filtered for a connection.
         std::lock_guard<std::recursive_mutex> lock(d->mutex);
         servicesCopy = d->services;
     }
@@ -1105,7 +1111,6 @@ void NetworkManagerConnection::close(bool reconnect)
     m_chunkedServiceId = -1;
     m_chunkedHeaderData.clear();
     m_messageBytesSend = 0;
-    m_messageBytesSent = 0;
     m_reconnectDelay.cancel();
     m_resolver.cancel();
     m_sendQHeaders->clear();
@@ -1206,11 +1211,13 @@ void NetworkManagerConnection::shutdown()
     }
 }
 
-void NetworkManagerConnection::accept()
+void NetworkManagerConnection::accept(NetworkConnection::AcceptLimit limit)
 {
     if (m_acceptedConnection)
         return;
     m_acceptedConnection = true;
+    if (limit != NetworkConnection::AcceptConnection)
+        m_firstPackageIsForAcceptConnection  = true;
     allocateBuffers();
 
     // setup a callback for receiving.
