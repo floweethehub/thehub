@@ -1680,7 +1680,7 @@ bool DataFileCache::load(const DataFileCache::InfoFile &info, DataFile *target)
             else if (parser.tag() == UODB::Separator)
                 break;
             else if (parser.tag() != UODB::IsTip) // isTip is purely for external tools, we don't trust that one.
-                logDebug() << "UTOX info file has unrecognized tag" << parser.tag();
+                logDebug() << "UTXO info file has unrecognized tag" << parser.tag();
         }
         posOfJumptable = parser.consumed();
     }
