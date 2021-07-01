@@ -1,6 +1,6 @@
 /*
  * This file is part of the Flowee project
- * Copyright (C) 2016,2018 Tom Zander <tom@flowee.org>
+ * Copyright (C) 2016,2018-2021 Tom Zander <tom@flowee.org>
  *
  * This program is free software: you can redistribute it and/or modify
  * it under the terms of the GNU General Public License as published by
@@ -46,6 +46,13 @@ class BufferPool
 public:
     BufferPool(int m_defaultSize = 256 * 1024);
     BufferPool(BufferPool&& other);
+    /**
+     * Create a buffer pool wrapping an existing data pool.
+     * @param data the pre-allocated buffer.
+     * @param length number of bytes that this pre-allocated buffer is in size.
+     * @param staticBuf if true this bufferpool will not create any new internal buffer when this one if full.
+     *    In such a case, running out of space will result in a runtime exception.
+     */
     BufferPool(std::shared_ptr<char> &data, int length, bool staticBuf);
     BufferPool& operator=(BufferPool&& other);
 
