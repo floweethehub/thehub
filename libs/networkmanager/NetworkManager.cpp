@@ -382,8 +382,7 @@ void NetworkManagerConnection::onConnectComplete(const boost::system::error_code
     m_isConnecting = false;
     if (error) {
         if (error == boost::asio::error::operation_aborted) return;
-        logWarning(Log::NWM).nospace() << "connect[" << m_remote.hostname.c_str() << ":" << m_remote.announcePort
-                                    << "] (" << error.message() << ")";
+        logWarning(Log::NWM) << "connect to" << m_remote << "error:" << error.message();
         if (m_remote.peerPort != m_remote.announcePort) // incoming connection
             return;
         m_reconnectDelay.expires_from_now(boost::posix_time::seconds(reconnectTimeoutForStep(++m_reconnectStep)));

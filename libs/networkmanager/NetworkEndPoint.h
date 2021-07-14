@@ -73,15 +73,21 @@ struct EndPoint
 inline Log::Item operator<<(Log::Item item, const EndPoint &ep) {
     if (item.isEnabled()) {
         const bool old = item.useSpace();
-        item.nospace() << "EndPoint[";
-        if (ep.ipAddress.is_unspecified())
+        item.nospace() << "EndPoint(";
+        if (ep.ipAddress.is_unspecified()) {
             item << ep.hostname;
-        else
+        }
+        else {
+            if (ep.ipAddress.is_v6())
+                item << "[";
             item << ep.ipAddress.to_string().c_str();
+            if (ep.ipAddress.is_v6())
+                item << "]";
+        }
         item << ':' << ep.announcePort;
         if (ep.announcePort != ep.peerPort && ep.peerPort != 0)
             item << '|' << ep.peerPort;
-        item << ']';
+        item << ')';
         if (old)
             return item.space();
     }
