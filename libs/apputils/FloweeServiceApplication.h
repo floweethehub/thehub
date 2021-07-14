@@ -1,6 +1,6 @@
 /*
  * This file is part of the Flowee project
- * Copyright (C) 2019 Tom Zander <tom@flowee.org>
+ * Copyright (C) 2019-2021 Tom Zander <tom@flowee.org>
  *
  * This program is free software: you can redistribute it and/or modify
  * it under the terms of the GNU General Public License as published by
@@ -32,9 +32,44 @@ void HandleSIGHUP(int);
 
 class QTcpServer;
 
+/**
+ * The FloweeServiceApplication is a Qt-CoreApplication inheriting application instance.
+ * This class adds integration with Flowee components like the network manager and the logging
+ * subsystem while keeping the Qt style of working,  for instance it uses the Qt command line
+ * parser.
+ *
+ * There are two 'modes' you can start the app in, either as intended for a headless server
+ * or as a CLI tool (typically a client).
+ *
+ * @code
+ *  FloweeServiceApplication app(argc, argv);
+    app.setOrganizationName("MyComapny");
+    app.setApplicationName("myApp");
+
+    QCommandLineParser parser;
+    parser.setApplicationDescription("Its awesome");
+    parser.addHelpOption(); // allows users to get an overview of options
+    QCommandLineOption conf(QStringList() << "conf", "config file", "FILENAME"); // example config
+    parser.addOption(conf);
+    // this example is a server, lets add some FloweeServiceAplication own user-options.
+    app.addServerOptions(parser, FloweeServiceApplication::NoConnect);
+    parser.process(app.arguments());
+
+    // Now allow the FloweeServiceApplication to process the user-options
+    app.setup("my.log", parser.value(conf));
+ * @endcode
+ */
 class FloweeServiceApplication : public QCoreApplication {
     Q_OBJECT
 public:
+    /**
+     *  The constructor forwards he argc/argv to QCoreApplication and takes a log section.
+     *  The Flowee Logger uses sections, typically one per library or app. By supplying a
+     *  default section here, all the logging done by this class will be done in that same
+     *  section.
+     *
+     *  We advice doing a CMAKE define for LOG_DEFAULT_SECTION to your apps default section integer.
+     */
     FloweeServiceApplication(int &argc, char **argv, short appLogSection = LOG_DEFAULT_SECTION);
     ~FloweeServiceApplication();
 
@@ -45,10 +80,15 @@ public:
     };
     Q_DECLARE_FLAGS(Options, Option)
 
+
+    /// If the app is meant to be a server or service, call this.
     void addServerOptions(QCommandLineParser &parser, Options options = NoOptions);
+    /// If the app is meant to be a CLI tool, call this.
     void addClientOptions(QCommandLineParser &parser, Options options = NoOptions);
+    /// After the QCommandLineParser::process has been called, please call setup()
     void setup(const char *logFilename = nullptr, const QString &configFilePath = QString());
 
+    /// Clients that connect to a server can call this to fetch a parsed EndPoint of the server
     EndPoint serverAddressFromArguments(uint16_t defaultPort) const;
 
     enum DefaultBindOption {
@@ -65,6 +105,7 @@ public:
      */
     QList<boost::asio::ip::tcp::endpoint> bindingEndPoints(QCommandLineParser &parser, uint16_t defaultPort, DefaultBindOption defaultBind = UserSupplied) const;
 
+    /// A server that bound SIGHUP will want to call this in the handler to re-create logfiles and such.
     void handleSigHub() const;
 
     int bindTo(QTcpServer *server, int defaultPort);
