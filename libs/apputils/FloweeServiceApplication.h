@@ -73,10 +73,14 @@ public:
     FloweeServiceApplication(int &argc, char **argv, short appLogSection = LOG_DEFAULT_SECTION);
     ~FloweeServiceApplication();
 
+    /**
+     * The command line options the inherting app wants to make available.
+     * This is list of flags, more than one can be combined.
+     */
     enum Option {
-        NoOptions = 0,
-        NoConnect = 1,
-        NoVerbosity = 2
+        NoOptions = 0, // Add all the standard options.
+        NoConnect = 1, // This skips adding of the `--connect` command line option.
+        NoVerbosity = 2// This skips adding of the --quiet / --verbose command line options.
     };
     Q_DECLARE_FLAGS(Options, Option)
 
@@ -85,7 +89,16 @@ public:
     void addServerOptions(QCommandLineParser &parser, Options options = NoOptions);
     /// If the app is meant to be a CLI tool, call this.
     void addClientOptions(QCommandLineParser &parser, Options options = NoOptions);
-    /// After the QCommandLineParser::process has been called, please call setup()
+    /**
+     * After the QCommandLineParser::process has been called, please call setup()
+     *
+     * For 'client' operation you likely want to pass in no arguments which makes the logging
+     * appear only on stdout/stderr.
+     *
+     * @param logFile when you are creating a server, passing in a filename makes sure
+     * the log lines go to the logname.
+     * @param configFilePath a log-file-config  (logs.conf) directory)
+     */
     void setup(const char *logFilename = nullptr, const QString &configFilePath = QString());
 
     /// Clients that connect to a server can call this to fetch a parsed EndPoint of the server
