@@ -20,6 +20,7 @@
 
 #include "NetworkConnection.h"
 
+#include <mutex>
 #include <boost/asio/io_service.hpp>
 #include <boost/asio/deadline_timer.hpp>
 

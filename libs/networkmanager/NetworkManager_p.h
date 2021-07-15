@@ -35,6 +35,7 @@
 
 #include <list>
 #include <deque>
+#include <mutex>
 #include <atomic>
 #include <boost/date_time/posix_time/ptime.hpp>
 #include <boost/asio.hpp>
