@@ -154,6 +154,12 @@ public:
       */
     void setOnIncomingMessage(const std::function<void(const Message&)> &callback);
 
+    /**
+     * Sets a callback for errors on the connection.
+     * The callback takes two arguments, an int and a boost::system::error_code.
+     * The int is the connectionId() this error happened on, and the errorcode is
+     * what we get from boost::asio.
+     */
     void setOnError(const std::function<void(int,const boost::system::error_code&)> &callback);
 
     /**
