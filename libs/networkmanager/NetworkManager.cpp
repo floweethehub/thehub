@@ -333,6 +333,8 @@ void NetworkManagerConnection::connect_priv()
         return;
     if (m_isClosingDown)
         return;
+    if (m_isConnected)
+        return;
     m_isConnecting = true;
     allocateBuffers();
 
